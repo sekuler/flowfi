@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import type { EIP1193Provider } from "viem";
-import { SEPOLIA_CHAIN_ID } from "../chains";
+
 
 type EIP6963ProviderInfo = { uuid: string; name: string; icon: string; rdns: string; };
 type EIP6963ProviderDetail = { info: EIP6963ProviderInfo; provider: EIP1193Provider; };
