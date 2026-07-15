@@ -39,14 +39,7 @@ export default function WalletConnect({ onConnected }: Props) {
       await wallet.provider.request({ method: "eth_requestAccounts", params: undefined });
       const accounts = (await wallet.provider.request({ method: "eth_accounts", params: undefined })) as string[];
       if (!accounts[0]) throw new Error("No account found.");
-      try {
-        await wallet.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x" + SEPOLIA_CHAIN_ID.toString(16) }] });
-      } catch (switchErr: unknown) {
-        const err = switchErr as { code?: number };
-        if (err.code === 4902) {
-          await wallet.provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: "0x" + SEPOLIA_CHAIN_ID.toString(16), chainName: "Ethereum Sepolia", nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: ["https://rpc.sepolia.org"], blockExplorerUrls: ["https://sepolia.etherscan.io"] }] });
-        } else { throw switchErr; }
-      }
+    
       onConnected(wallet.provider, accounts[0], wallet.info.name);
     } catch (e: unknown) {
       const err = e as { message?: string };
