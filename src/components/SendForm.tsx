@@ -1,17 +1,14 @@
-﻿import { useState, useEffect, useCallback } from "react";
+﻿import { useState } from "react";
 import type { EIP1193Provider } from "viem";
-import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits } from "viem";
-import { AppKit } from "@circle-fin/app-kit";
-import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
+import { createWalletClient, custom, erc20Abi, parseUnits } from "viem";
 import { arcTestnet } from "../chains";
 
-const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as const;
-const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as const;
+const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
+const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const ARC_CHAIN_ID_HEX = "0x4CEF52";
 const TOKENS = ["USDC", "EURC"] as const;
 type Token = (typeof TOKENS)[number];
 const TOKEN_ADDRESSES: Record<Token, `0x${string}`> = { USDC: USDC_ADDRESS, EURC: EURC_ADDRESS };
-const kit = new AppKit();
 
 async function switchToArc(provider: EIP1193Provider) {
   try {
@@ -24,26 +21,22 @@ async function switchToArc(provider: EIP1193Provider) {
   }
 }
 
-interface Props { provider: EIP1193Provider; address: string; }
+interface Props {
+  provider: EIP1193Provider;
+  address: string;
+  balances: { usdc: string | null; eurc: string | null; native: string | null };
+  onRefresh: () => void;
+}
 
-export default function SendForm({ provider, address }: Props) {
+export default function SendForm({ provider, address, balances, onRefresh }: Props) {
   const [token, setToken] = useState<Token>("USDC");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
-  const [balances, setBalances] = useState<Record<Token, string>>({ USDC: "...", EURC: "..." });
   const [sendState, setSendState] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const loadBalances = useCallback(async () => {
-    try {
-      const client = createPublicClient({ chain: arcTestnet, transport: http() });
-      const results = await Promise.all(TOKENS.map((t) => client.readContract({ address: TOKEN_ADDRESSES[t], abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((r) => Number(formatUnits(r, 6)).toFixed(4)).catch(() => "0.0000")));
-      setBalances({ USDC: results[0], EURC: results[1] });
-    } catch { /* ignore */ }
-  }, [address]);
-
-  useEffect(() => { loadBalances(); }, [loadBalances]);
+  const currentBalance = token === "USDC" ? (balances.usdc ?? "...") : (balances.eurc ?? "...");
 
   async function doSend() {
     if (!recipient || !recipient.startsWith("0x") || recipient.length !== 42) { setErrorMsg("Enter a valid wallet address (starts with 0x, 42 chars)."); return; }
@@ -52,18 +45,11 @@ export default function SendForm({ provider, address }: Props) {
     setErrorMsg(null); setSendState("sending"); setTxHash(null);
     try {
       await switchToArc(provider);
-      let hash: string;
-      if (token === "USDC") {
-        const adapter = await createViemAdapterFromProvider({ provider });
-        const result = await kit.send({ from: { adapter, chain: "Arc_Testnet" }, to: recipient, amount: Number(amount).toFixed(6), token: "USDC" });
-        const res = result as unknown as { txHash?: string; transactionHash?: string };
-        hash = res.txHash ?? res.transactionHash ?? "";
-      } else {
-        const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-        hash = await wc.writeContract({ address: EURC_ADDRESS, abi: erc20Abi, functionName: "transfer", args: [recipient as `0x${string}`, parseUnits(amount, 6)], account: address as `0x${string}` });
-      }
+      const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const hash = await wc.writeContract({ address: TOKEN_ADDRESSES[token], abi: erc20Abi, functionName: "transfer", args: [recipient as `0x${string}`, parseUnits(amount, 6)], account: address as `0x${string}` });
       if (!hash) throw new Error("Transaction failed.");
-      setTxHash(hash); setSendState("done"); setAmount(""); setRecipient(""); await loadBalances();
+      setTxHash(hash); setSendState("done"); setAmount(""); setRecipient("");
+      onRefresh();
     } catch (e: unknown) {
       const err = e as { message?: string };
       setErrorMsg(err.message ?? "Unexpected error."); setSendState("error");
@@ -75,17 +61,16 @@ export default function SendForm({ provider, address }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", width: "100%", maxWidth: 460 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        {TOKENS.map((t) => (
+        {(["USDC", "EURC"] as const).map((t) => (
           <div key={t} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "0.6rem 0.75rem", textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>{t} Balance</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: t === "USDC" ? "#3b82f6" : "#6366f1" }}>{balances[t]}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t === "USDC" ? "#3b82f6" : "#6366f1" }}>
+              {t === "USDC" ? (balances.usdc ?? "...") : (balances.eurc ?? "...")}
+            </div>
           </div>
         ))}
       </div>
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", backdropFilter: "blur(10px)" }}>
-        <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "0.5rem 0.75rem" }}>
-          <p style={{ fontSize: 12, color: "#6ee7b7" }}>Send tokens on Arc Testnet. Wallet will switch to Arc automatically.</p>
-        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Token</label>
           <div style={{ display: "flex", gap: 8 }}>
@@ -109,9 +94,9 @@ export default function SendForm({ provider, address }: Props) {
               style={{ flex: 1, background: "transparent", border: "none", outline: "none", padding: "0.75rem 1rem", fontSize: 18, color: "#f1f5f9", fontWeight: 600 }} />
             <span style={{ paddingRight: "1rem", color: "#64748b", fontSize: 14, fontWeight: 600 }}>{token}</span>
           </div>
-          <button onClick={() => setAmount(balances[token])} disabled={isLoading}
+          <button onClick={() => setAmount(currentBalance)} disabled={isLoading}
             style={{ alignSelf: "flex-end", background: "none", border: "none", color: "#60a5fa", fontSize: 12, cursor: "pointer", padding: 0 }}>
-            Max ({balances[token]} {token})
+            Max ({currentBalance} {token})
           </button>
         </div>
         {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
