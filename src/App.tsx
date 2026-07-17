@@ -6,6 +6,7 @@ import WalletConnect from "./components/WalletConnect";
 import BridgeForm from "./components/BridgeForm";
 import SwapForm from "./components/SwapForm";
 import SendForm from "./components/SendForm";
+import TxHistory from "./components/TxHistory";
 
 interface WalletInfo {
   provider: EIP1193Provider;
@@ -20,9 +21,9 @@ interface Balances {
   native: string | null;
 }
 
-type Tab = "portfolio" | "bridge" | "swap" | "send";
+type Tab = "portfolio" | "send" | "swap" | "history" | "bridge";
 
-const KIT_KEY = (import.meta as unknown as { env: Record<string, string> }).env?.VITE_KIT_KEY ?? "";
+
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
@@ -31,6 +32,7 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "portfolio", label: "Portfolio", emoji: "◈" },
   { id: "send",      label: "Send",      emoji: "↗" },
   { id: "swap",      label: "Swap",      emoji: "⇄" },
+  { id: "history",   label: "History",   emoji: "↺" },
   { id: "bridge",    label: "Bridge",    emoji: "⬡" },
 ];
 
@@ -79,7 +81,7 @@ export default function App() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, #4f46e5, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, boxShadow: "0 0 40px rgba(79,70,229,0.3)" }}>◈</div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#f8fafc", letterSpacing: "-0.5px" }}>Arc DeFi</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#f8fafc", letterSpacing: "-0.5px" }}>FlowFi</div>
               <div style={{ fontSize: 11, color: "#4f46e5", fontWeight: 700, letterSpacing: "3px", marginTop: 2 }}>TESTNET</div>
             </div>
           </div>
@@ -115,7 +117,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #4f46e5, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>◈</div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#f8fafc" }}>Arc DeFi</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#f8fafc" }}>FlowFi</div>
               <div style={{ fontSize: 9, color: "#4f46e5", fontWeight: 700, letterSpacing: "2px" }}>TESTNET</div>
             </div>
           </div>
@@ -151,10 +153,10 @@ export default function App() {
         <div style={{ position: "relative", zIndex: 1, maxWidth: 520 }}>
           <div style={{ marginBottom: "2rem" }}>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
-              {tab === "portfolio" ? "Portfolio" : tab === "send" ? "Send" : tab === "swap" ? "Swap" : "Bridge"}
+              {tab === "portfolio" ? "Portfolio" : tab === "send" ? "Send" : tab === "swap" ? "Swap" : tab === "history" ? "History" : "Bridge"}
             </h1>
             <p style={{ fontSize: 13, color: "#334155" }}>
-              {tab === "portfolio" ? "Arc Testnet balances" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "swap" ? "Swap stablecoins via Arfi Finance" : "Bridge from Sepolia to Arc"}
+              {tab === "portfolio" ? "Arc Testnet balances" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "swap" ? "Swap stablecoins via Arfi Finance" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge from Sepolia to Arc"}
             </p>
           </div>
 
@@ -196,8 +198,9 @@ export default function App() {
             </div>
           )}
 
+          {tab === "history" && <TxHistory address={wallet.address} />}
           {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} />}
-          {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} kitKey={KIT_KEY} />}
+          {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
           {tab === "send" && <SendForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
         </div>
       </main>

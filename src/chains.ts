@@ -10,7 +10,7 @@ export const arcTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.testnet.arc.network"],
+      http: ["https://5042002.rpc.thirdweb.com"],
       webSocket: ["wss://rpc.testnet.arc.network"],
     },
   },
@@ -31,3 +31,4 @@ export const ARC_USDC_ADDRESS =
 
 export const SEPOLIA_CHAIN_ID = 11155111;
 export const ARC_TESTNET_CHAIN_ID = 5042002;
+export const ARC_CHAIN_ID_HEX = "0x4CEF52"; 
