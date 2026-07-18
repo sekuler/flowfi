@@ -8,6 +8,12 @@ const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string
 const TOKENS = ["USDC", "EURC"] as const;
 type Token = (typeof TOKENS)[number];
 const TOKEN_ADDRESSES: Record<Token, `0x${string}`> = { USDC: USDC_ADDRESS, EURC: EURC_ADDRESS };
+const ADDRESS_BOOK_KEY = "flowfi-address-book";
+
+interface Contact {
+  name: string;
+  address: string;
+}
 
 async function switchToArc(provider: EIP1193Provider) {
   try {
@@ -18,6 +24,18 @@ async function switchToArc(provider: EIP1193Provider) {
       await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.testnet.arc.network"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
     } else throw e;
   }
+}
+
+function loadContacts(): Contact[] {
+  try {
+    return JSON.parse(localStorage.getItem(ADDRESS_BOOK_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveContacts(contacts: Contact[]) {
+  localStorage.setItem(ADDRESS_BOOK_KEY, JSON.stringify(contacts));
 }
 
 interface Props {
@@ -48,6 +66,13 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
   const [sendState, setSendState] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [showAddressBook, setShowAddressBook] = useState(false);
+  const [showSaveContact, setShowSaveContact] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+
+  useEffect(() => { setContacts(loadContacts()); }, []);
 
   const currentBalance = token === "USDC" ? (balances.usdc ?? "...") : (balances.eurc ?? "...");
   const isArcName = recipient.endsWith(".arc") || recipient.endsWith(".circle");
@@ -82,6 +107,37 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
       setResolveError(null);
     }
   }, [recipient, isArcName, resolveName]);
+
+  async function pasteAddress() {
+    try {
+      const text = await navigator.clipboard.readText();
+      setRecipient(text.trim());
+    } catch {
+      setErrorMsg("Could not read clipboard. Paste manually.");
+    }
+  }
+
+  function pickContact(contact: Contact) {
+    setRecipient(contact.address);
+    setShowAddressBook(false);
+  }
+
+  function saveCurrentContact() {
+    if (!newContactName.trim() || !recipient) return;
+    const addr = isArcName ? resolvedAddress : recipient;
+    if (!addr || !addr.startsWith("0x")) return;
+    const updated = [...contacts.filter(c => c.address.toLowerCase() !== addr.toLowerCase()), { name: newContactName.trim(), address: addr }];
+    setContacts(updated);
+    saveContacts(updated);
+    setNewContactName("");
+    setShowSaveContact(false);
+  }
+
+  function deleteContact(addr: string) {
+    const updated = contacts.filter(c => c.address.toLowerCase() !== addr.toLowerCase());
+    setContacts(updated);
+    saveContacts(updated);
+  }
 
   async function parseAiCommand() {
     if (!aiCommand.trim()) return;
@@ -174,6 +230,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
   }
 
   const isLoading = sendState === "sending";
+  const canSaveContact = !!effectiveAddress && effectiveAddress.startsWith("0x") && effectiveAddress.length === 42;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", width: "100%", maxWidth: 460 }}>
@@ -197,7 +254,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
             disabled={aiParsing || isLoading}
             style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.65rem 0.9rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
           <button onClick={parseAiCommand} disabled={aiParsing || isLoading || !aiCommand.trim()}
-            style={{ padding: "0.65rem 1rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7c3aed, #8b5cf6)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: aiParsing || !aiCommand.trim() ? "not-allowed" : "pointer", opacity: aiParsing || !aiCommand.trim() ? 0.6 : 1 }}>
+            style={{ padding: "0.65rem 1.1rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7c3aed, #8b5cf6)", color: "#fff", fontSize: 18, fontWeight: 900, cursor: aiParsing || !aiCommand.trim() ? "not-allowed" : "pointer", opacity: aiParsing || !aiCommand.trim() ? 0.6 : 1 }}>
             {aiParsing ? "..." : "➢"}
           </button>
         </div>
@@ -217,8 +274,39 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
             ))}
           </div>
         </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Recipient Address or .arc Name</label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Recipient Address or .arc Name</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={pasteAddress} disabled={isLoading}
+                style={{ background: "none", border: "none", color: "#60a5fa", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                Paste
+              </button>
+              <button onClick={function () { setShowAddressBook(!showAddressBook); }} disabled={isLoading}
+                style={{ background: "none", border: "none", color: "#a78bfa", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                Address Book {contacts.length > 0 ? `(${contacts.length})` : ""}
+              </button>
+            </div>
+          </div>
+
+          {showAddressBook && (
+            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.5rem", display: "flex", flexDirection: "column", gap: 4, maxHeight: 160, overflowY: "auto" }}>
+              {contacts.length === 0 && (
+                <span style={{ fontSize: 11, color: "#334155", padding: "0.5rem" }}>No saved contacts yet.</span>
+              )}
+              {contacts.map((c) => (
+                <div key={c.address} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0.5rem", borderRadius: 8 }}>
+                  <button onClick={function () { pickContact(c); }} style={{ flex: 1, textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>{c.name}</div>
+                    <div style={{ fontSize: 10, color: "#475569", fontFamily: "monospace" }}>{c.address.slice(0, 8)}...{c.address.slice(-6)}</div>
+                  </button>
+                  <button onClick={function () { deleteContact(c.address); }} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, padding: "0 6px" }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <input type="text" placeholder="0x... or alice.arc" value={recipient} onChange={function (e) { setRecipient(e.target.value); }} disabled={isLoading}
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 14, color: "#f1f5f9", outline: "none", fontFamily: "monospace" }} />
           {isArcName && resolving && (
@@ -230,7 +318,22 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
           {isArcName && resolveError && !resolving && (
             <span style={{ fontSize: 11, color: "#fca5a5" }}>{resolveError}</span>
           )}
+
+          {canSaveContact && !showSaveContact && (
+            <button onClick={function () { setShowSaveContact(true); }}
+              style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#818cf8", fontSize: 11, cursor: "pointer", padding: 0 }}>
+              + Save to address book
+            </button>
+          )}
+          {showSaveContact && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <input type="text" placeholder="Contact name" value={newContactName} onChange={function (e) { setNewContactName(e.target.value); }}
+                style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: 12, color: "#f1f5f9", outline: "none" }} />
+              <button onClick={saveCurrentContact} style={{ padding: "0.5rem 0.75rem", borderRadius: 8, border: "none", background: "#4f46e5", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
+            </div>
+          )}
         </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Amount</label>
           <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
@@ -243,6 +346,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
             Max ({currentBalance} {token})
           </button>
         </div>
+
         {errorMsg && (
           <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>
             {errorMsg}
