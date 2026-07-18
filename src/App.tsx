@@ -199,9 +199,13 @@ export default function App() {
           <button onClick={() => setWallet(null)} style={{ marginTop: 10, fontSize: 11, color: "#334155", background: "none", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", width: "100%" }}>Disconnect</button>
         </div>
         <div style={{ padding: "0.75rem 1.25rem", display: "flex", flexDirection: "column", gap: 6 }}>
-          {[{ label: "arc.io", href: "https://www.arc.io" }, { label: "Explorer", href: "https://testnet.arcscan.app" }, { label: "Faucet", href: "https://faucet.circle.com" }].map(({ label, href }) => (
-            <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#1e293b", fontSize: 11, textDecoration: "none" }}>{label} ↗</a>
-          ))}
+          {[
+  { label: "arc.io", href: "https://www.arc.io", color: "#818cf8" },
+  { label: "Explorer", href: "https://testnet.arcscan.app", color: "#60a5fa" },
+  { label: "Faucet", href: "https://faucet.circle.com", color: "#6ee7b7" },
+].map(({ label, href, color }) => (
+  <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>{label} ↗</a>
+))}
         </div>
       </aside>
 
