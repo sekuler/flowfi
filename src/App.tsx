@@ -28,7 +28,7 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "portfolio" | "dashboard" | "send" | "swap" | "history" | "bridge";
+type Tab = "portfolio" | "send" | "swap" | "dashboard" | "history" | "bridge";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
@@ -58,6 +58,7 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
+  const [eurUsdRate, setEurUsdRate] = useState<number | null>(null);
 
   function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
     setWallet({ provider, address, walletName });
@@ -101,10 +102,21 @@ export default function App() {
     }
   }
 
+  async function loadEurRate() {
+    try {
+      const res = await fetch("https://api.frankfurter.app/latest?from=EUR&to=USD");
+      const data = await res.json();
+      if (data.rates?.USD) setEurUsdRate(data.rates.USD);
+    } catch {
+      /* ignore, USD estimate will just be skipped */
+    }
+  }
+
   useEffect(() => {
     if (wallet) {
       loadBalances(wallet.address);
       loadRecentTxs(wallet.address);
+      loadEurRate();
     }
   }, [wallet]);
 
@@ -123,6 +135,20 @@ export default function App() {
     USYC: { icon: "Y", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
   };
 
+  function usdEquivalent(label: string, value: string | null): string | null {
+    if (value === null || value === "—") return null;
+    const num = Number(value);
+    if (isNaN(num)) return null;
+    if (label === "USDC") return `$${num.toFixed(2)}`;
+    if (label === "USYC") return `~$${num.toFixed(2)}`;
+    
+    if (label === "EURC") {
+  const rate = eurUsdRate ?? 1.08;
+  return `~$${(num * rate).toFixed(2)}`;
+}
+    return null;
+  }
+
   if (!wallet) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#080b14", padding: "2rem", fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -136,12 +162,12 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-            {[
-              { label: "Portfolio", color: "#6366f1" },
-              { label: "Send USDC · EURC", color: "#10b981" },
-              { label: "Swap USDC/EURC", color: "#8b5cf6" },
-              { label: "Bridge", color: "#3b82f6" },
-            ].map(({ label, color }) => (
+           {[
+  { label: "Portfolio", color: "#6366f1" },
+  { label: "Send", color: "#10b981" },
+  { label: "Swap", color: "#8b5cf6" },
+  { label: "Bridge", color: "#3b82f6" },
+].map(({ label, color }) => (
               <div key={label} style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, color, background: `${color}18`, border: `1px solid ${color}30`, fontWeight: 600 }}>{label}</div>
             ))}
           </div>
@@ -200,12 +226,12 @@ export default function App() {
         </div>
         <div style={{ padding: "0.75rem 1.25rem", display: "flex", flexDirection: "column", gap: 6 }}>
           {[
-  { label: "arc.io", href: "https://www.arc.io", color: "#818cf8" },
-  { label: "Explorer", href: "https://testnet.arcscan.app", color: "#60a5fa" },
-  { label: "Faucet", href: "https://faucet.circle.com", color: "#6ee7b7" },
-].map(({ label, href, color }) => (
-  <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>{label} ↗</a>
-))}
+            { label: "arc.io", href: "https://www.arc.io", color: "#818cf8" },
+            { label: "Explorer", href: "https://testnet.arcscan.app", color: "#60a5fa" },
+            { label: "Faucet", href: "https://faucet.circle.com", color: "#6ee7b7" },
+          ].map(({ label, href, color }) => (
+            <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>{label} ↗</a>
+          ))}
         </div>
       </aside>
 
@@ -226,6 +252,7 @@ export default function App() {
                 {(["USDC", "EURC", "USYC"] as const).map((label) => {
                   const value = label === "USDC" ? balances.usdc : label === "EURC" ? balances.eurc : balances.usyc;
                   const meta = TOKEN_META[label];
+                  const usd = usdEquivalent(label, value);
                   return (
                     <div key={label} style={{ background: meta.bg, border: `1px solid ${meta.color}20`, borderRadius: 14, padding: "1.25rem" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -233,7 +260,7 @@ export default function App() {
                         <div style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "1px" }}>{label}</div>
                       </div>
                       <div style={{ fontSize: 22, fontWeight: 800, color: meta.color }}>{value === null ? "..." : value}</div>
-                      <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Arc Testnet</div>
+                      <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>{usd ?? "Arc Testnet"}</div>
                     </div>
                   );
                 })}
