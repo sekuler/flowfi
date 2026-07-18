@@ -16,15 +16,15 @@ interface Props {
   address: string;
 }
 
-async function check() {
+async function switchToArc(provider: EIP1193Provider) {
   try {
-    const client = createPublicClient({ chain: arcTestnet, transport: http() });
-    const owner = await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "owner" });
-    console.log("Contract owner:", owner, "My address:", address);
-    setIsOwner((owner as string).toLowerCase() === address.toLowerCase());
-    const rate = await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "usdcToEurcRate" });
-    setCurrentRate((Number(rate) / 1e6).toFixed(4));
-  } catch (e) { console.log("AdminRate error:", e); }
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX }] });
+  } catch (e: unknown) {
+    const err = e as { code?: number };
+    if (err.code === 4902) {
+      await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.testnet.arc.network"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
+    } else throw e;
+  }
 }
 
 export default function AdminRate({ provider, address }: Props) {
@@ -42,7 +42,7 @@ export default function AdminRate({ provider, address }: Props) {
         setIsOwner((owner as string).toLowerCase() === address.toLowerCase());
         const rate = await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "usdcToEurcRate" });
         setCurrentRate((Number(rate) / 1e6).toFixed(4));
-      } catch (e) { console.log("AdminRate error:", e); }
+      } catch { /* ignore */ }
     }
     check();
   }, [address]);
