@@ -8,6 +8,7 @@ import SwapForm from "./components/SwapForm";
 import SendForm from "./components/SendForm";
 import TxHistory from "./components/TxHistory";
 import Dashboard from "./components/Dashboard";
+import ReceiveQR from "./components/ReceiveQR";
 
 interface WalletInfo {
   provider: EIP1193Provider;
@@ -28,7 +29,7 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "portfolio" | "send" | "swap" | "dashboard" | "history" | "bridge";
+type Tab = "portfolio" | "send" | "receive" | "swap" | "dashboard" | "history" | "bridge";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
@@ -37,6 +38,7 @@ const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
 const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "portfolio", label: "Portfolio", emoji: "◈" },
   { id: "send",      label: "Send",      emoji: "↗" },
+  { id: "receive",   label: "Receive",   emoji: "↙" },
   { id: "swap",      label: "Swap",      emoji: "⇄" },
   { id: "dashboard", label: "Dashboard", emoji: "▤" },
   { id: "history",   label: "History",   emoji: "↺" },
@@ -108,7 +110,7 @@ export default function App() {
       const data = await res.json();
       if (data.rates?.USD) setEurUsdRate(data.rates.USD);
     } catch {
-      /* ignore, USD estimate will just be skipped */
+      /* ignore */
     }
   }
 
@@ -141,11 +143,10 @@ export default function App() {
     if (isNaN(num)) return null;
     if (label === "USDC") return `$${num.toFixed(2)}`;
     if (label === "USYC") return `~$${num.toFixed(2)}`;
-    
     if (label === "EURC") {
-  const rate = eurUsdRate ?? 1.08;
-  return `~$${(num * rate).toFixed(2)}`;
-}
+      const rate = eurUsdRate ?? 1.08;
+      return `~$${(num * rate).toFixed(2)}`;
+    }
     return null;
   }
 
@@ -162,12 +163,12 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-           {[
-  { label: "Portfolio", color: "#6366f1" },
-  { label: "Send", color: "#10b981" },
-  { label: "Swap", color: "#8b5cf6" },
-  { label: "Bridge", color: "#3b82f6" },
-].map(({ label, color }) => (
+            {[
+              { label: "Portfolio", color: "#6366f1" },
+              { label: "Send", color: "#10b981" },
+              { label: "Swap", color: "#8b5cf6" },
+              { label: "Bridge", color: "#3b82f6" },
+            ].map(({ label, color }) => (
               <div key={label} style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, color, background: `${color}18`, border: `1px solid ${color}30`, fontWeight: 600 }}>{label}</div>
             ))}
           </div>
@@ -239,10 +240,10 @@ export default function App() {
         <div style={{ position: "relative", zIndex: 1, maxWidth: 520, margin: "0 auto" }}>
           <div style={{ marginBottom: "2rem" }}>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
-              {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "swap" ? "Swap" : tab === "history" ? "History" : "Bridge"}
+              {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "history" ? "History" : "Bridge"}
             </h1>
             <p style={{ fontSize: 13, color: "#334155" }}>
-              {tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge from Sepolia to Arc"}
+              {tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge from Sepolia to Arc"}
             </p>
           </div>
 
@@ -287,8 +288,8 @@ export default function App() {
                 <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, letterSpacing: "1px", marginBottom: 10 }}>QUICK ACTIONS</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => setTab("send")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(16,185,129,0.2)", background: "rgba(16,185,129,0.06)", color: "#10b981", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↗ Send</button>
+                  <button onClick={() => setTab("receive")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(79,70,229,0.2)", background: "rgba(79,70,229,0.06)", color: "#818cf8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↙ Receive</button>
                   <button onClick={() => setTab("swap")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(139,92,246,0.2)", background: "rgba(139,92,246,0.06)", color: "#8b5cf6", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>⇄ Swap</button>
-                  <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(59,130,246,0.2)", background: "rgba(59,130,246,0.06)", color: "#3b82f6", fontSize: 13, fontWeight: 600, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>⬡ Faucet</a>
                 </div>
               </div>
 
@@ -320,6 +321,7 @@ export default function App() {
 
           {tab === "dashboard" && <Dashboard address={wallet.address} balances={balances} />}
           {tab === "history" && <TxHistory address={wallet.address} />}
+          {tab === "receive" && <ReceiveQR address={wallet.address} />}
           {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} />}
           {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
           {tab === "send" && <SendForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
