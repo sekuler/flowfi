@@ -7,6 +7,7 @@ import BridgeForm from "./components/BridgeForm";
 import SwapForm from "./components/SwapForm";
 import SendForm from "./components/SendForm";
 import TxHistory from "./components/TxHistory";
+import Dashboard from "./components/Dashboard";
 
 interface WalletInfo {
   provider: EIP1193Provider;
@@ -21,8 +22,13 @@ interface Balances {
   native: string | null;
 }
 
-type Tab = "portfolio" | "send" | "swap" | "history" | "bridge";
+interface RecentTx {
+  hash: string;
+  method: string;
+  age: string;
+}
 
+type Tab = "portfolio" | "dashboard" | "send" | "swap" | "history" | "bridge";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
@@ -32,14 +38,26 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "portfolio", label: "Portfolio", emoji: "◈" },
   { id: "send",      label: "Send",      emoji: "↗" },
   { id: "swap",      label: "Swap",      emoji: "⇄" },
+  { id: "dashboard", label: "Dashboard", emoji: "▤" },
   { id: "history",   label: "History",   emoji: "↺" },
   { id: "bridge",    label: "Bridge",    emoji: "⬡" },
 ];
+
+function timeAgo(sec: number) {
+  const diff = Math.floor(Date.now() / 1000) - sec;
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 export default function App() {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [tab, setTab] = useState<Tab>("portfolio");
   const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, native: null });
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
 
   function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
     setWallet({ provider, address, walletName });
@@ -62,16 +80,48 @@ export default function App() {
         usyc: Number(formatUnits(usyc as bigint, 6)).toFixed(2),
         native: Number(formatUnits(native as bigint, 18)).toFixed(4),
       });
+      setLastUpdated(Math.floor(Date.now() / 1000));
     } catch {
       setBalances({ usdc: "—", eurc: "—", usyc: "—", native: "—" });
     }
   }
 
+  async function loadRecentTxs(address: string) {
+    try {
+      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${address}&limit=3`);
+      const data = await res.json();
+      const items: RecentTx[] = (data.result ?? []).slice(0, 3).map((tx: any) => ({
+        hash: tx.hash,
+        method: tx.methodId === "0x" ? "Contract Deploy" : (tx.methodId && tx.methodId !== "0x" ? "Transaction" : "Transfer"),
+        age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—",
+      }));
+      setRecentTxs(items);
+    } catch {
+      setRecentTxs([]);
+    }
+  }
+
   useEffect(() => {
-    if (wallet) loadBalances(wallet.address);
+    if (wallet) {
+      loadBalances(wallet.address);
+      loadRecentTxs(wallet.address);
+    }
   }, [wallet]);
 
+  function copyAddress() {
+    if (!wallet) return;
+    navigator.clipboard.writeText(wallet.address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
   const shortAddr = wallet ? wallet.address.slice(0, 6) + "..." + wallet.address.slice(-4) : "";
+
+  const TOKEN_META: Record<string, { icon: string; color: string; bg: string }> = {
+    USDC: { icon: "$", color: "#2563eb", bg: "rgba(37,99,235,0.08)" },
+    EURC: { icon: "€", color: "#7c3aed", bg: "rgba(124,58,237,0.08)" },
+    USYC: { icon: "Y", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
+  };
 
   if (!wallet) {
     return (
@@ -138,7 +188,13 @@ export default function App() {
         </nav>
         <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: "auto" }}>
           <div style={{ fontSize: 10, color: "#334155", marginBottom: 4, fontWeight: 600, letterSpacing: "1px" }}>CONNECTED</div>
-          <div style={{ fontSize: 13, color: "#475569", fontFamily: "monospace" }}>{shortAddr}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ fontSize: 13, color: "#475569", fontFamily: "monospace" }}>{shortAddr}</div>
+            <button onClick={copyAddress} title="Copy address"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: copied ? "#6ee7b7" : "#475569", fontSize: 12 }}>
+              {copied ? "✓" : "⧉"}
+            </button>
+          </div>
           <div style={{ fontSize: 11, color: "#1e293b", marginTop: 2 }}>{wallet.walletName}</div>
           <button onClick={() => setWallet(null)} style={{ marginTop: 10, fontSize: 11, color: "#334155", background: "none", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", width: "100%" }}>Disconnect</button>
         </div>
@@ -153,36 +209,49 @@ export default function App() {
         <div style={{ position: "relative", zIndex: 1, maxWidth: 520, margin: "0 auto" }}>
           <div style={{ marginBottom: "2rem" }}>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
-              {tab === "portfolio" ? "Portfolio" : tab === "send" ? "Send" : tab === "swap" ? "Swap" : tab === "history" ? "History" : "Bridge"}
+              {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "swap" ? "Swap" : tab === "history" ? "History" : "Bridge"}
             </h1>
             <p style={{ fontSize: 13, color: "#334155" }}>
-              {tab === "portfolio" ? "Arc Testnet balances" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge from Sepolia to Arc"}
+              {tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge from Sepolia to Arc"}
             </p>
           </div>
 
           {tab === "portfolio" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
-                {[
-                  { label: "USDC", value: balances.usdc, color: "#2563eb", bg: "rgba(37,99,235,0.08)" },
-                  { label: "EURC", value: balances.eurc, color: "#7c3aed", bg: "rgba(124,58,237,0.08)" },
-                  { label: "USYC", value: balances.usyc, color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
-                ].map(({ label, value, color, bg }) => (
-                  <div key={label} style={{ background: bg, border: `1px solid ${color}20`, borderRadius: 14, padding: "1.25rem" }}>
-                    <div style={{ fontSize: 11, color: "#475569", fontWeight: 600, marginBottom: 8, letterSpacing: "1px" }}>{label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color }}>{value === null ? "..." : value}</div>
-                    <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Arc Testnet</div>
-                  </div>
-                ))}
+                {(["USDC", "EURC", "USYC"] as const).map((label) => {
+                  const value = label === "USDC" ? balances.usdc : label === "EURC" ? balances.eurc : balances.usyc;
+                  const meta = TOKEN_META[label];
+                  return (
+                    <div key={label} style={{ background: meta.bg, border: `1px solid ${meta.color}20`, borderRadius: 14, padding: "1.25rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                        <div style={{ width: 20, height: 20, borderRadius: "50%", background: meta.color, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{meta.icon}</div>
+                        <div style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "1px" }}>{label}</div>
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: meta.color }}>{value === null ? "..." : value}</div>
+                      <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Arc Testnet</div>
+                    </div>
+                  );
+                })}
               </div>
+
               <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>NATIVE</div>
-                  <div style={{ fontSize: 13, color: "#475569" }}>Gas token</div>
+                  <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>ARC</div>
+                  <div style={{ fontSize: 13, color: "#475569" }}>Gas Balance</div>
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#64748b" }}>{balances.native === null ? "..." : balances.native}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#64748b" }}>{balances.native === null ? "..." : `${balances.native} ARC`}</div>
               </div>
-              <button onClick={() => loadBalances(wallet.address)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.6rem", color: "#334155", fontSize: 12, cursor: "pointer" }}>Refresh balances</button>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button onClick={() => loadBalances(wallet.address)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.5rem 1rem", color: "#334155", fontSize: 12, cursor: "pointer" }}>
+                  ↻ Refresh
+                </button>
+                {lastUpdated && (
+                  <span style={{ fontSize: 11, color: "#1e293b" }}>Updated {timeAgo(lastUpdated)}</span>
+                )}
+              </div>
+
               <div>
                 <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, letterSpacing: "1px", marginBottom: 10 }}>QUICK ACTIONS</div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -191,13 +260,34 @@ export default function App() {
                   <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(59,130,246,0.2)", background: "rgba(59,130,246,0.06)", color: "#3b82f6", fontSize: 13, fontWeight: 600, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>⬡ Faucet</a>
                 </div>
               </div>
-              <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderRadius: 10, border: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)", color: "#334155", textDecoration: "none", fontSize: 12 }}>
-                <span>View on Explorer</span>
-                <span style={{ fontFamily: "monospace", fontSize: 11 }}>{shortAddr} ↗</span>
+
+              {recentTxs.length > 0 && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, letterSpacing: "1px" }}>RECENT ACTIVITY</span>
+                    <button onClick={() => setTab("history")} style={{ background: "none", border: "none", color: "#4f46e5", fontSize: 11, cursor: "pointer" }}>View all →</button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {recentTxs.map((tx) => (
+                      <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
+                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}>
+                        <span style={{ fontSize: 12, color: "#94a3b8" }}>{tx.method}</span>
+                        <span style={{ fontSize: 11, color: "#334155" }}>{tx.age}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderRadius: 10, border: "1px solid rgba(79,70,229,0.25)", background: "rgba(79,70,229,0.06)", color: "#818cf8", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+                <span>View on Explorer ↗</span>
+                <span style={{ fontFamily: "monospace", fontSize: 11, color: "#4f46e5" }}>{shortAddr}</span>
               </a>
             </div>
           )}
 
+          {tab === "dashboard" && <Dashboard address={wallet.address} balances={balances} />}
           {tab === "history" && <TxHistory address={wallet.address} />}
           {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} />}
           {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
