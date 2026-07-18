@@ -30,11 +30,6 @@ function timeAgo(sec: number) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function shortAddr(addr: string) {
-  if (!addr || addr === "—") return "—";
-  return addr.slice(0, 6) + "..." + addr.slice(-4);
-}
-
 function methodMeta(methodId: string) {
   return METHOD_META[methodId] ?? { label: "Transfer", color: "#94a3b8", bg: "rgba(148,163,184,0.1)" };
 }

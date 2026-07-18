@@ -202,7 +202,7 @@ export default function App() {
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", gap: 2 }}>
           {TABS.map(({ id, label, emoji }) => {
             const active = tab === id;
-            const disabled = id === "bridge";
+            const disabled = false;
             return (
               <button key={id} onClick={() => !disabled && setTab(id)}
                 style={{ width: "100%", padding: "0.65rem 1rem", borderRadius: 10, border: "none", background: active ? "rgba(79,70,229,0.15)" : "transparent", color: active ? "#a5b4fc" : disabled ? "#1e293b" : "#64748b", fontSize: 14, fontWeight: active ? 700 : 500, cursor: disabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left", borderLeft: active ? "2px solid #4f46e5" : "2px solid transparent" }}>
