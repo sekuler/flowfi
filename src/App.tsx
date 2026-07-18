@@ -150,7 +150,7 @@ export default function App() {
       </aside>
 
       <main style={{ marginLeft: 220, flex: 1, padding: "2.5rem", minHeight: "100vh" }}>
-        <div style={{ position: "relative", zIndex: 1, maxWidth: 520 }}>
+        <div style={{ position: "relative", zIndex: 1, maxWidth: 520, margin: "0 auto" }}>
           <div style={{ marginBottom: "2rem" }}>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
               {tab === "portfolio" ? "Portfolio" : tab === "send" ? "Send" : tab === "swap" ? "Swap" : tab === "history" ? "History" : "Bridge"}
