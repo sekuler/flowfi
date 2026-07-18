@@ -14,6 +14,7 @@ const SWAP_ABI = [
   { type: "function", name: "swapEurcToUsdc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }], outputs: [] },
   { type: "function", name: "getEurcOut", stateMutability: "view", inputs: [{ name: "usdcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "getUsdcOut", stateMutability: "view", inputs: [{ name: "eurcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "usdcToEurcRate", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
 ] as const;
 
 const TOKENS = ["USDC", "EURC"] as const;
@@ -46,6 +47,10 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [poolRate, setPoolRate] = useState<number | null>(null);
+  const [marketRate, setMarketRate] = useState<number | null>(null);
+  const [rateStale, setRateStale] = useState(false);
+
   const currentBalance = tokenIn === "USDC" ? (balances.usdc ?? "...") : (balances.eurc ?? "...");
 
   const estimate = useCallback(async () => {
@@ -63,6 +68,29 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   }, [amount, tokenIn]);
 
   useEffect(() => { estimate(); }, [estimate]);
+
+  useEffect(() => {
+    async function checkRates() {
+      try {
+        const client = createPublicClient({ chain: arcTestnet, transport: http() });
+        const rate = await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "usdcToEurcRate" });
+        const pool = Number(rate) / 1e6;
+        setPoolRate(pool);
+
+        const res = await fetch("https://api.frankfurter.app/latest?from=USD&to=EUR");
+        const data = await res.json();
+        const market = data.rates?.EUR;
+        if (market) {
+          setMarketRate(market);
+          const diff = Math.abs(pool - market) / market;
+          setRateStale(diff > 0.01);
+        }
+      } catch {
+        /* ignore, silently skip staleness check */
+      }
+    }
+    checkRates();
+  }, []);
 
   function flipTokens() {
     setTokenIn(tokenOut);
@@ -146,6 +174,14 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
           </div>
         </div>
 
+        {rateStale && (
+          <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "0.65rem 0.8rem" }}>
+            <p style={{ fontSize: 12, color: "#fca5a5", margin: 0 }}>
+              ⚠️ Pool rate ({poolRate?.toFixed(4)}) differs from live market rate ({marketRate?.toFixed(4)}) by more than 1%. This swap uses the pool's fixed rate, not the live market rate.
+            </p>
+          </div>
+        )}
+
         <SwapAdvisor tokenIn={tokenIn} tokenOut={tokenOut} amountIn={amount} amountOut={estimatedOut} />
 
         {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
@@ -176,7 +212,11 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       </div>
 
       <div style={{ background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-        <p style={{ fontSize: 12, color: "#a78bfa" }}>Rate: 1 USDC ≈ 0.874 EURC · Powered by ArcSwap</p>
+        <p style={{ fontSize: 12, color: "#a78bfa" }}>
+          Pool rate: 1 USDC ≈ {poolRate?.toFixed(4) ?? "..."} EURC
+          {marketRate && <span style={{ color: "#64748b" }}> · Live market: {marketRate.toFixed(4)}</span>}
+          {" · Powered by ArcSwap"}
+        </p>
         <AdminRate provider={provider} address={address} />
       </div>
     </div>

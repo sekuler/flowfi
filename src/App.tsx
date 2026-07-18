@@ -89,7 +89,7 @@ export default function App() {
             {[
               { label: "Portfolio", color: "#6366f1" },
               { label: "Send USDC · EURC", color: "#10b981" },
-              { label: "Swap via Arfi", color: "#8b5cf6" },
+              { label: "Swap USDC/EURC", color: "#8b5cf6" },
               { label: "Bridge", color: "#3b82f6" },
             ].map(({ label, color }) => (
               <div key={label} style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, color, background: `${color}18`, border: `1px solid ${color}30`, fontWeight: 600 }}>{label}</div>
