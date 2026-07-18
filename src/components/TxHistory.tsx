@@ -13,6 +13,19 @@ interface Props {
   address: string;
 }
 
+function timeAgo(timestamp: number) {
+  const diff = Math.floor(Date.now() / 1000) - timestamp;
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function shortAddr(addr: string) {
+  if (!addr || addr === "—") return "—";
+  return addr.slice(0, 6) + "..." + addr.slice(-4);
+}
+
 export default function TxHistory({ address }: Props) {
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,13 +37,13 @@ export default function TxHistory({ address }: Props) {
       const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${address}&limit=20`);
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      const items = (data.items ?? []).map((tx: any) => ({
+      const items: Tx[] = (data.result ?? []).map((tx: any) => ({
         hash: tx.hash,
-        method: tx.method ?? "Transfer",
-        age: tx.timestamp ? timeAgo(tx.timestamp) : "—",
-        from: tx.from?.hash ?? "—",
-        to: tx.to?.hash ?? "—",
-        status: tx.status ?? "ok",
+        method: tx.methodId === "0x" ? "Contract Deploy" : (tx.methodId && tx.methodId !== "0x" ? tx.methodId : "Transfer"),
+        age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—",
+        from: tx.from ?? "—",
+        to: tx.to ?? "—",
+        status: tx.txreceipt_status === "1" ? "ok" : "error",
       }));
       setTxs(items);
     } catch {
@@ -41,19 +54,6 @@ export default function TxHistory({ address }: Props) {
   }
 
   useEffect(() => { if (address) load(); }, [address]);
-
-  function timeAgo(timestamp: string) {
-    const diff = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
-  }
-
-  function shortAddr(addr: string) {
-    if (!addr || addr === "—") return "—";
-    return addr.slice(0, 6) + "..." + addr.slice(-4);
-  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
