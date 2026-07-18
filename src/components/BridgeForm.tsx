@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi } from "viem";
-import { sepolia, baseSepolia } from "viem/chains";
+import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
@@ -12,6 +12,7 @@ const ARC_DOMAIN = 26;
 const SOURCE_CHAINS = {
   "Ethereum Sepolia": { chain: sepolia, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, chainIdHex: "0xaa36a7" },
   "Base Sepolia": { chain: baseSepolia, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, chainIdHex: "0x14a34" },
+  "Arbitrum Sepolia": { chain: arbitrumSepolia, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, chainIdHex: "0x66eee" },
 } as const;
 
 type SourceChainKey = keyof typeof SOURCE_CHAINS;
@@ -179,10 +180,10 @@ export default function BridgeForm({ provider, address }: Props) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>From</label>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {(Object.keys(SOURCE_CHAINS) as SourceChainKey[]).map((key) => (
               <button key={key} onClick={() => setSourceKey(key)} disabled={isLoading}
-                style={{ flex: 1, padding: "0.6rem", borderRadius: 8, border: sourceKey === key ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)", background: sourceKey === key ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)", color: sourceKey === key ? "#60a5fa" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                style={{ flex: "1 1 30%", padding: "0.6rem", borderRadius: 8, border: sourceKey === key ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)", background: sourceKey === key ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)", color: sourceKey === key ? "#60a5fa" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                 {key}
               </button>
             ))}
