@@ -156,7 +156,7 @@ export default function App() {
               {tab === "portfolio" ? "Portfolio" : tab === "send" ? "Send" : tab === "swap" ? "Swap" : tab === "history" ? "History" : "Bridge"}
             </h1>
             <p style={{ fontSize: 13, color: "#334155" }}>
-              {tab === "portfolio" ? "Arc Testnet balances" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "swap" ? "Swap stablecoins via Arfi Finance" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge from Sepolia to Arc"}
+              {tab === "portfolio" ? "Arc Testnet balances" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge from Sepolia to Arc"}
             </p>
           </div>
 

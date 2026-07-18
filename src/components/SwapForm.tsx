@@ -1,4 +1,6 @@
-﻿import { useState, useEffect, useCallback } from "react";
+﻿import SwapAdvisor from "./SwapAdvisor";
+import AdminRate from "./AdminRate";
+import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
@@ -144,6 +146,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
           </div>
         </div>
 
+        <SwapAdvisor tokenIn={tokenIn} tokenOut={tokenOut} amountIn={amount} amountOut={estimatedOut} />
+
         {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
 
         {txHash && swapState === "done" && (
@@ -173,6 +177,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
       <div style={{ background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 10, padding: "0.75rem 1rem" }}>
         <p style={{ fontSize: 12, color: "#a78bfa" }}>Rate: 1 USDC ≈ 0.874 EURC · Powered by ArcSwap</p>
+        <AdminRate provider={provider} address={address} />
       </div>
     </div>
   );
