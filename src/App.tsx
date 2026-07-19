@@ -10,6 +10,7 @@ import TxHistory from "./components/TxHistory";
 import Dashboard from "./components/Dashboard";
 import ReceiveQR from "./components/ReceiveQR";
 import UnifiedBalance from "./components/UnifiedBalance";
+import CircleWallet from "./components/CircleWallet";
 
 interface WalletInfo {
   provider: EIP1193Provider;
@@ -30,7 +31,7 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "portfolio" | "send" | "receive" | "swap" | "dashboard" | "history" | "bridge";
+type Tab = "portfolio" | "send" | "receive" | "swap" | "dashboard" | "history" | "bridge" | "circlewallet";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
@@ -42,6 +43,7 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "bridge",    label: "Bridge",    emoji: "⬡" },
   { id: "swap",      label: "Swap",      emoji: "⇄" },
   { id: "receive",   label: "Receive",   emoji: "↙" },
+  { id: "circlewallet", label: "Circle Wallet", emoji: "◎" },
   { id: "dashboard", label: "Dashboard", emoji: "▤" },
   { id: "history",   label: "History",   emoji: "↺" },
 ];
@@ -200,12 +202,12 @@ export default function App() {
             </div>
           </div>
         </div>
-        <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", gap: 2 }}>
+        <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
           {TABS.map(({ id, label, emoji }) => {
             const active = tab === id;
             return (
               <button key={id} onClick={() => setTab(id)}
-                style={{ width: "100%", padding: "0.65rem 1rem", borderRadius: 10, border: "none", background: active ? "rgba(79,70,229,0.15)" : "transparent", color: active ? "#a5b4fc" : "#64748b", fontSize: 14, fontWeight: active ? 700 : 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left", borderLeft: active ? "2px solid #4f46e5" : "2px solid transparent" }}>
+                style={{ width: "100%", padding: "0.65rem 1rem", borderRadius: 10, border: "none", background: active ? "rgba(79,70,229,0.15)" : "transparent", color: active ? "#a5b4fc" : "#64748b", fontSize: 13, fontWeight: active ? 700 : 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left", borderLeft: active ? "2px solid #4f46e5" : "2px solid transparent" }}>
                 <span style={{ fontSize: 16 }}>{emoji}</span>
                 <span>{label}</span>
               </button>
@@ -239,10 +241,10 @@ export default function App() {
         <div style={{ position: "relative", zIndex: 1, maxWidth: 520, margin: "0 auto" }}>
           <div style={{ marginBottom: "2rem" }}>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
-              {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "history" ? "History" : "Bridge"}
+              {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
             </h1>
             <p style={{ fontSize: 13, color: "#334155" }}>
-              {tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge USDC to Arc via CCTP"}
+              {tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Bridge USDC to Arc via CCTP"}
             </p>
           </div>
 
@@ -326,6 +328,7 @@ export default function App() {
           {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} />}
           {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
           {tab === "send" && <SendForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
+          {tab === "circlewallet" && <CircleWallet />}
         </div>
       </main>
     </div>

@@ -10,6 +10,7 @@
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "latest",
     "@circle-fin/app-kit": "^1.5.0",
+    "@circle-fin/developer-controlled-wallets": "^10.8.0",
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
