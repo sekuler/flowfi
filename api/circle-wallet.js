@@ -1,4 +1,5 @@
-import { initiateDeveloperControlledWalletsClient } from '@circle-fin/developer-controlled-wallets';
+import pkg from '@circle-fin/developer-controlled-wallets';
+const { initiateDeveloperControlledWalletsClient } = pkg;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
