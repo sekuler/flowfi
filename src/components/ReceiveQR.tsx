@@ -45,8 +45,8 @@ export default function ReceiveQR({ address }: Props) {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: "100%" }}>
           <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px" }}>YOUR ADDRESS</div>
           <div style={{ fontSize: 13, color: "#e2e8f0", fontFamily: "monospace", wordBreak: "break-all", textAlign: "center" }}>
-            {address}
-          </div>
+  {address.slice(0, 10) + "--demo--" + address.slice(-6)}
+</div>
         </div>
 
         <button onClick={copyAddress}

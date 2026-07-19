@@ -9,6 +9,7 @@ import SendForm from "./components/SendForm";
 import TxHistory from "./components/TxHistory";
 import Dashboard from "./components/Dashboard";
 import ReceiveQR from "./components/ReceiveQR";
+import UnifiedBalance from "./components/UnifiedBalance";
 
 interface WalletInfo {
   provider: EIP1193Provider;
@@ -38,11 +39,11 @@ const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
 const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "portfolio", label: "Portfolio", emoji: "◈" },
   { id: "send",      label: "Send",      emoji: "↗" },
-  { id: "receive",   label: "Receive",   emoji: "↙" },
+  { id: "bridge",    label: "Bridge",    emoji: "⬡" },
   { id: "swap",      label: "Swap",      emoji: "⇄" },
+  { id: "receive",   label: "Receive",   emoji: "↙" },
   { id: "dashboard", label: "Dashboard", emoji: "▤" },
   { id: "history",   label: "History",   emoji: "↺" },
-  { id: "bridge",    label: "Bridge",    emoji: "⬡" },
 ];
 
 function timeAgo(sec: number) {
@@ -152,7 +153,7 @@ export default function App() {
 
   if (!wallet) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#080b14", padding: "2rem", fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%)", padding: "2rem", fontFamily: "'Inter', system-ui, sans-serif" }}>
         <div style={{ position: "fixed", top: "20%", left: "30%", width: 600, height: 600, background: "radial-gradient(circle, rgba(79,70,229,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "2.5rem", maxWidth: 480, width: "100%" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
@@ -188,8 +189,8 @@ export default function App() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "#080b14", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
-      <aside style={{ width: 220, minHeight: "100vh", background: "#0c0f1d", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0 }}>
+    <div style={{ minHeight: "100vh", display: "flex", background: "linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%)", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
+      <aside style={{ width: 220, minHeight: "100vh", background: "#0a1a2f", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0 }}>
         <div style={{ padding: "0 1.25rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "1rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #4f46e5, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>◈</div>
@@ -202,13 +203,11 @@ export default function App() {
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", gap: 2 }}>
           {TABS.map(({ id, label, emoji }) => {
             const active = tab === id;
-            const disabled = false;
             return (
-              <button key={id} onClick={() => !disabled && setTab(id)}
-                style={{ width: "100%", padding: "0.65rem 1rem", borderRadius: 10, border: "none", background: active ? "rgba(79,70,229,0.15)" : "transparent", color: active ? "#a5b4fc" : disabled ? "#1e293b" : "#64748b", fontSize: 14, fontWeight: active ? 700 : 500, cursor: disabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left", borderLeft: active ? "2px solid #4f46e5" : "2px solid transparent" }}>
+              <button key={id} onClick={() => setTab(id)}
+                style={{ width: "100%", padding: "0.65rem 1rem", borderRadius: 10, border: "none", background: active ? "rgba(79,70,229,0.15)" : "transparent", color: active ? "#a5b4fc" : "#64748b", fontSize: 14, fontWeight: active ? 700 : 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left", borderLeft: active ? "2px solid #4f46e5" : "2px solid transparent" }}>
                 <span style={{ fontSize: 16 }}>{emoji}</span>
                 <span>{label}</span>
-                {disabled && <span style={{ marginLeft: "auto", fontSize: 10, color: "#1e3a5f", background: "rgba(59,130,246,0.1)", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>SOON</span>}
               </button>
             );
           })}
@@ -243,7 +242,7 @@ export default function App() {
               {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "history" ? "History" : "Bridge"}
             </h1>
             <p style={{ fontSize: 13, color: "#334155" }}>
-              {tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge from Sepolia to Arc"}
+              {tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "history" ? "Recent transactions on Arc Testnet" : "Bridge USDC to Arc via CCTP"}
             </p>
           </div>
 
@@ -292,6 +291,8 @@ export default function App() {
                   <button onClick={() => setTab("swap")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(139,92,246,0.2)", background: "rgba(139,92,246,0.06)", color: "#8b5cf6", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>⇄ Swap</button>
                 </div>
               </div>
+
+              <UnifiedBalance address={wallet.address} />
 
               {recentTxs.length > 0 && (
                 <div>
