@@ -169,11 +169,11 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
             {[
-              { label: "Portfolio", color: "#6366f1" },
-              { label: "Send", color: "#10b981" },
-              { label: "Swap", color: "#8b5cf6" },
-              { label: "Bridge", color: "#3b82f6" },
-            ].map(({ label, color }) => (
+  { label: "◈ Portfolio", color: "#6366f1" },
+  { label: "↗ Send", color: "#10b981" },
+  { label: "⇄ Swap", color: "#8b5cf6" },
+  { label: "⬡ Bridge", color: "#3b82f6" },
+].map(({ label, color }) => (
               <div key={label} style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, color, background: `${color}18`, border: `1px solid ${color}30`, fontWeight: 600 }}>{label}</div>
             ))}
           </div>
