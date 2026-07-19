@@ -15,13 +15,17 @@ export default function CircleWallet() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/circle-wallet.cjs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create" }),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error ?? "Failed to create wallet.");
+      const res = await fetch("/api/circle-wallet", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ action: "create" }),
+});
+if (!res.ok) {
+  const text = await res.text();
+  throw new Error(text);
+}
+const data = await res.json();
+if (!data.success) throw new Error(data.error ?? "Failed to create wallet.");
       setWallet({ walletId: data.walletId, address: data.address, blockchain: data.blockchain });
     } catch (e: unknown) {
       const err = e as { message?: string };
