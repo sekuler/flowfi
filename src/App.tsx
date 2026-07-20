@@ -50,6 +50,15 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "history",   label: "History",   emoji: "↺" },
 ];
 
+const LANDING_FEATURES = [
+  { icon: "◈", title: "Unified Portfolio", desc: "USDC, EURC, USYC balances plus live cross-chain USDC across Arc, Sepolia, Base, and Arbitrum." },
+  { icon: "↗", title: "AI-Assisted Send", desc: "Type a plain-English command or an .arc name — no need to memorize wallet addresses." },
+  { icon: "⬡", title: "Real CCTP Bridge", desc: "Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol." },
+  { icon: "⇄", title: "Smart Swap", desc: "On-chain swap with an AI advisor that reads real pool liquidity before you trade." },
+  { icon: "▲", title: "Leveraged Trading", desc: "Long or short BTC/ETH with live pricing and real-time PNL tracking." },
+  { icon: "🔒", title: "Escrow Payments", desc: "Smart-contract-secured freelance payments — funds release only when work is delivered." },
+];
+
 function timeAgo(sec: number) {
   const diff = Math.floor(Date.now() / 1000) - sec;
   if (diff < 60) return `${diff}s ago`;
@@ -157,34 +166,51 @@ export default function App() {
 
   if (!wallet) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%)", padding: "2rem", fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <div style={{ position: "fixed", top: "20%", left: "30%", width: 600, height: 600, background: "radial-gradient(circle, rgba(79,70,229,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "2.5rem", maxWidth: 480, width: "100%" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, #4f46e5, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, boxShadow: "0 0 40px rgba(79,70,229,0.3)" }}>◈</div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#f8fafc", letterSpacing: "-0.5px" }}>FlowFi</div>
-              <div style={{ fontSize: 11, color: "#4f46e5", fontWeight: 700, letterSpacing: "3px", marginTop: 2 }}>TESTNET</div>
-            </div>
+      <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%)", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
+        <div style={{ position: "fixed", top: "10%", left: "20%", width: 700, height: 700, background: "radial-gradient(circle, rgba(79,70,229,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "fixed", bottom: "0%", right: "10%", width: 500, height: 500, background: "radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+        <header style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 3rem", maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #4f46e5, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>◈</div>
+            <span style={{ fontSize: 17, fontWeight: 800 }}>FlowFi</span>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-            {[
-  { label: "◈ Portfolio", color: "#6366f1" },
-  { label: "↗ Send", color: "#10b981" },
-  { label: "⇄ Swap", color: "#8b5cf6" },
-  { label: "⬡ Bridge", color: "#3b82f6" },
-].map(({ label, color }) => (
-              <div key={label} style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, color, background: `${color}18`, border: `1px solid ${color}30`, fontWeight: 600 }}>{label}</div>
-            ))}
-          </div>
-          <WalletConnect onConnected={handleConnected} />
-          <div style={{ display: "flex", gap: 20 }}>
+          <div style={{ display: "flex", gap: 24 }}>
             {[
               { label: "Faucet", href: "https://faucet.circle.com" },
               { label: "Explorer", href: "https://testnet.arcscan.app" },
               { label: "Docs", href: "https://docs.arc.io" },
             ].map(({ label, href }) => (
-              <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#334155", fontSize: 12, textDecoration: "none" }}>{label}</a>
+              <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#94a3b8", fontSize: 13, textDecoration: "none", fontWeight: 500 }}>{label}</a>
+            ))}
+          </div>
+        </header>
+
+        <div style={{ position: "relative", zIndex: 1, maxWidth: 700, margin: "0 auto", textAlign: "center", padding: "4rem 2rem 3rem" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 30, background: "rgba(79,70,229,0.12)", border: "1px solid rgba(79,70,229,0.3)", fontSize: 12, fontWeight: 700, color: "#a5b4fc", marginBottom: 24 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4f46e5" }} />
+            LIVE ON ARC TESTNET
+          </div>
+          <h1 style={{ fontSize: 48, fontWeight: 800, lineHeight: 1.15, letterSpacing: "-1.5px", marginBottom: 20 }}>
+            Your stablecoin<br />financial layer.
+          </h1>
+          <p style={{ fontSize: 17, color: "#94a3b8", lineHeight: 1.6, maxWidth: 520, margin: "0 auto 32px" }}>
+            Swap, bridge, trade, and send USDC and EURC on Arc — with real smart contracts and an AI copilot that actually reads your on-chain activity.
+          </p>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+            <WalletConnect onConnected={handleConnected} />
+          </div>
+          <p style={{ fontSize: 12, color: "#475569" }}>Real wallet signatures. No seed phrase ever requested. Arc Testnet only.</p>
+        </div>
+
+        <div style={{ position: "relative", zIndex: 1, maxWidth: 1000, margin: "0 auto", padding: "2rem 2rem 5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+            {LANDING_FEATURES.map((f) => (
+              <div key={f.title} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "1.5rem" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(79,70,229,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 14 }}>{f.icon}</div>
+                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "#f1f5f9" }}>{f.title}</h3>
+                <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>{f.desc}</p>
+              </div>
             ))}
           </div>
         </div>
