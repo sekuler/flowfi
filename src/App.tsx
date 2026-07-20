@@ -1,4 +1,5 @@
-﻿import AiNarrator from "./components/AiNarrator";
+﻿import LiquidityPools from "./components/LiquidityPools";
+import AiNarrator from "./components/AiNarrator";
 import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
@@ -33,7 +34,7 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "portfolio" | "send" | "receive" | "swap" | "perps" | "dashboard" | "history" | "bridge" | "circlewallet";
+type Tab = "portfolio" | "send" | "receive" | "swap" | "perps" | "pools" | "dashboard" | "history" | "bridge" | "circlewallet";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
@@ -45,6 +46,7 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "bridge",    label: "Bridge",    emoji: "⬡" },
   { id: "swap",      label: "Swap",      emoji: "⇄" },
   { id: "perps",     label: "Perpetuals", emoji: "▲" },
+  { id: "pools",     label: "Liquidity Pools", emoji: "💧" },
   { id: "receive",   label: "Receive",   emoji: "↙" },
   { id: "circlewallet", label: "Circle Wallet", emoji: "◎" },
   { id: "dashboard", label: "Dashboard", emoji: "▤" },
@@ -360,6 +362,7 @@ export default function App() {
           {tab === "send" && <SendForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
           {tab === "circlewallet" && <CircleWallet />}
           {tab === "perps" && <Perpetuals provider={wallet.provider} address={wallet.address} />}
+          {tab === "pools" && <LiquidityPools provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
         </div>
       </main>
     </div>
