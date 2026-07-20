@@ -1,4 +1,5 @@
-﻿import { useState, useEffect } from "react";
+﻿import AiNarrator from "./components/AiNarrator";
+import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
@@ -323,6 +324,7 @@ export default function App() {
               </div>
 
               <UnifiedBalance address={wallet.address} />
+              <AiNarrator address={wallet.address} balances={balances} />
 
               {recentTxs.length > 0 && (
                 <div>
