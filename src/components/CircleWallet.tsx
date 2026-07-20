@@ -16,16 +16,16 @@ export default function CircleWallet() {
     setError(null);
     try {
       const res = await fetch("/api/circle-wallet", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ action: "create" }),
-});
-if (!res.ok) {
-  const text = await res.text();
-  throw new Error(text);
-}
-const data = await res.json();
-if (!data.success) throw new Error(data.error ?? "Failed to create wallet.");
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create" }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error ?? "Failed to create wallet.");
       setWallet({ walletId: data.walletId, address: data.address, blockchain: data.blockchain });
     } catch (e: unknown) {
       const err = e as { message?: string };
@@ -49,7 +49,7 @@ if (!data.success) throw new Error(data.error ?? "Failed to create wallet.");
             <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
               Create a Circle-managed wallet on Arc Testnet in one click. No extension, no private key to store.
             </p>
-            {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{error}</div>}
+            {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
             <button onClick={createWallet} disabled={loading}
               style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #059669, #10b981)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
               {loading ? "Creating wallet..." : "Create Circle Wallet"}
