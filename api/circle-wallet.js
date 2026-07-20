@@ -1,3 +1,7 @@
+console.log('API_KEY length:', (process.env.CIRCLE_API_KEY || '').length);
+console.log('ENTITY_SECRET length:', (process.env.CIRCLE_ENTITY_SECRET || '').length);
+console.log('ENTITY_SECRET first/last chars:', JSON.stringify((process.env.CIRCLE_ENTITY_SECRET || '').slice(0,3)), JSON.stringify((process.env.CIRCLE_ENTITY_SECRET || '').slice(-3)));
+
 const { initiateDeveloperControlledWalletsClient } = require('@circle-fin/developer-controlled-wallets');
 
 module.exports = async function handler(req, res) {
