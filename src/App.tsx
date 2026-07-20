@@ -267,7 +267,7 @@ export default function App() {
       </aside>
 
       <main style={{ marginLeft: 220, flex: 1, padding: "2.5rem", minHeight: "100vh" }}>
-        <div style={{ position: "relative", zIndex: 1, maxWidth: 520, margin: "0 auto" }}>
+        <div style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" ? 900 : 520, margin: "0 auto" }}>
           <div style={{ marginBottom: "2rem" }}>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
               {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
