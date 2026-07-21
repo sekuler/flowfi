@@ -15,6 +15,12 @@ interface Props {
   amountOut: string;
 }
 
+interface Factor {
+  label: string;
+  value: string;
+  status: "good" | "warn" | "bad";
+}
+
 interface Advisory {
   score: number;
   stars: number;
@@ -23,6 +29,7 @@ interface Advisory {
   poolLiquidityOut: string;
   recommendation: string;
   splitSuggestion: number | null;
+  factors: Factor[];
 }
 
 function scoreFromImpact(impact: number): { score: number; stars: number; label: string } {
@@ -33,9 +40,42 @@ function scoreFromImpact(impact: number): { score: number; stars: number; label:
   return { score: 15, stars: 1, label: "High Risk" };
 }
 
+function buildFactors(impact: number, poolOut: number, out: number, splitSuggestion: number | null): Factor[] {
+  const factors: Factor[] = [];
+
+  factors.push({
+    label: "Pool consumption",
+    value: `${(impact * 100).toFixed(2)}% of ${poolOut.toFixed(2)} available`,
+    status: impact < 0.05 ? "good" : impact < 0.15 ? "warn" : "bad",
+  });
+
+  factors.push({
+    label: "Remaining liquidity after swap",
+    value: `${(poolOut - out).toFixed(2)}`,
+    status: (poolOut - out) / poolOut > 0.7 ? "good" : (poolOut - out) / poolOut > 0.4 ? "warn" : "bad",
+  });
+
+  if (splitSuggestion) {
+    factors.push({
+      label: "Splitting reduces impact per trade to",
+      value: `~${((impact / splitSuggestion) * 100).toFixed(2)}% each`,
+      status: "warn",
+    });
+  } else {
+    factors.push({
+      label: "Single-transaction impact",
+      value: "Low enough to execute as one swap",
+      status: "good",
+    });
+  }
+
+  return factors;
+}
+
 export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: Props) {
   const [advisory, setAdvisory] = useState<Advisory | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
 
   const analyze = useCallback(async () => {
     if (!amountIn || isNaN(Number(amountIn)) || Number(amountIn) <= 0 || !amountOut || Number(amountOut) <= 0) {
@@ -52,6 +92,7 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
 
       const { score, stars, label } = scoreFromImpact(impact);
       const splitSuggestion = impact >= 0.15 ? Math.ceil(impact / 0.04) : null;
+      const factors = buildFactors(impact, poolOut, out, splitSuggestion);
 
       let recommendation = "";
       try {
@@ -67,11 +108,11 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
           body: JSON.stringify({
             model: "claude-sonnet-4-6",
             max_tokens: 150,
-            system: "You are a swap risk advisor for a DeFi app. You are given real on-chain pool data. Write a 2-3 sentence recommendation in English, grounded ONLY in the numbers given. Never invent data not provided. Be direct and concrete.",
+            system: "You are a swap risk advisor for a DeFi app. You are given real on-chain pool data. Write a 2-3 sentence recommendation in English, grounded ONLY in the numbers given. Never invent data not provided. Be direct and concrete. Explain briefly WHY you're giving this recommendation, referencing the specific pool impact percentage.",
             messages: [
               {
                 role: "user",
-                content: `Swap: ${amountIn} ${tokenIn} -> ${amountOut} ${tokenOut}. Pool liquidity available for ${tokenOut}: ${poolOut.toFixed(4)}. This swap would consume ${(impact * 100).toFixed(2)}% of that pool's liquidity. Give your recommendation.`,
+                content: `Swap: ${amountIn} ${tokenIn} -> ${amountOut} ${tokenOut}. Pool liquidity available for ${tokenOut}: ${poolOut.toFixed(4)}. This swap would consume ${(impact * 100).toFixed(2)}% of that pool's liquidity. Remaining liquidity after swap: ${(poolOut - out).toFixed(4)}. Give your recommendation and briefly explain why.`,
               },
             ],
           }),
@@ -90,6 +131,7 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
         poolLiquidityOut: poolOut.toFixed(2),
         recommendation,
         splitSuggestion,
+        factors,
       });
     } catch (e) {
       console.log("SwapAdvisor error:", e);
@@ -105,6 +147,9 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
   }, [analyze]);
 
   if (!amountIn || Number(amountIn) <= 0) return null;
+
+  const statusColor = { good: "#6ee7b7", warn: "#fbbf24", bad: "#fca5a5" };
+  const statusIcon = { good: "✓", warn: "!", bad: "✕" };
 
   return (
     <div style={{ background: "rgba(139,92,246,0.04)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -145,10 +190,29 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
             <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.5, margin: 0 }}>{advisory.recommendation}</p>
           </div>
 
+          <button onClick={() => setShowWhy(!showWhy)}
+            style={{ background: "none", border: "none", color: "#a78bfa", fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, textAlign: "left" }}>
+            {showWhy ? "Hide breakdown ▲" : "Why this score? ▼"}
+          </button>
+
+          {showWhy && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, background: "rgba(255,255,255,0.015)", borderRadius: 8, padding: "0.65rem 0.8rem" }}>
+              {advisory.factors.map((f, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
+                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: `${statusColor[f.status]}22`, color: statusColor[f.status], fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {statusIcon[f.status]}
+                  </span>
+                  <span style={{ color: "#94a3b8", flex: 1 }}>{f.label}</span>
+                  <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{f.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {advisory.splitSuggestion && (
             <div style={{ background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.15)", borderRadius: 8, padding: "0.65rem 0.8rem" }}>
               <p style={{ fontSize: 12, color: "#fbbf24", margin: 0 }}>
-                💡 Consider splitting into {advisory.splitSuggestion} smaller swaps to reduce pool impact per transaction.
+                Consider splitting into {advisory.splitSuggestion} smaller swaps to reduce pool impact per transaction.
               </p>
             </div>
           )}
