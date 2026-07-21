@@ -6,7 +6,7 @@ FlowFi is an AI-powered financial operating system for Arc, combining payments, 
 
 🔗 **Live demo:** [flowfi-arc.vercel.app](https://flowfi-arc.vercel.app)
 📦 **GitHub:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
-
+🎥 **Demo video:** [Watch on X](https://x.com/flowfiarc/status/2078926068485173522)
 ---
 
 ## Screenshots
