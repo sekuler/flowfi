@@ -2,16 +2,22 @@
 
 **Your stablecoin financial layer on Arc.**
 
-FlowFi is a full-featured DeFi application built on [Arc Testnet](https://www.arc.io) — Circle's stablecoin-native L1. Every feature below is a real, deployed smart contract. No mocked data, no simulated transactions.
+FlowFi is an AI-powered financial operating system for Arc, combining payments, swaps, perpetuals, liquidity, and escrow into a single application backed by real on-chain smart contracts. Every feature below is deployed and verifiable — no mocked data, no simulated transactions.
 
 🔗 **Live demo:** [flowfi-arc.vercel.app](https://flowfi-arc.vercel.app)
 📦 **GitHub:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
 ---
 
-## Why FlowFi?
+## Screenshots
 
-Building on a new L1 usually means starting from zero — no swap, no escrow, no trading layer. FlowFi ships the missing financial primitives for Arc, wraps them in a clean UI, and adds an AI layer that actually executes transactions instead of just chatting about them.
+| Dashboard | Swap |
+|---|---|
+| ![Dashboard](./screenshots/1-DASHBOARD.png) | ![Swap](./screenshots/2-SWAP.png) |
+
+| AI-Assisted Send | Perpetuals |
+|---|---|
+| ![Send](./screenshots/3-SEND.png) | ![Perpetuals](./screenshots/4-PERPETUALS.png) |
 
 ---
 
