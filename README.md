@@ -40,7 +40,7 @@ FlowFi unifies the entire stablecoin experience into a single interface built sp
 | **Perpetuals** | Long/short BTC and ETH with 1x-20x leverage, live TradingView charts, real-time PNL, liquidation price |
 | **Liquidity Pools** | Permissionless AMM factory — anyone can create a pool for any token pair and earn a share of swap fees |
 | **Escrow** | Smart-contract-secured freelance payments — funds release only when work is delivered |
-| **AI Wallet Narrator** | Ask questions about your on-chain activity, answered from your real transaction history |
+| **AI Understands You** | Type transfers in plain English, get swap risk explained before you trade, and ask questions about your wallet history — all answered by AI grounded in your real on-chain data |
 | **Dashboard** | Portfolio value, token distribution, weekly volume, recent transactions |
 
 ---
@@ -71,7 +71,7 @@ FlowFi unifies the entire stablecoin experience into a single interface built sp
 - **Frontend:** React, Vite, TypeScript, viem
 - **Smart contracts:** Solidity, deployed on Arc Testnet
 - **Bridging:** Circle CCTP V2 (TokenMessengerV2 / MessageTransmitterV2)
-- **AI:** Claude (Anthropic API) for natural-language transfers, swap risk analysis, and wallet activity Q&A
+- - **AI:** Claude (Anthropic API) — understands natural-language commands, evaluates swap risk before you trade, and explains your wallet history in plain English
 - **Charts:** TradingView widget
 - **Naming:** ArcNS for human-readable address resolution
 - **Hosting:** Vercel
