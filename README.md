@@ -87,7 +87,11 @@ FlowFi unifies the entire stablecoin experience into a single interface built sp
 
 
 
-All contract addresses and transaction history are verifiable on [Arc Testnet Explorer](https://testnet.arcscan.app).
+Explore each contract directly:
+[Swap Contract](https://testnet.arcscan.app/address/0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1) ·
+[Escrow Contract](https://testnet.arcscan.app/address/0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75) ·
+[Perps Contract](https://testnet.arcscan.app/address/0x3B4cE1734087e1c67474Ff42982063febE3E4B20) ·
+[Factory Contract](https://testnet.arcscan.app/address/0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9)
 
 ---
 
