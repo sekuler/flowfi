@@ -1,113 +1,98 @@
-# Arc Bridge — USDC Köprüleyici
+# FlowFi
 
-Ethereum Sepolia'dan Arc Testnet'e USDC taşıyan web uygulaması.  
-Circle App Kit (CCTP v2) kullanır. Tamamen testnet — gerçek para yok.
+**Your stablecoin financial layer on Arc.**
 
----
+FlowFi is a full-featured DeFi application built on [Arc Testnet](https://www.arc.io) — Circle's stablecoin-native L1. Every feature below is a real, deployed smart contract. No mocked data, no simulated transactions.
 
-## Gereksinimler
-
-- [Node.js v22+](https://nodejs.org/) (terminale `node -v` yaz, kontrol et)
-- [MetaMask](https://metamask.io/) tarayıcı eklentisi
-- Sepolia USDC ve Sepolia ETH (gas için)
+🔗 **Live demo:** [flowfi-arc.vercel.app](https://flowfi-arc.vercel.app)
+📦 **GitHub:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
 ---
 
-## Kurulum — Adım Adım
+## Why FlowFi?
 
-### 1. Projeyi indir ve bağımlılıkları yükle
+Building on a new L1 usually means starting from zero — no swap, no escrow, no trading layer. FlowFi ships the missing financial primitives for Arc, wraps them in a clean UI, and adds an AI layer that actually executes transactions instead of just chatting about them.
 
-```bash
-cd arc-bridge-app
-npm install
+---
+
+## Features
+
+| Feature | What it does |
+|---|---|
+| **Portfolio** | USDC, EURC, USYC balances with live USD equivalents, plus unified cross-chain USDC balance across Arc, Ethereum Sepolia, Base Sepolia, and Arbitrum Sepolia |
+| **Send** | Natural-language transfers ("send 20 USDC to alice.arc"), ArcNS name resolution, address book |
+| **Bridge** | Real CCTP V2 cross-chain USDC transfer — burn/attest/mint via Circle's official TokenMessengerV2, no wrapped tokens |
+| **Swap** | On-chain USDC/EURC swap with an AI advisor that reads live pool liquidity and computes a risk score before every trade |
+| **Perpetuals** | Long/short BTC and ETH with 1x-20x leverage, live TradingView charts, real-time PNL, liquidation price |
+| **Liquidity Pools** | Permissionless AMM factory — anyone can create a pool for any token pair and earn a share of swap fees |
+| **Escrow** | Smart-contract-secured freelance payments — funds release only when work is delivered |
+| **AI Wallet Narrator** | Ask questions about your on-chain activity, answered from your real transaction history |
+| **Dashboard** | Portfolio value, token distribution, weekly volume, recent transactions |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│                  FlowFi UI                    │
+│         React + Vite + viem + TypeScript      │
+└───────────────────┬───────────────────────────┘
+                     │
+       ┌─────────────┼─────────────────┐
+       │             │                 │
+┌──────▼──────┐ ┌────▼─────┐  ┌────────▼────────┐
+│  Arc Testnet │ │ Circle    │  │  Claude AI      │
+│  Contracts   │ │ CCTP V2   │  │  (transfers,    │
+│              │ │ Bridge    │  │  swap advisor,  │
+│ ArcSwap      │ │           │  │  wallet Q&A)    │
+│ ArcEscrow    │ └───────────┘  └─────────────────┘
+│ ArcPerps     │
+│ ArcFactory   │
+└──────────────┘
 ```
 
-### 2. Geliştirme sunucusunu başlat
+## Tech Stack
+
+- **Frontend:** React, Vite, TypeScript, viem
+- **Smart contracts:** Solidity, deployed on Arc Testnet
+- **Bridging:** Circle CCTP V2 (TokenMessengerV2 / MessageTransmitterV2)
+- **AI:** Claude (Anthropic API) for natural-language transfers, swap risk analysis, and wallet activity Q&A
+- **Charts:** TradingView widget
+- **Naming:** ArcNS for human-readable address resolution
+- **Hosting:** Vercel
+
+## Deployed Contracts (Arc Testnet)
+
+| Contract | Purpose |
+|---|---|
+| ArcSwap | Fixed-rate USDC/EURC swap |
+| ArcEscrow | Conditional freelance payments |
+| ArcPerps | Leveraged BTC/ETH trading |
+| ArcFactory | Permissionless AMM pool creation |
+
+All contract addresses and transaction history are verifiable on [Arc Testnet Explorer](https://testnet.arcscan.app).
+
+---
+
+## Roadmap
+
+- Circle Developer-Controlled Wallets for seed-phrase-free onboarding
+- Lending & borrowing markets on top of the AMM factory
+- Decentralized price oracle for Perpetuals
+- Mainnet-track hardening (audits, production wallet security)
+
+---
+
+## Running Locally
 
 ```bash
+npm install
 npm run dev
 ```
 
-Tarayıcıda şu adresi aç: **http://localhost:5173**
+Requires a `.env` file with `VITE_ANTHROPIC_KEY` for AI features.
 
 ---
 
-## Kullanım
-
-### Adım 1 — Test fonları al
-
-**Sepolia USDC:**
-1. https://faucet.circle.com adresine git
-2. "Ethereum Sepolia" seç
-3. Cüzdan adresini gir → USDC gönderilir
-
-**Sepolia ETH (gas için):**
-- https://www.alchemy.com/faucets/ethereum-sepolia
-
-### Adım 2 — MetaMask'a Ethereum Sepolia ekle
-
-MetaMask genellikle Sepolia'yı otomatik bilir.  
-Görmüyorsan: Ayarlar → Ağlar → Ağ Ekle → Ethereum Sepolia
-
-### Adım 3 — Uygulamayı kullan
-
-1. "MetaMask ile Bağlan" butonuna tıkla
-2. Uygulama otomatik olarak Sepolia'ya geçirir
-3. Köprülemek istediğin USDC miktarını gir
-4. "Köprüle" butonuna tıkla
-5. MetaMask'ta iki işlemi onayla (approve + burn)
-6. Ekranda adım adım ilerlemeyi izle
-7. Tamamlanınca Arc Testnet Explorer'da kontrol et
-
-### Adım 4 — Arc Testnet'i MetaMask'a ekle (opsiyonel)
-
-Arc Testnet'teki bakiyeni görmek için MetaMask'a elle ekleyebilirsin:
-
-| Alan | Değer |
-|------|-------|
-| Ağ Adı | Arc Testnet |
-| RPC URL | https://rpc.testnet.arc.network |
-| Chain ID | 5042002 |
-| Para Birimi | USDC |
-| Explorer | https://testnet.arcscan.app |
-
----
-
-## Proje Yapısı
-
-```
-arc-bridge-app/
-├── index.html
-├── vite.config.ts
-├── tsconfig.json
-├── package.json
-└── src/
-    ├── main.tsx              ← Giriş noktası
-    ├── App.tsx               ← Ana bileşen (cüzdan/köprü akışı)
-    ├── chains.ts             ← Arc Testnet config ve adresler
-    └── components/
-        ├── WalletConnect.tsx ← Cüzdan bağlama, ağ kontrolü
-        ├── BridgeForm.tsx    ← Köprüleme formu ve işlemi
-        └── BridgeStatus.tsx  ← Canlı adım takibi
-```
-
----
-
-## Teknik Notlar
-
-- **Gas token:** Arc Testnet'te gas ETH değil, native USDC ile ödenir
-- **Native USDC:** 18 decimal (gas için)
-- **ERC-20 USDC:** 6 decimal (token transferleri için)
-- **Bridge protokolü:** CCTP v2 (Circle Cross-Chain Transfer Protocol)
-- **Chain ID:** 5042002
-
----
-
-## Önemli Linkler
-
-| | |
-|---|---|
-| Arc Testnet Explorer | https://testnet.arcscan.app |
-| Circle Faucet | https://faucet.circle.com |
-| Arc Docs | https://docs.arc.io |
-| App Kit Docs | https://docs.arc.io/app-kit |
+Built for the [Encode Club x Circle Programmable Money Hackathon](https://www.encodeclub.com/programmes/arc-hackathon).
