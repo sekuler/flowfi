@@ -9,6 +9,14 @@ FlowFi is an AI-powered financial operating system for Arc, combining payments, 
 🎥 **Demo video:** [Watch on X](https://x.com/flowfiarc/status/2078926068485173522)
 ---
 
+---
+
+## Why FlowFi?
+
+Stablecoin users still rely on multiple disconnected applications for payments, swaps, bridges, derivatives, and escrow. Building on a new L1 usually means starting from zero — no native swap, no escrow, no trading layer, no unified place to hold and move funds.
+
+FlowFi unifies the entire stablecoin experience into a single interface built specifically for Arc — real smart contracts for every primitive, wrapped in a clean UI, with an AI layer that actually executes transactions instead of just chatting about them.
+
 ## Screenshots
 
 | Dashboard | Swap |
