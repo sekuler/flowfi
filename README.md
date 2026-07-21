@@ -70,12 +70,14 @@ FlowFi is an AI-powered financial operating system for Arc, combining payments, 
 
 ## Deployed Contracts (Arc Testnet)
 
-| Contract | Purpose |
-|---|---|
-| ArcSwap | Fixed-rate USDC/EURC swap |
-| ArcEscrow | Conditional freelance payments |
-| ArcPerps | Leveraged BTC/ETH trading |
-| ArcFactory | Permissionless AMM pool creation |
+| Contract | Address | Purpose |
+|---|---|---|
+| ArcSwap | [`0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1`](https://testnet.arcscan.app/address/0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1) | Fixed-rate USDC/EURC swap |
+| ArcEscrow | [`0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75`](https://testnet.arcscan.app/address/0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75) | Conditional freelance payments |
+| ArcPerps | [`0x3B4cE1734087e1c67474Ff42982063febE3E4B20`](https://testnet.arcscan.app/address/0x3B4cE1734087e1c67474Ff42982063febE3E4B20) | Leveraged BTC/ETH trading |
+| ArcFactory | [`0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9`](https://testnet.arcscan.app/address/0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9) | Permissionless AMM pool creation |
+
+
 
 All contract addresses and transaction history are verifiable on [Arc Testnet Explorer](https://testnet.arcscan.app).
 
