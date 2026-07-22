@@ -190,14 +190,28 @@ export default function BridgeForm({ provider, address }: Props) {
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "0.75rem 1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 220 }}>
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>{sourceKey}</div>
-            <div style={{ color: "#3b82f6", fontSize: 20 }}>↓</div>
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>Arc Testnet</div>
-          </div>
-        </div>
+       <div style={{ display: "flex", justifyContent: "center" }}>
+  <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "0.75rem 1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 220 }}>
+    <div style={{ fontSize: 13, color: "#94a3b8" }}>{sourceKey}</div>
+    <div style={{ color: "#3b82f6", fontSize: 20 }}>↓</div>
+    <div style={{ fontSize: 13, color: "#94a3b8" }}>Arc Testnet</div>
+  </div>
+</div>
 
+<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+  <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.3)", borderRadius: 10, padding: "0.7rem 0.6rem", textAlign: "center" }}>
+    <div style={{ fontSize: 9, color: "#60a5fa", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>EST. TIME</div>
+    <div style={{ fontSize: 13, color: "#93c5fd", fontWeight: 800 }}>~20 sec</div>
+  </div>
+  <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 10, padding: "0.7rem 0.6rem", textAlign: "center" }}>
+    <div style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>MAX FEE</div>
+    <div style={{ fontSize: 13, color: "#fcd34d", fontWeight: 800 }}>0.0005 USDC</div>
+  </div>
+  <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "0.7rem 0.6rem", textAlign: "center" }}>
+    <div style={{ fontSize: 9, color: "#34d399", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>YOU RECEIVE</div>
+    <div style={{ fontSize: 13, color: "#6ee7b7", fontWeight: 800 }}>Native USDC</div>
+  </div>
+</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Amount</label>
           <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
