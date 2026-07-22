@@ -391,7 +391,8 @@ export default function App() {
             </div>
           )}
 
-          {tab === "dashboard" && <Dashboard address={wallet.address} balances={balances} />}
+          
+          {tab === "dashboard" && <Dashboard address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
           {tab === "history" && <TxHistory address={wallet.address} />}
           {tab === "receive" && <ReceiveQR address={wallet.address} />}
           {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} />}
