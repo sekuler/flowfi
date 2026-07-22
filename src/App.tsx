@@ -122,11 +122,11 @@ export default function App() {
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const usdc = await client.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n);
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 300));
       const eurc = await client.readContract({ address: ARC_EURC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n);
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 300));
       const usyc = await client.readContract({ address: ARC_USYC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n);
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 300));
       const native = await client.getBalance({ address: address as `0x${string}` }).catch(() => 0n);
       setBalances({
         usdc: Number(formatUnits(usdc as bigint, 6)).toFixed(2),
@@ -258,6 +258,19 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", background: "linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%)", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
+      <style>{`
+        button:not(:disabled) { transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease; }
+        button:not(:disabled):hover { transform: translateY(-1px); }
+        button:not(:disabled):active { transform: translateY(0px) scale(0.98); }
+        a { transition: transform 0.12s ease, opacity 0.12s ease; }
+        input, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+        input:focus, select:focus { box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
+        @keyframes flowfi-fade-in {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
+      `}</style>
       <ToastContainer />
       <aside style={{ width: 220, minHeight: "100vh", background: "#0a1a2f", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0 }}>
         <div style={{ padding: "0 1.25rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "1rem" }}>
@@ -333,7 +346,7 @@ export default function App() {
         </header>
 
         <div style={{ padding: "2.5rem" }}>
-          <div style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" || tab === "pools" || tab === "swap" || tab === "bridge" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
+          <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" || tab === "pools" || tab === "swap" || tab === "bridge" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
                 {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}

@@ -109,7 +109,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
           poolAddress: poolAddr, symbolA: metaA.symbol, symbolB: metaB.symbol,
           colorA: metaA.color, colorB: metaB.color, isLegacy: false,
         });
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 50));
       }
       setPools(loaded);
     } catch {

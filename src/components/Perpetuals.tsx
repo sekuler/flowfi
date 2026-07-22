@@ -134,7 +134,7 @@ export default function Perpetuals({ provider, address }: Props) {
           status: Number(status), market: mkt,
           pnl: pnlRaw < 0n ? -pnlAbs : pnlAbs,
         });
-        await new Promise(r => setTimeout(r, 250));
+        await new Promise(r => setTimeout(r, 50));
       }
       setPositions(loaded.reverse());
     } catch {
