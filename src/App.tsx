@@ -1,6 +1,4 @@
-﻿import ToastContainer from "./components/ToastContainer";
-import { showToast } from "./toast";
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
@@ -16,6 +14,9 @@ import CircleWallet from "./components/CircleWallet";
 import Perpetuals from "./components/Perpetuals";
 import LiquidityPools from "./components/LiquidityPools";
 import AiNarrator from "./components/AiNarrator";
+import AiCopilot from "./components/AiCopilot";
+import ToastContainer from "./components/ToastContainer";
+import { showToast } from "./toast";
 
 interface WalletInfo {
   provider: EIP1193Provider;
@@ -114,6 +115,7 @@ export default function App() {
   function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
     setWallet({ provider, address, walletName });
     setTab("portfolio");
+    showToast("Wallet connected", "success");
   }
 
   async function loadBalances(address: string) {
@@ -172,12 +174,12 @@ export default function App() {
   }, [wallet]);
 
   function copyAddress() {
-  if (!wallet) return;
-  navigator.clipboard.writeText(wallet.address);
-  setCopied(true);
-  showToast("Address copied", "success");
-  setTimeout(() => setCopied(false), 1500);
-}
+    if (!wallet) return;
+    navigator.clipboard.writeText(wallet.address);
+    setCopied(true);
+    showToast("Address copied", "success");
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   const shortAddr = wallet ? wallet.address.slice(0, 6) + "..." + wallet.address.slice(-4) : "";
 
@@ -308,30 +310,30 @@ export default function App() {
       </aside>
 
       <main style={{ marginLeft: 220, flex: 1, minHeight: "100vh" }}>
-    <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-  <button disabled title="Coming soon"
-    style={{ position: "relative", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 8, width: 36, height: 36, cursor: "not-allowed", fontSize: 16 }}>
-    🔔
-    <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
-  </button>
-  <button disabled title="Coming soon"
-    style={{ position: "relative", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 8, width: 36, height: 36, cursor: "not-allowed", fontSize: 16 }}>
-    🌙
-    <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
-  </button>
-  <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)" }} />
-  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)" }}>
-    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px rgba(16,185,129,0.7)" }} />
-    <span style={{ fontSize: 12, fontWeight: 800, color: "#6ee7b7" }}>Arc Testnet</span>
-  </div>
-  <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
-    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, background: "rgba(79,70,229,0.15)", border: "1px solid rgba(79,70,229,0.4)", color: "#c7d2fe", fontSize: 12, fontWeight: 800, textDecoration: "none", fontFamily: "monospace" }}>
-    {shortAddr}
-  </a>
-</header>
+        <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <button disabled title="Coming soon"
+            style={{ position: "relative", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 8, width: 36, height: 36, cursor: "not-allowed", fontSize: 16 }}>
+            🔔
+            <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
+          </button>
+          <button disabled title="Coming soon"
+            style={{ position: "relative", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 8, width: 36, height: 36, cursor: "not-allowed", fontSize: 16 }}>
+            🌙
+            <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
+          </button>
+          <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)" }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px rgba(16,185,129,0.7)" }} />
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#6ee7b7" }}>Arc Testnet</span>
+          </div>
+          <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, background: "rgba(79,70,229,0.15)", border: "1px solid rgba(79,70,229,0.4)", color: "#c7d2fe", fontSize: 12, fontWeight: 800, textDecoration: "none", fontFamily: "monospace" }}>
+            {shortAddr}
+          </a>
+        </header>
 
         <div style={{ padding: "2.5rem" }}>
-          <div style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" || tab === "pools" || tab === "swap" ? 900 : 520, margin: "0 auto" }}>
+          <div style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" || tab === "pools" || tab === "swap" || tab === "bridge" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
                 {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
@@ -429,6 +431,8 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
     </div>
   );
 }

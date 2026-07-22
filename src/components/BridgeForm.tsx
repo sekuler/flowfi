@@ -1,8 +1,9 @@
-﻿import { useState } from "react";
+﻿import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
+import { showToast } from "../toast";
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const ARC_MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x${string}`;
@@ -14,13 +15,17 @@ const SOURCE_CHAINS = {
   "Base Sepolia": { chain: baseSepolia, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, chainIdHex: "0x14a34" },
   "Arbitrum Sepolia": { chain: arbitrumSepolia, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, chainIdHex: "0x66eee" },
 } as const;
-
 type SourceChainKey = keyof typeof SOURCE_CHAINS;
 
 interface Props {
   provider: EIP1193Provider;
   address: string;
   walletName: string;
+}
+
+interface RecentBridge {
+  hash: string;
+  age: string;
 }
 
 const DEPOSIT_FOR_BURN_ABI = [{
@@ -43,6 +48,14 @@ const RECEIVE_MESSAGE_ABI = [{
   outputs: [],
 }] as const;
 
+function timeAgo(sec: number) {
+  const diff = Math.floor(Date.now() / 1000) - sec;
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
 async function switchChain(provider: EIP1193Provider, chainIdHex: string, addParams?: any) {
   try {
     await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chainIdHex }] });
@@ -61,12 +74,29 @@ export default function BridgeForm({ provider, address }: Props) {
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [recentBridges, setRecentBridges] = useState<RecentBridge[]>([]);
 
   const source = SOURCE_CHAINS[sourceKey];
 
   function bytes32Address(addr: string): `0x${string}` {
     return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
   }
+
+  async function loadRecentBridges() {
+    try {
+      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${ARC_MESSAGE_TRANSMITTER}&limit=6`);
+      const data = await res.json();
+      const items: RecentBridge[] = (data.result ?? []).slice(0, 6).map((tx: any) => ({
+        hash: tx.hash,
+        age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—",
+      }));
+      setRecentBridges(items);
+    } catch {
+      setRecentBridges([]);
+    }
+  }
+
+  useEffect(() => { loadRecentBridges(); }, [mintTxHash]);
 
   async function doBridge() {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -75,10 +105,8 @@ export default function BridgeForm({ provider, address }: Props) {
     setErrorMsg(null);
     setBurnTxHash(null);
     setMintTxHash(null);
-
     try {
       const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
-
       await switchChain(provider, source.chainIdHex, {
         chainId: source.chainIdHex,
         chainName: sourceKey,
@@ -86,7 +114,6 @@ export default function BridgeForm({ provider, address }: Props) {
         rpcUrls: [source.chain.rpcUrls.default.http[0]],
         blockExplorerUrls: [source.chain.blockExplorers?.default.url ?? ""],
       });
-
       const sourceWallet = createWalletClient({ chain: source.chain, transport: custom(provider) });
       const sourcePublic = createPublicClient({ chain: source.chain, transport: http() });
 
@@ -155,6 +182,7 @@ export default function BridgeForm({ provider, address }: Props) {
       await arcPublic.waitForTransactionReceipt({ hash: mintHash });
       setMintTxHash(mintHash);
       setStep("done");
+      showToast("Bridge completed", "success");
     } catch (e: unknown) {
       const err = e as { message?: string };
       setErrorMsg(err.message ?? "Bridge failed.");
@@ -163,7 +191,6 @@ export default function BridgeForm({ provider, address }: Props) {
   }
 
   const isLoading = step === "approving" || step === "burning" || step === "attesting" || step === "minting";
-
   const stepLabels: Record<string, string> = {
     approving: "Approving USDC on " + sourceKey + "...",
     burning: "Burning USDC on " + sourceKey + "...",
@@ -172,7 +199,7 @@ export default function BridgeForm({ provider, address }: Props) {
   };
 
   return (
-    <div style={{ maxWidth: 460, width: "100%" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "1.25rem", alignItems: "start", width: "100%" }}>
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
         <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8, padding: "0.6rem 0.8rem" }}>
           <p style={{ fontSize: 12, color: "#93c5fd", margin: 0 }}>Real CCTP V2 bridge — burns USDC on source chain, mints native USDC on Arc via Circle's attestation service.</p>
@@ -190,28 +217,29 @@ export default function BridgeForm({ provider, address }: Props) {
           </div>
         </div>
 
-       <div style={{ display: "flex", justifyContent: "center" }}>
-  <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "0.75rem 1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 220 }}>
-    <div style={{ fontSize: 13, color: "#94a3b8" }}>{sourceKey}</div>
-    <div style={{ color: "#3b82f6", fontSize: 20 }}>↓</div>
-    <div style={{ fontSize: 13, color: "#94a3b8" }}>Arc Testnet</div>
-  </div>
-</div>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "0.75rem 1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 220 }}>
+            <div style={{ fontSize: 13, color: "#94a3b8" }}>{sourceKey}</div>
+            <div style={{ color: "#3b82f6", fontSize: 20 }}>↓</div>
+            <div style={{ fontSize: 13, color: "#94a3b8" }}>Arc Testnet</div>
+          </div>
+        </div>
 
-<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-  <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.3)", borderRadius: 10, padding: "0.7rem 0.6rem", textAlign: "center" }}>
-    <div style={{ fontSize: 9, color: "#60a5fa", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>EST. TIME</div>
-    <div style={{ fontSize: 13, color: "#93c5fd", fontWeight: 800 }}>~20 sec</div>
-  </div>
-  <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 10, padding: "0.7rem 0.6rem", textAlign: "center" }}>
-    <div style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>MAX FEE</div>
-    <div style={{ fontSize: 13, color: "#fcd34d", fontWeight: 800 }}>0.0005 USDC</div>
-  </div>
-  <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "0.7rem 0.6rem", textAlign: "center" }}>
-    <div style={{ fontSize: 9, color: "#34d399", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>YOU RECEIVE</div>
-    <div style={{ fontSize: 13, color: "#6ee7b7", fontWeight: 800 }}>Native USDC</div>
-  </div>
-</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.3)", borderRadius: 10, padding: "0.7rem 0.6rem", textAlign: "center" }}>
+            <div style={{ fontSize: 9, color: "#60a5fa", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>EST. TIME</div>
+            <div style={{ fontSize: 13, color: "#93c5fd", fontWeight: 800 }}>~20 sec</div>
+          </div>
+          <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 10, padding: "0.7rem 0.6rem", textAlign: "center" }}>
+            <div style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>MAX FEE</div>
+            <div style={{ fontSize: 13, color: "#fcd34d", fontWeight: 800 }}>0.0005 USDC</div>
+          </div>
+          <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "0.7rem 0.6rem", textAlign: "center" }}>
+            <div style={{ fontSize: 9, color: "#34d399", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>YOU RECEIVE</div>
+            <div style={{ fontSize: 13, color: "#6ee7b7", fontWeight: 800 }}>Native USDC</div>
+          </div>
+        </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Amount</label>
           <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
@@ -262,6 +290,37 @@ export default function BridgeForm({ provider, address }: Props) {
             Requires ETH on {sourceKey} for gas, and USDC to bridge. Get test tokens from{" "}
             <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa" }}>faucet.circle.com</a>.
           </p>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.1rem" }}>
+          <div style={{ fontSize: 11, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ABOUT CCTP V2</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
+            <p style={{ margin: 0 }}>Circle's Cross-Chain Transfer Protocol burns USDC on the source chain and mints native USDC on Arc — no wrapped tokens, no bridge risk.</p>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Protocol</span>
+              <span style={{ color: "#e2e8f0", fontWeight: 600 }}>CCTP V2</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Destination</span>
+              <span style={{ color: "#e2e8f0", fontWeight: 600 }}>Arc Testnet</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.1rem" }}>
+          <div style={{ fontSize: 11, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT BRIDGES TO ARC</div>
+          {recentBridges.length === 0 && <div style={{ fontSize: 12, color: "#334155" }}>No recent bridge activity.</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {recentBridges.map((b) => (
+              <a key={b.hash} href={`https://testnet.arcscan.app/tx/${b.hash}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.55rem 0.7rem", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}>
+                <span style={{ fontSize: 11, color: "#60a5fa", fontWeight: 600 }}>Mint</span>
+                <span style={{ fontSize: 11, color: "#334155" }}>{b.age}</span>
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </div>
