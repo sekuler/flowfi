@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
-import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
+import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits, parseAbiItem } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 
 const FACTORY_CONTRACT = "0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9" as `0x${string}`;
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
+const STABLE_SYMBOLS = new Set(["USDC", "EURC", "USYC"]);
 
 const KNOWN_TOKENS: { symbol: string; address: `0x${string}`; color: string }[] = [
   { symbol: "USDC", address: "0x3600000000000000000000000000000000000000", color: "#2563eb" },
@@ -40,6 +41,8 @@ const LEGACY_ABI = [
   { type: "function", name: "shares", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "totalShares", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
 ] as const;
+
+const SWAP_EVENT = parseAbiItem("event Swap(address indexed trader, bool aToB, uint256 amountIn, uint256 amountOut)");
 
 interface Props {
   provider: EIP1193Provider;
@@ -163,9 +166,9 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <select value={tokenASym} onChange={(e) => setTokenASym(e.target.value)}
-  style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.65rem", color: "#f1f5f9", fontSize: 13 }}>
-  {KNOWN_TOKENS.map(t => <option key={t.symbol} value={t.symbol} style={{ color: "#000" }}>{t.symbol}</option>)}
-</select>
+              style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.65rem", color: "#f1f5f9", fontSize: 13 }}>
+              {KNOWN_TOKENS.map(t => <option key={t.symbol} value={t.symbol} style={{ color: "#000" }}>{t.symbol}</option>)}
+            </select>
             <span style={{ color: "#475569" }}>+</span>
             <select value={tokenBSym} onChange={(e) => setTokenBSym(e.target.value)}
               style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.65rem", color: "#f1f5f9", fontSize: 13 }}>
@@ -208,30 +211,55 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
   const [reserves, setReserves] = useState<{ a: string; b: string } | null>(null);
   const [myShare, setMyShare] = useState<{ a: string; b: string; pct: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<{ tvl: number | null; swapCount7d: number; volume7d: number | null; fees7d: number | null; apr: number | null }>({ tvl: null, swapCount7d: 0, volume7d: null, fees7d: null, apr: null });
 
   const tokenAInfo = KNOWN_TOKENS.find(t => t.symbol === pool.symbolA);
   const tokenBInfo = KNOWN_TOKENS.find(t => t.symbol === pool.symbolB);
   const abi = pool.isLegacy ? LEGACY_ABI : POOL_ABI;
+  const isStablePair = STABLE_SYMBOLS.has(pool.symbolA) && STABLE_SYMBOLS.has(pool.symbolB);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const [resA, resB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getReserves" });
-      setReserves({ a: Number(formatUnits(resA, 6)).toFixed(4), b: Number(formatUnits(resB, 6)).toFixed(4) });
+      const rA = Number(formatUnits(resA, 6));
+      const rB = Number(formatUnits(resB, 6));
+      setReserves({ a: rA.toFixed(4), b: rB.toFixed(4) });
 
       const [myA, myB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getShareValue", args: [address as `0x${string}`] });
       const myShares = await client.readContract({ address: pool.poolAddress, abi, functionName: "shares", args: [address as `0x${string}`] });
       const total = await client.readContract({ address: pool.poolAddress, abi, functionName: "totalShares" });
       const pct = total > 0n ? (Number(myShares) / Number(total)) * 100 : 0;
       setMyShare({ a: Number(formatUnits(myA, 6)).toFixed(4), b: Number(formatUnits(myB, 6)).toFixed(4), pct: pct.toFixed(3) });
+
+      const tvl = isStablePair ? rA + rB : null;
+
+      let swapCount = 0;
+      let volume7d: number | null = null;
+      try {
+        const currentBlock = await client.getBlockNumber();
+        const fromBlock = currentBlock > 100000n ? currentBlock - 100000n : 0n;
+        const logs = await client.getLogs({ address: pool.poolAddress, event: SWAP_EVENT, fromBlock, toBlock: "latest" });
+        swapCount = logs.length;
+        if (isStablePair) {
+          volume7d = logs.reduce((sum, log) => sum + Number(formatUnits(log.args.amountIn ?? 0n, 6)), 0);
+        }
+      } catch {
+        /* leave swapCount at 0 if log fetch fails */
+      }
+
+      const fees7d = volume7d !== null ? volume7d * 0.003 : null;
+      const apr = fees7d !== null && tvl && tvl > 0 ? (fees7d / tvl) * (365 / 7) * 100 : null;
+
+      setMetrics({ tvl, swapCount7d: swapCount, volume7d, fees7d, apr });
     } catch {
       setReserves(null);
       setMyShare(null);
     } finally {
       setLoading(false);
     }
-  }, [pool.poolAddress, address, abi]);
+  }, [pool.poolAddress, address, abi, isStablePair]);
 
   useEffect(() => { if (expanded) loadData(); }, [expanded, loadData]);
 
@@ -316,6 +344,28 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
 
       {expanded && (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", paddingLeft: 4 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.6rem 0.5rem", textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#334155", fontWeight: 700, marginBottom: 3 }}>TVL</div>
+              <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 700 }}>{loading ? "..." : metrics.tvl !== null ? `$${metrics.tvl.toFixed(2)}` : "—"}</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.6rem 0.5rem", textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#334155", fontWeight: 700, marginBottom: 3 }}>EST. APR</div>
+              <div style={{ fontSize: 12, color: "#6ee7b7", fontWeight: 700 }}>{loading ? "..." : metrics.apr !== null ? `${metrics.apr.toFixed(1)}%` : "—"}</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.6rem 0.5rem", textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#334155", fontWeight: 700, marginBottom: 3 }}>VOLUME</div>
+              <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 700 }}>{loading ? "..." : metrics.volume7d !== null ? `$${metrics.volume7d.toFixed(2)}` : `${metrics.swapCount7d} swaps`}</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.6rem 0.5rem", textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#334155", fontWeight: 700, marginBottom: 3 }}>FEES</div>
+              <div style={{ fontSize: 12, color: "#fbbf24", fontWeight: 700 }}>{loading ? "..." : metrics.fees7d !== null ? `$${metrics.fees7d.toFixed(3)}` : "—"}</div>
+            </div>
+          </div>
+          {!isStablePair && (
+            <p style={{ fontSize: 10, color: "#475569", margin: 0 }}>TVL, volume ($), and APR require a stablecoin pair to price accurately — showing raw swap count instead.</p>
+          )}
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
             <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.7rem 0.85rem" }}>
               <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3 }}>{pool.symbolA}</div>
