@@ -331,7 +331,7 @@ export default function App() {
 </header>
 
         <div style={{ padding: "2.5rem" }}>
-          <div style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" || tab === "pools" ? 900 : 520, margin: "0 auto" }}>
+          <div style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" || tab === "pools" || tab === "swap" ? 900 : 520, margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
                 {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
