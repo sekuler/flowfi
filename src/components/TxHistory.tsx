@@ -22,6 +22,12 @@ const METHOD_META: Record<string, { label: string; color: string; bg: string }> 
   "0x": { label: "Deploy", color: "#64748b", bg: "rgba(100,116,139,0.1)" },
 };
 
+const STATUS_META: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+  ok: { label: "Success", color: "#6ee7b7", bg: "rgba(16,185,129,0.1)", dot: "#10b981" },
+  pending: { label: "Pending", color: "#fcd34d", bg: "rgba(245,158,11,0.1)", dot: "#f59e0b" },
+  error: { label: "Failed", color: "#fca5a5", bg: "rgba(239,68,68,0.1)", dot: "#ef4444" },
+};
+
 function timeAgo(sec: number) {
   const diff = Math.floor(Date.now() / 1000) - sec;
   if (diff < 60) return `${diff}s ago`;
@@ -39,6 +45,7 @@ export default function TxHistory({ address }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
   async function load() {
     setLoading(true); setError(null);
@@ -52,7 +59,7 @@ export default function TxHistory({ address }: Props) {
         age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—",
         from: tx.from ?? "—",
         to: tx.to ?? "—",
-        status: tx.txreceipt_status === "1" ? "ok" : "error",
+        status: tx.txreceipt_status === "1" ? "ok" : tx.txreceipt_status === "0" ? "error" : "pending",
       }));
       setTxs(items);
     } catch {
@@ -63,6 +70,14 @@ export default function TxHistory({ address }: Props) {
   }
 
   useEffect(() => { if (address) load(); }, [address]);
+
+  function copyHash(hash: string, e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(hash);
+    setCopiedHash(hash);
+    setTimeout(() => setCopiedHash(null), 1500);
+  }
 
   const filterOptions = ["all", "Send", "Swap", "Approve", "Escrow"];
   const filteredTxs = filter === "all" ? txs : txs.filter(tx => methodMeta(tx.method).label === filter);
@@ -94,18 +109,20 @@ export default function TxHistory({ address }: Props) {
 
       {!loading && filteredTxs.length > 0 && (
         <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px", gap: 8, padding: "0.6rem 1rem", background: "rgba(255,255,255,0.03)", fontSize: 10, color: "#334155", fontWeight: 700, letterSpacing: "0.5px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 90px 60px 70px", gap: 8, padding: "0.6rem 1rem", background: "rgba(255,255,255,0.03)", fontSize: 10, color: "#334155", fontWeight: 700, letterSpacing: "0.5px" }}>
             <span>TYPE</span>
             <span>TX HASH</span>
             <span>STATUS</span>
+            <span></span>
             <span style={{ textAlign: "right" }}>AGE</span>
           </div>
           {filteredTxs.map((tx, i) => {
             const meta = methodMeta(tx.method);
+            const statusMeta = STATUS_META[tx.status] ?? STATUS_META.pending;
             return (
               <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
                 style={{
-                  display: "grid", gridTemplateColumns: "90px 1fr 90px 90px", gap: 8, alignItems: "center",
+                  display: "grid", gridTemplateColumns: "80px 1fr 90px 60px 70px", gap: 8, alignItems: "center",
                   padding: "0.75rem 1rem", textDecoration: "none",
                   borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.04)",
                   background: "rgba(255,255,255,0.01)",
@@ -114,10 +131,14 @@ export default function TxHistory({ address }: Props) {
                   {meta.label}
                 </span>
                 <span style={{ fontSize: 12, color: "#4f46e5", fontFamily: "monospace" }}>{tx.hash.slice(0, 14)}...</span>
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: tx.status === "ok" ? "#10b981" : "#ef4444" }} />
-                  <span style={{ fontSize: 11, color: tx.status === "ok" ? "#6ee7b7" : "#fca5a5" }}>{tx.status === "ok" ? "Success" : "Failed"}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: statusMeta.color, background: statusMeta.bg, padding: "3px 8px", borderRadius: 6, width: "fit-content" }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusMeta.dot }} />
+                  {statusMeta.label}
                 </span>
+                <button onClick={(e) => copyHash(tx.hash, e)} title="Copy hash"
+                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "3px 8px", color: copiedHash === tx.hash ? "#6ee7b7" : "#64748b", fontSize: 11, cursor: "pointer", width: "fit-content" }}>
+                  {copiedHash === tx.hash ? "✓" : "⧉"}
+                </button>
                 <span style={{ fontSize: 11, color: "#334155", textAlign: "right" }}>{tx.age}</span>
               </a>
             );
