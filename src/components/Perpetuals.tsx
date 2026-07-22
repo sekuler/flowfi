@@ -335,6 +335,40 @@ export default function Perpetuals({ provider, address }: Props) {
             </button>
           </div>
         </div>
+        {margin && Number(margin) > 0 && currentPrice && (
+  <div style={{ background: "rgba(79,70,229,0.05)", border: "1px solid rgba(79,70,229,0.2)", borderRadius: 14, padding: "1.1rem", marginBottom: 12 }}>
+    <div style={{ fontSize: 10, color: "#a5b4fc", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>POSITION SUMMARY</div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div>
+        <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Margin</div>
+        <div style={{ fontSize: 14, color: "#e2e8f0", fontWeight: 700 }}>${Number(margin).toFixed(2)}</div>
+      </div>
+      <div>
+        <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Leverage</div>
+        <div style={{ fontSize: 14, color: "#e2e8f0", fontWeight: 700 }}>{leverage}x</div>
+      </div>
+      <div>
+        <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Liquidation</div>
+        <div style={{ fontSize: 14, color: "#fca5a5", fontWeight: 700 }}>
+          ${fmtPrice(isLong ? currentPrice - currentPrice / leverage : currentPrice + currentPrice / leverage)}
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Position Size</div>
+        <div style={{ fontSize: 14, color: "#e2e8f0", fontWeight: 700 }}>${(Number(margin) * leverage).toFixed(2)}</div>
+      </div>
+      <div>
+        <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>PnL</div>
+        <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>—</div>
+      </div>
+      <div>
+        <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>ROI</div>
+        <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>—</div>
+      </div>
+    </div>
+    <p style={{ fontSize: 10, color: "#475569", marginTop: 10, marginBottom: 0 }}>Preview before opening — PnL and ROI appear once the position is live.</p>
+  </div>
+)}
 
         <div>
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>

@@ -175,14 +175,35 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         </div>
 
         {rateStale && (
-          <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "0.65rem 0.8rem" }}>
-            <p style={{ fontSize: 12, color: "#fca5a5", margin: 0 }}>
-              ⚠️ Pool rate ({poolRate?.toFixed(4)}) differs from live market rate ({marketRate?.toFixed(4)}) by more than 1%. This swap uses the pool's fixed rate, not the live market rate.
-            </p>
-          </div>
-        )}
+  <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "0.65rem 0.8rem" }}>
+    <p style={{ fontSize: 12, color: "#fca5a5", margin: 0 }}>
+      ⚠️ Pool rate ({poolRate?.toFixed(4)}) differs from live market rate ({marketRate?.toFixed(4)}) by more than 1%. This swap uses the pool's fixed rate, not the live market rate.
+    </p>
+  </div>
+)}
 
-        <SwapAdvisor tokenIn={tokenIn} tokenOut={tokenOut} amountIn={amount} amountOut={estimatedOut} />
+{amount && Number(amount) > 0 && Number(estimatedOut) > 0 && (
+  <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.85rem 1rem", display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+      <span style={{ color: "#64748b" }}>You Receive</span>
+      <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{estimatedOut} {tokenOut}</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+      <span style={{ color: "#64748b" }}>Rate</span>
+      <span style={{ color: "#e2e8f0", fontWeight: 600 }}>1 {tokenIn} = {tokenIn === "USDC" ? poolRate?.toFixed(4) : (poolRate ? (1 / poolRate).toFixed(4) : "...")} {tokenOut}</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+      <span style={{ color: "#64748b" }}>Fee</span>
+      <span style={{ color: "#6ee7b7", fontWeight: 600 }}>0% — fixed-rate pool</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+      <span style={{ color: "#64748b" }}>Minimum Received</span>
+      <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{estimatedOut} {tokenOut}</span>
+    </div>
+  </div>
+)}
+
+<SwapAdvisor tokenIn={tokenIn} tokenOut={tokenOut} amountIn={amount} amountOut={estimatedOut} />
 
         {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
 
