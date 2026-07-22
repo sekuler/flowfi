@@ -1,4 +1,5 @@
-﻿import SwapAdvisor from "./SwapAdvisor";
+﻿import { showToast } from "../toast";
+import SwapAdvisor from "./SwapAdvisor";
 import AdminRate from "./AdminRate";
 import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
@@ -125,7 +126,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       await publicClient.waitForTransactionReceipt({ hash });
 
       setTxHash(hash); setSwapState("done"); setAmount(""); setEstimatedOut("0.00");
-      onRefresh();
+showToast("Swap completed", "success");
+onRefresh();
     } catch (e: unknown) {
       const err = e as { message?: string };
       setErrorMsg(err.message ?? "Unexpected error."); setSwapState("error");

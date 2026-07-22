@@ -1,4 +1,6 @@
-﻿import { useState, useEffect } from "react";
+﻿import ToastContainer from "./components/ToastContainer";
+import { showToast } from "./toast";
+import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
@@ -170,11 +172,12 @@ export default function App() {
   }, [wallet]);
 
   function copyAddress() {
-    if (!wallet) return;
-    navigator.clipboard.writeText(wallet.address);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
+  if (!wallet) return;
+  navigator.clipboard.writeText(wallet.address);
+  setCopied(true);
+  showToast("Address copied", "success");
+  setTimeout(() => setCopied(false), 1500);
+}
 
   const shortAddr = wallet ? wallet.address.slice(0, 6) + "..." + wallet.address.slice(-4) : "";
 
@@ -253,6 +256,7 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", background: "linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%)", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
+      <ToastContainer />
       <aside style={{ width: 220, minHeight: "100vh", background: "#0a1a2f", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0 }}>
         <div style={{ padding: "0 1.25rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "1rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
