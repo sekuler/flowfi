@@ -41,6 +41,8 @@ FlowFi unifies the entire stablecoin experience into a single interface built sp
 | **Swap** | On-chain USDC/EURC swap with an AI advisor that reads live pool liquidity and computes a risk score before every trade |
 | **Perpetuals** | Long/short BTC and ETH with 1x-20x leverage, live TradingView charts, real-time PNL, liquidation price |
 | **Liquidity Pools** | Permissionless AMM factory — anyone can create a pool for any token pair and earn a share of swap fees |
+| **Lending & Borrowing** | Supply USDC to earn interest, or deposit EURC as collateral to borrow USDC at up to 75% LTV |
+| **Token Launch** | Deploy your own ERC20 token with 1,000,000 supply, then create a liquidity pool for it |
 | **Escrow** | Smart-contract-secured freelance payments — funds release only when work is delivered |
 | **AI Understands You** | Type transfers in plain English, get swap risk explained before you trade, and ask questions about your wallet history — all answered by AI grounded in your real on-chain data |
 | **Dashboard** | Portfolio value, token distribution, weekly volume, recent transactions |
@@ -86,6 +88,8 @@ FlowFi unifies the entire stablecoin experience into a single interface built sp
 | ArcEscrow | [`0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75`](https://testnet.arcscan.app/address/0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75) | Conditional freelance payments |
 | ArcPerps | [`0x3B4cE1734087e1c67474Ff42982063febE3E4B20`](https://testnet.arcscan.app/address/0x3B4cE1734087e1c67474Ff42982063febE3E4B20) | Leveraged BTC/ETH trading |
 | ArcFactory | [`0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9`](https://testnet.arcscan.app/address/0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9) | Permissionless AMM pool creation |
+| ArcLending | [`0xD3e0171CaCd799E49155eE48981841E9a9d225ab`](https://testnet.arcscan.app/address/0xD3e0171CaCd799E49155eE48981841E9a9d225ab) | USDC lending market with EURC collateral |
+| ArcTokenFactory | [`0x481E8919f79A4DA6446EA78cEa70037acB9c85A1`](https://testnet.arcscan.app/address/0x481E8919f79A4DA6446EA78cEa70037acB9c85A1) | Permissionless ERC20 token launch |
 
 
 
@@ -100,7 +104,6 @@ Explore each contract directly:
 ## Roadmap
 
 - Circle Developer-Controlled Wallets for seed-phrase-free onboarding
-- Lending & borrowing markets on top of the AMM factory
 - Decentralized price oracle for Perpetuals
 - Mainnet-track hardening (audits, production wallet security)
 

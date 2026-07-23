@@ -271,11 +271,12 @@ export default function Perpetuals({ provider, address }: Props) {
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div style={{ display: "flex", gap: 8 }}>
             {(["BTC", "ETH"] as const).map((m) => (
-              <button key={m} onClick={() => setMarket(m)} disabled={isLoading}
-                style={{ flex: 1, padding: "0.6rem", borderRadius: 8, border: market === m ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)", background: market === m ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)", color: market === m ? "#60a5fa" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                {m}-PERP
-              </button>
-            ))}
+  <button key={m} onClick={() => setMarket(m)} disabled={isLoading}
+    style={{ flex: 1, padding: "0.6rem", borderRadius: 8, border: market === m ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)", background: market === m ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)", color: market === m ? "#60a5fa" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+    <img src={m === "BTC" ? "https://assets.coingecko.com/coins/images/1/small/bitcoin.png" : "https://assets.coingecko.com/coins/images/279/small/ethereum.png"} alt={m} style={{ width: 16, height: 16, borderRadius: "50%" }} />
+    {m}-PERP
+  </button>
+))}
           </div>
 
           <TradingViewChart symbol={market} />
