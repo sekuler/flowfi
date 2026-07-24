@@ -1,4 +1,6 @@
-﻿import TokenLaunch from "./components/TokenLaunch";
+﻿import StablecoinAnalytics from "./components/StablecoinAnalytics";
+import CopilotHome from "./components/CopilotHome";
+import TokenLaunch from "./components/TokenLaunch";
 import LendingForm from "./components/LendingForm";
 import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
@@ -39,22 +41,23 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "portfolio" | "send" | "receive" | "swap" | "perps" | "pools" | "lending" | "launch" | "dashboard" | "history" | "bridge" | "circlewallet";
+type Tab = "home" | "portfolio" | "send" | "receive" | "swap" | "perps" | "pools" | "lending" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
 
 const TAB_GROUPS: { group: string; color: string; tabs: { id: Tab; label: string; emoji: string }[] }[] = [
-  {
-    group: "WALLET",
-    color: "#60a5fa",
-   tabs: [
-      { id: "portfolio", label: "Portfolio", emoji: "◈" },
-      { id: "send",      label: "Send",      emoji: "↗" },
-      { id: "receive",   label: "Receive",   emoji: "↙" },
-    ],
-  },
+ {
+  group: "WALLET",
+  color: "#60a5fa",
+  tabs: [
+    { id: "home",      label: "Home",      emoji: "✦" },
+    { id: "portfolio", label: "Portfolio", emoji: "◈" },
+    { id: "send",      label: "Send",      emoji: "↗" },
+    { id: "receive",   label: "Receive",   emoji: "↙" },
+  ],
+},
 {
   group: "TRADING",
   color: "#34d399",
@@ -73,14 +76,15 @@ const TAB_GROUPS: { group: string; color: string; tabs: { id: Tab; label: string
       { id: "bridge",    label: "Bridge",    emoji: "⬡" },
     ],
   },
-  {
-    group: "ANALYTICS",
-    color: "#fbbf24",
-    tabs: [
-      { id: "dashboard", label: "Dashboard", emoji: "▤" },
-      { id: "history",   label: "History",   emoji: "↺" },
-    ],
-  },
+ {
+  group: "ANALYTICS",
+  color: "#fbbf24",
+  tabs: [
+    { id: "dashboard", label: "Dashboard", emoji: "▤" },
+    { id: "analytics", label: "Stablecoin Analytics", emoji: "📊" },
+    { id: "history",   label: "History",   emoji: "↺" },
+  ],
+},
   {
     group: "SETTINGS",
     color: "#a78bfa",
@@ -109,18 +113,18 @@ function timeAgo(sec: number) {
 
 export default function App() {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
-  const [tab, setTab] = useState<Tab>("portfolio");
+  const [tab, setTab] = useState<Tab>("home");
   const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, native: null });
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
   const [eurUsdRate, setEurUsdRate] = useState<number | null>(null);
 
-  function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
-    setWallet({ provider, address, walletName });
-    setTab("portfolio");
-    showToast("Wallet connected", "success");
-  }
+ function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
+  setWallet({ provider, address, walletName });
+  setTab("home");
+  showToast("Wallet connected", "success");
+}
 
   async function loadBalances(address: string) {
     try {
@@ -369,14 +373,16 @@ export default function App() {
           <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" || tab === "pools" || tab === "swap" || tab === "bridge" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
-              </h1>
+{tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
+</h1>
+<p style={{ fontSize: 13, color: "#334155" }}></p>
+                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
               <p style={{ fontSize: 13, color: "#334155" }}>
-                {tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "perps" ? "Leveraged BTC/ETH trading demo" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "lending" ? "Supply to earn, or borrow against collateral" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Bridge USDC to Arc via CCTP"}
+               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "perps" ? "Leveraged BTC/ETH trading demo" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "lending" ? "Supply to earn, or borrow against collateral" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Bridge USDC to Arc via CCTP"}
               </p>
             </div>
-
-            {tab === "portfolio" && (
+{tab === "home" && <CopilotHome address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
+{tab === "portfolio" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
                   {(["USDC", "EURC", "USYC"] as const).map((label) => {
@@ -457,6 +463,7 @@ export default function App() {
             )}
 
             {tab === "dashboard" && <Dashboard address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
+            {tab === "analytics" && <StablecoinAnalytics />}
             {tab === "history" && <TxHistory address={wallet.address} />}
             {tab === "receive" && <ReceiveQR address={wallet.address} />}
             {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} />}
@@ -466,7 +473,7 @@ export default function App() {
             {tab === "perps" && <Perpetuals provider={wallet.provider} address={wallet.address} />}
             {tab === "pools" && <LiquidityPools provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
           {tab === "lending" && <LendingForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
-          {tab === "launch" && <TokenLaunch provider={wallet.provider} address={wallet.address} />}
+          {tab === "launch" && <TokenLaunch provider={wallet.provider} address={wallet.address} onNavigateToPools={() => setTab("pools")} />}
           </div>
         </div>
       </main>
