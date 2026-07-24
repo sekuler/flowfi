@@ -52,7 +52,7 @@ export default function EthBridge({ provider, address }: Props) {
         // OP Stack bridges: sending ETH directly to the bridge deposits it to msg.sender on L2
         hash = await wc.sendTransaction({ to: BASE_L1_BRIDGE, value, account: address as `0x${string}` });
       } else {
-        hash = await wc.writeContract({ address: ARBITRUM_INBOX, abi: ARBITRUM_INBOX_ABI, functionName: "depositEth", args: [address as `0x${string}`], value, account: address as `0x${string}` });
+        hash = await wc.writeContract({ address: ARBITRUM_INBOX, abi: ARBITRUM_INBOX_ABI, functionName: "depositEth", args: [address as `0x${string}`], value, account: address as `0x${string}`, gas: 300000n });
       }
       await publicClient.waitForTransactionReceipt({ hash });
 
