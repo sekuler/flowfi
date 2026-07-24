@@ -1,4 +1,5 @@
-﻿import { useState, useEffect } from "react";
+﻿import EthBridge from "./EthBridge";
+import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
@@ -6,16 +7,17 @@ import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
-const ARC_MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x${string}`;
+// CCTP V2 contracts deploy at the same address across all supported EVM chains (CREATE2).
+const MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x${string}`;
 const IRIS_API = "https://iris-api-sandbox.circle.com/v2/messages";
-const ARC_DOMAIN = 26;
 
-const SOURCE_CHAINS = {
-  "Ethereum Sepolia": { chain: sepolia, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, chainIdHex: "0xaa36a7" },
-  "Base Sepolia": { chain: baseSepolia, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, chainIdHex: "0x14a34" },
-  "Arbitrum Sepolia": { chain: arbitrumSepolia, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, chainIdHex: "0x66eee" },
+const CHAINS = {
+  "Arc Testnet": { chain: arcTestnet, domain: 26, usdc: "0x3600000000000000000000000000000000000000" as `0x${string}`, chainIdHex: ARC_CHAIN_ID_HEX, isArc: true },
+  "Ethereum Sepolia": { chain: sepolia, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, chainIdHex: "0xaa36a7", isArc: false },
+  "Base Sepolia": { chain: baseSepolia, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, chainIdHex: "0x14a34", isArc: false },
+  "Arbitrum Sepolia": { chain: arbitrumSepolia, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, chainIdHex: "0x66eee", isArc: false },
 } as const;
-type SourceChainKey = keyof typeof SOURCE_CHAINS;
+type ChainKey = keyof typeof CHAINS;
 
 interface Props {
   provider: EIP1193Provider;
@@ -67,8 +69,23 @@ async function switchChain(provider: EIP1193Provider, chainIdHex: string, addPar
   }
 }
 
+function addChainParams(key: ChainKey) {
+  const c = CHAINS[key];
+  if (key === "Arc Testnet") {
+    return { chainId: c.chainIdHex, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.testnet.arc.network"], blockExplorerUrls: ["https://testnet.arcscan.app"] };
+  }
+  return {
+    chainId: c.chainIdHex, chainName: key,
+    nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+    rpcUrls: [c.chain.rpcUrls.default.http[0]],
+    blockExplorerUrls: [c.chain.blockExplorers?.default.url ?? ""],
+  };
+}
+
 export default function BridgeForm({ provider, address }: Props) {
-  const [sourceKey, setSourceKey] = useState<SourceChainKey>("Ethereum Sepolia");
+  const [bridgeType, setBridgeType] = useState<"usdc" | "eth">("usdc");
+  const [sourceKey, setSourceKey] = useState<ChainKey>("Ethereum Sepolia");
+  const [destKey, setDestKey] = useState<ChainKey>("Arc Testnet");
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"idle" | "approving" | "burning" | "attesting" | "minting" | "done" | "error">("idle");
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
@@ -76,7 +93,24 @@ export default function BridgeForm({ provider, address }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [recentBridges, setRecentBridges] = useState<RecentBridge[]>([]);
 
-  const source = SOURCE_CHAINS[sourceKey];
+  const source = CHAINS[sourceKey];
+  const dest = CHAINS[destKey];
+
+  // Keep source and destination distinct — flip destination if it matches new source
+  function changeSource(key: ChainKey) {
+    setSourceKey(key);
+    if (key === destKey) {
+      const fallback = (Object.keys(CHAINS) as ChainKey[]).find((k) => k !== key);
+      if (fallback) setDestKey(fallback);
+    }
+  }
+  function changeDest(key: ChainKey) {
+    setDestKey(key);
+    if (key === sourceKey) {
+      const fallback = (Object.keys(CHAINS) as ChainKey[]).find((k) => k !== key);
+      if (fallback) setSourceKey(fallback);
+    }
+  }
 
   function bytes32Address(addr: string): `0x${string}` {
     return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
@@ -84,7 +118,7 @@ export default function BridgeForm({ provider, address }: Props) {
 
   async function loadRecentBridges() {
     try {
-      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${ARC_MESSAGE_TRANSMITTER}&limit=6`);
+      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${MESSAGE_TRANSMITTER}&limit=6`);
       const data = await res.json();
       const items: RecentBridge[] = (data.result ?? []).slice(0, 6).map((tx: any) => ({
         hash: tx.hash,
@@ -102,18 +136,15 @@ export default function BridgeForm({ provider, address }: Props) {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       setErrorMsg("Enter a valid amount."); return;
     }
+    if (sourceKey === destKey) {
+      setErrorMsg("Source and destination must be different."); return;
+    }
     setErrorMsg(null);
     setBurnTxHash(null);
     setMintTxHash(null);
     try {
       const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
-      await switchChain(provider, source.chainIdHex, {
-        chainId: source.chainIdHex,
-        chainName: sourceKey,
-        nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-        rpcUrls: [source.chain.rpcUrls.default.http[0]],
-        blockExplorerUrls: [source.chain.blockExplorers?.default.url ?? ""],
-      });
+      await switchChain(provider, source.chainIdHex, addChainParams(sourceKey));
       const sourceWallet = createWalletClient({ chain: source.chain, transport: custom(provider) });
       const sourcePublic = createPublicClient({ chain: source.chain, transport: http() });
 
@@ -134,7 +165,7 @@ export default function BridgeForm({ provider, address }: Props) {
         functionName: "depositForBurn",
         args: [
           amountUnits,
-          ARC_DOMAIN,
+          dest.domain,
           bytes32Address(address),
           source.usdc,
           bytes32Address("0x0000000000000000000000000000000000000000"),
@@ -163,23 +194,17 @@ export default function BridgeForm({ provider, address }: Props) {
       if (!attestation) throw new Error("Attestation timed out. Try minting later using the burn tx hash.");
 
       setStep("minting");
-      await switchChain(provider, ARC_CHAIN_ID_HEX, {
-        chainId: ARC_CHAIN_ID_HEX,
-        chainName: "Arc Testnet",
-        nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-        rpcUrls: ["https://rpc.testnet.arc.network"],
-        blockExplorerUrls: ["https://testnet.arcscan.app"],
-      });
-      const arcWallet = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-      const arcPublic = createPublicClient({ chain: arcTestnet, transport: http() });
-      const mintHash = await arcWallet.writeContract({
-        address: ARC_MESSAGE_TRANSMITTER,
+      await switchChain(provider, dest.chainIdHex, addChainParams(destKey));
+      const destWallet = createWalletClient({ chain: dest.chain, transport: custom(provider) });
+      const destPublic = createPublicClient({ chain: dest.chain, transport: http() });
+      const mintHash = await destWallet.writeContract({
+        address: MESSAGE_TRANSMITTER,
         abi: RECEIVE_MESSAGE_ABI,
         functionName: "receiveMessage",
         args: [attestation.message as `0x${string}`, attestation.attestation as `0x${string}`],
         account: address as `0x${string}`,
       });
-      await arcPublic.waitForTransactionReceipt({ hash: mintHash });
+      await destPublic.waitForTransactionReceipt({ hash: mintHash });
       setMintTxHash(mintHash);
       setStep("done");
       showToast("Bridge completed", "success");
@@ -195,22 +220,37 @@ export default function BridgeForm({ provider, address }: Props) {
     approving: "Approving USDC on " + sourceKey + "...",
     burning: "Burning USDC on " + sourceKey + "...",
     attesting: "Waiting for Circle attestation (can take 1-2 min)...",
-    minting: "Minting USDC on Arc Testnet...",
+    minting: "Minting USDC on " + destKey + "...",
   };
 
   return (
+  <div style={{ display: "flex", flexDirection: "column", gap: "1rem", width: "100%" }}>
+    <div style={{ display: "flex", gap: 8 }}>
+      <button onClick={() => setBridgeType("usdc")}
+        style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: bridgeType === "usdc" ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)", background: bridgeType === "usdc" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)", color: bridgeType === "usdc" ? "#60a5fa" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+        USDC Bridge
+      </button>
+      <button onClick={() => setBridgeType("eth")}
+        style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: bridgeType === "eth" ? "2px solid #f59e0b" : "1px solid rgba(255,255,255,0.08)", background: bridgeType === "eth" ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.03)", color: bridgeType === "eth" ? "#fbbf24" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+        ETH Bridge
+      </button>
+    </div>
+
+    {bridgeType === "eth" && <EthBridge provider={provider} address={address} />}
+
+    {bridgeType === "usdc" && (
     <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "1.25rem", alignItems: "start", width: "100%" }}>
-      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-        <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8, padding: "0.6rem 0.8rem" }}>
-          <p style={{ fontSize: 12, color: "#93c5fd", margin: 0 }}>Real CCTP V2 bridge — burns USDC on source chain, mints native USDC on Arc via Circle's attestation service.</p>
-        </div>
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8, padding: "0.6rem 0.8rem" }}>
+        <p style={{ fontSize: 12, color: "#93c5fd", margin: 0 }}>Real CCTP V2 bridge — burn on any supported chain, mint native USDC on any other.</p>
+      </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>From</label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {(Object.keys(SOURCE_CHAINS) as SourceChainKey[]).map((key) => (
-              <button key={key} onClick={() => setSourceKey(key)} disabled={isLoading}
-                style={{ flex: "1 1 30%", padding: "0.6rem", borderRadius: 8, border: sourceKey === key ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)", background: sourceKey === key ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)", color: sourceKey === key ? "#60a5fa" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            {(Object.keys(CHAINS) as ChainKey[]).map((key) => (
+              <button key={key} onClick={() => changeSource(key)} disabled={isLoading}
+                style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 8, border: sourceKey === key ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)", background: sourceKey === key ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)", color: sourceKey === key ? "#60a5fa" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                 {key}
               </button>
             ))}
@@ -221,7 +261,19 @@ export default function BridgeForm({ provider, address }: Props) {
           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "0.75rem 1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 220 }}>
             <div style={{ fontSize: 13, color: "#94a3b8" }}>{sourceKey}</div>
             <div style={{ color: "#3b82f6", fontSize: 20 }}>↓</div>
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>Arc Testnet</div>
+            <div style={{ fontSize: 13, color: "#94a3b8" }}>{destKey}</div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>To</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(Object.keys(CHAINS) as ChainKey[]).map((key) => (
+              <button key={key} onClick={() => changeDest(key)} disabled={isLoading}
+                style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 8, border: destKey === key ? "2px solid #10b981" : "1px solid rgba(255,255,255,0.08)", background: destKey === key ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.03)", color: destKey === key ? "#6ee7b7" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                {key}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -265,14 +317,14 @@ export default function BridgeForm({ provider, address }: Props) {
         {mintTxHash && (
           <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "1rem" }}>
             <p style={{ color: "#6ee7b7", fontWeight: 600, marginBottom: 6 }}>Bridge complete!</p>
-            <a href={`https://testnet.arcscan.app/tx/${mintTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View mint on Arcscan ↗</a>
+            <a href={`${dest.chain.blockExplorers?.default.url ?? "https://testnet.arcscan.app"}/tx/${mintTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View mint on {destKey} ↗</a>
           </div>
         )}
 
         <button onClick={step === "error" ? () => { setStep("idle"); setErrorMsg(null); } : doBridge}
           disabled={isLoading || step === "done"}
           style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #2563eb, #3b82f6)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading || step === "done" ? "not-allowed" : "pointer", opacity: isLoading || step === "done" ? 0.6 : 1, boxShadow: "0 0 24px rgba(59,130,246,0.3)" }}>
-          {step === "idle" && "Bridge to Arc"}
+          {step === "idle" && `Bridge to ${destKey}`}
           {isLoading && "Processing..."}
           {step === "done" && "Done!"}
           {step === "error" && "Try Again"}
@@ -287,7 +339,7 @@ export default function BridgeForm({ provider, address }: Props) {
 
         <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: "0.6rem 0.875rem" }}>
           <p style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5, margin: 0 }}>
-            Requires ETH on {sourceKey} for gas, and USDC to bridge. Get test tokens from{" "}
+            Requires native gas on {sourceKey} and USDC to bridge. Get test tokens from{" "}
             <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa" }}>faucet.circle.com</a>.
           </p>
         </div>
@@ -297,14 +349,14 @@ export default function BridgeForm({ provider, address }: Props) {
         <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.1rem" }}>
           <div style={{ fontSize: 11, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ABOUT CCTP V2</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
-            <p style={{ margin: 0 }}>Circle's Cross-Chain Transfer Protocol burns USDC on the source chain and mints native USDC on Arc — no wrapped tokens, no bridge risk.</p>
+            <p style={{ margin: 0 }}>Circle's Cross-Chain Transfer Protocol burns USDC on the source chain and mints native USDC on the destination — no wrapped tokens, no bridge risk. Now supports any-to-any transfers among Arc, Ethereum Sepolia, Base Sepolia, and Arbitrum Sepolia.</p>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>Protocol</span>
               <span style={{ color: "#e2e8f0", fontWeight: 600 }}>CCTP V2</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Destination</span>
-              <span style={{ color: "#e2e8f0", fontWeight: 600 }}>Arc Testnet</span>
+              <span>Route</span>
+              <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{sourceKey} → {destKey}</span>
             </div>
           </div>
         </div>
@@ -323,6 +375,8 @@ export default function BridgeForm({ provider, address }: Props) {
           </div>
         </div>
       </div>
+    </div>
+    )}
     </div>
   );
 }
