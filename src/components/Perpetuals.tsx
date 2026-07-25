@@ -326,8 +326,37 @@ export default function Perpetuals({ provider, address }: Props) {
               </div>
             )}
 
+{(state === "approving" || state === "opening") && (
+  <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0.3rem 0" }}>
+    {["approving", "opening"].map((s, i) => {
+      const order = ["approving", "opening"];
+      const currentIndex = order.indexOf(state);
+      const isDone = currentIndex > i;
+      const isActive = state === s;
+      const isLast = i === order.length - 1;
+      const label: Record<string, string> = { approving: "Approve", opening: "Open" };
+      return (
+        <div key={s} style={{ display: "flex", alignItems: "center", flex: isLast ? "0 0 auto" : 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <div style={{
+              width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 10, fontWeight: 800,
+              background: isDone ? "#10b981" : isActive ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.05)",
+              border: isActive ? "2px solid #8b5cf6" : "none",
+              color: isDone ? "#fff" : isActive ? "#a78bfa" : "#475569",
+              boxShadow: isActive ? "0 0 0 4px rgba(139,92,246,0.15)" : "none",
+            }}>
+              {isDone ? "✓" : i + 1}
+            </div>
+            <span style={{ fontSize: 9, color: isDone ? "#6ee7b7" : isActive ? "#c4b5fd" : "#475569" }}>{label[s]}</span>
+          </div>
+          {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#10b981" : "rgba(255,255,255,0.08)", marginBottom: 12 }} />}
+        </div>
+      );
+    })}
+  </div>
+)}
             {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
-
             <button onClick={openPosition} disabled={isLoading || !currentPrice}
               style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: isLong ? "linear-gradient(135deg, #059669, #10b981)" : "linear-gradient(135deg, #dc2626, #ef4444)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading || !currentPrice ? 0.6 : 1 }}>
               {state === "approving" && "Approving..."}

@@ -1,4 +1,5 @@
-﻿import StablecoinAnalytics from "./components/StablecoinAnalytics";
+﻿import Skeleton from "./components/Skeleton";
+import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHome from "./components/CopilotHome";
 import TokenLaunch from "./components/TokenLaunch";
 import LendingForm from "./components/LendingForm";
@@ -283,18 +284,39 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", background: "linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%)", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
       <style>{`
-        button:not(:disabled) { transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease; }
-        button:not(:disabled):hover { transform: translateY(-1px); }
-        button:not(:disabled):active { transform: translateY(0px) scale(0.98); }
-        a { transition: transform 0.12s ease, opacity 0.12s ease; }
-        input, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-        input:focus, select:focus { box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
-        @keyframes flowfi-fade-in {
-          from { opacity: 0; transform: translateY(6px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
-      `}</style>
+  button:not(:disabled) { transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease; }
+  button:not(:disabled):hover { transform: translateY(-1px); }
+  button:not(:disabled):active { transform: translateY(0px) scale(0.98); }
+  a { transition: transform 0.12s ease, opacity 0.12s ease; }
+  input, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+  input:focus, select:focus { box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
+  @keyframes flowfi-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
+  @keyframes flowfi-skeleton-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+  }
+ .flowfi-skeleton {
+  display: inline-block;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  animation: flowfi-skeleton-pulse 1.4s ease-in-out infinite;
+}
+@keyframes flowfi-drift {
+  0% { transform: translate(-8%, -4%) rotate(0deg); }
+  50% { transform: translate(5%, 6%) rotate(180deg); }
+  100% { transform: translate(-8%, -4%) rotate(360deg); }
+}
+.flowfi-blob { animation: flowfi-drift 24s ease-in-out infinite; }
+@keyframes flowfi-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.flowfi-ticker-track { animation: flowfi-ticker-scroll 20s linear infinite; }
+`}</style>
       <ToastContainer />
       <aside style={{ width: 220, minHeight: "100vh", background: "#0a1a2f", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0 }}>
         <div style={{ padding: "0 1.25rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "1rem" }}>
@@ -399,7 +421,7 @@ export default function App() {
 )}
                           <div style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "1px" }}>{label}</div>
                         </div>
-                        <div style={{ fontSize: 22, fontWeight: 800, color: meta.color }}>{value === null ? "..." : value}</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: meta.color }}>{value === null ? <Skeleton width={70} height={22} /> : value}</div>
                         <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>{usd ?? "Arc Testnet"}</div>
                       </div>
                     );

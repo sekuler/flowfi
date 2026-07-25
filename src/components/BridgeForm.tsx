@@ -301,11 +301,41 @@ export default function BridgeForm({ provider, address }: Props) {
           </div>
         </div>
 
-        {isLoading && (
-          <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-            <p style={{ fontSize: 13, color: "#93c5fd", margin: 0 }}>{stepLabels[step]}</p>
+      {(isLoading || step === "done") && (
+  <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0.5rem 0" }}>
+    {["approving", "burning", "attesting", "minting"].map((s, i) => {
+      const order = ["approving", "burning", "attesting", "minting"];
+      const currentIndex = order.indexOf(step);
+      const isDone = step === "done" || currentIndex > i;
+      const isActive = step === s;
+      const isLast = i === order.length - 1;
+      const stepLabelShort: Record<string, string> = { approving: "Approve", burning: "Burn", attesting: "Attest", minting: "Mint" };
+      return (
+        <div key={s} style={{ display: "flex", alignItems: "center", flex: isLast ? "0 0 auto" : 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <div style={{
+              width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 11, fontWeight: 800,
+              background: isDone ? "#10b981" : isActive ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.05)",
+              border: isActive ? "2px solid #3b82f6" : "none",
+              color: isDone ? "#fff" : isActive ? "#60a5fa" : "#475569",
+              boxShadow: isActive ? "0 0 0 4px rgba(59,130,246,0.15)" : "none",
+            }}>
+              {isDone ? "✓" : i + 1}
+            </div>
+            <span style={{ fontSize: 9, color: isDone ? "#6ee7b7" : isActive ? "#93c5fd" : "#475569" }}>{stepLabelShort[s]}</span>
           </div>
-        )}
+          {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#10b981" : "rgba(255,255,255,0.08)", marginBottom: 14 }} />}
+        </div>
+      );
+    })}
+  </div>
+)}
+{isLoading && (
+  <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 10, padding: "0.75rem 1rem" }}>
+    <p style={{ fontSize: 13, color: "#93c5fd", margin: 0 }}>{stepLabels[step]}</p>
+  </div>
+)}
 
         {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
 
