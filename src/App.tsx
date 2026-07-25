@@ -213,7 +213,7 @@ export default function App() {
 
  if (!wallet) {
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%)", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
+    <div className="flowfi-mesh-bg" style={{ minHeight: "100vh", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
       <div style={{ position: "fixed", top: "10%", left: "20%", width: 700, height: 700, background: "radial-gradient(circle, rgba(79,70,229,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
       <div style={{ position: "fixed", bottom: "0%", right: "10%", width: 500, height: 500, background: "radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
 
@@ -311,6 +311,20 @@ export default function App() {
   100% { transform: translate(-8%, -4%) rotate(360deg); }
 }
 .flowfi-blob { animation: flowfi-drift 24s ease-in-out infinite; }
+@keyframes flowfi-mesh {
+  0%, 100% { background-position: 0% 50%, 100% 50%, 50% 0%; }
+  50% { background-position: 100% 50%, 0% 50%, 50% 100%; }
+}
+.flowfi-mesh-bg {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(34,211,238,0.55) 0%, transparent 40%),
+    radial-gradient(circle at 85% 15%, rgba(139,92,246,0.55) 0%, transparent 40%),
+    radial-gradient(circle at 75% 75%, rgba(99,102,241,0.55) 0%, transparent 40%),
+    radial-gradient(circle at 20% 80%, rgba(34,211,238,0.40) 0%, transparent 40%),
+    linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%);
+  background-size: 160% 160%, 160% 160%, 160% 160%, 160% 160%, 100% 100%;
+  animation: flowfi-mesh 18s ease-in-out infinite;
+}
 @keyframes flowfi-ticker-scroll {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }

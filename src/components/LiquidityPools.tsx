@@ -3,9 +3,20 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits, parseAbiItem } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 
-const FACTORY_CONTRACT = "0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9" as `0x${string}`;
+const FACTORY_CONTRACT = "0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8" as `0x${string}`;
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
+const TOKEN_LAUNCH_FACTORY = "0x481E8919f79A4DA6446EA78cEa70037acB9c85A1" as `0x${string}`;
 const STABLE_SYMBOLS = new Set(["USDC", "EURC", "USYC"]);
+
+const TOKEN_LAUNCH_FACTORY_ABI = [
+  { type: "function", name: "allTokensLength", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "allTokens", stateMutability: "view", inputs: [{ name: "", type: "uint256" }], outputs: [{ name: "", type: "address" }] },
+] as const;
+
+const TOKEN_NAME_ABI = [
+  { type: "function", name: "name", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "string" }] },
+  { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "string" }] },
+] as const;
 
 const KNOWN_TOKENS: { symbol: string; address: `0x${string}`; color: string }[] = [
   { symbol: "USDC", address: "0x3600000000000000000000000000000000000000", color: "#2563eb" },
@@ -31,6 +42,8 @@ const POOL_ABI = [
   { type: "function", name: "totalShares", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "tokenA", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
   { type: "function", name: "tokenB", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+  { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+  { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
 ] as const;
 
 const LEGACY_ABI = [
@@ -53,6 +66,8 @@ interface Props {
 
 interface PoolInfo {
   poolAddress: `0x${string}`;
+  addressA: `0x${string}`;
+  addressB: `0x${string}`;
   symbolA: string;
   symbolB: string;
   colorA: string;
@@ -71,8 +86,15 @@ async function switchToArc(provider: EIP1193Provider) {
   }
 }
 
-function tokenMeta(addr: string) {
-  return KNOWN_TOKENS.find(t => t.address.toLowerCase() === addr.toLowerCase()) ?? { symbol: addr.slice(0, 6), address: addr as `0x${string}`, color: "#64748b" };
+async function tokenMeta(addr: string, client: ReturnType<typeof createPublicClient>) {
+  const known = KNOWN_TOKENS.find(t => t.address.toLowerCase() === addr.toLowerCase());
+  if (known) return known;
+  try {
+    const symbol = await client.readContract({ address: addr as `0x${string}`, abi: erc20Abi, functionName: "symbol" });
+    return { symbol, address: addr as `0x${string}`, color: "#64748b" };
+  } catch {
+    return { symbol: addr.slice(0, 6), address: addr as `0x${string}`, color: "#64748b" };
+  }
 }
 
 export default function LiquidityPools({ provider, address, onRefresh }: Props) {
@@ -82,6 +104,83 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   const [showCreate, setShowCreate] = useState(false);
   const [tokenASym, setTokenASym] = useState("USDC");
   const [tokenBSym, setTokenBSym] = useState("EURC");
+  const [customAAddr, setCustomAAddr] = useState("");
+  const [customBAddr, setCustomBAddr] = useState("");
+  const [searchAResults, setSearchAResults] = useState<{ symbol: string; name: string; address: string }[]>([]);
+  const [searchBResults, setSearchBResults] = useState<{ symbol: string; name: string; address: string }[]>([]);
+  const [searchingA, setSearchingA] = useState(false);
+  const [searchingB, setSearchingB] = useState(false);
+  const [launchedTokenCache, setLaunchedTokenCache] = useState<{ symbol: string; name: string; address: string }[] | null>(null);
+  const [cacheLoading, setCacheLoading] = useState(false);
+
+  async function ensureTokenCache(): Promise<{ symbol: string; name: string; address: string }[]> {
+    if (launchedTokenCache) return launchedTokenCache;
+    if (cacheLoading) {
+      while (cacheLoading) await new Promise(r => setTimeout(r, 100));
+      return launchedTokenCache ?? [];
+    }
+    setCacheLoading(true);
+    try {
+      const client = createPublicClient({ chain: arcTestnet, transport: http() });
+      const count = await client.readContract({ address: TOKEN_LAUNCH_FACTORY, abi: TOKEN_LAUNCH_FACTORY_ABI, functionName: "allTokensLength" });
+      const total = Number(count);
+      const scanCount = Math.min(total, 40);
+      const indices = Array.from({ length: scanCount }, (_, k) => total - 1 - k);
+
+      const results = await Promise.all(indices.map(async (i) => {
+        try {
+          const tokenAddr = await client.readContract({ address: TOKEN_LAUNCH_FACTORY, abi: TOKEN_LAUNCH_FACTORY_ABI, functionName: "allTokens", args: [BigInt(i)] });
+          const [tName, tSymbol] = await Promise.all([
+            client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "name" }),
+            client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "symbol" }),
+          ]);
+          return { symbol: tSymbol, name: tName, address: tokenAddr };
+        } catch {
+          return null;
+        }
+      }));
+
+      const list = results.filter((r): r is { symbol: string; name: string; address: string } => r !== null);
+      setLaunchedTokenCache(list);
+      return list;
+    } finally {
+      setCacheLoading(false);
+    }
+  }
+
+  async function searchLaunchedTokens(query: string): Promise<{ symbol: string; name: string; address: string }[]> {
+    if (query.trim().startsWith("0x")) return [];
+    const needle = query.trim().toLowerCase();
+    if (!needle) return [];
+    const list = await ensureTokenCache();
+    return list
+      .filter(r => r.name.toLowerCase().includes(needle) || r.symbol.toLowerCase().includes(needle))
+      .slice(0, 8);
+  }
+
+  async function handleCustomASearch(value: string) {
+    setCustomAAddr(value);
+    if (value.trim().startsWith("0x") || value.trim().length < 2) { setSearchAResults([]); return; }
+    setSearchingA(true);
+    try {
+      const results = await searchLaunchedTokens(value);
+      setSearchAResults(results);
+    } finally {
+      setSearchingA(false);
+    }
+  }
+
+  async function handleCustomBSearch(value: string) {
+    setCustomBAddr(value);
+    if (value.trim().startsWith("0x") || value.trim().length < 2) { setSearchBResults([]); return; }
+    setSearchingB(true);
+    try {
+      const results = await searchLaunchedTokens(value);
+      setSearchBResults(results);
+    } finally {
+      setSearchingB(false);
+    }
+  }
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -94,6 +193,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
       loaded.push({
         poolAddress: LEGACY_AMM_CONTRACT,
+        addressA: KNOWN_TOKENS[0].address, addressB: KNOWN_TOKENS[1].address,
         symbolA: "USDC", symbolB: "EURC",
         colorA: "#2563eb", colorB: "#7c3aed",
         isLegacy: true,
@@ -103,17 +203,18 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         const poolAddr = await client.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "allPools", args: [BigInt(i)] });
         const tA = await client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenA" });
         const tB = await client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenB" });
-        const metaA = tokenMeta(tA);
-        const metaB = tokenMeta(tB);
+        const metaA = await tokenMeta(tA, client);
+        const metaB = await tokenMeta(tB, client);
         loaded.push({
-          poolAddress: poolAddr, symbolA: metaA.symbol, symbolB: metaB.symbol,
+          poolAddress: poolAddr, addressA: tA, addressB: tB,
+          symbolA: metaA.symbol, symbolB: metaB.symbol,
           colorA: metaA.color, colorB: metaB.color, isLegacy: false,
         });
         await new Promise(r => setTimeout(r, 50));
       }
       setPools(loaded);
     } catch {
-      setPools([{ poolAddress: LEGACY_AMM_CONTRACT, symbolA: "USDC", symbolB: "EURC", colorA: "#2563eb", colorB: "#7c3aed", isLegacy: true }]);
+      setPools([{ poolAddress: LEGACY_AMM_CONTRACT, addressA: KNOWN_TOKENS[0].address, addressB: KNOWN_TOKENS[1].address, symbolA: "USDC", symbolB: "EURC", colorA: "#2563eb", colorB: "#7c3aed", isLegacy: true }]);
     } finally {
       setLoadingPools(false);
     }
@@ -122,21 +223,22 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   useEffect(() => { loadPools(); }, [loadPools]);
 
   async function createPool() {
-    if (tokenASym === tokenBSym) { setCreateError("Choose two different tokens."); return; }
+    const tokenA = tokenASym === "CUSTOM" ? customAAddr.trim() : KNOWN_TOKENS.find(t => t.symbol === tokenASym)?.address;
+    const tokenB = tokenBSym === "CUSTOM" ? customBAddr.trim() : KNOWN_TOKENS.find(t => t.symbol === tokenBSym)?.address;
+    if (!tokenA || !tokenB) { setCreateError("Enter a valid token address."); return; }
+    if (tokenA.toLowerCase() === tokenB.toLowerCase()) { setCreateError("Choose two different tokens."); return; }
     setCreateError(null); setCreating(true);
     try {
       await switchToArc(provider);
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-      const tokenA = KNOWN_TOKENS.find(t => t.symbol === tokenASym)!.address;
-      const tokenB = KNOWN_TOKENS.find(t => t.symbol === tokenBSym)!.address;
 
-      const existing = await publicClient.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA, tokenB] });
+      const existing = await publicClient.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`] });
       if (existing !== "0x0000000000000000000000000000000000000000") {
         throw new Error("Pool already exists for this pair.");
       }
 
-      const hash = await wc.writeContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "createPool", args: [tokenA, tokenB], account: address as `0x${string}` });
+      const hash = await wc.writeContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "createPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`], account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash });
 
       setShowCreate(false);
@@ -153,7 +255,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 460 }}>
       <div style={{ background: "rgba(79,70,229,0.05)", border: "1px solid rgba(79,70,229,0.2)", borderRadius: 10, padding: "0.75rem 1rem" }}>
         <p style={{ fontSize: 12, color: "#a5b4fc", margin: 0 }}>
-          Permissionless AMM factory — anyone can create a pool for any token pair and add liquidity.
+          Permissionless AMM factory — anyone can create a pool for any token pair, add liquidity, and swap.
         </p>
       </div>
 
@@ -168,13 +270,49 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
             <select value={tokenASym} onChange={(e) => setTokenASym(e.target.value)}
               style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.65rem", color: "#f1f5f9", fontSize: 13 }}>
               {KNOWN_TOKENS.map(t => <option key={t.symbol} value={t.symbol} style={{ color: "#000" }}>{t.symbol}</option>)}
+              <option value="CUSTOM" style={{ color: "#000" }}>Custom token...</option>
             </select>
             <span style={{ color: "#475569" }}>+</span>
             <select value={tokenBSym} onChange={(e) => setTokenBSym(e.target.value)}
               style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.65rem", color: "#f1f5f9", fontSize: 13 }}>
               {KNOWN_TOKENS.map(t => <option key={t.symbol} value={t.symbol} style={{ color: "#000" }}>{t.symbol}</option>)}
+              <option value="CUSTOM" style={{ color: "#000" }}>Custom token...</option>
             </select>
           </div>
+          {tokenASym === "CUSTOM" && (
+            <div style={{ position: "relative" }}>
+              <input type="text" placeholder="Token name (e.g. Doge) or address (0x...)" value={customAAddr} onChange={(e) => handleCustomASearch(e.target.value)}
+                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.65rem 0.8rem", color: "#f1f5f9", fontSize: 12, outline: "none" }} />
+              {searchingA && <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Searching...</div>}
+              {searchAResults.length > 0 && (
+                <div style={{ marginTop: 6, background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden" }}>
+                  {searchAResults.map((r) => (
+                    <button key={r.address} onClick={() => { setCustomAAddr(r.address); setSearchAResults([]); }}
+                      style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "0.6rem 0.8rem", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer", textAlign: "left" }}>
+                      <span style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 700 }}>{r.name} <span style={{ color: "#64748b", fontWeight: 400 }}>{r.symbol}</span></span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {tokenBSym === "CUSTOM" && (
+            <div style={{ position: "relative" }}>
+              <input type="text" placeholder="Token name (e.g. Doge) or address (0x...)" value={customBAddr} onChange={(e) => handleCustomBSearch(e.target.value)}
+                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.65rem 0.8rem", color: "#f1f5f9", fontSize: 12, outline: "none" }} />
+              {searchingB && <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Searching...</div>}
+              {searchBResults.length > 0 && (
+                <div style={{ marginTop: 6, background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden" }}>
+                  {searchBResults.map((r) => (
+                    <button key={r.address} onClick={() => { setCustomBAddr(r.address); setSearchBResults([]); }}
+                      style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "0.6rem 0.8rem", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer", textAlign: "left" }}>
+                      <span style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 700 }}>{r.name} <span style={{ color: "#64748b", fontWeight: 400 }}>{r.symbol}</span></span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {createError && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.6rem 0.8rem", color: "#fca5a5", fontSize: 12 }}>{createError}</div>}
           <button onClick={createPool} disabled={creating}
             style={{ width: "100%", padding: "0.8rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: creating ? "not-allowed" : "pointer", opacity: creating ? 0.6 : 1 }}>
@@ -202,7 +340,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
   pool: PoolInfo; provider: EIP1193Provider; address: string;
   expanded: boolean; onToggle: () => void; onRefresh: () => void;
 }) {
-  const [mode, setMode] = useState<"add" | "remove">("add");
+  const [mode, setMode] = useState<"swap" | "add" | "remove">("swap");
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
   const [removePct, setRemovePct] = useState(50);
@@ -213,10 +351,18 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<{ tvl: number | null; swapCount7d: number; volume7d: number | null; fees7d: number | null; apr: number | null }>({ tvl: null, swapCount7d: 0, volume7d: null, fees7d: null, apr: null });
 
-  const tokenAInfo = KNOWN_TOKENS.find(t => t.symbol === pool.symbolA);
-  const tokenBInfo = KNOWN_TOKENS.find(t => t.symbol === pool.symbolB);
+  const [swapDirAtoB, setSwapDirAtoB] = useState(true);
+  const [swapAmountIn, setSwapAmountIn] = useState("");
+  const [swapEstOut, setSwapEstOut] = useState("0.00");
+  const [swapState, setSwapState] = useState<"idle" | "approving" | "swapping" | "done" | "error">("idle");
+  const [swapError, setSwapError] = useState<string | null>(null);
+  const [swapTxHash, setSwapTxHash] = useState<string | null>(null);
+
+  const tokenAInfo = { symbol: pool.symbolA, address: pool.addressA, color: pool.colorA };
+  const tokenBInfo = { symbol: pool.symbolB, address: pool.addressB, color: pool.colorB };
   const abi = pool.isLegacy ? LEGACY_ABI : POOL_ABI;
   const isStablePair = STABLE_SYMBOLS.has(pool.symbolA) && STABLE_SYMBOLS.has(pool.symbolB);
+  const swapSupported = !pool.isLegacy;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -263,7 +409,59 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
 
   useEffect(() => { if (expanded) loadData(); }, [expanded, loadData]);
 
+  useEffect(() => {
+    async function estimate() {
+      if (!swapSupported || !swapAmountIn || isNaN(Number(swapAmountIn)) || Number(swapAmountIn) <= 0) {
+        setSwapEstOut("0.00");
+        return;
+      }
+      try {
+        const client = createPublicClient({ chain: arcTestnet, transport: http() });
+        const amountIn = parseUnits(swapAmountIn, 6);
+        const out = await client.readContract({ address: pool.poolAddress, abi: POOL_ABI, functionName: "getAmountOut", args: [swapDirAtoB, amountIn] });
+        setSwapEstOut(Number(formatUnits(out as bigint, 6)).toFixed(4));
+      } catch {
+        setSwapEstOut("0.00");
+      }
+    }
+    estimate();
+  }, [swapAmountIn, swapDirAtoB, pool.poolAddress, swapSupported]);
+
   const hasPosition = myShare && Number(myShare.pct) > 0;
+  const swapTokenIn = swapDirAtoB ? tokenAInfo : tokenBInfo;
+  const swapTokenOut = swapDirAtoB ? tokenBInfo : tokenAInfo;
+
+  async function doSwap() {
+    if (!swapTokenIn || !swapAmountIn || Number(swapAmountIn) <= 0) { setSwapError("Enter a valid amount."); return; }
+    setSwapError(null); setSwapTxHash(null);
+    try {
+      await switchToArc(provider);
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
+      const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const amountIn = parseUnits(swapAmountIn, 6);
+
+      setSwapState("approving");
+      const approveHash = await wc.writeContract({
+        address: swapTokenIn.address, abi: erc20Abi, functionName: "approve",
+        args: [pool.poolAddress, amountIn], account: address as `0x${string}`,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+      setSwapState("swapping");
+      const hash = await wc.writeContract({
+        address: pool.poolAddress, abi: POOL_ABI, functionName: "swap",
+        args: [swapDirAtoB, amountIn, 0n], account: address as `0x${string}`,
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      setSwapTxHash(hash); setSwapState("done"); setSwapAmountIn(""); setSwapEstOut("0.00");
+      await loadData();
+      onRefresh();
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setSwapError(err.message ?? "Swap failed."); setSwapState("error");
+    }
+  }
 
   async function doAdd() {
     if (!amountA || !amountB || Number(amountA) <= 0 || Number(amountB) <= 0) {
@@ -324,6 +522,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
   }
 
   const isLoading = state === "approving1" || state === "approving2" || state === "processing";
+  const isSwapLoading = swapState === "approving" || swapState === "swapping";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -380,6 +579,12 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
           </div>
 
           <div style={{ display: "flex", gap: 6 }}>
+            {swapSupported && (
+              <button onClick={() => setMode("swap")}
+                style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: mode === "swap" ? "2px solid #22d3ee" : "1px solid rgba(255,255,255,0.08)", background: mode === "swap" ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.03)", color: mode === "swap" ? "#67e8f9" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                Swap
+              </button>
+            )}
             <button onClick={() => setMode("add")}
               style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: mode === "add" ? "2px solid #4f46e5" : "1px solid rgba(255,255,255,0.08)", background: mode === "add" ? "rgba(79,70,229,0.15)" : "rgba(255,255,255,0.03)", color: mode === "add" ? "#a5b4fc" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               Add
@@ -389,6 +594,36 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
               Remove
             </button>
           </div>
+
+          {mode === "swap" && swapSupported && (
+            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 10, color: "#64748b" }}>You pay</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="number" min="0" placeholder="0.00" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} disabled={isSwapLoading}
+                  style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#f1f5f9", outline: "none" }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#f1f5f9", minWidth: 50, textAlign: "center" }}>{swapTokenIn?.symbol}</span>
+              </div>
+              <button onClick={() => setSwapDirAtoB(!swapDirAtoB)} disabled={isSwapLoading}
+                style={{ alignSelf: "center", background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.2)", borderRadius: 8, padding: "4px 12px", color: "#67e8f9", fontSize: 14, cursor: "pointer" }}>
+                ⇅
+              </button>
+              <div style={{ fontSize: 10, color: "#64748b" }}>You receive (estimated)</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#f1f5f9" }}>{swapEstOut}</div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#f1f5f9", minWidth: 50, textAlign: "center" }}>{swapTokenOut?.symbol}</span>
+              </div>
+              {swapError && <div style={{ fontSize: 11, color: "#fca5a5" }}>{swapError}</div>}
+              {swapTxHash && swapState === "done" && (
+                <a href={`https://testnet.arcscan.app/tx/${swapTxHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#60a5fa" }}>View on explorer</a>
+              )}
+              <button onClick={doSwap} disabled={isSwapLoading}
+                style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "linear-gradient(90deg, #22d3ee, #6366f1)", color: "#04121f", fontSize: 12, fontWeight: 700, cursor: isSwapLoading ? "not-allowed" : "pointer", opacity: isSwapLoading ? 0.6 : 1 }}>
+                {swapState === "approving" && "Approving..."}
+                {swapState === "swapping" && "Swapping..."}
+                {(swapState === "idle" || swapState === "error" || swapState === "done") && "Swap"}
+              </button>
+            </div>
+          )}
 
           {mode === "add" && (
             <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
