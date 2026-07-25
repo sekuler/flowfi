@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits, parseAbiItem } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
@@ -112,6 +112,8 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   const [searchingB, setSearchingB] = useState(false);
   const [launchedTokenCache, setLaunchedTokenCache] = useState<{ symbol: string; name: string; address: string }[] | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
+  const debounceARef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceBRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function ensureTokenCache(): Promise<{ symbol: string; name: string; address: string }[]> {
     if (launchedTokenCache && launchedTokenCache.length > 0) return launchedTokenCache;
@@ -163,28 +165,34 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       .slice(0, 8);
   }
 
-  async function handleCustomASearch(value: string) {
+  function handleCustomASearch(value: string) {
     setCustomAAddr(value);
-    if (value.trim().startsWith("0x") || value.trim().length < 2) { setSearchAResults([]); return; }
+    if (debounceARef.current) clearTimeout(debounceARef.current);
+    if (value.trim().startsWith("0x") || value.trim().length < 2) { setSearchAResults([]); setSearchingA(false); return; }
     setSearchingA(true);
-    try {
-      const results = await searchLaunchedTokens(value);
-      setSearchAResults(results);
-    } finally {
-      setSearchingA(false);
-    }
+    debounceARef.current = setTimeout(async () => {
+      try {
+        const results = await searchLaunchedTokens(value);
+        setSearchAResults(results);
+      } finally {
+        setSearchingA(false);
+      }
+    }, 400);
   }
 
-  async function handleCustomBSearch(value: string) {
+  function handleCustomBSearch(value: string) {
     setCustomBAddr(value);
-    if (value.trim().startsWith("0x") || value.trim().length < 2) { setSearchBResults([]); return; }
+    if (debounceBRef.current) clearTimeout(debounceBRef.current);
+    if (value.trim().startsWith("0x") || value.trim().length < 2) { setSearchBResults([]); setSearchingB(false); return; }
     setSearchingB(true);
-    try {
-      const results = await searchLaunchedTokens(value);
-      setSearchBResults(results);
-    } finally {
-      setSearchingB(false);
-    }
+    debounceBRef.current = setTimeout(async () => {
+      try {
+        const results = await searchLaunchedTokens(value);
+        setSearchBResults(results);
+      } finally {
+        setSearchingB(false);
+      }
+    }, 400);
   }
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
