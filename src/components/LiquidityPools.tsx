@@ -204,42 +204,43 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
   const loadPools = useCallback(async () => {
     setLoadingPools(true);
+    const legacyPool: PoolInfo = {
+      poolAddress: LEGACY_AMM_CONTRACT,
+      addressA: KNOWN_TOKENS[0].address, addressB: KNOWN_TOKENS[1].address,
+      symbolA: "USDC", symbolB: "EURC",
+      colorA: "#2563eb", colorB: "#7c3aed",
+      isLegacy: true,
+    };
+    setPools([legacyPool]);
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const count = await client.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "allPoolsLength" });
       const total = Number(count);
-      const loaded: PoolInfo[] = [];
+      const indices = Array.from({ length: total }, (_, i) => i);
 
-      loaded.push({
-        poolAddress: LEGACY_AMM_CONTRACT,
-        addressA: KNOWN_TOKENS[0].address, addressB: KNOWN_TOKENS[1].address,
-        symbolA: "USDC", symbolB: "EURC",
-        colorA: "#2563eb", colorB: "#7c3aed",
-        isLegacy: true,
-      });
-
-      const poolAddrs = await Promise.all(
-        Array.from({ length: total }, (_, i) => client.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "allPools", args: [BigInt(i)] }))
-      );
-
-      const details = await Promise.all(poolAddrs.map(async (poolAddr) => {
-        try {
-          const [tA, tB] = await Promise.all([
-            client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenA" }),
-            client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenB" }),
-          ]);
-          const metaA = tokenMetaSync(tA);
-          const metaB = tokenMetaSync(tB);
-          return { poolAddress: poolAddr, addressA: tA, addressB: tB, symbolA: metaA.symbol, symbolB: metaB.symbol, colorA: metaA.color, colorB: metaB.color, isLegacy: false };
-        } catch {
-          return null;
-        }
-      }));
-
-      for (const d of details) if (d) loaded.push(d);
-      setPools(loaded);
+      const BATCH_SIZE = 6;
+      for (let b = 0; b < indices.length; b += BATCH_SIZE) {
+        const batch = indices.slice(b, b + BATCH_SIZE);
+        const batchDetails = await Promise.all(batch.map(async (i) => {
+          try {
+            const poolAddr = await client.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "allPools", args: [BigInt(i)] });
+            const [tA, tB] = await Promise.all([
+              client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenA" }),
+              client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenB" }),
+            ]);
+            const metaA = tokenMetaSync(tA);
+            const metaB = tokenMetaSync(tB);
+            return { poolAddress: poolAddr, addressA: tA, addressB: tB, symbolA: metaA.symbol, symbolB: metaB.symbol, colorA: metaA.color, colorB: metaB.color, isLegacy: false };
+          } catch {
+            return null;
+          }
+        }));
+        const valid = batchDetails.filter((d): d is PoolInfo => d !== null);
+        if (valid.length > 0) setPools(prev => [...prev, ...valid]);
+        if (b + BATCH_SIZE < indices.length) await new Promise(r => setTimeout(r, 200));
+      }
     } catch {
-      setPools([{ poolAddress: LEGACY_AMM_CONTRACT, addressA: KNOWN_TOKENS[0].address, addressB: KNOWN_TOKENS[1].address, symbolA: "USDC", symbolB: "EURC", colorA: "#2563eb", colorB: "#7c3aed", isLegacy: true }]);
+      /* keep whatever pools already loaded */
     } finally {
       setLoadingPools(false);
     }
