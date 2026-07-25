@@ -1,3 +1,4 @@
+import EmptyState from "./EmptyState";
 import { useState, useEffect } from "react";
 
 interface Tx {
@@ -104,8 +105,9 @@ export default function TxHistory({ address }: Props) {
       {loading && <div style={{ textAlign: "center", padding: "3rem", color: "#334155", fontSize: 13 }}>Loading transactions...</div>}
       {error && <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "1rem", color: "#fca5a5", fontSize: 13 }}>{error}</div>}
       {!loading && !error && filteredTxs.length === 0 && (
-        <div style={{ textAlign: "center", padding: "3rem", color: "#334155", fontSize: 13 }}>No transactions found.</div>
-      )}
+  <EmptyState icon="📭" title="No transactions found" subtitle="Your activity will show up here once you start using FlowFi" />
+)}
+      
 
       {!loading && filteredTxs.length > 0 && (
         <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
