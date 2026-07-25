@@ -86,14 +86,19 @@ async function switchToArc(provider: EIP1193Provider) {
   }
 }
 
-async function tokenMeta(addr: string, client: ReturnType<typeof createPublicClient>) {
+function tokenMetaSync(addr: string) {
   const known = KNOWN_TOKENS.find(t => t.address.toLowerCase() === addr.toLowerCase());
   if (known) return known;
+  return { symbol: addr.slice(0, 6), address: addr as `0x${string}`, color: "#64748b" };
+}
+
+async function resolveTokenSymbol(addr: string, client: ReturnType<typeof createPublicClient>) {
+  const known = KNOWN_TOKENS.find(t => t.address.toLowerCase() === addr.toLowerCase());
+  if (known) return known.symbol;
   try {
-    const symbol = await client.readContract({ address: addr as `0x${string}`, abi: erc20Abi, functionName: "symbol" });
-    return { symbol, address: addr as `0x${string}`, color: "#64748b" };
+    return await client.readContract({ address: addr as `0x${string}`, abi: erc20Abi, functionName: "symbol" });
   } catch {
-    return { symbol: addr.slice(0, 6), address: addr as `0x${string}`, color: "#64748b" };
+    return addr.slice(0, 6);
   }
 }
 
@@ -202,6 +207,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const count = await client.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "allPoolsLength" });
+      const total = Number(count);
       const loaded: PoolInfo[] = [];
 
       loaded.push({
@@ -212,19 +218,25 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         isLegacy: true,
       });
 
-      for (let i = 0; i < Number(count); i++) {
-        const poolAddr = await client.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "allPools", args: [BigInt(i)] });
-        const tA = await client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenA" });
-        const tB = await client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenB" });
-        const metaA = await tokenMeta(tA, client);
-        const metaB = await tokenMeta(tB, client);
-        loaded.push({
-          poolAddress: poolAddr, addressA: tA, addressB: tB,
-          symbolA: metaA.symbol, symbolB: metaB.symbol,
-          colorA: metaA.color, colorB: metaB.color, isLegacy: false,
-        });
-        await new Promise(r => setTimeout(r, 50));
-      }
+      const poolAddrs = await Promise.all(
+        Array.from({ length: total }, (_, i) => client.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "allPools", args: [BigInt(i)] }))
+      );
+
+      const details = await Promise.all(poolAddrs.map(async (poolAddr) => {
+        try {
+          const [tA, tB] = await Promise.all([
+            client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenA" }),
+            client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenB" }),
+          ]);
+          const metaA = tokenMetaSync(tA);
+          const metaB = tokenMetaSync(tB);
+          return { poolAddress: poolAddr, addressA: tA, addressB: tB, symbolA: metaA.symbol, symbolB: metaB.symbol, colorA: metaA.color, colorB: metaB.color, isLegacy: false };
+        } catch {
+          return null;
+        }
+      }));
+
+      for (const d of details) if (d) loaded.push(d);
       setPools(loaded);
     } catch {
       setPools([{ poolAddress: LEGACY_AMM_CONTRACT, addressA: KNOWN_TOKENS[0].address, addressB: KNOWN_TOKENS[1].address, symbolA: "USDC", symbolB: "EURC", colorA: "#2563eb", colorB: "#7c3aed", isLegacy: true }]);
@@ -371,11 +383,27 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
   const [swapError, setSwapError] = useState<string | null>(null);
   const [swapTxHash, setSwapTxHash] = useState<string | null>(null);
 
-  const tokenAInfo = { symbol: pool.symbolA, address: pool.addressA, color: pool.colorA };
-  const tokenBInfo = { symbol: pool.symbolB, address: pool.addressB, color: pool.colorB };
+  const [resolvedSymbolA, setResolvedSymbolA] = useState(pool.symbolA);
+  const [resolvedSymbolB, setResolvedSymbolB] = useState(pool.symbolB);
+
+  const tokenAInfo = { symbol: resolvedSymbolA, address: pool.addressA, color: pool.colorA };
+  const tokenBInfo = { symbol: resolvedSymbolB, address: pool.addressB, color: pool.colorB };
   const abi = pool.isLegacy ? LEGACY_ABI : POOL_ABI;
-  const isStablePair = STABLE_SYMBOLS.has(pool.symbolA) && STABLE_SYMBOLS.has(pool.symbolB);
+  const isStablePair = STABLE_SYMBOLS.has(resolvedSymbolA) && STABLE_SYMBOLS.has(resolvedSymbolB);
   const swapSupported = !pool.isLegacy;
+
+  useEffect(() => {
+    if (!expanded) return;
+    let cancelled = false;
+    const client = createPublicClient({ chain: arcTestnet, transport: http() });
+    if (pool.symbolA.startsWith("0x")) {
+      resolveTokenSymbol(pool.addressA, client).then(s => { if (!cancelled) setResolvedSymbolA(s); });
+    }
+    if (pool.symbolB.startsWith("0x")) {
+      resolveTokenSymbol(pool.addressB, client).then(s => { if (!cancelled) setResolvedSymbolB(s); });
+    }
+    return () => { cancelled = true; };
+  }, [expanded, pool.addressA, pool.addressB, pool.symbolA, pool.symbolB]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -580,12 +608,12 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
             <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.7rem 0.85rem" }}>
-              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3 }}>{pool.symbolA}</div>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3 }}>{resolvedSymbolA}</div>
               <div style={{ fontSize: 14, color: "#f1f5f9", fontWeight: 700 }}>{loading ? "..." : reserves ? reserves.a : "—"}</div>
               {myShare && <div style={{ fontSize: 10, color: "#475569" }}>You: {myShare.a}</div>}
             </div>
             <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.7rem 0.85rem" }}>
-              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3 }}>{pool.symbolB}</div>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3 }}>{resolvedSymbolB}</div>
               <div style={{ fontSize: 14, color: "#f1f5f9", fontWeight: 700 }}>{loading ? "..." : reserves ? reserves.b : "—"}</div>
               {myShare && <div style={{ fontSize: 10, color: "#475569" }}>You: {myShare.b}</div>}
             </div>
@@ -640,9 +668,9 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
 
           {mode === "add" && (
             <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
-              <input type="number" min="0" placeholder={`${pool.symbolA} amount`} value={amountA} onChange={(e) => setAmountA(e.target.value)} disabled={isLoading}
+              <input type="number" min="0" placeholder={`${resolvedSymbolA} amount`} value={amountA} onChange={(e) => setAmountA(e.target.value)} disabled={isLoading}
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
-              <input type="number" min="0" placeholder={`${pool.symbolB} amount`} value={amountB} onChange={(e) => setAmountB(e.target.value)} disabled={isLoading}
+              <input type="number" min="0" placeholder={`${resolvedSymbolB} amount`} value={amountB} onChange={(e) => setAmountB(e.target.value)} disabled={isLoading}
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
               {errorMsg && <div style={{ fontSize: 11, color: "#fca5a5" }}>{errorMsg}</div>}
               <button onClick={doAdd} disabled={isLoading}
@@ -660,7 +688,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
               {hasPosition ? (
                 <>
                   <input type="range" min="1" max="100" value={removePct} onChange={(e) => setRemovePct(Number(e.target.value))} disabled={isLoading} />
-                  <div style={{ fontSize: 11, color: "#64748b" }}>{removePct}% — {(Number(myShare!.a) * removePct / 100).toFixed(4)} {pool.symbolA} + {(Number(myShare!.b) * removePct / 100).toFixed(4)} {pool.symbolB}</div>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>{removePct}% — {(Number(myShare!.a) * removePct / 100).toFixed(4)} {resolvedSymbolA} + {(Number(myShare!.b) * removePct / 100).toFixed(4)} {resolvedSymbolB}</div>
                   {errorMsg && <div style={{ fontSize: 11, color: "#fca5a5" }}>{errorMsg}</div>}
                   <button onClick={doRemove} disabled={isLoading}
                     style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #dc2626, #ef4444)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
