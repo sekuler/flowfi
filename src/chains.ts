@@ -10,7 +10,7 @@ export const arcTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.testnet.arc.network"],
+      http: ["https://arc-testnet.g.alchemy.com/v2/***REMOVED***"],
       webSocket: ["wss://rpc.testnet.arc.network"],
     },
   },
