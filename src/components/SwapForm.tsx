@@ -6,7 +6,7 @@ import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUn
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
 
-const SWAP_STEPS = ["Approving token", "Swapping", "Done"];
+const SWAP_STEPS = ["Approving", "Swapping", "Done"];
 function swapStepIndex(state: string) {
   if (state === "approving") return 0;
   if (state === "swapping") return 1;
@@ -29,6 +29,7 @@ const SWAP_ABI = [
 
 const TOKENS = ["USDC", "EURC"] as const;
 type Token = (typeof TOKENS)[number];
+const TOKEN_COLOR: Record<Token, string> = { USDC: "#22d3ee", EURC: "#6366f1" };
 
 interface Props {
   provider: EIP1193Provider;
@@ -62,6 +63,14 @@ async function switchToArc(provider: EIP1193Provider) {
   }
 }
 
+const DEMO_TICKER: ContractTx[] = [
+  { hash: "demo1", age: "12s ago", method: "Swap" },
+  { hash: "demo2", age: "45s ago", method: "Swap" },
+  { hash: "demo3", age: "1m ago", method: "Swap" },
+  { hash: "demo4", age: "3m ago", method: "Swap" },
+  { hash: "demo5", age: "5m ago", method: "Swap" },
+];
+
 export default function SwapForm({ provider, address, balances, onRefresh }: Props) {
   const [tokenIn, setTokenIn] = useState<Token>("USDC");
   const [tokenOut, setTokenOut] = useState<Token>("EURC");
@@ -70,6 +79,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [swapState, setSwapState] = useState<"idle" | "approving" | "swapping" | "done" | "error">("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [tokenInOpen, setTokenInOpen] = useState(false);
+  const [tokenOutOpen, setTokenOutOpen] = useState(false);
 
   const [poolRate, setPoolRate] = useState<number | null>(null);
   const [marketRate, setMarketRate] = useState<number | null>(null);
@@ -188,202 +199,241 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   }
 
   const isLoading = swapState === "approving" || swapState === "swapping";
-  const tickerItems = contractTxs.length > 0 ? contractTxs : [];
+  const tickerItems = contractTxs.length > 0 ? contractTxs : DEMO_TICKER;
 
   return (
     <div style={{ position: "relative", width: "100%" }}>
       <div className="flowfi-blob" style={{ position: "absolute", top: -100, left: -80, width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(34,211,238,0.35) 0%, transparent 70%)", filter: "blur(50px)", pointerEvents: "none", zIndex: 0 }} />
-<div className="flowfi-blob" style={{ position: "absolute", bottom: -80, right: -60, width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%)", filter: "blur(50px)", pointerEvents: "none", zIndex: 0, animationDelay: "-10s" }} />
+      <div className="flowfi-blob" style={{ position: "absolute", bottom: -80, right: -60, width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%)", filter: "blur(50px)", pointerEvents: "none", zIndex: 0, animationDelay: "-10s" }} />
+
       <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "1.25rem", alignItems: "start", width: "100%" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>From</label>
+
+          <div style={{ background: "rgba(15,23,42,0.7)", backdropFilter: "blur(20px)", border: "1px solid rgba(148,163,184,0.15)", borderRadius: 18, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.1rem", boxShadow: "0 20px 60px rgba(0,0,0,0.35)" }}>
+
+            <div style={{ borderRadius: 14, background: "rgba(2,6,23,0.55)", border: "1px solid rgba(148,163,184,0.12)", padding: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px" }}>You pay</span>
                 <span style={{ fontSize: 11, color: "#475569" }}>Balance: {currentBalance} {tokenIn}</span>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {TOKENS.map((t) => (
-                  <button key={t} onClick={() => { if (t !== tokenIn) flipTokens(); }} disabled={isLoading}
-                    style={{ flex: 1, padding: "0.6rem", borderRadius: 8, border: tokenIn === t ? "2px solid #8b5cf6" : "1px solid rgba(255,255,255,0.08)", background: tokenIn === t ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.03)", color: tokenIn === t ? "#a78bfa" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <input type="number" min="0" step="0.01" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
-                  style={{ flex: 1, background: "transparent", border: "none", outline: "none", padding: "0.75rem 1rem", fontSize: 18, color: "#f1f5f9", fontWeight: 600 }} />
-                <span style={{ paddingRight: "1rem", color: "#64748b", fontSize: 14, fontWeight: 600 }}>{tokenIn}</span>
+                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 26, color: "#f1f5f9", fontWeight: 600, fontFamily: "ui-monospace, monospace" }} />
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <button
+                    onClick={() => setTokenInOpen(!tokenInOpen)}
+                    disabled={isLoading}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(148,163,184,0.15)", cursor: "pointer" }}>
+                    <span style={{ width: 20, height: 20, borderRadius: "50%", background: TOKEN_COLOR[tokenIn], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#04121f" }}>{tokenIn[0]}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{tokenIn}</span>
+                    <span style={{ fontSize: 9, color: "#64748b" }}>▾</span>
+                  </button>
+                  {tokenInOpen && (
+                    <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20, background: "#0f172a", border: "1px solid rgba(148,163,184,0.2)", borderRadius: 12, padding: 6, minWidth: 140, boxShadow: "0 12px 30px rgba(0,0,0,0.5)" }}>
+                      {TOKENS.map((t) => (
+                        <button key={t} disabled={t === tokenIn}
+                          onClick={() => { setTokenIn(t); setTokenOut(t === "USDC" ? "EURC" : "USDC"); setTokenInOpen(false); }}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: t === tokenIn ? "rgba(34,211,238,0.1)" : "transparent", border: "none", cursor: t === tokenIn ? "not-allowed" : "pointer", opacity: t === tokenIn ? 0.4 : 1 }}>
+                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: TOKEN_COLOR[t], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#04121f" }}>{t[0]}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{t}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <button onClick={() => setAmount(currentBalance)} disabled={isLoading}
-                style={{ alignSelf: "flex-end", background: "none", border: "none", color: "#a78bfa", fontSize: 12, cursor: "pointer", padding: 0 }}>
+                style={{ marginTop: 6, background: "none", border: "none", color: "#22d3ee", fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0 }}>
                 Max
               </button>
             </div>
 
-            <button onClick={flipTokens} disabled={isLoading}
-              style={{ alignSelf: "center", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 8, padding: "6px 16px", color: "#a78bfa", fontSize: 16, cursor: "pointer" }}>
-              ⇅
-            </button>
+            <div style={{ display: "flex", justifyContent: "center", marginTop: -6, marginBottom: -6 }}>
+              <button onClick={flipTokens} disabled={isLoading}
+                style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(2,6,23,0.8)", border: "1px solid rgba(148,163,184,0.2)", color: "#22d3ee", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                ↓
+              </button>
+            </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>To (estimated)</label>
-              <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9" }}>{estimatedOut}</span>
-                <span style={{ fontSize: 14, color: "#64748b", fontWeight: 600 }}>{tokenOut}</span>
+            <div style={{ borderRadius: 14, background: "rgba(2,6,23,0.35)", border: "1px solid rgba(148,163,184,0.1)", padding: "1rem" }}>
+              <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 10 }}>You receive (estimated)</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ fontSize: 26, fontWeight: 600, color: "#f1f5f9", fontFamily: "ui-monospace, monospace" }}>{estimatedOut}</span>
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <button
+                    onClick={() => setTokenOutOpen(!tokenOutOpen)}
+                    disabled={isLoading}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(148,163,184,0.12)", cursor: "pointer" }}>
+                    <span style={{ width: 20, height: 20, borderRadius: "50%", background: TOKEN_COLOR[tokenOut], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#04121f" }}>{tokenOut[0]}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{tokenOut}</span>
+                    <span style={{ fontSize: 9, color: "#64748b" }}>▾</span>
+                  </button>
+                  {tokenOutOpen && (
+                    <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20, background: "#0f172a", border: "1px solid rgba(148,163,184,0.2)", borderRadius: 12, padding: 6, minWidth: 140, boxShadow: "0 12px 30px rgba(0,0,0,0.5)" }}>
+                      {TOKENS.map((t) => (
+                        <button key={t} disabled={t === tokenOut}
+                          onClick={() => { setTokenOut(t); setTokenIn(t === "USDC" ? "EURC" : "USDC"); setTokenOutOpen(false); }}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: t === tokenOut ? "rgba(99,102,241,0.1)" : "transparent", border: "none", cursor: t === tokenOut ? "not-allowed" : "pointer", opacity: t === tokenOut ? 0.4 : 1 }}>
+                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: TOKEN_COLOR[t], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#04121f" }}>{t[0]}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{t}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {rateStale && (
-              <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "0.65rem 0.8rem" }}>
+              <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
                 <p style={{ fontSize: 12, color: "#fca5a5", margin: 0 }}>
-                  ⚠️ Pool rate ({poolRate?.toFixed(4)}) differs from live market rate ({marketRate?.toFixed(4)}) by more than 1%. This swap uses the pool's fixed rate, not the live market rate.
+                  Pool rate ({poolRate?.toFixed(4)}) differs from the live market rate ({marketRate?.toFixed(4)}) by more than 1%. This swap uses the pool's fixed rate.
                 </p>
               </div>
             )}
 
             {amount && Number(amount) > 0 && Number(estimatedOut) > 0 && (
-              <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.85rem 1rem", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ background: "rgba(2,6,23,0.4)", border: "1px solid rgba(148,163,184,0.1)", borderRadius: 12, padding: "0.9rem 1rem", display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                  <span style={{ color: "#64748b" }}>You Receive</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{estimatedOut} {tokenOut}</span>
+                  <span style={{ color: "#64748b" }}>You receive</span>
+                  <span style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{estimatedOut} {tokenOut}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#64748b" }}>Rate</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 600 }}>1 {tokenIn} = {tokenIn === "USDC" ? poolRate?.toFixed(4) : (poolRate ? (1 / poolRate).toFixed(4) : "...")} {tokenOut}</span>
+                  <span style={{ color: "#e2e8f0", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>1 {tokenIn} = {tokenIn === "USDC" ? poolRate?.toFixed(4) : (poolRate ? (1 / poolRate).toFixed(4) : "...")} {tokenOut}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#64748b" }}>Fee</span>
-                  <span style={{ color: "#6ee7b7", fontWeight: 600 }}>0% — fixed-rate pool</span>
+                  <span style={{ color: "#34d399", fontWeight: 600 }}>0% — fixed-rate pool</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                  <span style={{ color: "#64748b" }}>Minimum Received</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{estimatedOut} {tokenOut}</span>
+                  <span style={{ color: "#64748b" }}>Minimum received</span>
+                  <span style={{ color: "#e2e8f0", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{estimatedOut} {tokenOut}</span>
                 </div>
               </div>
             )}
 
             <SwapAdvisor tokenIn={tokenIn} tokenOut={tokenOut} amountIn={amount} amountOut={estimatedOut} />
 
-            {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
+            {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
 
             {txHash && swapState === "done" && (
-              <div style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 10, padding: "1rem" }}>
-                <p style={{ color: "#a78bfa", fontWeight: 600, marginBottom: 6 }}>Swap successful!</p>
-                <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View on Explorer</a>
+              <div style={{ background: "rgba(34,211,238,0.08)", border: "1px solid rgba(34,211,238,0.25)", borderRadius: 12, padding: "1rem" }}>
+                <p style={{ color: "#22d3ee", fontWeight: 700, marginBottom: 6 }}>Swap successful!</p>
+                <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View on explorer</a>
               </div>
             )}
-{(isLoading || swapState === "done") && (
-  <div style={{ display: "flex", gap: 8, justifyContent: "center", padding: "0.5rem 0" }}>
-    {SWAP_STEPS.map((label, i) => {
-      const current = swapStepIndex(swapState);
-      const done = i < current || swapState === "done";
-      const active = i === current && swapState !== "done";
-      return (
-        <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{
-            width: 20, height: 20, borderRadius: "50%",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 11, fontWeight: 700,
-            background: done ? "#22d3ee" : active ? "rgba(139,92,246,0.25)" : "rgba(255,255,255,0.06)",
-            color: done ? "#0a1a2f" : active ? "#a78bfa" : "#475569",
-            border: active ? "1px solid #8b5cf6" : "none",
-          }}>
-            {done ? "✓" : i + 1}
-          </div>
-          <span style={{ fontSize: 11, color: done ? "#22d3ee" : active ? "#a78bfa" : "#475569" }}>{label}</span>
-          {i < SWAP_STEPS.length - 1 && <span style={{ width: 16, height: 1, background: "rgba(255,255,255,0.1)" }} />}
-        </div>
-      );
-    })}
-  </div>
-)}
+
+            {(isLoading || swapState === "done") && (
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", padding: "0.5rem 0" }}>
+                {SWAP_STEPS.map((label, i) => {
+                  const current = swapStepIndex(swapState);
+                  const done = i < current || swapState === "done";
+                  const active = i === current && swapState !== "done";
+                  return (
+                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{
+                        width: 20, height: 20, borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, fontWeight: 700,
+                        background: done ? "#22d3ee" : active ? "rgba(99,102,241,0.25)" : "rgba(255,255,255,0.06)",
+                        color: done ? "#04121f" : active ? "#a5b4fc" : "#475569",
+                        border: active ? "1px solid #6366f1" : "none",
+                      }}>
+                        {done ? "✓" : i + 1}
+                      </div>
+                      <span style={{ fontSize: 11, color: done ? "#22d3ee" : active ? "#a5b4fc" : "#475569" }}>{label}</span>
+                      {i < SWAP_STEPS.length - 1 && <span style={{ width: 16, height: 1, background: "rgba(255,255,255,0.1)" }} />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
               disabled={isLoading || swapState === "done"}
-              style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #7c3aed, #8b5cf6)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading || swapState === "done" ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" ? 0.6 : 1 }}>
-              {swapState === "idle" && "Swap"}
+              style={{ width: "100%", padding: "0.95rem", borderRadius: 14, border: "none", background: "linear-gradient(90deg, #22d3ee, #6366f1)", color: "#04121f", fontSize: 15, fontWeight: 700, cursor: isLoading || swapState === "done" ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" ? 0.65 : 1 }}>
+              {swapState === "idle" && "Approve & swap"}
               {swapState === "approving" && "Approving..."}
               {swapState === "swapping" && "Swapping..."}
               {swapState === "done" && "Done!"}
-              {swapState === "error" && "Try Again"}
+              {swapState === "error" && "Try again"}
             </button>
 
             {swapState === "done" && (
               <button onClick={() => { setSwapState("idle"); setTxHash(null); }}
                 style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-                New Swap
+                New swap
               </button>
             )}
           </div>
 
-          <div style={{ background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-            <p style={{ fontSize: 12, color: "#a78bfa" }}>
+          <div style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 12, padding: "0.75rem 1rem" }}>
+            <p style={{ fontSize: 12, color: "#a5b4fc", margin: 0 }}>
               Pool rate: 1 USDC ≈ {poolRate?.toFixed(4) ?? "..."} EURC
               {marketRate && <span style={{ color: "#64748b" }}> · Live market: {marketRate.toFixed(4)}</span>}
-              {" · Powered by ArcSwap"}
+              {" · Powered by FlowFi"}
             </p>
             <AdminRate provider={provider} address={address} />
           </div>
 
-          {tickerItems.length > 0 && (
-            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "0.7rem 0", display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
-              <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 700, paddingLeft: 14, flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22d3ee" }} />
-                LIVE
-              </span>
-              <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-                <div className="flowfi-ticker-track" style={{ display: "flex", gap: 32, whiteSpace: "nowrap", width: "max-content" }}>
-                  {[...tickerItems, ...tickerItems].map((tx, i) => (
-                    <span key={i} style={{ fontSize: 12, color: "#64748b", fontFamily: "monospace" }}>
-                      {tx.method} · {tx.age}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.1rem" }}>
-            <div style={{ fontSize: 11, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>MARKET INFO</div>
+          <div style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 16, padding: "1.1rem" }}>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ROUTE DETAILS</div>
             {poolLiquidity ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#64748b" }}>USDC in pool</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{poolLiquidity.usdc}</span>
+                  <span style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity.usdc}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#64748b" }}>EURC in pool</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{poolLiquidity.eurc}</span>
+                  <span style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity.eurc}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#64748b" }}>Pool rate</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{poolRate?.toFixed(4) ?? "..."}</span>
+                  <span style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolRate?.toFixed(4) ?? "..."}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#64748b" }}>Live EUR/USD</span>
-                  <span style={{ color: marketRate ? "#e2e8f0" : "#475569", fontWeight: 700 }}>{marketRate?.toFixed(4) ?? "—"}</span>
+                  <span style={{ color: marketRate ? "#e2e8f0" : "#475569", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{marketRate?.toFixed(4) ?? "—"}</span>
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: "#334155" }}>Loading...</div>
+              <div style={{ fontSize: 12, color: "#475569" }}>Loading...</div>
             )}
           </div>
 
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.1rem" }}>
-            <div style={{ fontSize: 11, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
-            {contractTxs.length === 0 && <div style={{ fontSize: 12, color: "#334155" }}>No recent activity.</div>}
+          <div style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 16, padding: "1.1rem" }}>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
+            {contractTxs.length === 0 && <div style={{ fontSize: 12, color: "#475569" }}>No recent activity yet.</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {contractTxs.map((tx) => (
                 <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.55rem 0.7rem", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}>
-                  <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>{tx.method}</span>
-                  <span style={{ fontSize: 11, color: "#334155" }}>{tx.age}</span>
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.55rem 0.7rem", borderRadius: 10, background: "rgba(2,6,23,0.4)", border: "1px solid rgba(148,163,184,0.08)", textDecoration: "none" }}>
+                  <span style={{ fontSize: 11, color: "#22d3ee", fontWeight: 600 }}>{tx.method}</span>
+                  <span style={{ fontSize: 11, color: "#475569" }}>{tx.age}</span>
                 </a>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, marginTop: "1rem", background: "rgba(15,23,42,0.5)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 14, padding: "0.75rem 0", display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
+        <span style={{ fontSize: 11, color: "#22d3ee", fontWeight: 700, paddingLeft: 14, flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22d3ee" }} />
+          LIVE
+        </span>
+        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+          <div className="flowfi-ticker-track" style={{ display: "flex", gap: 32, whiteSpace: "nowrap", width: "max-content" }}>
+            {[...tickerItems, ...tickerItems].map((tx, i) => (
+              <span key={i} style={{ fontSize: 12, color: "#64748b", fontFamily: "ui-monospace, monospace" }}>
+                {tx.method} · {tx.age}
+              </span>
+            ))}
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ import { showToast } from "../toast";
 
 const TOKEN_FACTORY = "0x481E8919f79A4DA6446EA78cEa70037acB9c85A1" as `0x${string}`;
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
-const POOL_FACTORY = "0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9" as `0x${string}`;
+const POOL_FACTORY = "0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8" as `0x${string}`;
 
 const TOKEN_FACTORY_ABI = [
   { type: "function", name: "launchToken", stateMutability: "nonpayable", inputs: [{ name: "name", type: "string" }, { name: "symbol", type: "string" }], outputs: [{ name: "token", type: "address" }] },
@@ -74,6 +74,66 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
 
   const [allTokens, setAllTokens] = useState<LaunchedToken[]>([]);
   const [loadingTokens, setLoadingTokens] = useState(true);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<LaunchedToken[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  function isAddressLike(q: string) {
+    return q.trim().startsWith("0x") && q.trim().length >= 10;
+  }
+
+  async function doSearchToken() {
+    const q = searchQuery.trim();
+    if (!q) return;
+    setSearching(true);
+    setSearchError(null);
+    setSearchResults([]);
+    try {
+      const client = createPublicClient({ chain: arcTestnet, transport: http() });
+
+      if (isAddressLike(q)) {
+        const addr = q as `0x${string}`;
+        const [tName, tSymbol, supply, creator] = await Promise.all([
+          client.readContract({ address: addr, abi: TOKEN_ABI, functionName: "name" }),
+          client.readContract({ address: addr, abi: TOKEN_ABI, functionName: "symbol" }),
+          client.readContract({ address: addr, abi: TOKEN_ABI, functionName: "totalSupply" }),
+          client.readContract({ address: addr, abi: TOKEN_ABI, functionName: "creator" }),
+        ]);
+        setSearchResults([{ address: addr, name: tName, symbol: tSymbol, supply: Number(formatUnits(supply, 18)).toLocaleString(), creator }]);
+        return;
+      }
+
+      const needle = q.toLowerCase();
+      const count = await client.readContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "allTokensLength" });
+      const total = Number(count);
+      const matches: LaunchedToken[] = [];
+
+      for (let i = total - 1; i >= 0 && matches.length < 20; i--) {
+        const tokenAddr = await client.readContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "allTokens", args: [BigInt(i)] });
+        const [tName, tSymbol] = await Promise.all([
+          client.readContract({ address: tokenAddr, abi: TOKEN_ABI, functionName: "name" }),
+          client.readContract({ address: tokenAddr, abi: TOKEN_ABI, functionName: "symbol" }),
+        ]);
+        if (tName.toLowerCase().includes(needle) || tSymbol.toLowerCase().includes(needle)) {
+          const [supply, creator] = await Promise.all([
+            client.readContract({ address: tokenAddr, abi: TOKEN_ABI, functionName: "totalSupply" }),
+            client.readContract({ address: tokenAddr, abi: TOKEN_ABI, functionName: "creator" }),
+          ]);
+          matches.push({ address: tokenAddr, name: tName, symbol: tSymbol, supply: Number(formatUnits(supply, 18)).toLocaleString(), creator });
+        }
+        await new Promise(r => setTimeout(r, 30));
+      }
+
+      if (matches.length === 0) setSearchError("No tokens matched that name or symbol.");
+      setSearchResults(matches);
+    } catch {
+      setSearchError("Token not found.");
+    } finally {
+      setSearching(false);
+    }
+  }
 
   async function addTokenToWallet(tokenAddress: string, tokenSymbol: string) {
     try {
@@ -336,6 +396,34 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
           </div>
         </div>
       )}
+
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px" }}>SEARCH BY NAME OR ADDRESS</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input type="text" placeholder="Doge, DOGE, or 0x..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") doSearchToken(); }}
+            style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
+          <button onClick={doSearchToken} disabled={searching}
+            style={{ padding: "0.6rem 1.1rem", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: searching ? "not-allowed" : "pointer", opacity: searching ? 0.6 : 1 }}>
+            {searching ? "..." : "Search"}
+          </button>
+        </div>
+        {searchError && <div style={{ fontSize: 12, color: "#fca5a5" }}>{searchError}</div>}
+        {searchResults.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {searchResults.map((r) => (
+              <a key={r.address} href={`https://testnet.arcscan.app/address/${r.address}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", textDecoration: "none" }}>
+                <div>
+                  <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 700 }}>{r.name}</span>
+                  <span style={{ fontSize: 11, color: "#64748b", marginLeft: 6 }}>{r.symbol}</span>
+                </div>
+                <span style={{ fontSize: 11, color: "#6ee7b7" }}>{r.supply} supply</span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div>
         <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>RECENTLY LAUNCHED</div>
