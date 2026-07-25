@@ -134,7 +134,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
             client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "name" }),
             client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "symbol" }),
           ]);
-          return { symbol: tSymbol, name: tName, address: tokenAddr };
+          return { symbol: tSymbol, name: tName, address: tokenAddr as string };
         } catch {
           return null;
         }
