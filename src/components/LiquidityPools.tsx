@@ -114,9 +114,10 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   const [cacheLoading, setCacheLoading] = useState(false);
 
   async function ensureTokenCache(): Promise<{ symbol: string; name: string; address: string }[]> {
-    if (launchedTokenCache) return launchedTokenCache;
+    if (launchedTokenCache && launchedTokenCache.length > 0) return launchedTokenCache;
     if (cacheLoading) {
-      while (cacheLoading) await new Promise(r => setTimeout(r, 100));
+      let waited = 0;
+      while (cacheLoading && waited < 15000) { await new Promise(r => setTimeout(r, 200)); waited += 200; }
       return launchedTokenCache ?? [];
     }
     setCacheLoading(true);
@@ -124,24 +125,28 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const count = await client.readContract({ address: TOKEN_LAUNCH_FACTORY, abi: TOKEN_LAUNCH_FACTORY_ABI, functionName: "allTokensLength" });
       const total = Number(count);
-      const scanCount = Math.min(total, 40);
+      const scanCount = Math.min(total, 20);
       const indices = Array.from({ length: scanCount }, (_, k) => total - 1 - k);
 
-      const results = await Promise.all(indices.map(async (i) => {
-        try {
-          const tokenAddr = await client.readContract({ address: TOKEN_LAUNCH_FACTORY, abi: TOKEN_LAUNCH_FACTORY_ABI, functionName: "allTokens", args: [BigInt(i)] });
-          const [tName, tSymbol] = await Promise.all([
-            client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "name" }),
-            client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "symbol" }),
-          ]);
-          return { symbol: tSymbol, name: tName, address: tokenAddr as string };
-        } catch {
-          return null;
-        }
-      }));
+      const list: { symbol: string; name: string; address: string }[] = [];
+      const BATCH_SIZE = 4;
+      for (let b = 0; b < indices.length; b += BATCH_SIZE) {
+        const batch = indices.slice(b, b + BATCH_SIZE);
+        const batchResults = await Promise.all(batch.map(async (i) => {
+          try {
+            const tokenAddr = await client.readContract({ address: TOKEN_LAUNCH_FACTORY, abi: TOKEN_LAUNCH_FACTORY_ABI, functionName: "allTokens", args: [BigInt(i)] });
+            const tName = await client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "name" });
+            const tSymbol = await client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "symbol" });
+            return { symbol: tSymbol, name: tName, address: tokenAddr as string };
+          } catch {
+            return null;
+          }
+        }));
+        for (const r of batchResults) if (r) list.push(r);
+        if (b + BATCH_SIZE < indices.length) await new Promise(r => setTimeout(r, 250));
+      }
 
-      const list = results.filter((r): r is { symbol: string; name: string; address: string } => r !== null);
-      setLaunchedTokenCache(list);
+      if (list.length > 0) setLaunchedTokenCache(list);
       return list;
     } finally {
       setCacheLoading(false);
