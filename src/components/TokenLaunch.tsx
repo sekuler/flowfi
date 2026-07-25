@@ -357,3 +357,100 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
           <button onClick={() => addTokenToWallet(newTokenAddress, newTokenSymbol)}
             style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#e2e8f0", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             + Add {newTokenSymbol} to Wallet
+          </button>
+          <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", margin: 0 }}>Next: create a USDC pool so people can trade it.</p>
+          {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
+          <button onClick={doCreatePool} disabled={isLoading}
+            style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+            {isLoading ? "Creating Pool..." : `Create ${newTokenSymbol}/USDC Pool`}
+          </button>
+        </div>
+      )}
+
+      {flowStep === "pool_created" && (
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <p style={{ color: "#6ee7b7", fontWeight: 700, fontSize: 14, textAlign: "center", margin: 0 }}>✓ Pool created! Now seed it with liquidity.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 12, color: "#94a3b8" }}>{newTokenSymbol} amount</label>
+            <input type="number" min="0" value={poolTokenAmount} onChange={(e) => setPoolTokenAmount(e.target.value)} disabled={isLoading}
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#f1f5f9", outline: "none" }} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 12, color: "#94a3b8" }}>USDC amount</label>
+            <input type="number" min="0" value={poolUsdcAmount} onChange={(e) => setPoolUsdcAmount(e.target.value)} disabled={isLoading}
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#f1f5f9", outline: "none" }} />
+          </div>
+          {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
+          <button onClick={doAddLiquidity} disabled={isLoading}
+            style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+            {isLoading ? "Adding Liquidity..." : "Add Liquidity"}
+          </button>
+        </div>
+      )}
+
+      {flowStep === "liquidity_added" && (
+        <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 16, padding: "1.75rem", textAlign: "center" }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
+          <p style={{ color: "#6ee7b7", fontWeight: 800, fontSize: 17, margin: "0 0 6px 0" }}>{newTokenSymbol} is tradeable!</p>
+          <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 16px 0" }}>Your token has a live pool with real liquidity. Anyone can now swap it.</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onNavigateToPools}
+              style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #059669, #10b981)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              Go Trade It →
+            </button>
+            <button onClick={startOver}
+              style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Launch Another
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px" }}>SEARCH BY NAME OR ADDRESS</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input type="text" placeholder="Doge, DOGE, or 0x..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") doSearchToken(); }}
+            style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
+          <button onClick={doSearchToken} disabled={searching}
+            style={{ padding: "0.6rem 1.1rem", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: searching ? "not-allowed" : "pointer", opacity: searching ? 0.6 : 1 }}>
+            {searching ? "..." : "Search"}
+          </button>
+        </div>
+        {searchError && <div style={{ fontSize: 12, color: "#fca5a5" }}>{searchError}</div>}
+        {searchResults.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {searchResults.map((r) => (
+              <a key={r.address} href={`https://testnet.arcscan.app/address/${r.address}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", textDecoration: "none" }}>
+                <div>
+                  <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 700 }}>{r.name}</span>
+                  <span style={{ fontSize: 11, color: "#64748b", marginLeft: 6 }}>{r.symbol}</span>
+                </div>
+                <span style={{ fontSize: 11, color: "#6ee7b7" }}>{r.supply} supply</span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>RECENTLY LAUNCHED</div>
+        {loadingTokens && <div style={{ fontSize: 12, color: "#334155" }}>Loading...</div>}
+        {!loadingTokens && allTokens.length === 0 && <div style={{ fontSize: 12, color: "#334155" }}>No tokens launched yet. Be the first!</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {allTokens.map((t) => (
+            <a key={t.address} href={`https://testnet.arcscan.app/address/${t.address}`} target="_blank" rel="noopener noreferrer"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}>
+              <div>
+                <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 700 }}>{t.name}</span>
+                <span style={{ fontSize: 11, color: "#64748b", marginLeft: 6 }}>{t.symbol}</span>
+              </div>
+              <span style={{ fontSize: 11, color: "#334155" }}>{t.supply} supply</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
