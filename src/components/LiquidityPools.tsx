@@ -393,7 +393,6 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
   const swapSupported = !pool.isLegacy;
 
   useEffect(() => {
-    if (!expanded) return;
     let cancelled = false;
     const client = createPublicClient({ chain: arcTestnet, transport: http() });
     if (pool.symbolA.startsWith("0x")) {
@@ -403,7 +402,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
       resolveTokenSymbol(pool.addressB, client).then(s => { if (!cancelled) setResolvedSymbolB(s); });
     }
     return () => { cancelled = true; };
-  }, [expanded, pool.addressA, pool.addressB, pool.symbolA, pool.symbolB]);
+  }, [pool.addressA, pool.addressB, pool.symbolA, pool.symbolB]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -571,11 +570,11 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "1rem 1.25rem", cursor: "pointer", textAlign: "left" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex" }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorA, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #0a1a2f" }}>{pool.symbolA.slice(0, 2)}</div>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorB, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #0a1a2f", marginLeft: -8 }}>{pool.symbolB.slice(0, 2)}</div>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorA, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #0a1a2f" }}>{resolvedSymbolA.slice(0, 2)}</div>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorB, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #0a1a2f", marginLeft: -8 }}>{resolvedSymbolB.slice(0, 2)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{pool.symbolA}-{pool.symbolB}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{resolvedSymbolA}-{resolvedSymbolB}</div>
             <div style={{ fontSize: 10, color: "#475569" }}>0.3% fee</div>
           </div>
         </div>
