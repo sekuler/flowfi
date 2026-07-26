@@ -3,7 +3,7 @@ import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHome from "./components/CopilotHome";
 import TokenLaunch from "./components/TokenLaunch";
 import LendingForm from "./components/LendingForm";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
@@ -51,7 +51,7 @@ const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
 const TAB_GROUPS: { group: string; color: string; tabs: { id: Tab; label: string; emoji: string }[] }[] = [
  {
   group: "WALLET",
-  color: "#60a5fa",
+  color: "#22d3ee",
   tabs: [
     { id: "home",      label: "Home",      emoji: "✦" },
     { id: "portfolio", label: "Portfolio", emoji: "◈" },
@@ -61,7 +61,7 @@ const TAB_GROUPS: { group: string; color: string; tabs: { id: Tab; label: string
 },
 {
   group: "TRADING",
-  color: "#34d399",
+  color: "#22d3ee",
   tabs: [
     { id: "swap",      label: "Swap",      emoji: "⇄" },
     { id: "perps",     label: "Perpetuals", emoji: "▲" },
@@ -72,14 +72,14 @@ const TAB_GROUPS: { group: string; color: string; tabs: { id: Tab; label: string
 },
   {
     group: "INFRASTRUCTURE",
-    color: "#f472b6",
+    color: "#6366f1",
     tabs: [
       { id: "bridge",    label: "Bridge",    emoji: "⬡" },
     ],
   },
  {
   group: "ANALYTICS",
-  color: "#fbbf24",
+  color: "#6366f1",
   tabs: [
     { id: "dashboard", label: "Dashboard", emoji: "▤" },
     { id: "analytics", label: "Stablecoin Analytics", emoji: "📊" },
@@ -88,7 +88,7 @@ const TAB_GROUPS: { group: string; color: string; tabs: { id: Tab; label: string
 },
   {
     group: "SETTINGS",
-    color: "#a78bfa",
+    color: "#a5b4fc",
     tabs: [
       { id: "circlewallet", label: "Circle Wallet", emoji: "◎" },
     ],
@@ -112,7 +112,96 @@ function timeAgo(sec: number) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+/* ---------- Live network background (canvas) ---------- */
+function NetworkBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let width = 0, height = 0;
+    function resize() {
+      width = canvas!.width = window.innerWidth;
+      height = canvas!.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    const N = 30;
+    const nodes = Array.from({ length: N }, () => ({
+      x: Math.random() * width, y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.2, vy: (Math.random() - 0.5) * 0.2,
+    }));
+    const edges: { a: number; b: number; pulse: number; speed: number }[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        if (Math.random() < 0.045) edges.push({ a: i, b: j, pulse: Math.random(), speed: 0.002 + Math.random() * 0.006 });
+      }
+    }
+
+    let raf: number;
+    function step() {
+      ctx!.clearRect(0, 0, width, height);
+      ctx!.fillStyle = "#050810";
+      ctx!.fillRect(0, 0, width, height);
+
+      for (const n of nodes) {
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > width) n.vx *= -1;
+        if (n.y < 0 || n.y > height) n.vy *= -1;
+      }
+
+      for (const e of edges) {
+        const a = nodes[e.a], b = nodes[e.b];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 340) continue;
+        const alpha = Math.max(0, 1 - dist / 340) * 0.15;
+        ctx!.strokeStyle = `rgba(99,140,220,${alpha})`;
+        ctx!.beginPath(); ctx!.moveTo(a.x, a.y); ctx!.lineTo(b.x, b.y); ctx!.stroke();
+
+        e.pulse += e.speed;
+        if (e.pulse > 1) e.pulse = 0;
+        const px = a.x + dx * e.pulse, py = a.y + dy * e.pulse;
+        const grad = ctx!.createRadialGradient(px, py, 0, px, py, 4);
+        grad.addColorStop(0, "rgba(34,211,238,0.85)");
+        grad.addColorStop(1, "rgba(34,211,238,0)");
+        ctx!.fillStyle = grad;
+        ctx!.beginPath(); ctx!.arc(px, py, 4, 0, Math.PI * 2); ctx!.fill();
+      }
+
+      for (const n of nodes) {
+        ctx!.fillStyle = "rgba(148,163,184,0.4)";
+        ctx!.beginPath(); ctx!.arc(n.x, n.y, 1.4, 0, Math.PI * 2); ctx!.fill();
+      }
+      raf = requestAnimationFrame(step);
+    }
+    step();
+
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+
+  return <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, zIndex: 0 }} />;
+}
+
+/* ---------- Google Fonts injection ---------- */
+function useFlowFiFonts() {
+  useEffect(() => {
+    if (document.getElementById("flowfi-fonts")) return;
+    const link = document.createElement("link");
+    link.id = "flowfi-fonts";
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap";
+    document.head.appendChild(link);
+  }, []);
+}
+
 export default function App() {
+  useFlowFiFonts();
+
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [tab, setTab] = useState<Tab>("home");
   const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, native: null });
@@ -193,8 +282,8 @@ export default function App() {
   const shortAddr = wallet ? wallet.address.slice(0, 6) + "..." + wallet.address.slice(-4) : "";
 
   const TOKEN_META: Record<string, { icon: string; color: string; bg: string }> = {
-    USDC: { icon: "$", color: "#2563eb", bg: "rgba(37,99,235,0.08)" },
-    EURC: { icon: "€", color: "#7c3aed", bg: "rgba(124,58,237,0.08)" },
+    USDC: { icon: "$", color: "#22d3ee", bg: "rgba(34,211,238,0.08)" },
+    EURC: { icon: "€", color: "#6366f1", bg: "rgba(99,102,241,0.08)" },
     USYC: { icon: "Y", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
   };
 
@@ -211,18 +300,44 @@ export default function App() {
     return null;
   }
 
+  const sharedStyle = (
+    <style>{`
+      * { font-family: 'Inter', system-ui, sans-serif; }
+      .flowfi-display { font-family: 'Space Grotesk', 'Inter', sans-serif !important; }
+      .flowfi-mono { font-family: 'JetBrains Mono', ui-monospace, monospace !important; }
+      button:not(:disabled) { transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease; }
+      button:not(:disabled):hover { transform: translateY(-1px); }
+      button:not(:disabled):active { transform: translateY(0px) scale(0.98); }
+      a { transition: transform 0.12s ease, opacity 0.12s ease; }
+      input, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+      input:focus, select:focus { box-shadow: 0 0 0 3px rgba(34,211,238,0.15); }
+      @keyframes flowfi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+      .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
+      @keyframes flowfi-skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+      .flowfi-skeleton { display: inline-block; background: rgba(255,255,255,0.08); border-radius: 4px; animation: flowfi-skeleton-pulse 1.4s ease-in-out infinite; }
+      @keyframes flowfi-drift { 0% { transform: translate(-8%, -4%) rotate(0deg); } 50% { transform: translate(5%, 6%) rotate(180deg); } 100% { transform: translate(-8%, -4%) rotate(360deg); } }
+      .flowfi-blob { animation: flowfi-drift 24s ease-in-out infinite; }
+      @keyframes flowfi-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+      .flowfi-ticker-track { animation: flowfi-ticker-scroll 20s linear infinite; }
+      @keyframes flowfi-icon-pulse { 0%,100% { box-shadow: 0 0 12px rgba(34,211,238,0.4); } 50% { box-shadow: 0 0 22px rgba(34,211,238,0.7); } }
+      .flowfi-brand-icon { animation: flowfi-icon-pulse 2.4s ease-in-out infinite; }
+      @keyframes flowfi-dot-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+      .flowfi-live-dot { animation: flowfi-dot-pulse 1.6s ease-in-out infinite; }
+    `}</style>
+  );
+
  if (!wallet) {
   return (
-    <div className="flowfi-mesh-bg" style={{ minHeight: "100vh", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
-      <div style={{ position: "fixed", top: "10%", left: "20%", width: 700, height: 700, background: "radial-gradient(circle, rgba(79,70,229,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "fixed", bottom: "0%", right: "10%", width: 500, height: 500, background: "radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+    <div style={{ minHeight: "100vh", color: "#f8fafc", position: "relative" }}>
+      {sharedStyle}
+      <NetworkBackground />
 
       <header style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 3rem", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #4f46e5, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>◈</div>
+          <div className="flowfi-brand-icon" style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #22d3ee, #6366f1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#04121f" }}>◈</div>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 800, lineHeight: 1.1 }}>FlowFi</div>
-            <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 700, letterSpacing: "1px" }}>AI DEFI OS</div>
+            <div className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.1 }}>FlowFi</div>
+            <div style={{ fontSize: 9, color: "#67e8f9", fontWeight: 700, letterSpacing: "1.5px" }}>AI DEFI OS</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 24 }}>
@@ -237,11 +352,11 @@ export default function App() {
       </header>
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 760, margin: "0 auto", textAlign: "center", padding: "3.5rem 2rem 2.5rem" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 30, background: "rgba(79,70,229,0.12)", border: "1px solid rgba(79,70,229,0.3)", fontSize: 12, fontWeight: 700, color: "#a5b4fc", marginBottom: 24 }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4f46e5" }} />
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 30, background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.3)", fontSize: 12, fontWeight: 700, color: "#67e8f9", marginBottom: 24 }}>
+          <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#22d3ee" }} />
           LIVE ON ARC TESTNET
         </div>
-        <h1 style={{ fontSize: 46, fontWeight: 800, lineHeight: 1.15, letterSpacing: "-1.5px", marginBottom: 20 }}>
+        <h1 className="flowfi-display" style={{ fontSize: 46, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-1.5px", marginBottom: 20 }}>
           The AI-powered DeFi<br />operating system for Arc.
         </h1>
         <p style={{ fontSize: 17, color: "#94a3b8", lineHeight: 1.6, maxWidth: 560, margin: "0 auto 32px" }}>
@@ -269,9 +384,9 @@ export default function App() {
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1000, margin: "0 auto", padding: "2rem 2rem 5rem" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
           {LANDING_FEATURES.map((f) => (
-            <div key={f.title} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "1.5rem" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(79,70,229,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 14 }}>{f.icon}</div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "#f1f5f9" }}>{f.title}</h3>
+            <div key={f.title} style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 16, padding: "1.5rem" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(34,211,238,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 14 }}>{f.icon}</div>
+              <h3 className="flowfi-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "#f1f5f9" }}>{f.title}</h3>
               <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>{f.desc}</p>
             </div>
           ))}
@@ -282,75 +397,38 @@ export default function App() {
 }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%)", fontFamily: "'Inter', system-ui, sans-serif", color: "#f8fafc" }}>
-      <style>{`
-  button:not(:disabled) { transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease; }
-  button:not(:disabled):hover { transform: translateY(-1px); }
-  button:not(:disabled):active { transform: translateY(0px) scale(0.98); }
-  a { transition: transform 0.12s ease, opacity 0.12s ease; }
-  input, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-  input:focus, select:focus { box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
-  @keyframes flowfi-fade-in {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
-  @keyframes flowfi-skeleton-pulse {
-    0%, 100% { opacity: 0.4; }
-    50% { opacity: 0.8; }
-  }
- .flowfi-skeleton {
-  display: inline-block;
-  background: rgba(255,255,255,0.08);
-  border-radius: 4px;
-  animation: flowfi-skeleton-pulse 1.4s ease-in-out infinite;
-}
-@keyframes flowfi-drift {
-  0% { transform: translate(-8%, -4%) rotate(0deg); }
-  50% { transform: translate(5%, 6%) rotate(180deg); }
-  100% { transform: translate(-8%, -4%) rotate(360deg); }
-}
-.flowfi-blob { animation: flowfi-drift 24s ease-in-out infinite; }
-@keyframes flowfi-mesh {
-  0%, 100% { background-position: 0% 50%, 100% 50%, 50% 0%; }
-  50% { background-position: 100% 50%, 0% 50%, 50% 100%; }
-}
-.flowfi-mesh-bg {
-  background:
-    radial-gradient(circle at 15% 20%, rgba(34,211,238,0.55) 0%, transparent 40%),
-    radial-gradient(circle at 85% 15%, rgba(139,92,246,0.55) 0%, transparent 40%),
-    radial-gradient(circle at 75% 75%, rgba(99,102,241,0.55) 0%, transparent 40%),
-    radial-gradient(circle at 20% 80%, rgba(34,211,238,0.40) 0%, transparent 40%),
-    linear-gradient(180deg, #0a1a2f 0%, #0d2847 100%);
-  background-size: 160% 160%, 160% 160%, 160% 160%, 160% 160%, 100% 100%;
-  animation: flowfi-mesh 18s ease-in-out infinite;
-}
-@keyframes flowfi-ticker-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-.flowfi-ticker-track { animation: flowfi-ticker-scroll 20s linear infinite; }
-`}</style>
+    <div style={{ minHeight: "100vh", display: "flex", color: "#f8fafc", position: "relative" }}>
+      {sharedStyle}
+      <NetworkBackground />
       <ToastContainer />
-      <aside style={{ width: 220, minHeight: "100vh", background: "#0a1a2f", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0 }}>
-        <div style={{ padding: "0 1.25rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "1rem" }}>
+      <aside style={{ width: 220, minHeight: "100vh", background: "rgba(8,12,20,0.6)", backdropFilter: "blur(24px)", borderRight: "1px solid rgba(148,163,184,0.1)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0, zIndex: 2 }}>
+        <div style={{ padding: "0 1.25rem 1.5rem", borderBottom: "1px solid rgba(148,163,184,0.1)", marginBottom: "1rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #4f46e5, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>◈</div>
+            <div className="flowfi-brand-icon" style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #22d3ee, #6366f1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#04121f" }}>◈</div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#f8fafc" }}>FlowFi</div>
-              <div style={{ fontSize: 9, color: "#4f46e5", fontWeight: 700, letterSpacing: "2px" }}>TESTNET</div>
+              <div className="flowfi-display" style={{ fontSize: 15, fontWeight: 700, color: "#f8fafc" }}>FlowFi</div>
+              <div style={{ fontSize: 9, color: "#67e8f9", fontWeight: 700, letterSpacing: "2px" }}>TESTNET</div>
             </div>
           </div>
         </div>
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           {TAB_GROUPS.map(({ group, color, tabs }) => (
             <div key={group} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 9, color: color, fontWeight: 800, letterSpacing: "1.5px", padding: "0.5rem 1rem 0.3rem" }}>{group}</div>
+              <div style={{ fontSize: 9, color: "#475569", fontWeight: 800, letterSpacing: "1.5px", padding: "0.5rem 1rem 0.3rem" }}>{group}</div>
               {tabs.map(({ id, label, emoji }) => {
                 const active = tab === id;
                 return (
                   <button key={id} onClick={() => setTab(id)}
-                    style={{ width: "100%", padding: "0.6rem 1rem", borderRadius: 10, border: "none", background: active ? "rgba(79,70,229,0.15)" : "transparent", color: active ? "#a5b4fc" : "#64748b", fontSize: 13, fontWeight: active ? 700 : 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left", borderLeft: active ? "2px solid #4f46e5" : "2px solid transparent" }}>
+                    style={{
+                      width: "100%", padding: "0.6rem 1rem", borderRadius: 10, border: "none",
+                      background: active ? "linear-gradient(90deg, rgba(34,211,238,0.14), rgba(99,102,241,0.08))" : "transparent",
+                      color: active ? "#67e8f9" : "#94a3b8",
+                      fontSize: 13, fontWeight: active ? 700 : 500, cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 10, textAlign: "left",
+                      boxShadow: active ? "inset 0 0 0 1px rgba(34,211,238,0.25)" : "none",
+                      position: "relative", marginBottom: 2,
+                    }}>
+                    {active && <span style={{ position: "absolute", left: -12, top: "20%", width: 3, height: "60%", borderRadius: 2, background: "linear-gradient(180deg, #22d3ee, #6366f1)" }} />}
                     <span style={{ fontSize: 15 }}>{emoji}</span>
                     <span>{label}</span>
                   </button>
@@ -359,22 +437,22 @@ export default function App() {
             </div>
           ))}
         </nav>
-        <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: "auto" }}>
-          <div style={{ fontSize: 10, color: "#334155", marginBottom: 4, fontWeight: 600, letterSpacing: "1px" }}>CONNECTED</div>
+        <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid rgba(148,163,184,0.1)", marginTop: "auto" }}>
+          <div style={{ fontSize: 10, color: "#475569", marginBottom: 4, fontWeight: 600, letterSpacing: "1px" }}>CONNECTED</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ fontSize: 13, color: "#475569", fontFamily: "monospace" }}>{shortAddr}</div>
+            <div className="flowfi-mono" style={{ fontSize: 13, color: "#94a3b8" }}>{shortAddr}</div>
             <button onClick={copyAddress} title="Copy address"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: copied ? "#6ee7b7" : "#475569", fontSize: 12 }}>
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: copied ? "#6ee7b7" : "#64748b", fontSize: 12 }}>
               {copied ? "✓" : "⧉"}
             </button>
           </div>
-          <div style={{ fontSize: 11, color: "#1e293b", marginTop: 2 }}>{wallet.walletName}</div>
-          <button onClick={() => setWallet(null)} style={{ marginTop: 10, fontSize: 11, color: "#334155", background: "none", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", width: "100%" }}>Disconnect</button>
+          <div style={{ fontSize: 11, color: "#334155", marginTop: 2 }}>{wallet.walletName}</div>
+          <button onClick={() => setWallet(null)} style={{ marginTop: 10, fontSize: 11, color: "#64748b", background: "none", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", width: "100%" }}>Disconnect</button>
         </div>
         <div style={{ padding: "0.75rem 1.25rem", display: "flex", flexDirection: "column", gap: 6 }}>
           {[
-            { label: "arc.io", href: "https://www.arc.io", color: "#818cf8" },
-            { label: "Explorer", href: "https://testnet.arcscan.app", color: "#60a5fa" },
+            { label: "arc.io", href: "https://www.arc.io", color: "#a5b4fc" },
+            { label: "Explorer", href: "https://testnet.arcscan.app", color: "#67e8f9" },
             { label: "Faucet", href: "https://faucet.circle.com", color: "#6ee7b7" },
           ].map(({ label, href, color }) => (
             <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>{label} ↗</a>
@@ -382,25 +460,26 @@ export default function App() {
         </div>
       </aside>
 
-      <main style={{ marginLeft: 220, flex: 1, minHeight: "100vh" }}>
-        <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <main style={{ marginLeft: 220, flex: 1, minHeight: "100vh", position: "relative", zIndex: 1 }}>
+        <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
           <button disabled title="Coming soon"
-            style={{ position: "relative", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 8, width: 36, height: 36, cursor: "not-allowed", fontSize: 16 }}>
+            style={{ position: "relative", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, width: 36, height: 36, cursor: "not-allowed", fontSize: 16 }}>
             🔔
             <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
           </button>
           <button disabled title="Coming soon"
-            style={{ position: "relative", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 8, width: 36, height: 36, cursor: "not-allowed", fontSize: 16 }}>
+            style={{ position: "relative", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, width: 36, height: 36, cursor: "not-allowed", fontSize: 16 }}>
             🌙
             <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
           </button>
-          <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)" }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px rgba(16,185,129,0.7)" }} />
-            <span style={{ fontSize: 12, fontWeight: 800, color: "#6ee7b7" }}>Arc Testnet</span>
+          <div style={{ width: 1, height: 20, background: "rgba(148,163,184,0.12)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.3)" }}>
+            <span className="flowfi-live-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#22d3ee" }} />
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#67e8f9" }}>Arc Testnet</span>
           </div>
           <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, background: "rgba(79,70,229,0.15)", border: "1px solid rgba(79,70,229,0.4)", color: "#c7d2fe", fontSize: 12, fontWeight: 800, textDecoration: "none", fontFamily: "monospace" }}>
+            className="flowfi-mono"
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "#c7d2fe", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
             {shortAddr}
           </a>
         </header>
@@ -408,12 +487,10 @@ export default function App() {
         <div style={{ padding: "2.5rem" }}>
           <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" || tab === "pools" || tab === "swap" || tab === "bridge" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
-              <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
-{tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
-</h1>
-<p style={{ fontSize: 13, color: "#334155" }}></p>
+              <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#f8fafc", marginBottom: 4, letterSpacing: "-0.5px" }}>
                 {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
-              <p style={{ fontSize: 13, color: "#334155" }}>
+              </h1>
+              <p style={{ fontSize: 13, color: "#64748b" }}>
                {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "perps" ? "Leveraged BTC/ETH trading demo" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "lending" ? "Supply to earn, or borrow against collateral" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Bridge USDC to Arc via CCTP"}
               </p>
             </div>
@@ -426,45 +503,45 @@ export default function App() {
                     const meta = TOKEN_META[label];
                     const usd = usdEquivalent(label, value);
                     return (
-                      <div key={label} style={{ background: meta.bg, border: `1px solid ${meta.color}20`, borderRadius: 14, padding: "1.25rem" }}>
+                      <div key={label} style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(16px)", border: `1px solid ${meta.color}30`, borderRadius: 14, padding: "1.25rem" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                           {label === "USDC" || label === "EURC" ? (
   <img src={label === "USDC" ? "https://assets.coingecko.com/coins/images/6319/small/usdc.png" : "https://assets.coingecko.com/coins/images/26045/small/euro.png"} alt={label} style={{ width: 20, height: 20, borderRadius: "50%" }} />
 ) : (
-  <div style={{ width: 20, height: 20, borderRadius: "50%", background: meta.color, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{meta.icon}</div>
+  <div style={{ width: 20, height: 20, borderRadius: "50%", background: meta.color, color: "#04121f", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{meta.icon}</div>
 )}
-                          <div style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "1px" }}>{label}</div>
+                          <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "1px" }}>{label}</div>
                         </div>
-                        <div style={{ fontSize: 22, fontWeight: 800, color: meta.color }}>{value === null ? <Skeleton width={70} height={22} /> : value}</div>
-                        <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>{usd ?? "Arc Testnet"}</div>
+                        <div className="flowfi-mono" style={{ fontSize: 22, fontWeight: 700, color: meta.color }}>{value === null ? <Skeleton width={70} height={22} /> : value}</div>
+                        <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>{usd ?? "Arc Testnet"}</div>
                       </div>
                     );
                   })}
                 </div>
 
-                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ background: "rgba(15,23,42,0.5)", backdropFilter: "blur(14px)", border: "1px solid rgba(148,163,184,0.1)", borderRadius: 14, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>ARC</div>
-                    <div style={{ fontSize: 13, color: "#475569" }}>Gas Balance</div>
+                    <div style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>ARC</div>
+                    <div style={{ fontSize: 13, color: "#64748b" }}>Gas Balance</div>
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#64748b" }}>{balances.native === null ? "..." : `${balances.native} ARC`}</div>
+                  <div className="flowfi-mono" style={{ fontSize: 18, fontWeight: 700, color: "#94a3b8" }}>{balances.native === null ? "..." : `${balances.native} ARC`}</div>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <button onClick={() => loadBalances(wallet.address)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.5rem 1rem", color: "#334155", fontSize: 12, cursor: "pointer" }}>
+                  <button onClick={() => loadBalances(wallet.address)} style={{ background: "none", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 10, padding: "0.5rem 1rem", color: "#64748b", fontSize: 12, cursor: "pointer" }}>
                     ↻ Refresh
                   </button>
                   {lastUpdated && (
-                    <span style={{ fontSize: 11, color: "#1e293b" }}>Updated {timeAgo(lastUpdated)}</span>
+                    <span style={{ fontSize: 11, color: "#334155" }}>Updated {timeAgo(lastUpdated)}</span>
                   )}
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, letterSpacing: "1px", marginBottom: 10 }}>QUICK ACTIONS</div>
+                  <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px", marginBottom: 10 }}>QUICK ACTIONS</div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => setTab("send")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(16,185,129,0.2)", background: "rgba(16,185,129,0.06)", color: "#10b981", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↗ Send</button>
-                    <button onClick={() => setTab("receive")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(79,70,229,0.2)", background: "rgba(79,70,229,0.06)", color: "#818cf8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↙ Receive</button>
-                    <button onClick={() => setTab("swap")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(139,92,246,0.2)", background: "rgba(139,92,246,0.06)", color: "#8b5cf6", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>⇄ Swap</button>
+                    <button onClick={() => setTab("send")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(34,211,238,0.2)", background: "rgba(34,211,238,0.06)", color: "#22d3ee", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↗ Send</button>
+                    <button onClick={() => setTab("receive")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.06)", color: "#818cf8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↙ Receive</button>
+                    <button onClick={() => setTab("swap")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(139,92,246,0.2)", background: "rgba(139,92,246,0.06)", color: "#a78bfa", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>⇄ Swap</button>
                   </div>
                 </div>
 
@@ -475,15 +552,15 @@ export default function App() {
                 {recentTxs.length > 0 && (
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, letterSpacing: "1px" }}>RECENT ACTIVITY</span>
-                      <button onClick={() => setTab("history")} style={{ background: "none", border: "none", color: "#4f46e5", fontSize: 11, cursor: "pointer" }}>View all →</button>
+                      <span style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px" }}>RECENT ACTIVITY</span>
+                      <button onClick={() => setTab("history")} style={{ background: "none", border: "none", color: "#22d3ee", fontSize: 11, cursor: "pointer" }}>View all →</button>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {recentTxs.map((tx) => (
                         <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
-                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}>
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(2,6,23,0.4)", border: "1px solid rgba(148,163,184,0.08)", textDecoration: "none" }}>
                           <span style={{ fontSize: 12, color: "#94a3b8" }}>{tx.method}</span>
-                          <span style={{ fontSize: 11, color: "#334155" }}>{tx.age}</span>
+                          <span style={{ fontSize: 11, color: "#475569" }}>{tx.age}</span>
                         </a>
                       ))}
                     </div>
@@ -491,9 +568,9 @@ export default function App() {
                 )}
 
                 <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderRadius: 10, border: "1px solid rgba(79,70,229,0.25)", background: "rgba(79,70,229,0.06)", color: "#818cf8", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderRadius: 10, border: "1px solid rgba(99,102,241,0.25)", background: "rgba(99,102,241,0.08)", color: "#a5b4fc", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
                   <span>View on Explorer ↗</span>
-                  <span style={{ fontFamily: "monospace", fontSize: 11, color: "#4f46e5" }}>{shortAddr}</span>
+                  <span className="flowfi-mono" style={{ fontSize: 11, color: "#818cf8" }}>{shortAddr}</span>
                 </a>
               </div>
             )}
