@@ -323,6 +323,8 @@ export default function App() {
       .flowfi-brand-icon { animation: flowfi-icon-pulse 2.4s ease-in-out infinite; }
       @keyframes flowfi-dot-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
       .flowfi-live-dot { animation: flowfi-dot-pulse 1.6s ease-in-out infinite; }
+      .flowfi-glow-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
+      .flowfi-glow-card:hover { box-shadow: 0 0 0 1px rgba(34,211,238,0.35), 0 8px 30px rgba(34,211,238,0.12); transform: translateY(-2px); }
     `}</style>
   );
 
@@ -384,7 +386,7 @@ export default function App() {
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1000, margin: "0 auto", padding: "2rem 2rem 5rem" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
           {LANDING_FEATURES.map((f) => (
-            <div key={f.title} style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 16, padding: "1.5rem" }}>
+            <div key={f.title} className="flowfi-glow-card" style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 16, padding: "1.5rem" }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(34,211,238,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 14 }}>{f.icon}</div>
               <h3 className="flowfi-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "#f1f5f9" }}>{f.title}</h3>
               <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>{f.desc}</p>
@@ -503,7 +505,7 @@ export default function App() {
                     const meta = TOKEN_META[label];
                     const usd = usdEquivalent(label, value);
                     return (
-                      <div key={label} style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(16px)", border: `1px solid ${meta.color}30`, borderRadius: 14, padding: "1.25rem" }}>
+                      <div key={label} className="flowfi-glow-card" style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(16px)", border: `1px solid ${meta.color}30`, borderRadius: 14, padding: "1.25rem" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                           {label === "USDC" || label === "EURC" ? (
   <img src={label === "USDC" ? "https://assets.coingecko.com/coins/images/6319/small/usdc.png" : "https://assets.coingecko.com/coins/images/26045/small/euro.png"} alt={label} style={{ width: 20, height: 20, borderRadius: "50%" }} />
@@ -539,9 +541,9 @@ export default function App() {
                 <div>
                   <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px", marginBottom: 10 }}>QUICK ACTIONS</div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => setTab("send")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(34,211,238,0.2)", background: "rgba(34,211,238,0.06)", color: "#22d3ee", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↗ Send</button>
-                    <button onClick={() => setTab("receive")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.06)", color: "#818cf8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↙ Receive</button>
-                    <button onClick={() => setTab("swap")} style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(139,92,246,0.2)", background: "rgba(139,92,246,0.06)", color: "#a78bfa", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>⇄ Swap</button>
+                    <button onClick={() => setTab("send")} className="flowfi-glow-card" style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(34,211,238,0.2)", background: "rgba(34,211,238,0.06)", color: "#22d3ee", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↗ Send</button>
+                    <button onClick={() => setTab("receive")} className="flowfi-glow-card" style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.06)", color: "#818cf8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↙ Receive</button>
+                    <button onClick={() => setTab("swap")} className="flowfi-glow-card" style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(139,92,246,0.2)", background: "rgba(139,92,246,0.06)", color: "#a78bfa", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>⇄ Swap</button>
                   </div>
                 </div>
 
