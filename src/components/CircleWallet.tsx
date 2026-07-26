@@ -10,13 +10,14 @@ interface CircleWalletData {
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
+const CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF" as `0x${string}`;
 const STORAGE_KEY = "flowfi_circle_wallet";
 
 export default function CircleWallet() {
   const [wallet, setWallet] = useState<CircleWalletData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [balances, setBalances] = useState<{ usdc: string; eurc: string } | null>(null);
+  const [balances, setBalances] = useState<{ usdc: string; eurc: string; cirbtc: string } | null>(null);
   const [loadingBalances, setLoadingBalances] = useState(false);
 
   useEffect(() => {
@@ -41,16 +42,18 @@ export default function CircleWallet() {
     setLoadingBalances(true);
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
-      const [usdc, eurc] = await Promise.all([
+      const [usdc, eurc, cirbtc] = await Promise.all([
         client.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }),
         client.readContract({ address: EURC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }),
+        client.readContract({ address: CIRBTC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }),
       ]);
       setBalances({
         usdc: Number(formatUnits(usdc, 6)).toFixed(2),
         eurc: Number(formatUnits(eurc, 6)).toFixed(2),
+        cirbtc: Number(formatUnits(cirbtc, 8)).toFixed(6),
       });
     } catch {
-      setBalances({ usdc: "—", eurc: "—" });
+      setBalances({ usdc: "—", eurc: "—", cirbtc: "—" });
     } finally {
       setLoadingBalances(false);
     }
@@ -119,17 +122,23 @@ export default function CircleWallet() {
               <p style={{ fontSize: 12, color: "#64748b", margin: 0, textAlign: "center" }}>It's saved in this browser — come back anytime and it'll still be here.</p>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
               <div style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#93c5fd", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>USDC BALANCE</div>
-                <div style={{ fontSize: 18, color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+                <div style={{ fontSize: 10, color: "#93c5fd", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>USDC</div>
+                <div style={{ fontSize: 16, color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.usdc ?? "0.00"}
                 </div>
               </div>
               <div style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#c4b5fd", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>EURC BALANCE</div>
-                <div style={{ fontSize: 18, color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+                <div style={{ fontSize: 10, color: "#c4b5fd", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>EURC</div>
+                <div style={{ fontSize: 16, color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.eurc ?? "0.00"}
+                </div>
+              </div>
+              <div style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#fdba74", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>cirBTC</div>
+                <div style={{ fontSize: 16, color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+                  {loadingBalances && !balances ? "..." : balances?.cirbtc ?? "0.000000"}
                 </div>
               </div>
             </div>
