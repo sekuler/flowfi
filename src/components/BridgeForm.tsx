@@ -78,7 +78,7 @@ async function switchChain(provider: EIP1193Provider, chainIdHex: string, addPar
 function addChainParams(key: ChainKey) {
   const c = CHAINS[key];
   if (key === "Arc Testnet") {
-    return { chainId: c.chainIdHex, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.testnet.arc.network"], blockExplorerUrls: ["https://testnet.arcscan.app"] };
+    return { chainId: c.chainIdHex, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://arc-testnet.g.alchemy.com/v2/alch_1L2dTNapY_mz3YEIsoVEN"], blockExplorerUrls: ["https://testnet.arcscan.app"] };
   }
   return {
     chainId: c.chainIdHex, chainName: key,
