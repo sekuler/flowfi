@@ -48,21 +48,14 @@ export default function WalletConnect({ onConnected }: Props) {
   }
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 16, padding: "2rem", maxWidth: 420, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", border: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(10px)" }}>
-      <div style={{ width: 52, height: 52, borderRadius: 14, background: "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))", border: "1px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>
-        🔗
-      </div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9" }}>Connect Wallet</h2>
-      <p style={{ fontSize: 14, color: "#64748b", textAlign: "center", lineHeight: 1.6 }}>
-        Connect your wallet to bridge USDC from Ethereum Sepolia to Arc Testnet.
-      </p>
-      {error && <div style={{ width: "100%", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13, lineHeight: 1.5 }}>{error}</div>}
+    <div style={{ maxWidth: 420, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+      {error && <div style={{ width: "100%", background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13, lineHeight: 1.5 }}>{error}</div>}
       {status === "selecting" ? (
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-          <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 4 }}>Select a wallet to connect:</p>
+          <p style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>Select a wallet to connect:</p>
           {wallets.map((w) => (
             <button key={w.info.uuid} onClick={() => connectWallet(w)}
-              style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "#f1f5f9", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+              style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: 12, border: "none", background: "#111a2c", color: "#f1f5f9", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
               {w.info.icon && <img src={w.info.icon} alt="" width={24} height={24} style={{ borderRadius: 6 }} />}
               {w.info.name}
             </button>
@@ -70,15 +63,15 @@ export default function WalletConnect({ onConnected }: Props) {
         </div>
       ) : (
         <button onClick={detect} disabled={status !== "idle"}
-          style={{ width: "100%", padding: "0.85rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", fontSize: 15, fontWeight: 600, cursor: status !== "idle" ? "not-allowed" : "pointer", opacity: status !== "idle" ? 0.7 : 1, boxShadow: "0 0 24px rgba(99,102,241,0.4)" }}>
-          {status === "idle" && "🔍 Detect Wallets"}
-          {status === "detecting" && "⏳ Detecting wallets..."}
-          {status === "connecting" && "🔄 Connecting..."}
+          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#22d3ee", color: "#04121f", fontSize: 16, fontWeight: 700, cursor: status !== "idle" ? "not-allowed" : "pointer", opacity: status !== "idle" ? 0.6 : 1 }}>
+          {status === "idle" && "Connect Wallet"}
+          {status === "detecting" && "Detecting wallets..."}
+          {status === "connecting" && "Connecting..."}
         </button>
       )}
       <div style={{ marginTop: 4 }}>
         <span style={{ color: "#64748b", fontSize: 13 }}>Get test USDC: </span>
-        <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>faucet.circle.com</a>
+        <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#67e8f9", fontSize: 13 }}>faucet.circle.com</a>
       </div>
     </div>
   );

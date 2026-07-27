@@ -484,6 +484,10 @@ export default function App() {
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "#c7d2fe", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
             {shortAddr}
           </a>
+          <button onClick={() => setWallet(null)} title="Disconnect wallet"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#fca5a5", cursor: "pointer", fontSize: 15 }}>
+            ⏻
+          </button>
         </header>
 
         <div style={{ padding: "2.5rem" }}>
