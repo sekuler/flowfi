@@ -75,6 +75,7 @@ const TAB_GROUPS: { group: string; color: string; tabs: { id: Tab; label: string
     color: "#6366f1",
     tabs: [
       { id: "bridge",    label: "Bridge",    emoji: "⬡" },
+      { id: "circlewallet", label: "Circle Wallet", emoji: "◎" },
     ],
   },
  {
@@ -86,13 +87,6 @@ const TAB_GROUPS: { group: string; color: string; tabs: { id: Tab; label: string
     { id: "history",   label: "History",   emoji: "↺" },
   ],
 },
-  {
-    group: "SETTINGS",
-    color: "#a5b4fc",
-    tabs: [
-      { id: "circlewallet", label: "Circle Wallet", emoji: "◎" },
-    ],
-  },
 ];
 
 const LANDING_FEATURES = [
@@ -404,7 +398,7 @@ export default function App() {
       <NetworkBackground />
       <ToastContainer />
       <aside style={{ width: 220, minHeight: "100vh", background: "rgba(8,12,20,0.6)", backdropFilter: "blur(24px)", borderRight: "1px solid rgba(148,163,184,0.1)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0, zIndex: 2 }}>
-        <div style={{ padding: "0 1.25rem 1.5rem", borderBottom: "1px solid rgba(148,163,184,0.1)", marginBottom: "1rem" }}>
+        <div style={{ padding: "0 1.25rem 1rem", borderBottom: "1px solid rgba(148,163,184,0.1)", marginBottom: "0.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div className="flowfi-brand-icon" style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #22d3ee, #6366f1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#04121f" }}>◈</div>
             <div>
@@ -415,23 +409,23 @@ export default function App() {
         </div>
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           {TAB_GROUPS.map(({ group, tabs }) => (
-            <div key={group} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 9, color: "#475569", fontWeight: 800, letterSpacing: "1.5px", padding: "0.5rem 1rem 0.3rem" }}>{group}</div>
+            <div key={group} style={{ marginBottom: 4 }}>
+              <div style={{ fontSize: 9, color: "#475569", fontWeight: 800, letterSpacing: "1.5px", padding: "0.35rem 1rem 0.2rem" }}>{group}</div>
               {tabs.map(({ id, label, emoji }) => {
                 const active = tab === id;
                 return (
                   <button key={id} onClick={() => setTab(id)}
                     style={{
-                      width: "100%", padding: "0.6rem 1rem", borderRadius: 10, border: "none",
+                      width: "100%", padding: "0.4rem 1rem", borderRadius: 8, border: "none",
                       background: active ? "linear-gradient(90deg, rgba(34,211,238,0.14), rgba(99,102,241,0.08))" : "transparent",
                       color: active ? "#67e8f9" : "#94a3b8",
-                      fontSize: 13, fontWeight: active ? 700 : 500, cursor: "pointer",
-                      display: "flex", alignItems: "center", gap: 10, textAlign: "left",
+                      fontSize: 12.5, fontWeight: active ? 700 : 500, cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 9, textAlign: "left",
                       boxShadow: active ? "inset 0 0 0 1px rgba(34,211,238,0.25)" : "none",
-                      position: "relative", marginBottom: 2,
+                      position: "relative", marginBottom: 1,
                     }}>
                     {active && <span style={{ position: "absolute", left: -12, top: "20%", width: 3, height: "60%", borderRadius: 2, background: "linear-gradient(180deg, #22d3ee, #6366f1)" }} />}
-                    <span style={{ fontSize: 15 }}>{emoji}</span>
+                    <span style={{ fontSize: 13 }}>{emoji}</span>
                     <span>{label}</span>
                   </button>
                 );
@@ -439,7 +433,7 @@ export default function App() {
             </div>
           ))}
         </nav>
-        <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid rgba(148,163,184,0.1)", marginTop: "auto" }}>
+        <div style={{ padding: "0.65rem 1.25rem", borderTop: "1px solid rgba(148,163,184,0.1)", marginTop: "auto" }}>
           <div style={{ fontSize: 10, color: "#475569", marginBottom: 4, fontWeight: 600, letterSpacing: "1px" }}>CONNECTED</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div className="flowfi-mono" style={{ fontSize: 13, color: "#94a3b8" }}>{shortAddr}</div>
@@ -451,7 +445,7 @@ export default function App() {
           <div style={{ fontSize: 11, color: "#334155", marginTop: 2 }}>{wallet.walletName}</div>
           <button onClick={() => setWallet(null)} style={{ marginTop: 10, fontSize: 11, color: "#64748b", background: "none", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", width: "100%" }}>Disconnect</button>
         </div>
-        <div style={{ padding: "0.75rem 1.25rem", display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ padding: "0.5rem 1.25rem", display: "flex", flexDirection: "column", gap: 4 }}>
           {[
             { label: "arc.io", href: "https://www.arc.io", color: "#a5b4fc" },
             { label: "Explorer", href: "https://testnet.arcscan.app", color: "#67e8f9" },
