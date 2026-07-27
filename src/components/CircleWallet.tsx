@@ -94,13 +94,13 @@ export default function CircleWallet() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", width: "100%", maxWidth: 460 }}>
-      <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "0.75rem 1rem" }}>
+      <div style={{ background: "rgba(52,211,153,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
         <p style={{ fontSize: 12, color: "#6ee7b7", margin: 0 }}>
           Powered by Circle Developer-Controlled Wallets — no seed phrase, no browser extension. Circle's MPC infrastructure secures the private key.
         </p>
       </div>
 
-      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div style={{ background: "#0b1220", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
         {!wallet && (
           <>
             <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
@@ -108,7 +108,7 @@ export default function CircleWallet() {
             </p>
             {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
             <button onClick={createWallet} disabled={loading}
-              style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #059669, #10b981)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+              style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#34d399", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
               {loading ? "Creating wallet..." : "Create Circle Wallet"}
             </button>
           </>
@@ -143,7 +143,7 @@ export default function CircleWallet() {
               </div>
             </div>
 
-            <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 10, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ background: "#111a2c", borderRadius: 10, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
               <div>
                 <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px", marginBottom: 4 }}>ADDRESS</div>
                 <div style={{ fontSize: 13, color: "#e2e8f0", fontFamily: "monospace", wordBreak: "break-all" }}>{wallet.address}</div>
