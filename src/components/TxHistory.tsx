@@ -1,5 +1,6 @@
 import EmptyState from "./EmptyState";
 import { useState, useEffect } from "react";
+import { getCircleWallet, type CircleWalletInfo } from "../circleWalletHelpers";
 
 interface Tx {
   hash: string;
@@ -14,19 +15,21 @@ interface Props {
   address: string;
 }
 
-const METHOD_META: Record<string, { label: string; color: string; bg: string }> = {
-  "0xa9059cbb": { label: "Send", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
-  "0x095ea7b3": { label: "Approve", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-  "0x74b30078": { label: "Swap", color: "#8b5cf6", bg: "rgba(139,92,246,0.1)" },
-  "0x9cd441da": { label: "Swap", color: "#8b5cf6", bg: "rgba(139,92,246,0.1)" },
-  "0xe334e8dd": { label: "Escrow", color: "#3b82f6", bg: "rgba(59,130,246,0.1)" },
-  "0x": { label: "Deploy", color: "#64748b", bg: "rgba(100,116,139,0.1)" },
+const METHOD_META: Record<string, { label: string; color: string }> = {
+  "0xa9059cbb": { label: "Send", color: "#34d399" },
+  "0x095ea7b3": { label: "Approve", color: "#f59e0b" },
+  "0x74b30078": { label: "Swap", color: "#22d3ee" },
+  "0x9cd441da": { label: "Swap", color: "#22d3ee" },
+  "0xe334e8dd": { label: "Escrow", color: "#6366f1" },
+  "0x6a627842": { label: "Bridge", color: "#6366f1" },
+  "0x0ba469bc": { label: "Bridge", color: "#6366f1" },
+  "0x": { label: "Deploy", color: "#64748b" },
 };
 
-const STATUS_META: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  ok: { label: "Success", color: "#6ee7b7", bg: "rgba(16,185,129,0.1)", dot: "#10b981" },
-  pending: { label: "Pending", color: "#fcd34d", bg: "rgba(245,158,11,0.1)", dot: "#f59e0b" },
-  error: { label: "Failed", color: "#fca5a5", bg: "rgba(239,68,68,0.1)", dot: "#ef4444" },
+const STATUS_META: Record<string, { label: string; color: string; dot: string }> = {
+  ok: { label: "Success", color: "#6ee7b7", dot: "#34d399" },
+  pending: { label: "Pending", color: "#fcd34d", dot: "#f59e0b" },
+  error: { label: "Failed", color: "#fca5a5", dot: "#ef4444" },
 };
 
 function timeAgo(sec: number) {
@@ -38,7 +41,7 @@ function timeAgo(sec: number) {
 }
 
 function methodMeta(methodId: string) {
-  return METHOD_META[methodId] ?? { label: "Transfer", color: "#94a3b8", bg: "rgba(148,163,184,0.1)" };
+  return METHOD_META[methodId] ?? { label: "Transfer", color: "#94a3b8" };
 }
 
 export default function TxHistory({ address }: Props) {
@@ -48,10 +51,20 @@ export default function TxHistory({ address }: Props) {
   const [filter, setFilter] = useState<string>("all");
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
+  const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
+  const [useCircle, setUseCircle] = useState(false);
+
+  useEffect(() => {
+    setCircleWallet(getCircleWallet());
+  }, []);
+
+  const effectiveAddress = useCircle && circleWallet ? circleWallet.address : address;
+
   async function load() {
+    if (!effectiveAddress) return;
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${address}&limit=30`);
+      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${effectiveAddress}&limit=30`);
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       const items: Tx[] = (data.result ?? []).map((tx: any) => ({
@@ -70,7 +83,7 @@ export default function TxHistory({ address }: Props) {
     }
   }
 
-  useEffect(() => { if (address) load(); }, [address]);
+  useEffect(() => { if (effectiveAddress) load(); }, [effectiveAddress]);
 
   function copyHash(hash: string, e: React.MouseEvent) {
     e.preventDefault();
@@ -80,45 +93,58 @@ export default function TxHistory({ address }: Props) {
     setTimeout(() => setCopiedHash(null), 1500);
   }
 
-  const filterOptions = ["all", "Send", "Swap", "Approve", "Escrow"];
+  const filterOptions = ["all", "Send", "Swap", "Bridge", "Approve", "Escrow"];
   const filteredTxs = filter === "all" ? txs : txs.filter(tx => methodMeta(tx.method).label === filter);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      {circleWallet && (
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => setUseCircle(false)}
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#1b2740" : "#111a2c", color: !useCircle ? "#67e8f9" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Browser Wallet
+          </button>
+          <button onClick={() => setUseCircle(true)}
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#1b2740" : "#111a2c", color: useCircle ? "#67e8f9" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Circle Wallet
+          </button>
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {filterOptions.map((f) => (
             <button key={f} onClick={() => setFilter(f)}
               style={{
                 padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                border: filter === f ? "1px solid rgba(79,70,229,0.4)" : "1px solid rgba(255,255,255,0.08)",
-                background: filter === f ? "rgba(79,70,229,0.15)" : "transparent",
-                color: filter === f ? "#a5b4fc" : "#64748b",
+                border: "none",
+                background: filter === f ? "#1b2740" : "#111a2c",
+                color: filter === f ? "#67e8f9" : "#64748b",
               }}>
               {f === "all" ? "All" : f}
             </button>
           ))}
         </div>
-        <button onClick={load} style={{ background: "none", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "6px 12px", color: "#334155", fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
+        <button onClick={load} style={{ background: "#111a2c", border: "none", borderRadius: 8, padding: "6px 12px", color: "#64748b", fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
       </div>
 
-      {loading && <div style={{ textAlign: "center", padding: "3rem", color: "#334155", fontSize: 13 }}>Loading transactions...</div>}
-      {error && <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "1rem", color: "#fca5a5", fontSize: 13 }}>{error}</div>}
+      {loading && <div style={{ textAlign: "center", padding: "3rem", color: "#475569", fontSize: 13 }}>Loading transactions...</div>}
+      {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "1rem", color: "#fca5a5", fontSize: 13 }}>{error}</div>}
       {!loading && !error && filteredTxs.length === 0 && (
   <EmptyState icon="📭" title="No transactions found" subtitle="Your activity will show up here once you start using FlowFi" />
 )}
       
 
       {!loading && filteredTxs.length > 0 && (
-        <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 90px 60px 70px", gap: 8, padding: "0.6rem 1rem", background: "rgba(255,255,255,0.03)", fontSize: 10, color: "#334155", fontWeight: 700, letterSpacing: "0.5px" }}>
+        <div style={{ background: "#0b1220", borderRadius: 16, overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 90px 60px 70px", gap: 8, padding: "0.6rem 1rem", background: "#111a2c", fontSize: 10, color: "#475569", fontWeight: 700, letterSpacing: "0.5px" }}>
             <span>TYPE</span>
             <span>TX HASH</span>
             <span>STATUS</span>
             <span></span>
             <span style={{ textAlign: "right" }}>AGE</span>
           </div>
-          {filteredTxs.map((tx, i) => {
+          {filteredTxs.map((tx) => {
             const meta = methodMeta(tx.method);
             const statusMeta = STATUS_META[tx.status] ?? STATUS_META.pending;
             return (
@@ -126,22 +152,20 @@ export default function TxHistory({ address }: Props) {
                 style={{
                   display: "grid", gridTemplateColumns: "80px 1fr 90px 60px 70px", gap: 8, alignItems: "center",
                   padding: "0.75rem 1rem", textDecoration: "none",
-                  borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.04)",
-                  background: "rgba(255,255,255,0.01)",
                 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: meta.color, background: meta.bg, padding: "3px 8px", borderRadius: 6, textAlign: "center", width: "fit-content" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: meta.color, background: `${meta.color}1a`, padding: "3px 8px", borderRadius: 6, textAlign: "center", width: "fit-content" }}>
                   {meta.label}
                 </span>
-                <span style={{ fontSize: 12, color: "#4f46e5", fontFamily: "monospace" }}>{tx.hash.slice(0, 14)}...</span>
-                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: statusMeta.color, background: statusMeta.bg, padding: "3px 8px", borderRadius: 6, width: "fit-content" }}>
+                <span style={{ fontSize: 12, color: "#94a3b8", fontFamily: "ui-monospace, monospace" }}>{tx.hash.slice(0, 14)}...</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: statusMeta.color, background: `${statusMeta.dot}1a`, padding: "3px 8px", borderRadius: 6, width: "fit-content" }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusMeta.dot }} />
                   {statusMeta.label}
                 </span>
                 <button onClick={(e) => copyHash(tx.hash, e)} title="Copy hash"
-                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "3px 8px", color: copiedHash === tx.hash ? "#6ee7b7" : "#64748b", fontSize: 11, cursor: "pointer", width: "fit-content" }}>
+                  style={{ background: "#111a2c", border: "none", borderRadius: 6, padding: "3px 8px", color: copiedHash === tx.hash ? "#6ee7b7" : "#64748b", fontSize: 11, cursor: "pointer", width: "fit-content" }}>
                   {copiedHash === tx.hash ? "✓" : "⧉"}
                 </button>
-                <span style={{ fontSize: 11, color: "#334155", textAlign: "right" }}>{tx.age}</span>
+                <span style={{ fontSize: 11, color: "#475569", textAlign: "right" }}>{tx.age}</span>
               </a>
             );
           })}
@@ -149,7 +173,7 @@ export default function TxHistory({ address }: Props) {
       )}
 
       {!loading && txs.length > 0 && (
-        <a href={`https://testnet.arcscan.app/address/${address}`} target="_blank" rel="noopener noreferrer" style={{ textAlign: "center", color: "#334155", fontSize: 12, textDecoration: "none", padding: "0.5rem" }}>
+        <a href={`https://testnet.arcscan.app/address/${effectiveAddress}`} target="_blank" rel="noopener noreferrer" style={{ textAlign: "center", color: "#64748b", fontSize: 12, textDecoration: "none", padding: "0.5rem" }}>
           View all on Explorer ↗
         </a>
       )}
