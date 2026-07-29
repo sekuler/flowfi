@@ -1,7 +1,3 @@
-console.log('API_KEY length:', (process.env.CIRCLE_API_KEY || '').length);
-console.log('ENTITY_SECRET length:', (process.env.CIRCLE_ENTITY_SECRET || '').length);
-console.log('ENTITY_SECRET first/last chars:', JSON.stringify((process.env.CIRCLE_ENTITY_SECRET || '').slice(0,3)), JSON.stringify((process.env.CIRCLE_ENTITY_SECRET || '').slice(-3)));
-
 const { initiateDeveloperControlledWalletsClient } = require('@circle-fin/developer-controlled-wallets');
 
 module.exports = async function handler(req, res) {
@@ -17,6 +13,7 @@ module.exports = async function handler(req, res) {
 
     const { action } = req.body;
 
+    // ---- Create a new wallet ----
     if (action === 'create') {
       const walletSetResponse = await client.createWalletSet({
         name: 'FlowFi WalletSet ' + Date.now(),
@@ -35,6 +32,51 @@ module.exports = async function handler(req, res) {
         walletId: wallet?.id,
         address: wallet?.address,
         blockchain: wallet?.blockchain,
+      });
+    }
+
+    // ---- Execute a contract call (approve, swap, bridge, addLiquidity, etc.) ----
+    // Body: { action: "contractCall", walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel? }
+    // abiFunctionSignature example: "approve(address,uint256)"
+    // abiParameters example: ["0xSpenderAddress", "1000000"]
+    if (action === 'contractCall') {
+      const { walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel } = req.body;
+
+      if (!walletId || !contractAddress || !abiFunctionSignature) {
+        return res.status(400).json({ error: 'walletId, contractAddress, and abiFunctionSignature are required.' });
+      }
+
+      const response = await client.createContractExecutionTransaction({
+        walletId,
+        contractAddress,
+        abiFunctionSignature,
+        abiParameters: abiParameters || [],
+        fee: { type: 'level', config: { feeLevel: feeLevel || 'MEDIUM' } },
+      });
+
+      return res.status(200).json({
+        success: true,
+        transactionId: response.data?.id,
+        state: response.data?.state,
+      });
+    }
+
+    // ---- Poll a transaction's status until it's mined ----
+    // Body: { action: "getTransaction", transactionId }
+    if (action === 'getTransaction') {
+      const { transactionId } = req.body;
+      if (!transactionId) {
+        return res.status(400).json({ error: 'transactionId is required.' });
+      }
+
+      const response = await client.getTransaction({ id: transactionId });
+      const tx = response.data?.transaction;
+
+      return res.status(200).json({
+        success: true,
+        state: tx?.state,
+        txHash: tx?.txHash,
+        errorReason: tx?.errorReason,
       });
     }
 
