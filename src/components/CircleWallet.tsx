@@ -17,6 +17,28 @@ export default function CircleWallet() {
   const [showRestore, setShowRestore] = useState(false);
   const [pastWallets, setPastWallets] = useState<CircleWalletInfo[]>([]);
   const [loadingPast, setLoadingPast] = useState(false);
+  const [hiddenAddresses, setHiddenAddresses] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("flowfi_circle_hidden_wallets") ?? "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [showHidden, setShowHidden] = useState(false);
+
+  function hideWallet(addr: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    const updated = [...hiddenAddresses, addr.toLowerCase()];
+    setHiddenAddresses(updated);
+    localStorage.setItem("flowfi_circle_hidden_wallets", JSON.stringify(updated));
+  }
+
+  function unhideWallet(addr: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    const updated = hiddenAddresses.filter((a) => a !== addr.toLowerCase());
+    setHiddenAddresses(updated);
+    localStorage.setItem("flowfi_circle_hidden_wallets", JSON.stringify(updated));
+  }
 
   useEffect(() => {
     setWallet(getCircleWallet());
@@ -147,14 +169,36 @@ export default function CircleWallet() {
             {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
             {pastWallets.length === 0 && <p style={{ fontSize: 12, color: "#475569" }}>No previous wallets found.</p>}
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
-              {pastWallets.map((w) => (
-                <button key={w.address} onClick={() => restoreWallet(w)}
-                  style={{ display: "flex", flexDirection: "column", gap: 2, textAlign: "left", padding: "0.75rem 0.9rem", borderRadius: 12, border: "none", background: "#111a2c", cursor: "pointer" }}>
-                  <span style={{ fontSize: 12, color: "#f1f5f9", fontFamily: "ui-monospace, monospace" }}>{w.address}</span>
-                  <span style={{ fontSize: 11, color: "#64748b" }}>{Object.keys(w.walletsByChain).length} chain(s)</span>
-                </button>
-              ))}
+              {pastWallets.filter((w) => showHidden || !hiddenAddresses.includes(w.address.toLowerCase())).map((w) => {
+                const isHidden = hiddenAddresses.includes(w.address.toLowerCase());
+                return (
+                  <div key={w.address} style={{ display: "flex", alignItems: "center", gap: 6, opacity: isHidden ? 0.4 : 1 }}>
+                    <button onClick={() => restoreWallet(w)}
+                      style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, textAlign: "left", padding: "0.75rem 0.9rem", borderRadius: 12, border: "none", background: "#111a2c", cursor: "pointer" }}>
+                      <span style={{ fontSize: 12, color: "#f1f5f9", fontFamily: "ui-monospace, monospace" }}>{w.address}</span>
+                      <span style={{ fontSize: 11, color: "#64748b" }}>{Object.keys(w.walletsByChain).length} chain(s){isHidden ? " · hidden" : ""}</span>
+                    </button>
+                    {isHidden ? (
+                      <button onClick={(e) => unhideWallet(w.address, e)} title="Unhide"
+                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#111a2c", color: "#67e8f9", fontSize: 13, cursor: "pointer" }}>
+                        ↺
+                      </button>
+                    ) : (
+                      <button onClick={(e) => hideWallet(w.address, e)} title="Hide from this list"
+                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#111a2c", color: "#64748b", fontSize: 14, cursor: "pointer" }}>
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            {hiddenAddresses.length > 0 && (
+              <button onClick={() => setShowHidden(!showHidden)}
+                style={{ background: "none", border: "none", color: "#64748b", fontSize: 11, cursor: "pointer", padding: 0, alignSelf: "flex-start" }}>
+                {showHidden ? "Hide hidden wallets" : `Show ${hiddenAddresses.length} hidden wallet(s)`}
+              </button>
+            )}
           </>
         )}
 
