@@ -5,16 +5,17 @@ import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
 import EthBridge from "./EthBridge";
+import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x${string}`;
 const IRIS_API = "https://iris-api-sandbox.circle.com/v2/messages";
 
 const CHAINS = {
-  "Arc Testnet": { chain: arcTestnet, domain: 26, usdc: "0x3600000000000000000000000000000000000000" as `0x${string}`, chainIdHex: ARC_CHAIN_ID_HEX, isArc: true },
-  "Ethereum Sepolia": { chain: sepolia, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, chainIdHex: "0xaa36a7", isArc: false },
-  "Base Sepolia": { chain: baseSepolia, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, chainIdHex: "0x14a34", isArc: false },
-  "Arbitrum Sepolia": { chain: arbitrumSepolia, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, chainIdHex: "0x66eee", isArc: false },
+  "Arc Testnet": { chain: arcTestnet, domain: 26, usdc: "0x3600000000000000000000000000000000000000" as `0x${string}`, chainIdHex: ARC_CHAIN_ID_HEX, isArc: true, circleChain: "ARC-TESTNET" as CircleChain },
+  "Ethereum Sepolia": { chain: sepolia, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, chainIdHex: "0xaa36a7", isArc: false, circleChain: "ETH-SEPOLIA" as CircleChain },
+  "Base Sepolia": { chain: baseSepolia, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, chainIdHex: "0x14a34", isArc: false, circleChain: "BASE-SEPOLIA" as CircleChain },
+  "Arbitrum Sepolia": { chain: arbitrumSepolia, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, chainIdHex: "0x66eee", isArc: false, circleChain: "ARB-SEPOLIA" as CircleChain },
 } as const;
 type ChainKey = keyof typeof CHAINS;
 
@@ -88,6 +89,10 @@ function addChainParams(key: ChainKey) {
   };
 }
 
+function bytes32Address(addr: string): `0x${string}` {
+  return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
+}
+
 const STEP_ORDER = ["approving", "burning", "attesting", "minting"] as const;
 const STEP_LABELS_SHORT: Record<string, string> = { approving: "Approve", burning: "Burn", attesting: "Attest", minting: "Mint" };
 
@@ -101,6 +106,11 @@ export default function BridgeForm({ provider, address }: Props) {
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [recentBridges, setRecentBridges] = useState<RecentBridge[]>([]);
+
+  const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
+  const [useCircle, setUseCircle] = useState(false);
+
+  useEffect(() => { setCircleWallet(getCircleWallet()); }, []);
 
   const source = CHAINS[sourceKey];
   const dest = CHAINS[destKey];
@@ -120,10 +130,6 @@ export default function BridgeForm({ provider, address }: Props) {
     }
   }
 
-  function bytes32Address(addr: string): `0x${string}` {
-    return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
-  }
-
   async function loadRecentBridges() {
     try {
       const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${MESSAGE_TRANSMITTER}&limit=6`);
@@ -140,6 +146,70 @@ export default function BridgeForm({ provider, address }: Props) {
 
   useEffect(() => { loadRecentBridges(); }, [mintTxHash]);
 
+  async function pollAttestation(burnHash: string, domain: number) {
+    for (let i = 0; i < 60; i++) {
+      const res = await fetch(`${IRIS_API}/${domain}?transactionHash=${burnHash}`);
+      if (res.ok) {
+        const data = await res.json();
+        const msg = data?.messages?.[0];
+        if (msg?.status === "complete") return msg as { message: string; attestation: string };
+      }
+      await new Promise(r => setTimeout(r, 5000));
+    }
+    throw new Error("Attestation timed out. Try minting later using the burn tx hash.");
+  }
+
+  async function doBridgeWithCircle() {
+    if (!circleWallet) return;
+    const sourceWalletId = getWalletIdForChain(circleWallet, source.circleChain);
+    const destWalletId = getWalletIdForChain(circleWallet, dest.circleChain);
+    if (!sourceWalletId || !destWalletId) {
+      setErrorMsg(`Circle Wallet is missing an account on ${!sourceWalletId ? sourceKey : destKey}.`);
+      setStep("error");
+      return;
+    }
+    const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
+
+    setStep("approving");
+    await circleContractCallAndWait({
+      walletId: sourceWalletId,
+      contractAddress: source.usdc,
+      abiFunctionSignature: "approve(address,uint256)",
+      abiParameters: [TOKEN_MESSENGER, amountUnits.toString()],
+    });
+
+    setStep("burning");
+    const burnHash = await circleContractCallAndWait({
+      walletId: sourceWalletId,
+      contractAddress: TOKEN_MESSENGER,
+      abiFunctionSignature: "depositForBurn(uint256,uint32,bytes32,address,bytes32,uint256,uint32)",
+      abiParameters: [
+        amountUnits.toString(),
+        dest.domain,
+        bytes32Address(circleWallet.address),
+        source.usdc,
+        bytes32Address("0x0000000000000000000000000000000000000000"),
+        "500",
+        1000,
+      ],
+    });
+    setBurnTxHash(burnHash);
+
+    setStep("attesting");
+    const attestation = await pollAttestation(burnHash, source.domain);
+
+    setStep("minting");
+    const mintHash = await circleContractCallAndWait({
+      walletId: destWalletId,
+      contractAddress: MESSAGE_TRANSMITTER,
+      abiFunctionSignature: "receiveMessage(bytes,bytes)",
+      abiParameters: [attestation.message, attestation.attestation],
+    });
+    setMintTxHash(mintHash);
+    setStep("done");
+    showToast("Bridge completed", "success");
+  }
+
   async function doBridge() {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       setErrorMsg("Enter a valid amount."); return;
@@ -150,6 +220,18 @@ export default function BridgeForm({ provider, address }: Props) {
     setErrorMsg(null);
     setBurnTxHash(null);
     setMintTxHash(null);
+
+    if (useCircle && circleWallet) {
+      try {
+        await doBridgeWithCircle();
+      } catch (e: unknown) {
+        const err = e as { message?: string };
+        setErrorMsg(err.message ?? "Bridge failed.");
+        setStep("error");
+      }
+      return;
+    }
+
     try {
       const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
       await switchChain(provider, source.chainIdHex, addChainParams(sourceKey));
@@ -186,20 +268,7 @@ export default function BridgeForm({ provider, address }: Props) {
       setBurnTxHash(burnHash);
 
       setStep("attesting");
-      let attestation: { message: string; attestation: string } | null = null;
-      for (let i = 0; i < 60; i++) {
-        const res = await fetch(`${IRIS_API}/${source.domain}?transactionHash=${burnHash}`);
-        if (res.ok) {
-          const data = await res.json();
-          const msg = data?.messages?.[0];
-          if (msg?.status === "complete") {
-            attestation = msg;
-            break;
-          }
-        }
-        await new Promise(r => setTimeout(r, 5000));
-      }
-      if (!attestation) throw new Error("Attestation timed out. Try minting later using the burn tx hash.");
+      const attestation = await pollAttestation(burnHash, source.domain);
 
       setStep("minting");
       await switchChain(provider, dest.chainIdHex, addChainParams(destKey));
@@ -252,8 +321,25 @@ export default function BridgeForm({ provider, address }: Props) {
         {bridgeType === "usdc" && (
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "1rem", alignItems: "start", width: "100%" }}>
             <div style={{ background: "#0b1220", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+              {circleWallet && (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => setUseCircle(false)} disabled={isLoading}
+                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#1b2740" : "#111a2c", color: !useCircle ? "#67e8f9" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    Browser Wallet
+                  </button>
+                  <button onClick={() => setUseCircle(true)} disabled={isLoading}
+                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#1b2740" : "#111a2c", color: useCircle ? "#67e8f9" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    Circle Wallet
+                  </button>
+                </div>
+              )}
+
               <div style={{ background: "rgba(34,211,238,0.1)", borderRadius: 10, padding: "0.65rem 0.85rem" }}>
-                <p style={{ fontSize: 12, color: "#67e8f9", margin: 0 }}>Real CCTP V2 bridge — burn on any supported chain, mint native USDC on any other.</p>
+                <p style={{ fontSize: 12, color: "#67e8f9", margin: 0 }}>
+                  {useCircle
+                    ? "Circle Wallet signs both the burn and the mint automatically — no chain switching, no popups."
+                    : "Real CCTP V2 bridge — burn on any supported chain, mint native USDC on any other."}
+                </p>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -380,7 +466,9 @@ export default function BridgeForm({ provider, address }: Props) {
 
               <div style={{ background: "#0b1220", borderRadius: 12, padding: "0.6rem 0.875rem" }}>
                 <p style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5, margin: 0 }}>
-                  Requires native gas on {sourceKey} and USDC to bridge. Get test tokens from{" "}
+                  {useCircle
+                    ? "Circle Wallet needs USDC and native gas on both the source and destination chains."
+                    : `Requires native gas on ${sourceKey} and USDC to bridge.`} Get test tokens from{" "}
                   <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa" }}>faucet.circle.com</a>.
                 </p>
               </div>
