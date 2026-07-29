@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
-import { createWalletClient, custom, erc20Abi, parseUnits } from "viem";
+import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
+import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo } from "../circleWalletHelpers";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
@@ -21,7 +22,7 @@ async function switchToArc(provider: EIP1193Provider) {
   } catch (e: unknown) {
     const err = e as { code?: number };
     if (err.code === 4902) {
-      await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.testnet.arc.network"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
+      await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://arc-testnet.g.alchemy.com/v2/alch_1L2dTNapY_mz3YEIsoVEN"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
     } else throw e;
   }
 }
@@ -72,9 +73,35 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
   const [showSaveContact, setShowSaveContact] = useState(false);
   const [newContactName, setNewContactName] = useState("");
 
-  useEffect(() => { setContacts(loadContacts()); }, []);
+  const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
+  const [useCircle, setUseCircle] = useState(false);
+  const [circleBalances, setCircleBalances] = useState<{ usdc: string; eurc: string } | null>(null);
 
-  const currentBalance = token === "USDC" ? (balances.usdc ?? "...") : (balances.eurc ?? "...");
+  useEffect(() => { setContacts(loadContacts()); }, []);
+  useEffect(() => { setCircleWallet(getCircleWallet()); }, []);
+
+  useEffect(() => {
+    if (!useCircle || !circleWallet) return;
+    let cancelled = false;
+    async function loadCircleBalances() {
+      try {
+        const client = createPublicClient({ chain: arcTestnet, transport: http() });
+        const [usdc, eurc] = await Promise.all([
+          client.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [circleWallet!.address as `0x${string}`] }),
+          client.readContract({ address: EURC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [circleWallet!.address as `0x${string}`] }),
+        ]);
+        if (!cancelled) setCircleBalances({ usdc: Number(formatUnits(usdc, 6)).toFixed(2), eurc: Number(formatUnits(eurc, 6)).toFixed(2) });
+      } catch {
+        if (!cancelled) setCircleBalances({ usdc: "—", eurc: "—" });
+      }
+    }
+    loadCircleBalances();
+    const interval = setInterval(loadCircleBalances, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [useCircle, circleWallet]);
+
+  const activeBalances = useCircle && circleBalances ? circleBalances : { usdc: balances.usdc ?? "...", eurc: balances.eurc ?? "..." };
+  const currentBalance = token === "USDC" ? activeBalances.usdc : activeBalances.eurc;
   const isArcName = recipient.endsWith(".arc") || recipient.endsWith(".circle");
 
   const resolveName = useCallback(async (name: string) => {
@@ -196,13 +223,40 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
       setErrorMsg("Enter a valid amount.");
       return;
     }
-    if (effectiveAddress.toLowerCase() === address.toLowerCase()) {
+    const senderAddress = useCircle && circleWallet ? circleWallet.address : address;
+    if (effectiveAddress.toLowerCase() === senderAddress.toLowerCase()) {
       setErrorMsg("Cannot send to your own address.");
       return;
     }
     setErrorMsg(null);
     setSendState("sending");
     setTxHash(null);
+
+    if (useCircle && circleWallet) {
+      const arcWalletId = getWalletIdForChain(circleWallet, "ARC-TESTNET");
+      if (!arcWalletId) { setErrorMsg("Circle Wallet has no Arc Testnet account."); setSendState("error"); return; }
+      try {
+        const hash = await circleContractCallAndWait({
+          walletId: arcWalletId,
+          contractAddress: TOKEN_ADDRESSES[token],
+          abiFunctionSignature: "transfer(address,uint256)",
+          abiParameters: [effectiveAddress, parseUnits(amount, 6).toString()],
+        });
+        setTxHash(hash);
+        setSendState("done");
+        setAmount("");
+        setRecipient("");
+        setResolvedAddress(null);
+        setAiCommand("");
+        setAiFilled(false);
+      } catch (e: unknown) {
+        const err = e as { message?: string };
+        setErrorMsg(err.message ?? "Unexpected error.");
+        setSendState("error");
+      }
+      return;
+    }
+
     try {
       await switchToArc(provider);
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
@@ -233,28 +287,41 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
   const canSaveContact = !!effectiveAddress && effectiveAddress.startsWith("0x") && effectiveAddress.length === 42;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem", width: "100%", maxWidth: 460 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%", maxWidth: 460 }}>
+      {circleWallet && (
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => setUseCircle(false)} disabled={isLoading}
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#1b2740" : "#111a2c", color: !useCircle ? "#67e8f9" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Browser Wallet
+          </button>
+          <button onClick={() => setUseCircle(true)} disabled={isLoading}
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#1b2740" : "#111a2c", color: useCircle ? "#67e8f9" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Circle Wallet
+          </button>
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         {(["USDC", "EURC"] as const).map((t) => (
-          <div key={t} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "0.6rem 0.75rem", textAlign: "center" }}>
+          <div key={t} style={{ background: "#111a2c", borderRadius: 12, padding: "0.7rem 0.75rem", textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>{t} Balance</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: t === "USDC" ? "#3b82f6" : "#6366f1" }}>
-              {t === "USDC" ? (balances.usdc ?? "...") : (balances.eurc ?? "...")}
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9", fontFamily: "ui-monospace, monospace" }}>
+              {t === "USDC" ? activeBalances.usdc : activeBalances.eurc}
             </div>
           </div>
         ))}
       </div>
 
-      <div style={{ background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
-        <label style={{ fontSize: 12, color: "#a78bfa", fontWeight: 700, letterSpacing: "0.5px" }}>AI TRANSFER</label>
+      <div style={{ background: "rgba(99,102,241,0.1)", borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
+        <label style={{ fontSize: 12, color: "#a5b4fc", fontWeight: 700, letterSpacing: "0.5px" }}>AI TRANSFER</label>
         <div style={{ display: "flex", gap: 8 }}>
           <input type="text" placeholder="e.g. send 20 USDC to alice.arc" value={aiCommand}
             onChange={function (e) { setAiCommand(e.target.value); }}
             onKeyDown={function (e) { if (e.key === "Enter") parseAiCommand(); }}
             disabled={aiParsing || isLoading}
-            style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.65rem 0.9rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
+            style={{ flex: 1, background: "#111a2c", border: "none", borderRadius: 10, padding: "0.65rem 0.9rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
           <button onClick={parseAiCommand} disabled={aiParsing || isLoading || !aiCommand.trim()}
-            style={{ padding: "0.65rem 1.1rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7c3aed, #8b5cf6)", color: "#fff", fontSize: 18, fontWeight: 900, cursor: aiParsing || !aiCommand.trim() ? "not-allowed" : "pointer", opacity: aiParsing || !aiCommand.trim() ? 0.6 : 1 }}>
+            style={{ padding: "0.65rem 1.1rem", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontSize: 18, fontWeight: 900, cursor: aiParsing || !aiCommand.trim() ? "not-allowed" : "pointer", opacity: aiParsing || !aiCommand.trim() ? 0.6 : 1 }}>
             {aiParsing ? "..." : "➢"}
           </button>
         </div>
@@ -262,13 +329,13 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
         {aiFilled && !aiError && <span style={{ fontSize: 11, color: "#6ee7b7" }}>Form filled below — review and send.</span>}
       </div>
 
-      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", backdropFilter: "blur(10px)" }}>
+      <div style={{ background: "#0b1220", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Token</label>
+          <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px" }}>Token</label>
           <div style={{ display: "flex", gap: 8 }}>
             {TOKENS.map((t) => (
               <button key={t} onClick={function () { setToken(t); }} disabled={isLoading}
-                style={{ flex: 1, padding: "0.6rem", borderRadius: 8, border: token === t ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)", background: token === t ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)", color: token === t ? "#60a5fa" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: token === t ? "#1b2740" : "#111a2c", color: token === t ? "#67e8f9" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                 {t}
               </button>
             ))}
@@ -277,29 +344,29 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Recipient Address or .arc Name</label>
+            <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Recipient Address or .arc Name</label>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={pasteAddress} disabled={isLoading}
-                style={{ background: "none", border: "none", color: "#60a5fa", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                style={{ background: "none", border: "none", color: "#67e8f9", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
                 Paste
               </button>
               <button onClick={function () { setShowAddressBook(!showAddressBook); }} disabled={isLoading}
-                style={{ background: "none", border: "none", color: "#a78bfa", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                style={{ background: "none", border: "none", color: "#a5b4fc", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
                 Address Book {contacts.length > 0 ? `(${contacts.length})` : ""}
               </button>
             </div>
           </div>
 
           {showAddressBook && (
-            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.5rem", display: "flex", flexDirection: "column", gap: 4, maxHeight: 160, overflowY: "auto" }}>
+            <div style={{ background: "#111a2c", borderRadius: 10, padding: "0.5rem", display: "flex", flexDirection: "column", gap: 4, maxHeight: 160, overflowY: "auto" }}>
               {contacts.length === 0 && (
-                <span style={{ fontSize: 11, color: "#334155", padding: "0.5rem" }}>No saved contacts yet.</span>
+                <span style={{ fontSize: 11, color: "#475569", padding: "0.5rem" }}>No saved contacts yet.</span>
               )}
               {contacts.map((c) => (
                 <div key={c.address} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0.5rem", borderRadius: 8 }}>
                   <button onClick={function () { pickContact(c); }} style={{ flex: 1, textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                    <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>{c.name}</div>
-                    <div style={{ fontSize: 10, color: "#475569", fontFamily: "monospace" }}>{c.address.slice(0, 8)}...{c.address.slice(-6)}</div>
+                    <div style={{ fontSize: 12, color: "#f1f5f9", fontWeight: 600 }}>{c.name}</div>
+                    <div style={{ fontSize: 10, color: "#475569", fontFamily: "ui-monospace, monospace" }}>{c.address.slice(0, 8)}...{c.address.slice(-6)}</div>
                   </button>
                   <button onClick={function () { deleteContact(c.address); }} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, padding: "0 6px" }}>×</button>
                 </div>
@@ -308,7 +375,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
           )}
 
           <input type="text" placeholder="0x... or alice.arc" value={recipient} onChange={function (e) { setRecipient(e.target.value); }} disabled={isLoading}
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 14, color: "#f1f5f9", outline: "none", fontFamily: "monospace" }} />
+            style={{ background: "#111a2c", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 14, color: "#f1f5f9", outline: "none", fontFamily: "ui-monospace, monospace" }} />
           {isArcName && resolving && (
             <span style={{ fontSize: 11, color: "#64748b" }}>Resolving name...</span>
           )}
@@ -321,46 +388,46 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
 
           {canSaveContact && !showSaveContact && (
             <button onClick={function () { setShowSaveContact(true); }}
-              style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#818cf8", fontSize: 11, cursor: "pointer", padding: 0 }}>
+              style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#67e8f9", fontSize: 11, cursor: "pointer", padding: 0 }}>
               + Save to address book
             </button>
           )}
           {showSaveContact && (
             <div style={{ display: "flex", gap: 6 }}>
               <input type="text" placeholder="Contact name" value={newContactName} onChange={function (e) { setNewContactName(e.target.value); }}
-                style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: 12, color: "#f1f5f9", outline: "none" }} />
-              <button onClick={saveCurrentContact} style={{ padding: "0.5rem 0.75rem", borderRadius: 8, border: "none", background: "#4f46e5", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
+                style={{ flex: 1, background: "#111a2c", border: "none", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: 12, color: "#f1f5f9", outline: "none" }} />
+              <button onClick={saveCurrentContact} style={{ padding: "0.5rem 0.75rem", borderRadius: 8, border: "none", background: "#22d3ee", color: "#04121f", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Save</button>
             </div>
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Amount</label>
-          <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+        <div style={{ borderRadius: 16, background: "#111a2c", padding: "1rem 1.1rem" }}>
+          <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px" }}>Amount</label>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 6 }}>
             <input type="number" min="0" step="0.01" placeholder="0.00" value={amount} onChange={function (e) { setAmount(e.target.value); }} disabled={isLoading}
-              style={{ flex: 1, background: "transparent", border: "none", outline: "none", padding: "0.75rem 1rem", fontSize: 18, color: "#f1f5f9", fontWeight: 600 }} />
-            <span style={{ paddingRight: "1rem", color: "#64748b", fontSize: 14, fontWeight: 600 }}>{token}</span>
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 28, color: "#f8fafc", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
+            <span style={{ color: "#64748b", fontSize: 14, fontWeight: 600 }}>{token}</span>
           </div>
           <button onClick={function () { setAmount(currentBalance); }} disabled={isLoading}
-            style={{ alignSelf: "flex-end", background: "none", border: "none", color: "#60a5fa", fontSize: 12, cursor: "pointer", padding: 0 }}>
+            style={{ marginTop: 6, background: "none", border: "none", color: "#22d3ee", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>
             Max ({currentBalance} {token})
           </button>
         </div>
 
         {errorMsg && (
-          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>
+          <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>
             {errorMsg}
           </div>
         )}
         {txHash && sendState === "done" && (
-          <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "1rem" }}>
-            <p style={{ color: "#6ee7b7", fontWeight: 600, marginBottom: 6 }}>Sent successfully!</p>
+          <div style={{ background: "rgba(52,211,153,0.1)", borderRadius: 12, padding: "1rem" }}>
+            <p style={{ color: "#6ee7b7", fontWeight: 700, marginBottom: 6 }}>Sent successfully!</p>
             <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View on Explorer</a>
           </div>
         )}
         <button onClick={sendState === "error" ? function () { setSendState("idle"); setErrorMsg(null); } : doSend}
           disabled={isLoading || sendState === "done"}
-          style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #059669, #10b981)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading || sendState === "done" ? "not-allowed" : "pointer", opacity: isLoading || sendState === "done" ? 0.6 : 1, boxShadow: "0 0 20px rgba(16,185,129,0.3)" }}>
+          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#34d399", color: "#04121f", fontSize: 16, fontWeight: 700, cursor: isLoading || sendState === "done" ? "not-allowed" : "pointer", opacity: isLoading || sendState === "done" ? 0.5 : 1 }}>
           {sendState === "idle" && "Send"}
           {sendState === "sending" && "Sending..."}
           {sendState === "done" && "Sent!"}
@@ -368,7 +435,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
         </button>
         {sendState === "done" && (
           <button onClick={function () { setSendState("idle"); setTxHash(null); }}
-            style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+            style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
             New Transfer
           </button>
         )}

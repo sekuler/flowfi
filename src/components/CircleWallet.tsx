@@ -1,34 +1,21 @@
 import { useState, useEffect } from "react";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
-
-interface CircleWalletData {
-  walletId: string;
-  address: string;
-  blockchain: string;
-}
+import { getCircleWallet, saveCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "../circleWalletHelpers";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF" as `0x${string}`;
-const STORAGE_KEY = "flowfi_circle_wallet";
 
 export default function CircleWallet() {
-  const [wallet, setWallet] = useState<CircleWalletData | null>(null);
+  const [wallet, setWallet] = useState<CircleWalletInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balances, setBalances] = useState<{ usdc: string; eurc: string; cirbtc: string } | null>(null);
   const [loadingBalances, setLoadingBalances] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        setWallet(JSON.parse(saved));
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    }
+    setWallet(getCircleWallet());
   }, []);
 
   useEffect(() => {
@@ -74,9 +61,9 @@ export default function CircleWallet() {
       }
       const data = await res.json();
       if (!data.success) throw new Error(data.error ?? "Failed to create wallet.");
-      const newWallet = { walletId: data.walletId, address: data.address, blockchain: data.blockchain };
+      const newWallet: CircleWalletInfo = { address: data.address, walletsByChain: data.walletsByChain };
       setWallet(newWallet);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newWallet));
+      saveCircleWallet(newWallet);
     } catch (e: unknown) {
       const err = e as { message?: string };
       setError(err.message ?? "Unexpected error.");
@@ -86,29 +73,31 @@ export default function CircleWallet() {
   }
 
   function forgetWallet() {
-    localStorage.removeItem(STORAGE_KEY);
+    forgetCircleWallet();
     setWallet(null);
     setError(null);
     setBalances(null);
   }
 
+  const chainList = wallet ? Object.keys(wallet.walletsByChain) : [];
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem", width: "100%", maxWidth: 460 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%", maxWidth: 460 }}>
       <div style={{ background: "rgba(52,211,153,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
         <p style={{ fontSize: 12, color: "#6ee7b7", margin: 0 }}>
-          Powered by Circle Developer-Controlled Wallets — no seed phrase, no browser extension. Circle's MPC infrastructure secures the private key.
+          Powered by Circle Developer-Controlled Wallets — no seed phrase, no browser extension. One address works across Arc, Ethereum Sepolia, Base Sepolia, and Arbitrum Sepolia.
         </p>
       </div>
 
-      <div style={{ background: "#0b1220", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div style={{ background: "#0b1220", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
         {!wallet && (
           <>
             <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
-              Create a Circle-managed wallet on Arc Testnet in one click. No extension, no private key to store. This wallet is yours — it stays linked to your browser and holds real testnet balances.
+              Create a Circle-managed wallet in one click. No extension, no private key to store. This wallet is yours — it stays linked to your browser, works across four testnets, and holds real testnet balances.
             </p>
-            {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
+            {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
             <button onClick={createWallet} disabled={loading}
-              style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#34d399", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#34d399", color: "#04121f", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
               {loading ? "Creating wallet..." : "Create Circle Wallet"}
             </button>
           </>
@@ -116,58 +105,59 @@ export default function CircleWallet() {
 
         {wallet && (
           <>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-              <div style={{ fontSize: 40 }}>✅</div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <p style={{ fontSize: 14, color: "#6ee7b7", fontWeight: 700, margin: 0 }}>This is your wallet</p>
-              <p style={{ fontSize: 12, color: "#64748b", margin: 0, textAlign: "center" }}>It's saved in this browser — come back anytime and it'll still be here.</p>
+              <p style={{ fontSize: 12, color: "#64748b", margin: 0, textAlign: "center" }}>Saved in this browser — same address on every supported chain.</p>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-              <div style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#93c5fd", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>USDC</div>
-                <div style={{ fontSize: 16, color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+              <div style={{ background: "rgba(34,211,238,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#67e8f9", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>USDC</div>
+                <div style={{ fontSize: 16, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.usdc ?? "0.00"}
                 </div>
               </div>
-              <div style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#c4b5fd", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>EURC</div>
-                <div style={{ fontSize: 16, color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+              <div style={{ background: "rgba(99,102,241,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#a5b4fc", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>EURC</div>
+                <div style={{ fontSize: 16, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.eurc ?? "0.00"}
                 </div>
               </div>
-              <div style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
+              <div style={{ background: "rgba(249,115,22,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
                 <div style={{ fontSize: 10, color: "#fdba74", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>cirBTC</div>
-                <div style={{ fontSize: 16, color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+                <div style={{ fontSize: 16, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.cirbtc ?? "0.000000"}
                 </div>
               </div>
             </div>
 
-            <div style={{ background: "#111a2c", borderRadius: 10, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
-              <div>
-                <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px", marginBottom: 4 }}>ADDRESS</div>
-                <div style={{ fontSize: 13, color: "#e2e8f0", fontFamily: "monospace", wordBreak: "break-all" }}>{wallet.address}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px", marginBottom: 4 }}>BLOCKCHAIN</div>
-                <div style={{ fontSize: 13, color: "#e2e8f0" }}>{wallet.blockchain}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, letterSpacing: "1px", marginBottom: 4 }}>WALLET ID</div>
-                <div style={{ fontSize: 11, color: "#475569", fontFamily: "monospace" }}>{wallet.walletId}</div>
+            <div style={{ background: "#111a2c", borderRadius: 14, padding: "1rem" }}>
+              <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 6 }}>ADDRESS (SAME ON ALL CHAINS)</div>
+              <div style={{ fontSize: 13, color: "#f1f5f9", fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>{wallet.address}</div>
+            </div>
+
+            <div style={{ background: "#111a2c", borderRadius: 14, padding: "1rem" }}>
+              <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 8 }}>AVAILABLE ON</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {chainList.map((chain) => (
+                  <div key={chain} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                    <span style={{ color: "#94a3b8" }}>{chain.replace("-", " ")}</span>
+                    <span style={{ color: "#67e8f9", fontWeight: 600 }}>✓ Ready</span>
+                  </div>
+                ))}
               </div>
             </div>
 
             <p style={{ fontSize: 11, color: "#64748b", textAlign: "center", margin: 0 }}>
-              Send testnet USDC or EURC to this address from the Faucet or another wallet — your balance above will update automatically.
+              Send testnet USDC from the Faucet to this address on any of the chains above — your balance will update automatically.
             </p>
 
             <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
-              style={{ display: "block", textAlign: "center", padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(79,70,229,0.25)", background: "rgba(79,70,229,0.06)", color: "#818cf8", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+              style={{ display: "block", textAlign: "center", padding: "0.75rem", borderRadius: 12, border: "none", background: "rgba(99,102,241,0.1)", color: "#a5b4fc", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
               View on Explorer ↗
             </a>
             <button onClick={forgetWallet}
-              style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+              style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#64748b", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
               Create Another
             </button>
           </>
