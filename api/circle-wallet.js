@@ -68,6 +68,22 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // ---- List all previously created wallets (for recovering a lost/overwritten one) ----
+    if (action === 'listWallets') {
+      const response = await client.listWallets({ pageSize: 50 });
+      const wallets = response.data?.wallets ?? [];
+
+      // Group by address since EVM wallets in the same set share one address
+      const byAddress = {};
+      for (const w of wallets) {
+        if (!byAddress[w.address]) byAddress[w.address] = { address: w.address, walletsByChain: {}, createDate: w.createDate };
+        byAddress[w.address].walletsByChain[w.blockchain] = { walletId: w.id, address: w.address };
+      }
+
+      const grouped = Object.values(byAddress).sort((a, b) => new Date(b.createDate) - new Date(a.createDate));
+      return res.status(200).json({ success: true, wallets: grouped });
+    }
+
     // ---- Poll a transaction's status until it's mined ----
     // Body: { action: "getTransaction", transactionId }
     if (action === 'getTransaction') {

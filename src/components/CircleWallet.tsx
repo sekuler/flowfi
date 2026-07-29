@@ -14,6 +14,10 @@ export default function CircleWallet() {
   const [balances, setBalances] = useState<{ usdc: string; eurc: string; cirbtc: string } | null>(null);
   const [loadingBalances, setLoadingBalances] = useState(false);
 
+  const [showRestore, setShowRestore] = useState(false);
+  const [pastWallets, setPastWallets] = useState<CircleWalletInfo[]>([]);
+  const [loadingPast, setLoadingPast] = useState(false);
+
   useEffect(() => {
     setWallet(getCircleWallet());
   }, []);
@@ -79,6 +83,33 @@ export default function CircleWallet() {
     setBalances(null);
   }
 
+  async function loadPastWallets() {
+    setLoadingPast(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/circle-wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "listWallets" }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error ?? "Failed to load past wallets.");
+      setPastWallets(data.wallets);
+      setShowRestore(true);
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setError(err.message ?? "Failed to load past wallets.");
+    } finally {
+      setLoadingPast(false);
+    }
+  }
+
+  function restoreWallet(w: CircleWalletInfo) {
+    setWallet(w);
+    saveCircleWallet(w);
+    setShowRestore(false);
+  }
+
   const chainList = wallet ? Object.keys(wallet.walletsByChain) : [];
 
   return (
@@ -90,7 +121,7 @@ export default function CircleWallet() {
       </div>
 
       <div style={{ background: "#0b1220", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-        {!wallet && (
+        {!wallet && !showRestore && (
           <>
             <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
               Create a Circle-managed wallet in one click. No extension, no private key to store. This wallet is yours — it stays linked to your browser, works across four testnets, and holds real testnet balances.
@@ -100,10 +131,34 @@ export default function CircleWallet() {
               style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#34d399", color: "#04121f", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
               {loading ? "Creating wallet..." : "Create Circle Wallet"}
             </button>
+            <button onClick={loadPastWallets} disabled={loadingPast}
+              style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "#111a2c", color: "#67e8f9", fontSize: 13, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
+              {loadingPast ? "Loading..." : "Restore a previous wallet"}
+            </button>
           </>
         )}
 
-        {wallet && (
+        {showRestore && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Pick a wallet to restore:</p>
+              <button onClick={() => setShowRestore(false)} style={{ background: "none", border: "none", color: "#64748b", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+            </div>
+            {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
+            {pastWallets.length === 0 && <p style={{ fontSize: 12, color: "#475569" }}>No previous wallets found.</p>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+              {pastWallets.map((w) => (
+                <button key={w.address} onClick={() => restoreWallet(w)}
+                  style={{ display: "flex", flexDirection: "column", gap: 2, textAlign: "left", padding: "0.75rem 0.9rem", borderRadius: 12, border: "none", background: "#111a2c", cursor: "pointer" }}>
+                  <span style={{ fontSize: 12, color: "#f1f5f9", fontFamily: "ui-monospace, monospace" }}>{w.address}</span>
+                  <span style={{ fontSize: 11, color: "#64748b" }}>{Object.keys(w.walletsByChain).length} chain(s)</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {wallet && !showRestore && (
           <>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <p style={{ fontSize: 14, color: "#6ee7b7", fontWeight: 700, margin: 0 }}>This is your wallet</p>
@@ -159,6 +214,10 @@ export default function CircleWallet() {
             <button onClick={forgetWallet}
               style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#64748b", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
               Create Another
+            </button>
+            <button onClick={loadPastWallets} disabled={loadingPast}
+              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "none", background: "transparent", color: "#67e8f9", fontSize: 12, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
+              {loadingPast ? "Loading..." : "Switch to a previous wallet"}
             </button>
           </>
         )}
