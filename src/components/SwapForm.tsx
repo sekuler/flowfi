@@ -5,7 +5,7 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
-import { getCircleWallet, circleContractCallAndWait, type CircleWalletInfo } from "../circleWalletHelpers";
+import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo } from "../circleWalletHelpers";
 
 const SWAP_STEPS = ["Approving", "Swapping", "Done"];
 function swapStepIndex(state: string) {
@@ -200,10 +200,12 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
     const tokenAddress = tokenIn === "USDC" ? USDC_ADDRESS : EURC_ADDRESS;
 
     if (useCircle && circleWallet) {
+      const arcWalletId = getWalletIdForChain(circleWallet, "ARC-TESTNET");
+      if (!arcWalletId) { setErrorMsg("Circle Wallet has no Arc Testnet account."); setSwapState("error"); return; }
       try {
         setSwapState("approving");
         await circleContractCallAndWait({
-          walletId: circleWallet.walletId,
+          walletId: arcWalletId,
           contractAddress: tokenAddress,
           abiFunctionSignature: "approve(address,uint256)",
           abiParameters: [SWAP_CONTRACT, amountIn.toString()],
@@ -211,7 +213,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
         setSwapState("swapping");
         const hash = await circleContractCallAndWait({
-          walletId: circleWallet.walletId,
+          walletId: arcWalletId,
           contractAddress: SWAP_CONTRACT,
           abiFunctionSignature: tokenIn === "USDC" ? "swapUsdcToEurc(uint256)" : "swapEurcToUsdc(uint256)",
           abiParameters: [amountIn.toString()],

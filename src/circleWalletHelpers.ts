@@ -1,10 +1,13 @@
 // Shared helper for using a Circle Developer-Controlled Wallet to sign and send
-// contract transactions (approve, swap, bridge, etc.) instead of a browser wallet.
+// contract transactions (approve, swap, bridge, send, etc.) instead of a browser wallet.
+// The wallet is created across multiple chains (Arc, Ethereum Sepolia, Base Sepolia,
+// Arbitrum Sepolia) and shares the same address on all of them.
+
+export type CircleChain = "ARC-TESTNET" | "ETH-SEPOLIA" | "BASE-SEPOLIA" | "ARB-SEPOLIA";
 
 export interface CircleWalletInfo {
-  walletId: string;
   address: string;
-  blockchain: string;
+  walletsByChain: Record<string, { walletId: string; address: string }>;
 }
 
 const STORAGE_KEY = "flowfi_circle_wallet";
@@ -13,10 +16,30 @@ export function getCircleWallet(): CircleWalletInfo | null {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return null;
-    return JSON.parse(saved);
+    const parsed = JSON.parse(saved);
+    // Backward-compat: older saved wallets only had { walletId, address, blockchain }
+    if (parsed && !parsed.walletsByChain && parsed.walletId) {
+      return {
+        address: parsed.address,
+        walletsByChain: { [parsed.blockchain ?? "ARC-TESTNET"]: { walletId: parsed.walletId, address: parsed.address } },
+      };
+    }
+    return parsed;
   } catch {
     return null;
   }
+}
+
+export function saveCircleWallet(info: CircleWalletInfo) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(info));
+}
+
+export function forgetCircleWallet() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+export function getWalletIdForChain(info: CircleWalletInfo | null, chain: CircleChain): string | null {
+  return info?.walletsByChain?.[chain]?.walletId ?? null;
 }
 
 interface ContractCallParams {
@@ -65,13 +88,13 @@ async function getCircleTransaction(transactionId: string): Promise<TransactionS
 }
 
 // Polls a Circle transaction until it reaches a terminal state, returning the on-chain tx hash.
-// Circle transaction states progress roughly: INITIATED -> PENDING -> COMPLETE (success)
+// State machine: INITIATED -> CLEARED -> QUEUED -> SENT -> CONFIRMED -> COMPLETE (success)
 // or -> FAILED / CANCELLED / DENIED (failure).
-export async function waitForCircleTransaction(transactionId: string, timeoutMs = 90000): Promise<string> {
+export async function waitForCircleTransaction(transactionId: string, timeoutMs = 120000): Promise<string> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const status = await getCircleTransaction(transactionId);
-    if (status.state === "COMPLETE" || status.state === "CONFIRMED") {
+    if (status.state === "COMPLETE") {
       if (!status.txHash) throw new Error("Transaction completed but no hash was returned.");
       return status.txHash;
     }

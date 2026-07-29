@@ -1,5 +1,7 @@
 const { initiateDeveloperControlledWalletsClient } = require('@circle-fin/developer-controlled-wallets');
 
+const BRIDGE_CHAINS = ['ARC-TESTNET', 'ETH-SEPOLIA', 'BASE-SEPOLIA', 'ARB-SEPOLIA'];
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -13,7 +15,8 @@ module.exports = async function handler(req, res) {
 
     const { action } = req.body;
 
-    // ---- Create a new wallet ----
+    // ---- Create a new wallet across all bridge-supported chains ----
+    // EVM wallets in the same wallet set share the same address across chains.
     if (action === 'create') {
       const walletSetResponse = await client.createWalletSet({
         name: 'FlowFi WalletSet ' + Date.now(),
@@ -21,24 +24,28 @@ module.exports = async function handler(req, res) {
       const walletSetId = walletSetResponse.data?.walletSet?.id;
 
       const walletsResponse = await client.createWallets({
-        blockchains: ['ARC-TESTNET'],
+        blockchains: BRIDGE_CHAINS,
         count: 1,
         walletSetId,
       });
 
-      const wallet = walletsResponse.data?.wallets?.[0];
+      const wallets = walletsResponse.data?.wallets ?? [];
+      const walletsByChain = {};
+      for (const w of wallets) {
+        walletsByChain[w.blockchain] = { walletId: w.id, address: w.address };
+      }
+
+      const address = wallets[0]?.address ?? null;
+
       return res.status(200).json({
         success: true,
-        walletId: wallet?.id,
-        address: wallet?.address,
-        blockchain: wallet?.blockchain,
+        address,
+        walletsByChain,
       });
     }
 
-    // ---- Execute a contract call (approve, swap, bridge, addLiquidity, etc.) ----
+    // ---- Execute a contract call (approve, swap, bridge burn/mint, transfer, etc.) ----
     // Body: { action: "contractCall", walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel? }
-    // abiFunctionSignature example: "approve(address,uint256)"
-    // abiParameters example: ["0xSpenderAddress", "1000000"]
     if (action === 'contractCall') {
       const { walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel } = req.body;
 
