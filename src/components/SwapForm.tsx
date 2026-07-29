@@ -5,6 +5,7 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
+import { getCircleWallet, circleContractCallAndWait, type CircleWalletInfo } from "../circleWalletHelpers";
 
 const SWAP_STEPS = ["Approving", "Swapping", "Done"];
 function swapStepIndex(state: string) {
@@ -81,13 +82,42 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [tokenInOpen, setTokenInOpen] = useState(false);
   const [tokenOutOpen, setTokenOutOpen] = useState(false);
 
+  const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
+  const [useCircle, setUseCircle] = useState(false);
+  const [circleBalances, setCircleBalances] = useState<{ usdc: string; eurc: string } | null>(null);
+
+  useEffect(() => {
+    setCircleWallet(getCircleWallet());
+  }, []);
+
+  useEffect(() => {
+    if (!useCircle || !circleWallet) return;
+    let cancelled = false;
+    async function loadCircleBalances() {
+      try {
+        const client = createPublicClient({ chain: arcTestnet, transport: http() });
+        const [usdc, eurc] = await Promise.all([
+          client.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [circleWallet!.address as `0x${string}`] }),
+          client.readContract({ address: EURC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [circleWallet!.address as `0x${string}`] }),
+        ]);
+        if (!cancelled) setCircleBalances({ usdc: Number(formatUnits(usdc, 6)).toFixed(2), eurc: Number(formatUnits(eurc, 6)).toFixed(2) });
+      } catch {
+        if (!cancelled) setCircleBalances({ usdc: "—", eurc: "—" });
+      }
+    }
+    loadCircleBalances();
+    const interval = setInterval(loadCircleBalances, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [useCircle, circleWallet]);
+
   const [poolRate, setPoolRate] = useState<number | null>(null);
   const [marketRate, setMarketRate] = useState<number | null>(null);
   const [rateStale, setRateStale] = useState(false);
   const [poolLiquidity, setPoolLiquidity] = useState<{ usdc: string; eurc: string } | null>(null);
   const [contractTxs, setContractTxs] = useState<ContractTx[]>([]);
 
-  const currentBalance = tokenIn === "USDC" ? (balances.usdc ?? "...") : (balances.eurc ?? "...");
+  const activeBalances = useCircle && circleBalances ? circleBalances : { usdc: balances.usdc ?? "...", eurc: balances.eurc ?? "..." };
+  const currentBalance = tokenIn === "USDC" ? activeBalances.usdc : activeBalances.eurc;
 
   const estimate = useCallback(async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setEstimatedOut("0.00"); return; }
@@ -166,12 +196,40 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   async function doSwap() {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
     setErrorMsg(null); setTxHash(null);
+    const amountIn = parseUnits(amount, 6);
+    const tokenAddress = tokenIn === "USDC" ? USDC_ADDRESS : EURC_ADDRESS;
+
+    if (useCircle && circleWallet) {
+      try {
+        setSwapState("approving");
+        await circleContractCallAndWait({
+          walletId: circleWallet.walletId,
+          contractAddress: tokenAddress,
+          abiFunctionSignature: "approve(address,uint256)",
+          abiParameters: [SWAP_CONTRACT, amountIn.toString()],
+        });
+
+        setSwapState("swapping");
+        const hash = await circleContractCallAndWait({
+          walletId: circleWallet.walletId,
+          contractAddress: SWAP_CONTRACT,
+          abiFunctionSignature: tokenIn === "USDC" ? "swapUsdcToEurc(uint256)" : "swapEurcToUsdc(uint256)",
+          abiParameters: [amountIn.toString()],
+        });
+
+        setTxHash(hash); setSwapState("done"); setAmount(""); setEstimatedOut("0.00");
+        showToast("Swap completed", "success");
+      } catch (e: unknown) {
+        const err = e as { message?: string };
+        setErrorMsg(err.message ?? "Unexpected error."); setSwapState("error");
+      }
+      return;
+    }
+
     try {
       await switchToArc(provider);
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-      const amountIn = parseUnits(amount, 6);
-      const tokenAddress = tokenIn === "USDC" ? USDC_ADDRESS : EURC_ADDRESS;
 
       setSwapState("approving");
       const approveHash = await wc.writeContract({
@@ -206,6 +264,19 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
 
           <div style={{ background: "#0b1220", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+
+            {circleWallet && (
+              <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                <button onClick={() => setUseCircle(false)} disabled={isLoading}
+                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: !useCircle ? "#1b2740" : "#111a2c", color: !useCircle ? "#67e8f9" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  Browser Wallet
+                </button>
+                <button onClick={() => setUseCircle(true)} disabled={isLoading}
+                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: useCircle ? "#1b2740" : "#111a2c", color: useCircle ? "#67e8f9" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  Circle Wallet
+                </button>
+              </div>
+            )}
 
             <div style={{ borderRadius: 16, background: "#111a2c", padding: "1rem 1.1rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
