@@ -146,23 +146,23 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       {/* Stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-          <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>Total Portfolio Value</div>
-          <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>
+          <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Total Portfolio Value</div>
+          <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827", marginBottom: 4 }}>
             {loading ? "..." : `$${totalValue.toFixed(2)}`}
           </div>
           <Sparkline color="#6D5EF7" seed={1} />
         </div>
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-          <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>Total Value Locked</div>
-          <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>
+          <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Total Value Locked</div>
+          <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827", marginBottom: 4 }}>
             {loading || tvl === null ? "..." : `$${tvl.toFixed(0)}`}
           </div>
           <Sparkline color="#6D5EF7" seed={2} />
         </div>
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>Active Pools</div>
-            <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#1e293b" }}>
+            <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Active Pools</div>
+            <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>
               {loading || poolCount === null ? "..." : poolCount}
             </div>
           </div>
@@ -172,8 +172,8 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
         </div>
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>Open Positions</div>
-            <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#1e293b" }}>
+            <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Open Positions</div>
+            <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>
               {loading || openPositionCount === null ? "..." : openPositionCount}
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1fr", gap: "1rem", alignItems: "start" }}>
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>Your Assets</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Your Assets</div>
             <button onClick={() => onNavigate("swap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
               View Portfolio <ArrowUpRight size={13} />
             </button>
@@ -202,13 +202,13 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
                       {meta.letter}
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{a.symbol}</div>
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>{meta.name}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{a.symbol}</div>
+                      <div style={{ fontSize: 11, color: "#6B7280" }}>{meta.name}</div>
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{a.amount ?? "..."}</div>
-                    <div style={{ fontSize: 11, color: "#94a3b8" }}>${a.usd.toFixed(2)}</div>
+                    <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{a.amount ?? "..."}</div>
+                    <div style={{ fontSize: 11, color: "#6B7280" }}>${a.usd.toFixed(2)}</div>
                   </div>
                 </div>
               );
@@ -219,7 +219,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
         <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <Sparkles size={16} color="#6D5EF7" />
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>AI Advisor</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>AI Advisor</div>
             <span style={{ fontSize: 9, fontWeight: 700, color: "#6D5EF7", background: "#ffffff", padding: "2px 7px", borderRadius: 999 }}>BETA</span>
           </div>
           <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem", textAlign: "center" }}>
@@ -228,24 +228,24 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
             </div>
             {hasIdleFunds ? (
               <>
-                <p style={{ fontSize: 13, color: "#475569", marginBottom: 4 }}>You have <b>{usdcVal.toFixed(0)} USDC</b> idle in your wallet.</p>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>Supply it to Lending to earn {lendingAPR ?? "..."}% APY.</p>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 2 }}>Estimated Annual Yield</div>
+                <p style={{ fontSize: 13, color: "#374151", marginBottom: 4 }}>You have <b>{usdcVal.toFixed(0)} USDC</b> idle in your wallet.</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Supply it to Lending to earn {lendingAPR ?? "..."}% APY.</p>
+                <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 2 }}>Estimated Annual Yield</div>
                 <div className="flowfi-mono" style={{ fontSize: 20, fontWeight: 700, color: "#6D5EF7", marginBottom: 2 }}>+${estYield.toFixed(2)}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 14 }}>({lendingAPR ?? "..."}% APY)</div>
+                <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 14 }}>({lendingAPR ?? "..."}% APY)</div>
                 <button onClick={() => onNavigate("lending")} style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                   Review Opportunity
                 </button>
               </>
             ) : (
-              <p style={{ fontSize: 13, color: "#64748b" }}>Explore Swap, Bridge, and Lending — Copilot will surface suggestions here as you build activity.</p>
+              <p style={{ fontSize: 13, color: "#4B5563" }}>Explore Swap, Bridge, and Lending — Copilot will surface suggestions here as you build activity.</p>
             )}
           </div>
-          <p style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", marginTop: 10 }}>AI suggestions are for reference only.</p>
+          <p style={{ fontSize: 10, color: "#6B7280", textAlign: "center", marginTop: 10 }}>AI suggestions are for reference only.</p>
         </div>
 
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>Quick Actions</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Quick Actions</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {QUICK_ACTIONS.map(({ id, label, desc, Icon }) => (
               <button key={id} onClick={() => onNavigate(id)}
@@ -254,8 +254,8 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
                   <Icon size={16} color="#6D5EF7" />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e293b" }}>{label}</div>
-                  <div style={{ fontSize: 10.5, color: "#94a3b8" }}>{desc}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#111827" }}>{label}</div>
+                  <div style={{ fontSize: 10.5, color: "#6B7280" }}>{desc}</div>
                 </div>
                 <ChevronRight size={14} color="#c4b5fd" />
               </button>
@@ -267,21 +267,21 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       {/* Market Overview / Recent Activity */}
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "1rem", alignItems: "start" }}>
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>Market Overview</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Market Overview</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
             <div>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>TVL</div>
-              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>{tvl === null ? "..." : `$${tvl.toFixed(0)}`}</div>
+              <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>TVL</div>
+              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 6 }}>{tvl === null ? "..." : `$${tvl.toFixed(0)}`}</div>
               <Sparkline color="#6D5EF7" seed={3} />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>Pools</div>
-              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>{poolCount ?? "..."}</div>
+              <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Pools</div>
+              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 6 }}>{poolCount ?? "..."}</div>
               <Sparkline color="#6D5EF7" seed={4} />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>Lending APY</div>
-              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>{lendingAPR ?? "..."}%</div>
+              <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Lending APY</div>
+              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 6 }}>{lendingAPR ?? "..."}%</div>
               <Sparkline color="#6D5EF7" seed={5} />
             </div>
           </div>
@@ -289,16 +289,16 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
 
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>Recent Activity</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Recent Activity</div>
             <ExternalLink size={13} color="#6D5EF7" />
           </div>
-          {recentTxs.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>No recent activity yet.</div>}
+          {recentTxs.length === 0 && <div style={{ fontSize: 12, color: "#6B7280" }}>No recent activity yet.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {recentTxs.map((tx) => (
               <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.25rem", textDecoration: "none" }}>
-                <span style={{ fontSize: 12.5, color: "#475569" }}>{tx.method}</span>
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{tx.age}</span>
+                <span style={{ fontSize: 12.5, color: "#374151" }}>{tx.method}</span>
+                <span style={{ fontSize: 11, color: "#6B7280" }}>{tx.age}</span>
               </a>
             ))}
           </div>
@@ -310,8 +310,8 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <ShieldCheck size={18} color="#6D5EF7" />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Your assets are secured by smart contracts</div>
-          <div style={{ fontSize: 11, color: "#94a3b8" }}>FlowFi is non-custodial and built on Arc Testnet.</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Your assets are secured by smart contracts</div>
+          <div style={{ fontSize: 11, color: "#6B7280" }}>FlowFi is non-custodial and built on Arc Testnet.</div>
         </div>
       </div>
     </div>

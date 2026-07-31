@@ -13,7 +13,7 @@ export default function ReceiveQR({ address }: Props) {
     QRCode.toDataURL(address, {
       width: 220,
       margin: 1,
-      color: { dark: "#1e293b", light: "#ffffff" },
+      color: { dark: "#111827", light: "#ffffff" },
     })
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(null));
@@ -28,7 +28,7 @@ export default function ReceiveQR({ address }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", maxWidth: 360, margin: "0 auto" }}>
       <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-        <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600, textAlign: "center" }}>
+        <div style={{ fontSize: 13, color: "#4B5563", fontWeight: 600, textAlign: "center" }}>
           Scan to send USDC, EURC, or ARC to this wallet
         </div>
 
@@ -37,14 +37,14 @@ export default function ReceiveQR({ address }: Props) {
             <img src={qrDataUrl} alt="Wallet address QR code" width={220} height={220} style={{ display: "block" }} />
           </div>
         ) : (
-          <div style={{ width: 220, height: 220, borderRadius: 12, background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 12 }}>
+          <div style={{ width: 220, height: 220, borderRadius: 12, background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", fontSize: 12 }}>
             Generating QR code...
           </div>
         )}
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: "100%" }}>
-          <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, letterSpacing: "1px" }}>YOUR ADDRESS</div>
-          <div className="flowfi-mono" style={{ fontSize: 13, color: "#1e293b", wordBreak: "break-all", textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px" }}>YOUR ADDRESS</div>
+          <div className="flowfi-mono" style={{ fontSize: 13, color: "#111827", wordBreak: "break-all", textAlign: "center" }}>
   {address.slice(0, 10) + "--demo--" + address.slice(-6)}
 </div>
         </div>
@@ -55,7 +55,7 @@ export default function ReceiveQR({ address }: Props) {
         </button>
       </div>
 
-      <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center" }}>
+      <div style={{ fontSize: 11, color: "#6B7280", textAlign: "center" }}>
         This address works on Arc Testnet only.
       </div>
     </div>

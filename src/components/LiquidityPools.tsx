@@ -89,7 +89,7 @@ async function switchToArc(provider: EIP1193Provider) {
 function tokenMetaSync(addr: string) {
   const known = KNOWN_TOKENS.find(t => t.address.toLowerCase() === addr.toLowerCase());
   if (known) return known;
-  return { symbol: addr.slice(0, 6), address: addr as `0x${string}`, color: "#64748b" };
+  return { symbol: addr.slice(0, 6), address: addr as `0x${string}`, color: "#4B5563" };
 }
 
 async function resolveTokenSymbol(addr: string, client: ReturnType<typeof createPublicClient>) {
@@ -294,13 +294,13 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <select value={tokenASym} onChange={(e) => setTokenASym(e.target.value)}
-              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem", color: "#1e293b", fontSize: 13 }}>
+              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem", color: "#111827", fontSize: 13 }}>
               {KNOWN_TOKENS.map(t => <option key={t.symbol} value={t.symbol} style={{ color: "#000" }}>{t.symbol}</option>)}
               <option value="CUSTOM" style={{ color: "#000" }}>Custom token...</option>
             </select>
-            <span style={{ color: "#475569" }}>+</span>
+            <span style={{ color: "#374151" }}>+</span>
             <select value={tokenBSym} onChange={(e) => setTokenBSym(e.target.value)}
-              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem", color: "#1e293b", fontSize: 13 }}>
+              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem", color: "#111827", fontSize: 13 }}>
               {KNOWN_TOKENS.map(t => <option key={t.symbol} value={t.symbol} style={{ color: "#000" }}>{t.symbol}</option>)}
               <option value="CUSTOM" style={{ color: "#000" }}>Custom token...</option>
             </select>
@@ -308,14 +308,14 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
           {tokenASym === "CUSTOM" && (
             <div style={{ position: "relative" }}>
               <input type="text" placeholder="Token name (e.g. Doge) or address (0x...)" value={customAAddr} onChange={(e) => handleCustomASearch(e.target.value)}
-                style={{ width: "100%", background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", color: "#1e293b", fontSize: 12, outline: "none" }} />
-              {searchingA && <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Searching...</div>}
+                style={{ width: "100%", background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", color: "#111827", fontSize: 12, outline: "none" }} />
+              {searchingA && <div style={{ fontSize: 11, color: "#374151", marginTop: 4 }}>Searching...</div>}
               {searchAResults.length > 0 && (
-                <div style={{ marginTop: 6, background: "#ffffff", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+                <div style={{ marginTop: 6, background: "#ffffff", border: "1px solid rgba(109,94,247,0.15)", borderRadius: 10, overflow: "hidden" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
                   {searchAResults.map((r) => (
                     <button key={r.address} onClick={() => { setCustomAAddr(r.address); setSearchAResults([]); }}
-                      style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "0.6rem 0.8rem", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer", textAlign: "left" }}>
-                      <span style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 700 }}>{r.name} <span style={{ color: "#64748b", fontWeight: 400 }}>{r.symbol}</span></span>
+                      style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "0.6rem 0.8rem", background: "transparent", border: "none", borderBottom: "1px solid rgba(109,94,247,0.08)", cursor: "pointer", textAlign: "left" }}>
+                      <span style={{ fontSize: 12, color: "#111827", fontWeight: 700 }}>{r.name} <span style={{ color: "#4B5563", fontWeight: 400 }}>{r.symbol}</span></span>
                     </button>
                   ))}
                 </div>
@@ -325,30 +325,30 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
           {tokenBSym === "CUSTOM" && (
             <div style={{ position: "relative" }}>
               <input type="text" placeholder="Token name (e.g. Doge) or address (0x...)" value={customBAddr} onChange={(e) => handleCustomBSearch(e.target.value)}
-                style={{ width: "100%", background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", color: "#1e293b", fontSize: 12, outline: "none" }} />
-              {searchingB && <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Searching...</div>}
+                style={{ width: "100%", background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", color: "#111827", fontSize: 12, outline: "none" }} />
+              {searchingB && <div style={{ fontSize: 11, color: "#374151", marginTop: 4 }}>Searching...</div>}
               {searchBResults.length > 0 && (
-                <div style={{ marginTop: 6, background: "#ffffff", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+                <div style={{ marginTop: 6, background: "#ffffff", border: "1px solid rgba(109,94,247,0.15)", borderRadius: 10, overflow: "hidden" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
                   {searchBResults.map((r) => (
                     <button key={r.address} onClick={() => { setCustomBAddr(r.address); setSearchBResults([]); }}
-                      style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "0.6rem 0.8rem", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer", textAlign: "left" }}>
-                      <span style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 700 }}>{r.name} <span style={{ color: "#64748b", fontWeight: 400 }}>{r.symbol}</span></span>
+                      style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "0.6rem 0.8rem", background: "transparent", border: "none", borderBottom: "1px solid rgba(109,94,247,0.08)", cursor: "pointer", textAlign: "left" }}>
+                      <span style={{ fontSize: 12, color: "#111827", fontWeight: 700 }}>{r.name} <span style={{ color: "#4B5563", fontWeight: 400 }}>{r.symbol}</span></span>
                     </button>
                   ))}
                 </div>
               )}
             </div>
           )}
-          {createError && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.6rem 0.8rem", color: "#fca5a5", fontSize: 12 }}>{createError}</div>}
+          {createError && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.6rem 0.8rem", color: "#DC2626", fontSize: 12 }}>{createError}</div>}
           <button onClick={createPool} disabled={creating}
             style={{ width: "100%", padding: "0.8rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7c3aed, #7c3aed)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: creating ? "not-allowed" : "pointer", opacity: creating ? 0.6 : 1 }}>
             {creating ? "Creating Pool..." : "Create Pool"}
           </button>
-          <p style={{ fontSize: 11, color: "#475569", margin: 0 }}>Pool starts empty. You'll add the first liquidity next.</p>
+          <p style={{ fontSize: 11, color: "#374151", margin: 0 }}>Pool starts empty. You'll add the first liquidity next.</p>
         </div>
       )}
 
-      <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 700, letterSpacing: "1px" }}>ALL POOLS</div>
+      <div style={{ fontSize: 11, color: "#111827", fontWeight: 700, letterSpacing: "1px" }}>ALL POOLS</div>
 
       {loadingPools && <div style={{ fontSize: 12, color: "#334155" }}>Loading pools...</div>}
 
@@ -571,15 +571,15 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "#ffffff", borderRadius: 14, padding: "1rem 1.25rem", cursor: "pointer", textAlign: "left" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex" }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorA, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #0a1a2f" }}>{resolvedSymbolA.slice(0, 2)}</div>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorB, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #0a1a2f", marginLeft: -8 }}>{resolvedSymbolB.slice(0, 2)}</div>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorA, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #ffffff" }}>{resolvedSymbolA.slice(0, 2)}</div>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorB, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #ffffff", marginLeft: -8 }}>{resolvedSymbolB.slice(0, 2)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{resolvedSymbolA}-{resolvedSymbolB}</div>
-            <div style={{ fontSize: 10, color: "#475569" }}>0.3% fee</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{resolvedSymbolA}-{resolvedSymbolB}</div>
+            <div style={{ fontSize: 10, color: "#374151" }}>0.3% fee</div>
           </div>
         </div>
-        <span style={{ color: "#64748b", fontSize: 13, transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
+        <span style={{ color: "#4B5563", fontSize: 13, transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
       </button>
 
       {expanded && (
@@ -587,15 +587,15 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
             <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.6rem 0.5rem", textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#334155", fontWeight: 700, marginBottom: 3 }}>TVL</div>
-              <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 700 }}>{loading ? "..." : metrics.tvl !== null ? `$${metrics.tvl.toFixed(2)}` : "—"}</div>
+              <div style={{ fontSize: 12, color: "#111827", fontWeight: 700 }}>{loading ? "..." : metrics.tvl !== null ? `$${metrics.tvl.toFixed(2)}` : "—"}</div>
             </div>
             <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.6rem 0.5rem", textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#334155", fontWeight: 700, marginBottom: 3 }}>EST. APR</div>
-              <div style={{ fontSize: 12, color: "#6ee7b7", fontWeight: 700 }}>{loading ? "..." : metrics.apr !== null ? `${metrics.apr.toFixed(1)}%` : "—"}</div>
+              <div style={{ fontSize: 12, color: "#16A34A", fontWeight: 700 }}>{loading ? "..." : metrics.apr !== null ? `${metrics.apr.toFixed(1)}%` : "—"}</div>
             </div>
             <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.6rem 0.5rem", textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#334155", fontWeight: 700, marginBottom: 3 }}>VOLUME</div>
-              <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 700 }}>{loading ? "..." : metrics.volume7d !== null ? `$${metrics.volume7d.toFixed(2)}` : `${metrics.swapCount7d} swaps`}</div>
+              <div style={{ fontSize: 12, color: "#111827", fontWeight: 700 }}>{loading ? "..." : metrics.volume7d !== null ? `$${metrics.volume7d.toFixed(2)}` : `${metrics.swapCount7d} swaps`}</div>
             </div>
             <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.6rem 0.5rem", textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#334155", fontWeight: 700, marginBottom: 3 }}>FEES</div>
@@ -603,57 +603,57 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
             </div>
           </div>
           {!isStablePair && (
-            <p style={{ fontSize: 10, color: "#475569", margin: 0 }}>TVL, volume ($), and APR require a stablecoin pair to price accurately — showing raw swap count instead.</p>
+            <p style={{ fontSize: 10, color: "#374151", margin: 0 }}>TVL, volume ($), and APR require a stablecoin pair to price accurately — showing raw swap count instead.</p>
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
             <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.7rem 0.85rem" }}>
-              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3 }}>{resolvedSymbolA}</div>
-              <div style={{ fontSize: 14, color: "#1e293b", fontWeight: 700 }}>{loading ? "..." : reserves ? reserves.a : "—"}</div>
-              {myShare && <div style={{ fontSize: 10, color: "#475569" }}>You: {myShare.a}</div>}
+              <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 3 }}>{resolvedSymbolA}</div>
+              <div style={{ fontSize: 14, color: "#111827", fontWeight: 700 }}>{loading ? "..." : reserves ? reserves.a : "—"}</div>
+              {myShare && <div style={{ fontSize: 10, color: "#374151" }}>You: {myShare.a}</div>}
             </div>
             <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.7rem 0.85rem" }}>
-              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3 }}>{resolvedSymbolB}</div>
-              <div style={{ fontSize: 14, color: "#1e293b", fontWeight: 700 }}>{loading ? "..." : reserves ? reserves.b : "—"}</div>
-              {myShare && <div style={{ fontSize: 10, color: "#475569" }}>You: {myShare.b}</div>}
+              <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 3 }}>{resolvedSymbolB}</div>
+              <div style={{ fontSize: 14, color: "#111827", fontWeight: 700 }}>{loading ? "..." : reserves ? reserves.b : "—"}</div>
+              {myShare && <div style={{ fontSize: 10, color: "#374151" }}>You: {myShare.b}</div>}
             </div>
           </div>
 
           <div style={{ display: "flex", gap: 6 }}>
             {swapSupported && (
               <button onClick={() => setMode("swap")}
-                style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "swap" ? "#ede9fe" : "#f5f3ff", color: mode === "swap" ? "#a855f7" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "swap" ? "#ede9fe" : "#f5f3ff", color: mode === "swap" ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                 Swap
               </button>
             )}
             <button onClick={() => setMode("add")}
-              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "add" ? "#ede9fe" : "#f5f3ff", color: mode === "add" ? "#a855f7" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "add" ? "#ede9fe" : "#f5f3ff", color: mode === "add" ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               Add
             </button>
             <button onClick={() => setMode("remove")}
-              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "remove" ? "#ede9fe" : "#f5f3ff", color: mode === "remove" ? "#a855f7" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "remove" ? "#ede9fe" : "#f5f3ff", color: mode === "remove" ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               Remove
             </button>
           </div>
 
           {mode === "swap" && swapSupported && (
             <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 10, color: "#64748b" }}>You pay</div>
+              <div style={{ fontSize: 10, color: "#4B5563" }}>You pay</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <input type="number" min="0" placeholder="0.00" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} disabled={isSwapLoading}
-                  style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#1e293b", outline: "none" }} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", minWidth: 50, textAlign: "center" }}>{swapTokenIn?.symbol}</span>
+                  style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#111827", outline: "none" }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 50, textAlign: "center" }}>{swapTokenIn?.symbol}</span>
               </div>
               <button onClick={() => setSwapDirAtoB(!swapDirAtoB)} disabled={isSwapLoading}
                 style={{ alignSelf: "center", background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 8, padding: "4px 12px", color: "#a855f7", fontSize: 14, cursor: "pointer" }}>
                 ⇅
               </button>
-              <div style={{ fontSize: 10, color: "#64748b" }}>You receive (estimated)</div>
+              <div style={{ fontSize: 10, color: "#4B5563" }}>You receive (estimated)</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, background: "#f5f3ff", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#1e293b" }}>{swapEstOut}</div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", minWidth: 50, textAlign: "center" }}>{swapTokenOut?.symbol}</span>
+                <div style={{ flex: 1, background: "#f5f3ff", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#111827" }}>{swapEstOut}</div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 50, textAlign: "center" }}>{swapTokenOut?.symbol}</span>
               </div>
-              {swapError && <div style={{ fontSize: 11, color: "#fca5a5" }}>{swapError}</div>}
+              {swapError && <div style={{ fontSize: 11, color: "#DC2626" }}>{swapError}</div>}
               {swapTxHash && swapState === "done" && (
                 <a href={`https://testnet.arcscan.app/tx/${swapTxHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#60a5fa" }}>View on explorer</a>
               )}
@@ -669,10 +669,10 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
           {mode === "add" && (
             <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
               <input type="number" min="0" placeholder={`${resolvedSymbolA} amount`} value={amountA} onChange={(e) => setAmountA(e.target.value)} disabled={isLoading}
-                style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#1e293b", outline: "none" }} />
+                style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none" }} />
               <input type="number" min="0" placeholder={`${resolvedSymbolB} amount`} value={amountB} onChange={(e) => setAmountB(e.target.value)} disabled={isLoading}
-                style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#1e293b", outline: "none" }} />
-              {errorMsg && <div style={{ fontSize: 11, color: "#fca5a5" }}>{errorMsg}</div>}
+                style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none" }} />
+              {errorMsg && <div style={{ fontSize: 11, color: "#DC2626" }}>{errorMsg}</div>}
               <button onClick={doAdd} disabled={isLoading}
                 style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #7c3aed, #7c3aed)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 {state === "approving1" && "Approving..."}
@@ -688,15 +688,15 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
               {hasPosition ? (
                 <>
                   <input type="range" min="1" max="100" value={removePct} onChange={(e) => setRemovePct(Number(e.target.value))} disabled={isLoading} />
-                  <div style={{ fontSize: 11, color: "#64748b" }}>{removePct}% — {(Number(myShare!.a) * removePct / 100).toFixed(4)} {resolvedSymbolA} + {(Number(myShare!.b) * removePct / 100).toFixed(4)} {resolvedSymbolB}</div>
-                  {errorMsg && <div style={{ fontSize: 11, color: "#fca5a5" }}>{errorMsg}</div>}
+                  <div style={{ fontSize: 11, color: "#4B5563" }}>{removePct}% — {(Number(myShare!.a) * removePct / 100).toFixed(4)} {resolvedSymbolA} + {(Number(myShare!.b) * removePct / 100).toFixed(4)} {resolvedSymbolB}</div>
+                  {errorMsg && <div style={{ fontSize: 11, color: "#DC2626" }}>{errorMsg}</div>}
                   <button onClick={doRemove} disabled={isLoading}
                     style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #dc2626, #ef4444)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                     {state === "processing" ? "Removing..." : "Remove"}
                   </button>
                 </>
               ) : (
-                <p style={{ fontSize: 12, color: "#64748b", margin: 0, textAlign: "center" }}>No position in this pool.</p>
+                <p style={{ fontSize: 12, color: "#4B5563", margin: 0, textAlign: "center" }}>No position in this pool.</p>
               )}
             </div>
           )}

@@ -30,7 +30,7 @@ export default function ToastContainer() {
             <div style={{ width: 22, height: 22, borderRadius: "50%", background: style.bg, color: style.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
               {style.icon}
             </div>
-            <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 600 }}>{t.message}</span>
+            <span style={{ fontSize: 13, color: "#111827", fontWeight: 600 }}>{t.message}</span>
           </div>
         );
       })}

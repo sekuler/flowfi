@@ -224,14 +224,14 @@ Respond with ONLY the JSON object.`,
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 1.1rem", background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 24, height: 24, borderRadius: 8, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff" }}>✦</div>
-              <span style={{ fontSize: 13, fontWeight: 800, color: "#1e293b" }}>FlowFi Copilot</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>FlowFi Copilot</span>
             </div>
-            <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 16 }}>✕</button>
+            <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 16 }}>✕</button>
           </div>
 
           <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: 10, minHeight: 200, maxHeight: 320 }}>
             {messages.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6 }}>
                 Try: "swap 10 USDC to EURC", "send 5 USDC to 0x...", "open a 5x BTC long with 20 USDC", or "create a pool for ARCC/EURC".
               </div>
             )}
@@ -239,13 +239,13 @@ Respond with ONLY the JSON object.`,
               <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "90%" }}>
                 <div style={{
                   background: m.role === "user" ? "#6D5EF7" : "#f5f3ff",
-                  borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: m.role === "user" ? "#ffffff" : "#475569", lineHeight: 1.5,
+                  borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: m.role === "user" ? "#ffffff" : "#374151", lineHeight: 1.5,
                 }}>
                   {m.content}
                 </div>
                 {m.action && m.action.action !== "unknown" && !m.confirmed && (
                   <div style={{ marginTop: 6, background: "#f5f3ff", borderRadius: 12, padding: "0.7rem 0.8rem" }}>
-                    {m.action.reasoning && <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 8px 0" }}>{m.action.reasoning}</p>}
+                    {m.action.reasoning && <p style={{ fontSize: 11, color: "#4B5563", margin: "0 0 8px 0" }}>{m.action.reasoning}</p>}
                     <button onClick={() => executeAction(m.action!, i)} disabled={executing}
                       style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: executing ? "not-allowed" : "pointer", opacity: executing ? 0.6 : 1 }}>
                       {executing ? "Executing..." : "Confirm"}
@@ -257,7 +257,7 @@ Respond with ONLY the JSON object.`,
                 )}
               </div>
             ))}
-            {loading && <div style={{ fontSize: 12, color: "#94a3b8" }}>Thinking...</div>}
+            {loading && <div style={{ fontSize: 12, color: "#6B7280" }}>Thinking...</div>}
           </div>
 
           <div style={{ display: "flex", gap: 8, padding: "0.9rem", borderTop: "1px solid #E8E3FF" }}>
@@ -265,7 +265,7 @@ Respond with ONLY the JSON object.`,
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
               disabled={loading}
-              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: "#1e293b", outline: "none" }} />
+              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none" }} />
             <button onClick={handleSend} disabled={loading || !input.trim()}
               style={{ padding: "0.6rem 1rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
               Send

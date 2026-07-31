@@ -313,12 +313,12 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
           {steps.map((s, i) => (
             <div key={s.key} style={{ display: "flex", alignItems: "center", flex: 1 }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                <div style={{ width: 26, height: 26, borderRadius: "50%", background: s.done ? "#10b981" : "rgba(255,255,255,0.06)", color: s.done ? "#fff" : "#475569", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>
+                <div style={{ width: 26, height: 26, borderRadius: "50%", background: s.done ? "#10b981" : "rgba(109,94,247,0.1)", color: s.done ? "#fff" : "#374151", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>
                   {s.done ? "✓" : i + 1}
                 </div>
-                <span style={{ fontSize: 9, color: s.done ? "#6ee7b7" : "#475569", marginTop: 4, textAlign: "center" }}>{s.label}</span>
+                <span style={{ fontSize: 9, color: s.done ? "#16A34A" : "#374151", marginTop: 4, textAlign: "center" }}>{s.label}</span>
               </div>
-              {i < steps.length - 1 && <div style={{ height: 2, flex: 1, background: s.done ? "#10b981" : "rgba(255,255,255,0.08)", marginBottom: 14 }} />}
+              {i < steps.length - 1 && <div style={{ height: 2, flex: 1, background: s.done ? "#10b981" : "rgba(109,94,247,0.12)", marginBottom: 14 }} />}
             </div>
           ))}
         </div>
@@ -327,19 +327,19 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
       {flowStep === "form" && (
         <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Token Name</label>
+            <label style={{ fontSize: 13, color: "#6B7280", fontWeight: 500 }}>Token Name</label>
             <input type="text" placeholder="e.g. Arc Doge" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} maxLength={32}
-              style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#1e293b", outline: "none" }} />
+              style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#111827", outline: "none" }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Symbol</label>
+            <label style={{ fontSize: 13, color: "#6B7280", fontWeight: 500 }}>Symbol</label>
             <input type="text" placeholder="e.g. ADOGE" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} disabled={isLoading} maxLength={10}
-              style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#1e293b", outline: "none" }} />
+              style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#111827", outline: "none" }} />
           </div>
-          <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.7rem 0.9rem", fontSize: 12, color: "#64748b" }}>
-            Initial supply: <span style={{ color: "#e2e8f0", fontWeight: 700 }}>1,000,000 {symbol || "TOKEN"}</span> — minted entirely to your wallet
+          <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.7rem 0.9rem", fontSize: 12, color: "#4B5563" }}>
+            Initial supply: <span style={{ color: "#111827", fontWeight: 700 }}>1,000,000 {symbol || "TOKEN"}</span> — minted entirely to your wallet
           </div>
-          {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
+          {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
           <button onClick={doLaunch} disabled={isLoading}
             style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#7c3aed", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
             {isLoading ? "Launching..." : "Launch Token"}
@@ -351,15 +351,15 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
         <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>🚀</div>
-            <p style={{ color: "#6ee7b7", fontWeight: 800, fontSize: 16, margin: "0 0 4px 0" }}>{newTokenSymbol} is live!</p>
-            <p style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace", margin: 0, wordBreak: "break-all" }}>{newTokenAddress}</p>
+            <p style={{ color: "#16A34A", fontWeight: 800, fontSize: 16, margin: "0 0 4px 0" }}>{newTokenSymbol} is live!</p>
+            <p style={{ fontSize: 11, color: "#4B5563", fontFamily: "monospace", margin: 0, wordBreak: "break-all" }}>{newTokenAddress}</p>
           </div>
           <button onClick={() => addTokenToWallet(newTokenAddress, newTokenSymbol)}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#e2e8f0", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid rgba(109,94,247,0.15)", background: "rgba(109,94,247,0.05)", color: "#111827", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             + Add {newTokenSymbol} to Wallet
           </button>
-          <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", margin: 0 }}>Next: create a USDC pool so people can trade it.</p>
-          {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
+          <p style={{ fontSize: 12, color: "#6B7280", textAlign: "center", margin: 0 }}>Next: create a USDC pool so people can trade it.</p>
+          {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
           <button onClick={doCreatePool} disabled={isLoading}
             style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#7c3aed", color: "#fff", fontSize: 15, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
             {isLoading ? "Creating Pool..." : `Create ${newTokenSymbol}/USDC Pool`}
@@ -369,18 +369,18 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
 
       {flowStep === "pool_created" && (
         <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <p style={{ color: "#6ee7b7", fontWeight: 700, fontSize: 14, textAlign: "center", margin: 0 }}>✓ Pool created! Now seed it with liquidity.</p>
+          <p style={{ color: "#16A34A", fontWeight: 700, fontSize: 14, textAlign: "center", margin: 0 }}>✓ Pool created! Now seed it with liquidity.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 12, color: "#94a3b8" }}>{newTokenSymbol} amount</label>
+            <label style={{ fontSize: 12, color: "#6B7280" }}>{newTokenSymbol} amount</label>
             <input type="number" min="0" value={poolTokenAmount} onChange={(e) => setPoolTokenAmount(e.target.value)} disabled={isLoading}
-              style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#1e293b", outline: "none" }} />
+              style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#111827", outline: "none" }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 12, color: "#94a3b8" }}>USDC amount</label>
+            <label style={{ fontSize: 12, color: "#6B7280" }}>USDC amount</label>
             <input type="number" min="0" value={poolUsdcAmount} onChange={(e) => setPoolUsdcAmount(e.target.value)} disabled={isLoading}
-              style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#1e293b", outline: "none" }} />
+              style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#111827", outline: "none" }} />
           </div>
-          {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
+          {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
           <button onClick={doAddLiquidity} disabled={isLoading}
             style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#7c3aed", color: "#fff", fontSize: 15, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
             {isLoading ? "Adding Liquidity..." : "Add Liquidity"}
@@ -391,15 +391,15 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
       {flowStep === "liquidity_added" && (
         <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 16, padding: "1.75rem", textAlign: "center" }}>
           <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
-          <p style={{ color: "#6ee7b7", fontWeight: 800, fontSize: 17, margin: "0 0 6px 0" }}>{newTokenSymbol} is tradeable!</p>
-          <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 16px 0" }}>Your token has a live pool with real liquidity. Anyone can now swap it.</p>
+          <p style={{ color: "#16A34A", fontWeight: 800, fontSize: 17, margin: "0 0 6px 0" }}>{newTokenSymbol} is tradeable!</p>
+          <p style={{ fontSize: 12, color: "#4B5563", margin: "0 0 16px 0" }}>Your token has a live pool with real liquidity. Anyone can now swap it.</p>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={onNavigateToPools}
               style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #059669, #10b981)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
               Go Trade It →
             </button>
             <button onClick={startOver}
-              style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(109,94,247,0.15)", background: "transparent", color: "#6B7280", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               Launch Another
             </button>
           </div>
@@ -407,27 +407,27 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
       )}
 
       <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px" }}>SEARCH BY NAME OR ADDRESS</div>
+        <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px" }}>SEARCH BY NAME OR ADDRESS</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input type="text" placeholder="Doge, DOGE, or 0x..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") doSearchToken(); }}
-            style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#1e293b", outline: "none" }} />
+            style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none" }} />
           <button onClick={doSearchToken} disabled={searching}
             style={{ padding: "0.6rem 1.1rem", borderRadius: 8, border: "none", background: "#7c3aed", color: "#fff", fontSize: 13, fontWeight: 700, cursor: searching ? "not-allowed" : "pointer", opacity: searching ? 0.6 : 1 }}>
             {searching ? "..." : "Search"}
           </button>
         </div>
-        {searchError && <div style={{ fontSize: 12, color: "#fca5a5" }}>{searchError}</div>}
+        {searchError && <div style={{ fontSize: 12, color: "#DC2626" }}>{searchError}</div>}
         {searchResults.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {searchResults.map((r) => (
               <a key={r.address} href={`https://testnet.arcscan.app/address/${r.address}`} target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", textDecoration: "none" }}>
                 <div>
-                  <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 700 }}>{r.name}</span>
-                  <span style={{ fontSize: 11, color: "#64748b", marginLeft: 6 }}>{r.symbol}</span>
+                  <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{r.name}</span>
+                  <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{r.symbol}</span>
                 </div>
-                <span style={{ fontSize: 11, color: "#6ee7b7" }}>{r.supply} supply</span>
+                <span style={{ fontSize: 11, color: "#16A34A" }}>{r.supply} supply</span>
               </a>
             ))}
           </div>
@@ -435,16 +435,16 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
       </div>
 
       <div>
-        <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>RECENTLY LAUNCHED</div>
+        <div style={{ fontSize: 11, color: "#111827", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>RECENTLY LAUNCHED</div>
         {loadingTokens && <div style={{ fontSize: 12, color: "#334155" }}>Loading...</div>}
         {!loadingTokens && allTokens.length === 0 && <div style={{ fontSize: 12, color: "#334155" }}>No tokens launched yet. Be the first!</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {allTokens.map((t) => (
             <a key={t.address} href={`https://testnet.arcscan.app/address/${t.address}`} target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "#f5f3ff", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}>
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "#f5f3ff", border: "1px solid rgba(109,94,247,0.08)", textDecoration: "none" }}>
               <div>
-                <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 700 }}>{t.name}</span>
-                <span style={{ fontSize: 11, color: "#64748b", marginLeft: 6 }}>{t.symbol}</span>
+                <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{t.name}</span>
+                <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{t.symbol}</span>
               </div>
               <span style={{ fontSize: 11, color: "#334155" }}>{t.supply} supply</span>
             </a>

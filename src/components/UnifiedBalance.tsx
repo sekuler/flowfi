@@ -50,11 +50,11 @@ export default function UnifiedBalance({ address }: Props) {
   return (
     <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, letterSpacing: "1px" }}>UNIFIED USDC BALANCE</div>
+        <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px" }}>UNIFIED USDC BALANCE</div>
         {!loading && <div className="flowfi-mono" style={{ fontSize: 13, color: "#6D5EF7", fontWeight: 700 }}>${total.toFixed(2)} total</div>}
       </div>
 
-      {loading && <div style={{ fontSize: 12, color: "#94a3b8" }}>Checking balances across chains...</div>}
+      {loading && <div style={{ fontSize: 12, color: "#6B7280" }}>Checking balances across chains...</div>}
 
       {!loading && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -63,15 +63,15 @@ export default function UnifiedBalance({ address }: Props) {
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.8rem", borderRadius: 12, background: "#f5f3ff", textDecoration: "none" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: b.color }} />
-                <span style={{ fontSize: 12, color: "#475569" }}>{b.name}</span>
+                <span style={{ fontSize: 12, color: "#374151" }}>{b.name}</span>
               </div>
-              <span className="flowfi-mono" style={{ fontSize: 13, color: "#1e293b", fontWeight: 600 }}>{b.balance === null ? "..." : `${b.balance} USDC`}</span>
+              <span className="flowfi-mono" style={{ fontSize: 13, color: "#111827", fontWeight: 600 }}>{b.balance === null ? "..." : `${b.balance} USDC`}</span>
             </a>
           ))}
         </div>
       )}
 
-      <div style={{ marginTop: 10, fontSize: 11, color: "#94a3b8" }}>
+      <div style={{ marginTop: 10, fontSize: 11, color: "#6B7280" }}>
         Bridge any of these to Arc using CCTP from the Bridge tab.
       </div>
     </div>
