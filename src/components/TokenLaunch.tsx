@@ -302,8 +302,8 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 460 }}>
-      <div style={{ background: "rgba(34,211,238,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-        <p style={{ fontSize: 12, color: "#67e8f9", margin: 0 }}>
+      <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
+        <p style={{ fontSize: 12, color: "#a855f7", margin: 0 }}>
           Launch your own ERC20 token, pair it against USDC, and seed liquidity — all in one flow.
         </p>
       </div>
@@ -325,30 +325,30 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
       )}
 
       {flowStep === "form" && (
-        <div style={{ background: "#0b1220", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Token Name</label>
             <input type="text" placeholder="e.g. Arc Doge" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} maxLength={32}
-              style={{ background: "#111a2c", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#f1f5f9", outline: "none" }} />
+              style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#1e293b", outline: "none" }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Symbol</label>
             <input type="text" placeholder="e.g. ADOGE" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} disabled={isLoading} maxLength={10}
-              style={{ background: "#111a2c", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#f1f5f9", outline: "none" }} />
+              style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#1e293b", outline: "none" }} />
           </div>
-          <div style={{ background: "#111a2c", borderRadius: 10, padding: "0.7rem 0.9rem", fontSize: 12, color: "#64748b" }}>
+          <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.7rem 0.9rem", fontSize: 12, color: "#64748b" }}>
             Initial supply: <span style={{ color: "#e2e8f0", fontWeight: 700 }}>1,000,000 {symbol || "TOKEN"}</span> — minted entirely to your wallet
           </div>
           {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
           <button onClick={doLaunch} disabled={isLoading}
-            style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#22d3ee", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+            style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#7c3aed", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
             {isLoading ? "Launching..." : "Launch Token"}
           </button>
         </div>
       )}
 
       {flowStep === "created" && newTokenAddress && (
-        <div style={{ background: "#0b1220", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>🚀</div>
             <p style={{ color: "#6ee7b7", fontWeight: 800, fontSize: 16, margin: "0 0 4px 0" }}>{newTokenSymbol} is live!</p>
@@ -361,28 +361,28 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
           <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", margin: 0 }}>Next: create a USDC pool so people can trade it.</p>
           {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
           <button onClick={doCreatePool} disabled={isLoading}
-            style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#22d3ee", color: "#fff", fontSize: 15, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+            style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#7c3aed", color: "#fff", fontSize: 15, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
             {isLoading ? "Creating Pool..." : `Create ${newTokenSymbol}/USDC Pool`}
           </button>
         </div>
       )}
 
       {flowStep === "pool_created" && (
-        <div style={{ background: "#0b1220", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <p style={{ color: "#6ee7b7", fontWeight: 700, fontSize: 14, textAlign: "center", margin: 0 }}>✓ Pool created! Now seed it with liquidity.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 12, color: "#94a3b8" }}>{newTokenSymbol} amount</label>
             <input type="number" min="0" value={poolTokenAmount} onChange={(e) => setPoolTokenAmount(e.target.value)} disabled={isLoading}
-              style={{ background: "#111a2c", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#f1f5f9", outline: "none" }} />
+              style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#1e293b", outline: "none" }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 12, color: "#94a3b8" }}>USDC amount</label>
             <input type="number" min="0" value={poolUsdcAmount} onChange={(e) => setPoolUsdcAmount(e.target.value)} disabled={isLoading}
-              style={{ background: "#111a2c", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#f1f5f9", outline: "none" }} />
+              style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#1e293b", outline: "none" }} />
           </div>
           {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
           <button onClick={doAddLiquidity} disabled={isLoading}
-            style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#22d3ee", color: "#fff", fontSize: 15, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+            style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#7c3aed", color: "#fff", fontSize: 15, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
             {isLoading ? "Adding Liquidity..." : "Add Liquidity"}
           </button>
         </div>
@@ -406,14 +406,14 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
         </div>
       )}
 
-      <div style={{ background: "#0b1220", borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
         <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px" }}>SEARCH BY NAME OR ADDRESS</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input type="text" placeholder="Doge, DOGE, or 0x..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") doSearchToken(); }}
-            style={{ flex: 1, background: "#111a2c", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
+            style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#1e293b", outline: "none" }} />
           <button onClick={doSearchToken} disabled={searching}
-            style={{ padding: "0.6rem 1.1rem", borderRadius: 8, border: "none", background: "#22d3ee", color: "#fff", fontSize: 13, fontWeight: 700, cursor: searching ? "not-allowed" : "pointer", opacity: searching ? 0.6 : 1 }}>
+            style={{ padding: "0.6rem 1.1rem", borderRadius: 8, border: "none", background: "#7c3aed", color: "#fff", fontSize: 13, fontWeight: 700, cursor: searching ? "not-allowed" : "pointer", opacity: searching ? 0.6 : 1 }}>
             {searching ? "..." : "Search"}
           </button>
         </div>
@@ -441,7 +441,7 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {allTokens.map((t) => (
             <a key={t.address} href={`https://testnet.arcscan.app/address/${t.address}`} target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "#111a2c", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}>
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "#f5f3ff", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}>
               <div>
                 <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 700 }}>{t.name}</span>
                 <span style={{ fontSize: 11, color: "#64748b", marginLeft: 6 }}>{t.symbol}</span>

@@ -55,7 +55,7 @@ export default function WalletConnect({ onConnected }: Props) {
           <p style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>Select a wallet to connect:</p>
           {wallets.map((w) => (
             <button key={w.info.uuid} onClick={() => connectWallet(w)}
-              style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: 12, border: "none", background: "#111a2c", color: "#f1f5f9", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+              style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: 12, border: "none", background: "#f5f3ff", color: "#1e293b", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
               {w.info.icon && <img src={w.info.icon} alt="" width={24} height={24} style={{ borderRadius: 6 }} />}
               {w.info.name}
             </button>
@@ -63,7 +63,7 @@ export default function WalletConnect({ onConnected }: Props) {
         </div>
       ) : (
         <button onClick={detect} disabled={status !== "idle"}
-          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#22d3ee", color: "#04121f", fontSize: 16, fontWeight: 700, cursor: status !== "idle" ? "not-allowed" : "pointer", opacity: status !== "idle" ? 0.6 : 1 }}>
+          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: status !== "idle" ? "not-allowed" : "pointer", opacity: status !== "idle" ? 0.6 : 1 }}>
           {status === "idle" && "Connect Wallet"}
           {status === "detecting" && "Detecting wallets..."}
           {status === "connecting" && "Connecting..."}
@@ -71,7 +71,7 @@ export default function WalletConnect({ onConnected }: Props) {
       )}
       <div style={{ marginTop: 4 }}>
         <span style={{ color: "#64748b", fontSize: 13 }}>Get test USDC: </span>
-        <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#67e8f9", fontSize: 13 }}>faucet.circle.com</a>
+        <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#a855f7", fontSize: 13 }}>faucet.circle.com</a>
       </div>
     </div>
   );

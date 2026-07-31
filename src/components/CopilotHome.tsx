@@ -35,13 +35,6 @@ interface OpenPosition {
   leverage: number;
 }
 
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
-
 export default function CopilotHome({ address, balances, onNavigate }: Props) {
   const [openPosition, setOpenPosition] = useState<OpenPosition | null>(null);
   const [lendingAPR, setLendingAPR] = useState<string | null>(null);
@@ -100,52 +93,45 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
   if (suggestions.length === 0) suggestions.push({ text: "Explore Liquidity Pools to start earning swap fees", action: () => onNavigate("pools") });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <div>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: "#f8fafc", marginBottom: 4 }}>
-          {greeting()}.
-        </h1>
-        <p style={{ fontSize: 13, color: "#64748b" }}>Here's what's happening with your portfolio on Arc.</p>
-      </div>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div style={{ background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: 14, padding: "1.1rem" }}>
-          <div style={{ fontSize: 10, color: "#60a5fa", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>YOU HOLD</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "#f1f5f9" }}>{balances.usdc ?? "..."} <span style={{ fontSize: 13, color: "#64748b" }}>USDC</span></div>
+        <div className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>YOU HOLD</div>
+          <div className="flowfi-mono" style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>{balances.usdc ?? "..."} <span style={{ fontSize: 13, color: "#94a3b8", fontFamily: "Inter, sans-serif" }}>USDC</span></div>
         </div>
-        <div style={{ background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 14, padding: "1.1rem" }}>
-          <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>YOU HOLD</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "#f1f5f9" }}>{balances.eurc ?? "..."} <span style={{ fontSize: 13, color: "#64748b" }}>EURC</span></div>
+        <div className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>YOU HOLD</div>
+          <div className="flowfi-mono" style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>{balances.eurc ?? "..."} <span style={{ fontSize: 13, color: "#94a3b8", fontFamily: "Inter, sans-serif" }}>EURC</span></div>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div onClick={() => onNavigate("perps")} style={{ cursor: "pointer", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.1rem" }}>
-          <div style={{ fontSize: 10, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>OPEN POSITION</div>
+        <div onClick={() => onNavigate("perps")} className="flowfi-glow-card" style={{ cursor: "pointer", background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>OPEN POSITION</div>
           {loading ? (
-            <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
+            <div style={{ fontSize: 14, color: "#94a3b8" }}>Loading...</div>
           ) : openPosition ? (
             <>
-              <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 700, marginBottom: 2 }}>{openPosition.market} {openPosition.isLong ? "Long" : "Short"} {openPosition.leverage}x</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: openPosition.pnl >= 0 ? "#6ee7b7" : "#fca5a5" }}>{openPosition.pnl >= 0 ? "+" : ""}${openPosition.pnl.toFixed(2)}</div>
+              <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 700, marginBottom: 2 }}>{openPosition.market} {openPosition.isLong ? "Long" : "Short"} {openPosition.leverage}x</div>
+              <div className="flowfi-mono" style={{ fontSize: 18, fontWeight: 700, color: openPosition.pnl >= 0 ? "#059669" : "#dc2626" }}>{openPosition.pnl >= 0 ? "+" : ""}${openPosition.pnl.toFixed(2)}</div>
             </>
           ) : (
-            <div style={{ fontSize: 14, color: "#475569" }}>None</div>
+            <div style={{ fontSize: 14, color: "#94a3b8" }}>None</div>
           )}
         </div>
-        <div onClick={() => onNavigate("lending")} style={{ cursor: "pointer", background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: 14, padding: "1.1rem" }}>
-          <div style={{ fontSize: 10, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>LENDING APY</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#6ee7b7" }}>{loading ? "..." : `${lendingAPR ?? "0.00"}%`}</div>
-          {Number(supplyBalance ?? 0) > 0 && <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Supplying {supplyBalance} USDC</div>}
+        <div onClick={() => onNavigate("lending")} className="flowfi-glow-card" style={{ cursor: "pointer", background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>LENDING APY</div>
+          <div className="flowfi-mono" style={{ fontSize: 18, fontWeight: 700, color: "#059669" }}>{loading ? "..." : `${lendingAPR ?? "0.00"}%`}</div>
+          {Number(supplyBalance ?? 0) > 0 && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Supplying {supplyBalance} USDC</div>}
         </div>
       </div>
 
-      <div style={{ background: "rgba(79,70,229,0.05)", border: "1px solid rgba(79,70,229,0.2)", borderRadius: 14, padding: "1.1rem" }}>
-        <div style={{ fontSize: 10, color: "#a5b4fc", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>SUGGESTIONS</div>
+      <div style={{ background: "linear-gradient(135deg, #f5f3ff, #ede9fe)", borderRadius: 16, padding: "1.1rem" }}>
+        <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>SUGGESTIONS</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {suggestions.map((s, i) => (
             <button key={i} onClick={s.action}
-              style={{ textAlign: "left", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.7rem 0.9rem", color: "#cbd5e1", fontSize: 13, cursor: "pointer" }}>
+              style={{ textAlign: "left", background: "#ffffff", border: "none", borderRadius: 12, padding: "0.7rem 0.9rem", color: "#475569", fontSize: 13, cursor: "pointer", boxShadow: "0 1px 3px rgba(124,58,237,0.06)" }}>
               • {s.text}
             </button>
           ))}

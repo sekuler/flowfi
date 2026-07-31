@@ -307,11 +307,11 @@ export default function BridgeForm({ provider, address }: Props) {
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%" }}>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setBridgeType("usdc")}
-            style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "usdc" ? "#1b2740" : "#0b1220", color: bridgeType === "usdc" ? "#67e8f9" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "usdc" ? "#ede9fe" : "#ffffff", color: bridgeType === "usdc" ? "#a855f7" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
             USDC Bridge
           </button>
           <button onClick={() => setBridgeType("eth")}
-            style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "eth" ? "#1b2740" : "#0b1220", color: bridgeType === "eth" ? "#67e8f9" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "eth" ? "#ede9fe" : "#ffffff", color: bridgeType === "eth" ? "#a855f7" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
             ETH Bridge
           </button>
         </div>
@@ -320,22 +320,22 @@ export default function BridgeForm({ provider, address }: Props) {
 
         {bridgeType === "usdc" && (
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "1rem", alignItems: "start", width: "100%" }}>
-            <div style={{ background: "#0b1220", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+            <div style={{ background: "#ffffff", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
               {circleWallet && (
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => setUseCircle(false)} disabled={isLoading}
-                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#1b2740" : "#111a2c", color: !useCircle ? "#67e8f9" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#a855f7" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                     Browser Wallet
                   </button>
                   <button onClick={() => setUseCircle(true)} disabled={isLoading}
-                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#1b2740" : "#111a2c", color: useCircle ? "#67e8f9" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#a855f7" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                     Circle Wallet
                   </button>
                 </div>
               )}
 
-              <div style={{ background: "rgba(34,211,238,0.1)", borderRadius: 10, padding: "0.65rem 0.85rem" }}>
-                <p style={{ fontSize: 12, color: "#67e8f9", margin: 0 }}>
+              <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.65rem 0.85rem" }}>
+                <p style={{ fontSize: 12, color: "#a855f7", margin: 0 }}>
                   {useCircle
                     ? "Circle Wallet signs both the burn and the mint automatically — no chain switching, no popups."
                     : "Real CCTP V2 bridge — burn on any supported chain, mint native USDC on any other."}
@@ -347,7 +347,7 @@ export default function BridgeForm({ provider, address }: Props) {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {(Object.keys(CHAINS) as ChainKey[]).map((key) => (
                     <button key={key} onClick={() => changeSource(key)} disabled={isLoading}
-                      style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 10, border: "none", background: sourceKey === key ? "#1b2740" : "#111a2c", color: sourceKey === key ? "#67e8f9" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 10, border: "none", background: sourceKey === key ? "#ede9fe" : "#f5f3ff", color: sourceKey === key ? "#a855f7" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                       {key}
                     </button>
                   ))}
@@ -355,9 +355,9 @@ export default function BridgeForm({ provider, address }: Props) {
               </div>
 
               <div style={{ display: "flex", justifyContent: "center" }}>
-                <div style={{ background: "#111a2c", borderRadius: 14, padding: "0.75rem 1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 220 }}>
+                <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.75rem 1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 220 }}>
                   <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>{sourceKey}</div>
-                  <div style={{ color: "#22d3ee", fontSize: 18 }}>↓</div>
+                  <div style={{ color: "#7c3aed", fontSize: 18 }}>↓</div>
                   <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>{destKey}</div>
                 </div>
               </div>
@@ -367,7 +367,7 @@ export default function BridgeForm({ provider, address }: Props) {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {(Object.keys(CHAINS) as ChainKey[]).map((key) => (
                     <button key={key} onClick={() => changeDest(key)} disabled={isLoading}
-                      style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 10, border: "none", background: destKey === key ? "#1b2740" : "#111a2c", color: destKey === key ? "#67e8f9" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 10, border: "none", background: destKey === key ? "#ede9fe" : "#f5f3ff", color: destKey === key ? "#a855f7" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                       {key}
                     </button>
                   ))}
@@ -375,28 +375,28 @@ export default function BridgeForm({ provider, address }: Props) {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                <div style={{ background: "#111a2c", borderRadius: 12, padding: "0.7rem 0.6rem", textAlign: "center" }}>
+                <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.7rem 0.6rem", textAlign: "center" }}>
                   <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>EST. TIME</div>
-                  <div style={{ fontSize: 13, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>~20 sec</div>
+                  <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>~20 sec</div>
                 </div>
-                <div style={{ background: "#111a2c", borderRadius: 12, padding: "0.7rem 0.6rem", textAlign: "center" }}>
+                <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.7rem 0.6rem", textAlign: "center" }}>
                   <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>MAX FEE</div>
-                  <div style={{ fontSize: 13, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>0.0005 USDC</div>
+                  <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>0.0005 USDC</div>
                 </div>
-                <div style={{ background: "#111a2c", borderRadius: 12, padding: "0.7rem 0.6rem", textAlign: "center" }}>
+                <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.7rem 0.6rem", textAlign: "center" }}>
                   <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 3 }}>YOU RECEIVE</div>
-                  <div style={{ fontSize: 13, color: "#f1f5f9", fontWeight: 700 }}>Native USDC</div>
+                  <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 700 }}>Native USDC</div>
                 </div>
               </div>
 
-              <div style={{ borderRadius: 16, background: "#111a2c", padding: "1rem 1.1rem" }}>
+              <div style={{ borderRadius: 16, background: "#f5f3ff", padding: "1rem 1.1rem" }}>
                 <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 10 }}>Amount</div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                   <input type="number" min="0.01" step="0.01" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
-                    style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 32, color: "#f8fafc", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
-                  <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#1b2740" }}>
-                    <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#22d3ee", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#04121f" }}>U</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>USDC</span>
+                    style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 32, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
+                  <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#ede9fe" }}>
+                    <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#ffffff" }}>U</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>USDC</span>
                   </span>
                 </div>
               </div>
@@ -414,14 +414,14 @@ export default function BridgeForm({ provider, address }: Props) {
                           <div style={{
                             width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
                             fontSize: 11, fontWeight: 800,
-                            background: isDone ? "#22d3ee" : isActive ? "#1b2740" : "#111a2c",
-                            color: isDone ? "#04121f" : isActive ? "#67e8f9" : "#475569",
+                            background: isDone ? "#7c3aed" : isActive ? "#ede9fe" : "#f5f3ff",
+                            color: isDone ? "#ffffff" : isActive ? "#a855f7" : "#475569",
                           }}>
                             {isDone ? "✓" : i + 1}
                           </div>
-                          <span style={{ fontSize: 9, color: isDone ? "#22d3ee" : isActive ? "#67e8f9" : "#475569" }}>{STEP_LABELS_SHORT[s]}</span>
+                          <span style={{ fontSize: 9, color: isDone ? "#7c3aed" : isActive ? "#a855f7" : "#475569" }}>{STEP_LABELS_SHORT[s]}</span>
                         </div>
-                        {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#22d3ee" : "#111a2c", marginBottom: 14 }} />}
+                        {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#7c3aed" : "#f5f3ff", marginBottom: 14 }} />}
                       </div>
                     );
                   })}
@@ -429,8 +429,8 @@ export default function BridgeForm({ provider, address }: Props) {
               )}
 
               {isLoading && (
-                <div style={{ background: "rgba(34,211,238,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-                  <p style={{ fontSize: 13, color: "#67e8f9", margin: 0 }}>{stepLabels[step]}</p>
+                <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
+                  <p style={{ fontSize: 13, color: "#a855f7", margin: 0 }}>{stepLabels[step]}</p>
                 </div>
               )}
 
@@ -442,15 +442,15 @@ export default function BridgeForm({ provider, address }: Props) {
                 </a>
               )}
               {mintTxHash && (
-                <div style={{ background: "rgba(34,211,238,0.1)", borderRadius: 12, padding: "1rem" }}>
-                  <p style={{ color: "#22d3ee", fontWeight: 700, marginBottom: 6 }}>Bridge complete!</p>
+                <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 12, padding: "1rem" }}>
+                  <p style={{ color: "#7c3aed", fontWeight: 700, marginBottom: 6 }}>Bridge complete!</p>
                   <a href={`${dest.chain.blockExplorers?.default.url ?? "https://testnet.arcscan.app"}/tx/${mintTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View mint on {destKey} ↗</a>
                 </div>
               )}
 
               <button onClick={step === "error" ? () => { setStep("idle"); setErrorMsg(null); } : doBridge}
                 disabled={isLoading || step === "done"}
-                style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#22d3ee", color: "#04121f", fontSize: 16, fontWeight: 700, cursor: isLoading || step === "done" ? "not-allowed" : "pointer", opacity: isLoading || step === "done" ? 0.5 : 1 }}>
+                style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: isLoading || step === "done" ? "not-allowed" : "pointer", opacity: isLoading || step === "done" ? 0.5 : 1 }}>
                 {step === "idle" && `Bridge to ${destKey}`}
                 {isLoading && "Processing..."}
                 {step === "done" && "Done!"}
@@ -464,7 +464,7 @@ export default function BridgeForm({ provider, address }: Props) {
                 </button>
               )}
 
-              <div style={{ background: "#0b1220", borderRadius: 12, padding: "0.6rem 0.875rem" }}>
+              <div style={{ background: "#ffffff", borderRadius: 12, padding: "0.6rem 0.875rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
                 <p style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5, margin: 0 }}>
                   {useCircle
                     ? "Circle Wallet needs USDC and native gas on both the source and destination chains."
@@ -475,28 +475,28 @@ export default function BridgeForm({ provider, address }: Props) {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <div style={{ background: "#0b1220", borderRadius: 18, padding: "1.1rem" }}>
+              <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
                 <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ABOUT CCTP V2</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>
                   <p style={{ margin: 0 }}>Circle's Cross-Chain Transfer Protocol burns USDC on the source chain and mints native USDC on the destination — no wrapped tokens, no bridge risk. Now supports any-to-any transfers among Arc, Ethereum Sepolia, Base Sepolia, and Arbitrum Sepolia.</p>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: "#64748b" }}>Protocol</span>
-                    <span style={{ color: "#f1f5f9", fontWeight: 600 }}>CCTP V2</span>
+                    <span style={{ color: "#1e293b", fontWeight: 600 }}>CCTP V2</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: "#64748b" }}>Route</span>
-                    <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{sourceKey} → {destKey}</span>
+                    <span style={{ color: "#1e293b", fontWeight: 600 }}>{sourceKey} → {destKey}</span>
                   </div>
                 </div>
               </div>
 
-              <div style={{ background: "#0b1220", borderRadius: 18, padding: "1.1rem" }}>
+              <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
                 <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT BRIDGES TO ARC</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {tickerItems.map((b) => (
                     <a key={b.hash} href={b.hash.startsWith("demo") ? undefined : `https://testnet.arcscan.app/tx/${b.hash}`} target="_blank" rel="noopener noreferrer"
-                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.55rem 0.7rem", borderRadius: 10, background: "#111a2c", textDecoration: "none", cursor: b.hash.startsWith("demo") ? "default" : "pointer" }}>
-                      <span style={{ fontSize: 11, color: "#22d3ee", fontWeight: 600 }}>Mint</span>
+                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.55rem 0.7rem", borderRadius: 10, background: "#f5f3ff", textDecoration: "none", cursor: b.hash.startsWith("demo") ? "default" : "pointer" }}>
+                      <span style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600 }}>Mint</span>
                       <span style={{ fontSize: 11, color: "#475569" }}>{b.age}</span>
                     </a>
                   ))}

@@ -223,20 +223,20 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: 460 }}>
-      <div style={{ background: "rgba(34,211,238,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-        <p style={{ fontSize: 12, color: "#67e8f9", margin: 0 }}>
+      <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
+        <p style={{ fontSize: 12, color: "#a855f7", margin: 0 }}>
           Supply USDC to earn interest, or deposit EURC as collateral to borrow USDC. 75% max LTV, liquidation at 85%.
         </p>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        <div style={{ background: "#111a2c", borderRadius: 12, padding: "0.8rem" }}>
+        <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.8rem" }}>
           <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>TOTAL SUPPLIED</div>
-          <div style={{ fontSize: 15, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${marketInfo?.supplied ?? "..."}</div>
+          <div style={{ fontSize: 15, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${marketInfo?.supplied ?? "..."}</div>
         </div>
-        <div style={{ background: "#111a2c", borderRadius: 12, padding: "0.8rem" }}>
+        <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.8rem" }}>
           <div style={{ fontSize: 9, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>UTILIZED</div>
-          <div style={{ fontSize: 15, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${marketInfo?.borrowed ?? "..."}</div>
+          <div style={{ fontSize: 15, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${marketInfo?.borrowed ?? "..."}</div>
         </div>
         <div style={{ background: "rgba(52,211,153,0.1)", borderRadius: 12, padding: "0.8rem" }}>
           <div style={{ fontSize: 9, color: "#6ee7b7", fontWeight: 700, marginBottom: 4 }}>SUPPLY APR</div>
@@ -246,62 +246,62 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
 
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={() => setTab("supply")}
-          style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: tab === "supply" ? "#1b2740" : "#111a2c", color: tab === "supply" ? "#67e8f9" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: tab === "supply" ? "#ede9fe" : "#f5f3ff", color: tab === "supply" ? "#a855f7" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
           Supply / Earn
         </button>
         <button onClick={() => setTab("borrow")}
-          style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: tab === "borrow" ? "#1b2740" : "#111a2c", color: tab === "borrow" ? "#67e8f9" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: tab === "borrow" ? "#ede9fe" : "#f5f3ff", color: tab === "borrow" ? "#a855f7" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
           Borrow
         </button>
       </div>
 
       {tab === "supply" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <div style={{ background: "#111a2c", borderRadius: 14, padding: "0.9rem 1rem" }}>
+          <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.9rem 1rem" }}>
             <div style={{ fontSize: 11, color: "#64748b" }}>Your Supply Balance</div>
-            <div style={{ fontSize: 22, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{mySupply} <span style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>USDC</span></div>
+            <div style={{ fontSize: 22, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{mySupply} <span style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>USDC</span></div>
           </div>
 
-          <div style={{ background: "#0b1220", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <label style={{ fontSize: 12, color: "#94a3b8" }}>Supply USDC — Balance: {balances.usdc ?? "..."}</label>
-              <button onClick={() => setSupplyAmount(balances.usdc ?? "0")} disabled={isLoading} style={{ background: "none", border: "none", color: "#22d3ee", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
+              <button onClick={() => setSupplyAmount(balances.usdc ?? "0")} disabled={isLoading} style={{ background: "none", border: "none", color: "#7c3aed", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input type="number" min="0" placeholder="0.00" value={supplyAmount} onChange={(e) => setSupplyAmount(e.target.value)} disabled={isLoading}
-                style={{ flex: 1, background: "#111a2c", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#f1f5f9", outline: "none" }} />
+                style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#1e293b", outline: "none" }} />
               <button onClick={doSupply} disabled={isLoading}
-                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#22d3ee", color: "#04121f", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 {isLoading ? "..." : "Supply"}
               </button>
             </div>
           </div>
 
-          <div style={{ background: "#0b1220", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 }}>
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-    <label style={{ fontSize: 12, color: "#94a3b8" }}>Withdraw USDC</label>
-    <button onClick={() => setWithdrawAmount(mySupply)} disabled={isLoading} style={{ background: "none", border: "none", color: "#22d3ee", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
-  </div>
-  <div style={{ display: "flex", gap: 8 }}>
-    <input type="number" min="0" placeholder="0.00" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} disabled={isLoading}
-      style={{ flex: 1, background: "#111a2c", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#f1f5f9", outline: "none" }} />
-    <button onClick={doWithdraw} disabled={isLoading}
-      style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#22d3ee", color: "#04121f", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
-      Withdraw
-    </button>
-  </div>
-</div>
+          <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label style={{ fontSize: 12, color: "#94a3b8" }}>Withdraw USDC</label>
+              <button onClick={() => setWithdrawAmount(mySupply)} disabled={isLoading} style={{ background: "none", border: "none", color: "#7c3aed", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input type="number" min="0" placeholder="0.00" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} disabled={isLoading}
+                style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#1e293b", outline: "none" }} />
+              <button onClick={doWithdraw} disabled={isLoading}
+                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#ede9fe", color: "#1e293b", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+                Withdraw
+              </button>
+            </div>
           </div>
+        </div>
       )}
 
       {tab === "borrow" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div style={{ background: "#111a2c", borderRadius: 14, padding: "0.9rem 1rem" }}>
+            <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.9rem 1rem" }}>
               <div style={{ fontSize: 10, color: "#64748b" }}>Your Collateral</div>
-              <div style={{ fontSize: 17, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{myCollateral} <span style={{ fontSize: 12, color: "#64748b" }}>EURC</span></div>
+              <div style={{ fontSize: 17, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{myCollateral} <span style={{ fontSize: 12, color: "#64748b" }}>EURC</span></div>
             </div>
-            <div style={{ background: "#111a2c", borderRadius: 14, padding: "0.9rem 1rem" }}>
+            <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.9rem 1rem" }}>
               <div style={{ fontSize: 10, color: "#64748b" }}>Your Debt</div>
               <div style={{ fontSize: 17, color: "#fca5a5", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{myDebt} <span style={{ fontSize: 12, color: "#64748b" }}>USDC</span></div>
             </div>
@@ -315,31 +315,31 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
             </div>
           )}
 
-          <div style={{ fontSize: 12, color: "#64748b" }}>Max borrowable: <span style={{ color: "#f1f5f9", fontWeight: 700 }}>{myMaxBorrow} USDC</span></div>
+          <div style={{ fontSize: 12, color: "#64748b" }}>Max borrowable: <span style={{ color: "#1e293b", fontWeight: 700 }}>{myMaxBorrow} USDC</span></div>
 
-          <div style={{ background: "#0b1220", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <label style={{ fontSize: 12, color: "#94a3b8" }}>Deposit Collateral (EURC) — Balance: {balances.eurc ?? "..."}</label>
-              <button onClick={() => setCollateralAmount(balances.eurc ?? "0")} disabled={isLoading} style={{ background: "none", border: "none", color: "#22d3ee", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
+              <button onClick={() => setCollateralAmount(balances.eurc ?? "0")} disabled={isLoading} style={{ background: "none", border: "none", color: "#7c3aed", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input type="number" min="0" placeholder="0.00" value={collateralAmount} onChange={(e) => setCollateralAmount(e.target.value)} disabled={isLoading}
-                style={{ flex: 1, background: "#111a2c", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#f1f5f9", outline: "none" }} />
+                style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#1e293b", outline: "none" }} />
               <button onClick={doDepositCollateral} disabled={isLoading}
-                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#22d3ee", color: "#04121f", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 {isLoading ? "..." : "Deposit"}
               </button>
             </div>
           </div>
 
-          <div style={{ background: "#0b1220", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <label style={{ fontSize: 12, color: "#94a3b8" }}>Borrow USDC</label>
-              <button onClick={() => setBorrowAmount(myMaxBorrow)} disabled={isLoading} style={{ background: "none", border: "none", color: "#22d3ee", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
+              <button onClick={() => setBorrowAmount(myMaxBorrow)} disabled={isLoading} style={{ background: "none", border: "none", color: "#7c3aed", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input type="number" min="0" placeholder="0.00" value={borrowAmount} onChange={(e) => setBorrowAmount(e.target.value)} disabled={isLoading}
-                style={{ flex: 1, background: "#111a2c", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#f1f5f9", outline: "none" }} />
+                style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#1e293b", outline: "none" }} />
               <button onClick={doBorrow} disabled={isLoading}
                 style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#ef4444", color: "#fff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 {isLoading ? "..." : "Borrow"}
@@ -347,16 +347,16 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
             </div>
           </div>
 
-          <div style={{ background: "#0b1220", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10 , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <label style={{ fontSize: 12, color: "#94a3b8" }}>Repay USDC — Balance: {balances.usdc ?? "..."}</label>
-              <button onClick={() => setRepayAmount(Number(myDebt) < Number(balances.usdc ?? 0) ? myDebt : (balances.usdc ?? "0"))} disabled={isLoading} style={{ background: "none", border: "none", color: "#22d3ee", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
+              <button onClick={() => setRepayAmount(Number(myDebt) < Number(balances.usdc ?? 0) ? myDebt : (balances.usdc ?? "0"))} disabled={isLoading} style={{ background: "none", border: "none", color: "#7c3aed", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>MAX</button>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input type="number" min="0" placeholder="0.00" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} disabled={isLoading}
-                style={{ flex: 1, background: "#111a2c", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#f1f5f9", outline: "none" }} />
+                style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#1e293b", outline: "none" }} />
               <button onClick={doRepay} disabled={isLoading}
-                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#1b2740", color: "#f1f5f9", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#ede9fe", color: "#1e293b", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 Repay
               </button>
             </div>

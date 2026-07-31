@@ -142,7 +142,7 @@ export default function CircleWallet() {
         </p>
       </div>
 
-      <div style={{ background: "#0b1220", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+      <div style={{ background: "#ffffff", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
         {!wallet && !showRestore && (
           <>
             <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
@@ -150,11 +150,11 @@ export default function CircleWallet() {
             </p>
             {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
             <button onClick={createWallet} disabled={loading}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#34d399", color: "#04121f", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#34d399", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
               {loading ? "Creating wallet..." : "Create Circle Wallet"}
             </button>
             <button onClick={loadPastWallets} disabled={loadingPast}
-              style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "#111a2c", color: "#67e8f9", fontSize: 13, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
+              style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "#f5f3ff", color: "#a855f7", fontSize: 13, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
               {loadingPast ? "Loading..." : "Restore a previous wallet"}
             </button>
           </>
@@ -174,18 +174,18 @@ export default function CircleWallet() {
                 return (
                   <div key={w.address} style={{ display: "flex", alignItems: "center", gap: 6, opacity: isHidden ? 0.4 : 1 }}>
                     <button onClick={() => restoreWallet(w)}
-                      style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, textAlign: "left", padding: "0.75rem 0.9rem", borderRadius: 12, border: "none", background: "#111a2c", cursor: "pointer" }}>
-                      <span style={{ fontSize: 12, color: "#f1f5f9", fontFamily: "ui-monospace, monospace" }}>{w.address}</span>
+                      style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, textAlign: "left", padding: "0.75rem 0.9rem", borderRadius: 12, border: "none", background: "#f5f3ff", cursor: "pointer" }}>
+                      <span style={{ fontSize: 12, color: "#1e293b", fontFamily: "ui-monospace, monospace" }}>{w.address}</span>
                       <span style={{ fontSize: 11, color: "#64748b" }}>{Object.keys(w.walletsByChain).length} chain(s){isHidden ? " · hidden" : ""}</span>
                     </button>
                     {isHidden ? (
                       <button onClick={(e) => unhideWallet(w.address, e)} title="Unhide"
-                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#111a2c", color: "#67e8f9", fontSize: 13, cursor: "pointer" }}>
+                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#f5f3ff", color: "#a855f7", fontSize: 13, cursor: "pointer" }}>
                         ↺
                       </button>
                     ) : (
                       <button onClick={(e) => hideWallet(w.address, e)} title="Hide from this list"
-                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#111a2c", color: "#64748b", fontSize: 14, cursor: "pointer" }}>
+                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#f5f3ff", color: "#64748b", fontSize: 14, cursor: "pointer" }}>
                         ×
                       </button>
                     )}
@@ -210,38 +210,38 @@ export default function CircleWallet() {
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-              <div style={{ background: "rgba(34,211,238,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#67e8f9", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>USDC</div>
-                <div style={{ fontSize: 16, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+              <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>USDC</div>
+                <div style={{ fontSize: 16, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.usdc ?? "0.00"}
                 </div>
               </div>
-              <div style={{ background: "rgba(99,102,241,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#a5b4fc", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>EURC</div>
-                <div style={{ fontSize: 16, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+              <div style={{ background: "rgba(168,85,247,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#c4b5fd", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>EURC</div>
+                <div style={{ fontSize: 16, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.eurc ?? "0.00"}
                 </div>
               </div>
               <div style={{ background: "rgba(249,115,22,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
                 <div style={{ fontSize: 10, color: "#fdba74", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>cirBTC</div>
-                <div style={{ fontSize: 16, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+                <div style={{ fontSize: 16, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.cirbtc ?? "0.000000"}
                 </div>
               </div>
             </div>
 
-            <div style={{ background: "#111a2c", borderRadius: 14, padding: "1rem" }}>
+            <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "1rem" }}>
               <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 6 }}>ADDRESS (SAME ON ALL CHAINS)</div>
-              <div style={{ fontSize: 13, color: "#f1f5f9", fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>{wallet.address}</div>
+              <div style={{ fontSize: 13, color: "#1e293b", fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>{wallet.address}</div>
             </div>
 
-            <div style={{ background: "#111a2c", borderRadius: 14, padding: "1rem" }}>
+            <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "1rem" }}>
               <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 8 }}>AVAILABLE ON</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {chainList.map((chain) => (
                   <div key={chain} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                     <span style={{ color: "#94a3b8" }}>{chain.replace("-", " ")}</span>
-                    <span style={{ color: "#67e8f9", fontWeight: 600 }}>✓ Ready</span>
+                    <span style={{ color: "#a855f7", fontWeight: 600 }}>✓ Ready</span>
                   </div>
                 ))}
               </div>
@@ -252,7 +252,7 @@ export default function CircleWallet() {
             </p>
 
             <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
-              style={{ display: "block", textAlign: "center", padding: "0.75rem", borderRadius: 12, border: "none", background: "rgba(99,102,241,0.1)", color: "#a5b4fc", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+              style={{ display: "block", textAlign: "center", padding: "0.75rem", borderRadius: 12, border: "none", background: "rgba(168,85,247,0.1)", color: "#c4b5fd", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
               View on Explorer ↗
             </a>
             <button onClick={forgetWallet}
@@ -260,7 +260,7 @@ export default function CircleWallet() {
               Create Another
             </button>
             <button onClick={loadPastWallets} disabled={loadingPast}
-              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "none", background: "transparent", color: "#67e8f9", fontSize: 12, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
+              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "none", background: "transparent", color: "#a855f7", fontSize: 12, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
               {loadingPast ? "Loading..." : "Switch to a previous wallet"}
             </button>
           </>
