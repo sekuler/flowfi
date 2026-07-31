@@ -3,7 +3,7 @@ import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHome from "./components/CopilotHome";
 import TokenLaunch from "./components/TokenLaunch";
 import LendingForm from "./components/LendingForm";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
@@ -112,10 +112,10 @@ function timeAgo(sec: number) {
 /* ---------- Soft pastel blob background ---------- */
 function PastelBackground() {
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: "#faf9ff" }}>
-      <div className="flowfi-blob-a" style={{ position: "absolute", top: "-10%", left: "-8%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, rgba(167,139,250,0.35) 0%, transparent 70%)", filter: "blur(50px)" }} />
-      <div className="flowfi-blob-b" style={{ position: "absolute", top: "20%", right: "-10%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(196,181,253,0.4) 0%, transparent 70%)", filter: "blur(50px)" }} />
-      <div className="flowfi-blob-a" style={{ position: "absolute", bottom: "-15%", left: "30%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(221,214,254,0.45) 0%, transparent 70%)", filter: "blur(50px)", animationDelay: "-8s" }} />
+    <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: "#F8F8FC" }}>
+      <div className="flowfi-blob-a" style={{ position: "absolute", top: "-10%", left: "-8%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,124,249,0.15) 0%, transparent 70%)", filter: "blur(50px)" }} />
+      <div className="flowfi-blob-b" style={{ position: "absolute", top: "20%", right: "-10%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(109,94,247,0.12) 0%, transparent 70%)", filter: "blur(50px)" }} />
+      <div className="flowfi-blob-a" style={{ position: "absolute", bottom: "-15%", left: "30%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(109,94,247,0.1) 0%, transparent 70%)", filter: "blur(50px)", animationDelay: "-8s" }} />
     </div>
   );
 }
@@ -214,8 +214,8 @@ export default function App() {
   const shortAddr = wallet ? wallet.address.slice(0, 6) + "..." + wallet.address.slice(-4) : "";
 
   const TOKEN_META: Record<string, { icon: string; color: string; bg: string }> = {
-    USDC: { icon: "$", color: "#7c3aed", bg: "rgba(124,58,237,0.08)" },
-    EURC: { icon: "€", color: "#a855f7", bg: "rgba(168,85,247,0.08)" },
+    USDC: { icon: "$", color: "#6D5EF7", bg: "rgba(109,94,247,0.08)" },
+    EURC: { icon: "€", color: "#6D5EF7", bg: "rgba(168,85,247,0.08)" },
     USYC: { icon: "Y", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
   };
 
@@ -268,10 +268,10 @@ export default function App() {
 
       <header style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 3rem", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 12, background: "linear-gradient(135deg, #a78bfa, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(124,58,237,0.35)" }}>◈</div>
+          <div style={{ width: 34, height: 34, borderRadius: 12, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(109,94,247,0.35)" }}>◈</div>
           <div>
             <div className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.1, color: "#1e293b" }}>FlowFi</div>
-            <div style={{ fontSize: 9, color: "#7c3aed", fontWeight: 700, letterSpacing: "1.5px" }}>AI DEFI OS</div>
+            <div style={{ fontSize: 9, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1.5px" }}>AI DEFI OS</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 24 }}>
@@ -286,8 +286,8 @@ export default function App() {
       </header>
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 760, margin: "0 auto", textAlign: "center", padding: "3.5rem 2rem 2.5rem" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 30, background: "rgba(124,58,237,0.1)", fontSize: 12, fontWeight: 700, color: "#7c3aed", marginBottom: 24 }}>
-          <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7c3aed" }} />
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 30, background: "rgba(109,94,247,0.1)", fontSize: 12, fontWeight: 700, color: "#6D5EF7", marginBottom: 24 }}>
+          <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#6D5EF7" }} />
           LIVE ON ARC TESTNET
         </div>
         <h1 className="flowfi-display" style={{ fontSize: 46, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-1.5px", marginBottom: 20, color: "#1e293b" }}>
@@ -299,7 +299,7 @@ export default function App() {
      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
   <WalletConnect onConnected={handleConnected} />
   <a href="https://x.com/flowfiarc/status/2078926068485173522" target="_blank" rel="noopener noreferrer"
-    style={{ display: "flex", alignItems: "center", gap: 6, color: "#7c3aed", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+    style={{ display: "flex", alignItems: "center", gap: 6, color: "#6D5EF7", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
     <span style={{ fontSize: 11 }}>▶</span> Watch Demo
   </a>
 </div>
@@ -308,7 +308,7 @@ export default function App() {
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px 20px" }}>
           {["Native USDC", "CCTP V2", "AI Copilot", "Lending", "Perpetuals", "Token Launch"].map((f) => (
             <div key={f} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#64748b" }}>
-              <span style={{ color: "#34d399", fontWeight: 800 }}>✓</span>
+              <span style={{ color: "#22C55E", fontWeight: 800 }}>✓</span>
               {f}
             </div>
           ))}
@@ -320,9 +320,9 @@ export default function App() {
           {LANDING_FEATURES.map((f, i) => {
             const Icon = LANDING_FEATURE_ICONS[i];
             return (
-              <div key={f.title} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 18, padding: "1.5rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(124,58,237,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-                  <Icon size={18} color="#7c3aed" strokeWidth={2} />
+              <div key={f.title} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 18, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #E8E3FF" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+                  <Icon size={18} color="#6D5EF7" strokeWidth={2} />
                 </div>
                 <h3 className="flowfi-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "#1e293b" }}>{f.title}</h3>
                 <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>{f.desc}</p>
@@ -340,20 +340,20 @@ export default function App() {
       {sharedStyle}
       <PastelBackground />
       <ToastContainer />
-      <aside style={{ width: 220, minHeight: "100vh", background: "rgba(255,255,255,0.75)", backdropFilter: "blur(24px)", boxShadow: "1px 0 0 rgba(124,58,237,0.08)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0, zIndex: 2 }}>
+      <aside style={{ width: 220, minHeight: "100vh", background: "rgba(255,255,255,0.75)", backdropFilter: "blur(24px)", boxShadow: "1px 0 0 rgba(109,94,247,0.08)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0, zIndex: 2 }}>
         <div style={{ padding: "0 1.25rem 1rem", marginBottom: "0.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 11, background: "linear-gradient(135deg, #a78bfa, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(124,58,237,0.35)" }}>◈</div>
+            <div style={{ width: 32, height: 32, borderRadius: 11, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(109,94,247,0.35)" }}>◈</div>
             <div>
               <div className="flowfi-display" style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>FlowFi</div>
-              <div style={{ fontSize: 9, color: "#7c3aed", fontWeight: 700, letterSpacing: "2px" }}>TESTNET</div>
+              <div style={{ fontSize: 9, color: "#6D5EF7", fontWeight: 700, letterSpacing: "2px" }}>TESTNET</div>
             </div>
           </div>
         </div>
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           {TAB_GROUPS.map(({ group, tabs }) => (
             <div key={group} style={{ marginBottom: 4 }}>
-              <div style={{ fontSize: 9, color: "#a78bfa", fontWeight: 800, letterSpacing: "1.5px", padding: "0.35rem 1rem 0.2rem" }}>{group}</div>
+              <div style={{ fontSize: 9, color: "#8B7CF9", fontWeight: 800, letterSpacing: "1.5px", padding: "0.35rem 1rem 0.2rem" }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 return (
@@ -361,7 +361,7 @@ export default function App() {
                     style={{
                       width: "100%", padding: "0.45rem 1rem", borderRadius: 999, border: "none",
                       background: active ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
-                      color: active ? "#7c3aed" : "#64748b",
+                      color: active ? "#6D5EF7" : "#64748b",
                       fontSize: 12.5, fontWeight: active ? 700 : 500, cursor: "pointer",
                       display: "flex", alignItems: "center", gap: 9, textAlign: "left",
                       marginBottom: 1,
@@ -375,16 +375,16 @@ export default function App() {
           ))}
         </nav>
         <div style={{ padding: "0.65rem 1.25rem", marginTop: "auto" }}>
-          <div style={{ fontSize: 10, color: "#a78bfa", marginBottom: 4, fontWeight: 700, letterSpacing: "1px" }}>CONNECTED</div>
+          <div style={{ fontSize: 10, color: "#8B7CF9", marginBottom: 4, fontWeight: 700, letterSpacing: "1px" }}>CONNECTED</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div className="flowfi-mono" style={{ fontSize: 13, color: "#475569" }}>{shortAddr}</div>
             <button onClick={copyAddress} title="Copy address"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: copied ? "#34d399" : "#94a3b8", display: "flex" }}>
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: copied ? "#22C55E" : "#94a3b8", display: "flex" }}>
               {copied ? <Check size={13} /> : <Copy size={13} />}
             </button>
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{wallet.walletName}</div>
-          <button onClick={() => setWallet(null)} style={{ marginTop: 10, fontSize: 11, color: "#7c3aed", background: "rgba(124,58,237,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
+          <button onClick={() => setWallet(null)} style={{ marginTop: 10, fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
         </div>
         <div style={{ padding: "0.5rem 1.25rem", display: "flex", flexDirection: "column", gap: 4 }}>
           {[
@@ -392,7 +392,7 @@ export default function App() {
             { label: "Explorer", href: "https://testnet.arcscan.app" },
             { label: "Faucet", href: "https://faucet.circle.com" },
           ].map(({ label, href }) => (
-            <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#7c3aed", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>{label} ↗</a>
+            <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#6D5EF7", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>{label} ↗</a>
           ))}
         </div>
       </aside>
@@ -400,33 +400,33 @@ export default function App() {
       <main style={{ marginLeft: 220, flex: 1, minHeight: "100vh", position: "relative", zIndex: 1 }}>
         <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: "1.25rem 2.5rem" }}>
           <button disabled title="Coming soon"
-            style={{ position: "relative", background: "rgba(124,58,237,0.08)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#7c3aed" }}>
+            style={{ position: "relative", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#6D5EF7" }}>
             <Bell size={16} />
             <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
           </button>
           <button disabled title="Coming soon"
-            style={{ position: "relative", background: "rgba(124,58,237,0.08)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#7c3aed" }}>
+            style={{ position: "relative", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#6D5EF7" }}>
             <Moon size={16} />
             <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
           </button>
-          <div style={{ width: 1, height: 20, background: "rgba(124,58,237,0.12)" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(52,211,153,0.1)" }}>
-            <span className="flowfi-live-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#34d399" }} />
-            <span style={{ fontSize: 12, fontWeight: 800, color: "#059669" }}>Arc Testnet</span>
+          <div style={{ width: 1, height: 20, background: "rgba(109,94,247,0.12)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(34,197,94,0.1)" }}>
+            <span className="flowfi-live-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E" }} />
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#16A34A" }}>Arc Testnet</span>
           </div>
           <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
             className="flowfi-mono"
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(124,58,237,0.1)", color: "#7c3aed", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
             {shortAddr}
           </a>
           <button onClick={() => setWallet(null)} title="Disconnect wallet"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#ef4444", cursor: "pointer" }}>
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
             <Power size={15} />
           </button>
         </header>
 
         <div style={{ padding: "2.5rem" }}>
-          <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "perps" || tab === "pools" || tab === "swap" || tab === "bridge" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
+          <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "home" ? 1200 : tab === "perps" || tab === "pools" || tab === "swap" || tab === "bridge" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#1e293b", marginBottom: 4, letterSpacing: "-0.5px" }}>
                 {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
@@ -443,26 +443,6 @@ export default function App() {
                 </div>
               )}
             </div>
-{tab === "home" && (
-  <div style={{ background: "linear-gradient(135deg, #f5f3ff, #ede9fe)", borderRadius: 18, padding: "1.1rem 1.25rem", marginBottom: "1.25rem", display: "flex", gap: 12, alignItems: "flex-start" }}>
-    <div style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 1px 3px rgba(124,58,237,0.15)" }}>
-      <Sparkles size={16} color="#7c3aed" />
-    </div>
-    <div style={{ flex: 1 }}>
-      <div className="flowfi-display" style={{ fontSize: 13, fontWeight: 700, color: "#7c3aed", marginBottom: 3 }}>AI Advisor</div>
-      <p style={{ fontSize: 12.5, color: "#5b21b6", lineHeight: 1.5, margin: 0 }}>
-        {balances.usdc && Number(balances.usdc) > 5
-          ? <>Your <b>{balances.usdc} USDC</b> is idle. Supplying to Lending currently offers a real yield instead of sitting flat.</>
-          : "Connect activity across Swap, Bridge, and Lending — Copilot will start surfacing suggestions here."}
-      </p>
-      {balances.usdc && Number(balances.usdc) > 5 && (
-        <button onClick={() => setTab("lending")} style={{ marginTop: 8, background: "#ffffff", border: "none", borderRadius: 999, padding: "5px 14px", color: "#7c3aed", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 1px 3px rgba(124,58,237,0.15)" }}>
-          Review →
-        </button>
-      )}
-    </div>
-  </div>
-)}
 {tab === "home" && <CopilotHome address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
 {tab === "portfolio" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -472,7 +452,7 @@ export default function App() {
                     const meta = TOKEN_META[label];
                     const usd = usdEquivalent(label, value);
                     return (
-                      <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+                      <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #E8E3FF" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                           {label === "USDC" || label === "EURC" ? (
   <img src={label === "USDC" ? "https://assets.coingecko.com/coins/images/6319/small/usdc.png" : "https://assets.coingecko.com/coins/images/26045/small/euro.png"} alt={label} style={{ width: 20, height: 20, borderRadius: "50%" }} />
@@ -488,7 +468,7 @@ export default function App() {
                   })}
                 </div>
 
-                <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+                <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #E8E3FF" }}>
                   <div>
                     <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>ARC</div>
                     <div style={{ fontSize: 13, color: "#64748b" }}>Gas Balance</div>
@@ -497,7 +477,7 @@ export default function App() {
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <button onClick={() => loadBalances(wallet.address)} style={{ background: "#ffffff", border: "none", borderRadius: 999, padding: "0.5rem 1rem", color: "#7c3aed", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+                  <button onClick={() => loadBalances(wallet.address)} style={{ background: "#ffffff", border: "none", borderRadius: 999, padding: "0.5rem 1rem", color: "#6D5EF7", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
                     <RefreshCw size={12} style={{ marginRight: 5, verticalAlign: -1 }} />Refresh
                   </button>
                   {lastUpdated && (
@@ -508,13 +488,13 @@ export default function App() {
                 <div>
                   <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, letterSpacing: "1px", marginBottom: 10 }}>QUICK ACTIONS</div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => setTab("send")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#7c3aed", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}><ArrowUpRight size={16} />Send</button>
-                    <button onClick={() => setTab("receive")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#7c3aed", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}><ArrowDownLeft size={16} />Receive</button>
-                    <button onClick={() => setTab("swap")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#7c3aed", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}><Repeat size={16} />Swap</button>
-                    <button onClick={() => setTab("bridge")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#7c3aed", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}><Hexagon size={16} />Bridge</button>
+                    <button onClick={() => setTab("send")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}><ArrowUpRight size={16} />Send</button>
+                    <button onClick={() => setTab("receive")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}><ArrowDownLeft size={16} />Receive</button>
+                    <button onClick={() => setTab("swap")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}><Repeat size={16} />Swap</button>
+                    <button onClick={() => setTab("bridge")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}><Hexagon size={16} />Bridge</button>
                   </div>
-                  </div>
-      
+                </div>
+
                 <UnifiedBalance address={wallet.address} />
 
                 <AiNarrator address={wallet.address} balances={balances} />
@@ -523,12 +503,12 @@ export default function App() {
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, letterSpacing: "1px" }}>RECENT ACTIVITY</span>
-                      <button onClick={() => setTab("history")} style={{ background: "none", border: "none", color: "#7c3aed", fontSize: 11, cursor: "pointer" }}>View all →</button>
+                      <button onClick={() => setTab("history")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 11, cursor: "pointer" }}>View all →</button>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {recentTxs.map((tx) => (
                         <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
-                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 12, background: "#ffffff", textDecoration: "none", boxShadow: "0 1px 3px rgba(124,58,237,0.06)" }}>
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 12, background: "#ffffff", textDecoration: "none", boxShadow: "0 1px 3px rgba(124,58,237,0.06)" , border: "1px solid #E8E3FF" }}>
                           <span style={{ fontSize: 12, color: "#475569" }}>{tx.method}</span>
                           <span style={{ fontSize: 11, color: "#94a3b8" }}>{tx.age}</span>
                         </a>
@@ -538,9 +518,9 @@ export default function App() {
                 )}
 
                 <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderRadius: 12, border: "none", background: "rgba(124,58,237,0.08)", color: "#7c3aed", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderRadius: 12, border: "none", background: "rgba(109,94,247,0.08)", color: "#6D5EF7", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
                   <span>View on Explorer ↗</span>
-                  <span className="flowfi-mono" style={{ fontSize: 11, color: "#7c3aed" }}>{shortAddr}</span>
+                  <span className="flowfi-mono" style={{ fontSize: 11, color: "#6D5EF7" }}>{shortAddr}</span>
                 </a>
               </div>
             )}
