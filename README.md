@@ -82,15 +82,15 @@ FlowFi unifies the entire stablecoin experience into a single interface built sp
 
 ## Deployed Contracts (Arc Testnet)
 
-| Contract | Address | Purpose |
-|---|---|---|
-| ArcSwap | [`0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1`](https://testnet.arcscan.app/address/0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1) | Fixed-rate USDC/EURC swap |
-| ArcEscrow | [`0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75`](https://testnet.arcscan.app/address/0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75) | Conditional freelance payments |
-| ArcPerps | [`0x3B4cE1734087e1c67474Ff42982063febE3E4B20`](https://testnet.arcscan.app/address/0x3B4cE1734087e1c67474Ff42982063febE3E4B20) | Leveraged BTC/ETH trading |
-| ArcFactory | [`0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9`](https://testnet.arcscan.app/address/0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9) | Permissionless AMM pool creation |
-| ArcLending | [`0xD3e0171CaCd799E49155eE48981841E9a9d225ab`](https://testnet.arcscan.app/address/0xD3e0171CaCd799E49155eE48981841E9a9d225ab) | USDC lending market with EURC collateral |
-| ArcTokenFactory | [`0x481E8919f79A4DA6446EA78cEa70037acB9c85A1`](https://testnet.arcscan.app/address/0x481E8919f79A4DA6446EA78cEa70037acB9c85A1) | Permissionless ERC20 token launch |
-
+| Contract | Address | Purpose | Verified |
+|---|---|---|---|
+| ArcSwap | [`0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1`](https://testnet.arcscan.app/address/0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1?tab=contract) | Fixed-rate USDC/EURC swap | ✅ |
+| ArcEscrow | [`0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75`](https://testnet.arcscan.app/address/0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75?tab=contract) | Conditional freelance payments | ✅ |
+| ArcPerps | [`0x3B4cE1734087e1c67474Ff42982063febE3E4B20`](https://testnet.arcscan.app/address/0x3B4cE1734087e1c67474Ff42982063febE3E4B20?tab=contract) | Leveraged BTC/ETH trading | ✅ |
+| ArcFactory | [`0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9`](https://testnet.arcscan.app/address/0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9?tab=contract) | Permissionless AMM pool creation (legacy) | ✅ |
+| ArcFactoryV2 | [`0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8`](https://testnet.arcscan.app/address/0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8?tab=contract) | Permissionless AMM with real swap function | ✅ |
+| ArcLending | [`0xD3e0171CaCd799E49155eE48981841E9a9d225ab`](https://testnet.arcscan.app/address/0xD3e0171CaCd799E49155eE48981841E9a9d225ab?tab=contract) | USDC lending market with EURC collateral | ✅ |
+| ArcTokenFactory | [`0x481E8919f79A4DA6446EA78cEa70037acB9c85A1`](https://testnet.arcscan.app/address/0x481E8919f79A4DA6446EA78cEa70037acB9c85A1?tab=contract) | Permissionless ERC20 token launch | ✅ |
 
 
 Explore each contract directly:
