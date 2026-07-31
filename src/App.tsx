@@ -67,6 +67,7 @@ const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[]
   group: "TRADING",
   tabs: [
     { id: "swap",      label: "Swap",      Icon: Repeat },
+    { id: "bridge",    label: "Bridge",    Icon: Hexagon },
     { id: "perps",     label: "Perpetuals", Icon: TrendingUp },
     { id: "pools",     label: "Liquidity Pools", Icon: Droplet },
     { id: "lending",   label: "Lending",   Icon: Landmark },
@@ -76,7 +77,6 @@ const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[]
   {
     group: "INFRASTRUCTURE",
     tabs: [
-      { id: "bridge",    label: "Bridge",    Icon: Hexagon },
       { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
     ],
   },
