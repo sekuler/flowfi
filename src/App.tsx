@@ -3,7 +3,7 @@ import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHome from "./components/CopilotHome";
 import TokenLaunch from "./components/TokenLaunch";
 import LendingForm from "./components/LendingForm";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
@@ -132,7 +132,34 @@ function useFlowFiFonts() {
   }, []);
 }
 
-export default function App() {
+/* ---------- Error boundary: prevents a full blank white screen on a render crash ---------- */
+class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; message: string }> {
+  state = { hasError: false, message: "" };
+  static getDerivedStateFromError(err: unknown) {
+    return { hasError: true, message: err instanceof Error ? err.message : "Something went wrong." };
+  }
+  componentDidCatch(err: unknown) {
+    console.error("FlowFi render error:", err);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "#F8F8FC", padding: "2rem", textAlign: "center" }}>
+          <div style={{ fontSize: 40 }}>⚠️</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>Something went wrong</div>
+          <div style={{ fontSize: 13, color: "#6B7280", maxWidth: 400 }}>{this.state.message}</div>
+          <button onClick={() => window.location.reload()}
+            style={{ padding: "0.75rem 1.5rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            Reload page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function AppInner() {
   useFlowFiFonts();
 
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
@@ -558,5 +585,13 @@ export default function App() {
 
       <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AppErrorBoundary>
+      <AppInner />
+    </AppErrorBoundary>
   );
 }
