@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 import {
-  Repeat, Hexagon, Rocket, Droplet, Sparkles, TrendingUp, TrendingDown,
+  Repeat, Hexagon, Rocket, Droplet, Sparkles, TrendingUp,
   ChevronRight, ArrowUpRight, ExternalLink, ShieldCheck,
 } from "lucide-react";
 
