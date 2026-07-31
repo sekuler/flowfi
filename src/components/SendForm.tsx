@@ -291,11 +291,11 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
       {circleWallet && (
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => setUseCircle(false)} disabled={isLoading}
-            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
             Browser Wallet
           </button>
           <button onClick={() => setUseCircle(true)} disabled={isLoading}
-            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
             Circle Wallet
           </button>
         </div>
@@ -321,7 +321,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
             disabled={aiParsing || isLoading}
             style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.9rem", fontSize: 13, color: "#111827", outline: "none" }} />
           <button onClick={parseAiCommand} disabled={aiParsing || isLoading || !aiCommand.trim()}
-            style={{ padding: "0.65rem 1.1rem", borderRadius: 10, border: "none", background: "#a855f7", color: "#fff", fontSize: 18, fontWeight: 900, cursor: aiParsing || !aiCommand.trim() ? "not-allowed" : "pointer", opacity: aiParsing || !aiCommand.trim() ? 0.6 : 1 }}>
+            style={{ padding: "0.65rem 1.1rem", borderRadius: 10, border: "none", background: "#5B21B6", color: "#fff", fontSize: 18, fontWeight: 900, cursor: aiParsing || !aiCommand.trim() ? "not-allowed" : "pointer", opacity: aiParsing || !aiCommand.trim() ? 0.6 : 1 }}>
             {aiParsing ? "..." : "➢"}
           </button>
         </div>
@@ -335,7 +335,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
           <div style={{ display: "flex", gap: 8 }}>
             {TOKENS.map((t) => (
               <button key={t} onClick={function () { setToken(t); }} disabled={isLoading}
-                style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: token === t ? "#ede9fe" : "#f5f3ff", color: token === t ? "#a855f7" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: token === t ? "#ede9fe" : "#f5f3ff", color: token === t ? "#5B21B6" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                 {t}
               </button>
             ))}
@@ -347,7 +347,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
             <label style={{ fontSize: 11, color: "#4B5563", fontWeight: 600 }}>Recipient Address or .arc Name</label>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={pasteAddress} disabled={isLoading}
-                style={{ background: "none", border: "none", color: "#a855f7", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                style={{ background: "none", border: "none", color: "#5B21B6", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
                 Paste
               </button>
               <button onClick={function () { setShowAddressBook(!showAddressBook); }} disabled={isLoading}
@@ -388,7 +388,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
 
           {canSaveContact && !showSaveContact && (
             <button onClick={function () { setShowSaveContact(true); }}
-              style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#a855f7", fontSize: 11, cursor: "pointer", padding: 0 }}>
+              style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#5B21B6", fontSize: 11, cursor: "pointer", padding: 0 }}>
               + Save to address book
             </button>
           )}
@@ -422,12 +422,12 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
         {txHash && sendState === "done" && (
           <div style={{ background: "rgba(52,211,153,0.1)", borderRadius: 12, padding: "1rem" }}>
             <p style={{ color: "#16A34A", fontWeight: 700, marginBottom: 6 }}>Sent successfully!</p>
-            <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View on Explorer</a>
+            <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#2563EB", fontSize: 13 }}>View on Explorer</a>
           </div>
         )}
         <button onClick={sendState === "error" ? function () { setSendState("idle"); setErrorMsg(null); } : doSend}
           disabled={isLoading || sendState === "done"}
-          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#34d399", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: isLoading || sendState === "done" ? "not-allowed" : "pointer", opacity: isLoading || sendState === "done" ? 0.5 : 1 }}>
+          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: isLoading || sendState === "done" ? "not-allowed" : "pointer", opacity: isLoading || sendState === "done" ? 0.5 : 1 }}>
           {sendState === "idle" && "Send"}
           {sendState === "sending" && "Sending..."}
           {sendState === "done" && "Sent!"}

@@ -270,11 +270,11 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             {circleWallet && (
               <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
                 <button onClick={() => setUseCircle(false)} disabled={isLoading}
-                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#a855f7" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                   Browser Wallet
                 </button>
                 <button onClick={() => setUseCircle(true)} disabled={isLoading}
-                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#a855f7" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                   Circle Wallet
                 </button>
               </div>
@@ -373,7 +373,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#4B5563" }}>Fee</span>
-                  <span style={{ color: "#34d399", fontWeight: 600 }}>0% — fixed-rate pool</span>
+                  <span style={{ color: "#16A34A", fontWeight: 600 }}>0% — fixed-rate pool</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#4B5563" }}>Minimum received</span>
@@ -389,7 +389,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             {txHash && swapState === "done" && (
               <div style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 12, padding: "1rem" }}>
                 <p style={{ color: "#7c3aed", fontWeight: 700, marginBottom: 6 }}>Swap successful!</p>
-                <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View on explorer</a>
+                <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#2563EB", fontSize: 13 }}>View on explorer</a>
               </div>
             )}
 
@@ -407,7 +407,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                         fontSize: 11, fontWeight: 700,
                         background: done ? "#7c3aed" : active ? "rgba(168,85,247,0.25)" : "rgba(109,94,247,0.1)",
                         color: done ? "#ffffff" : active ? "#7C3AED" : "#374151",
-                        border: active ? "1px solid #a855f7" : "none",
+                        border: active ? "1px solid #5B21B6" : "none",
                       }}>
                         {done ? "✓" : i + 1}
                       </div>

@@ -280,13 +280,13 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 460 }}>
       <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-        <p style={{ fontSize: 12, color: "#a855f7", margin: 0 }}>
+        <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>
           Permissionless AMM factory — anyone can create a pool for any token pair, add liquidity, and swap.
         </p>
       </div>
 
       <button onClick={() => setShowCreate(!showCreate)}
-        style={{ width: "100%", padding: "0.8rem", borderRadius: 12, border: "none", background: "#f5f3ff", color: "#a855f7", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+        style={{ width: "100%", padding: "0.8rem", borderRadius: 12, border: "none", background: "#f5f3ff", color: "#5B21B6", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
         {showCreate ? "Cancel" : "+ Create New Pool"}
       </button>
 
@@ -622,16 +622,16 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
           <div style={{ display: "flex", gap: 6 }}>
             {swapSupported && (
               <button onClick={() => setMode("swap")}
-                style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "swap" ? "#ede9fe" : "#f5f3ff", color: mode === "swap" ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "swap" ? "#ede9fe" : "#f5f3ff", color: mode === "swap" ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                 Swap
               </button>
             )}
             <button onClick={() => setMode("add")}
-              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "add" ? "#ede9fe" : "#f5f3ff", color: mode === "add" ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "add" ? "#ede9fe" : "#f5f3ff", color: mode === "add" ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               Add
             </button>
             <button onClick={() => setMode("remove")}
-              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "remove" ? "#ede9fe" : "#f5f3ff", color: mode === "remove" ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "remove" ? "#ede9fe" : "#f5f3ff", color: mode === "remove" ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               Remove
             </button>
           </div>
@@ -645,7 +645,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 50, textAlign: "center" }}>{swapTokenIn?.symbol}</span>
               </div>
               <button onClick={() => setSwapDirAtoB(!swapDirAtoB)} disabled={isSwapLoading}
-                style={{ alignSelf: "center", background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 8, padding: "4px 12px", color: "#a855f7", fontSize: 14, cursor: "pointer" }}>
+                style={{ alignSelf: "center", background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 8, padding: "4px 12px", color: "#5B21B6", fontSize: 14, cursor: "pointer" }}>
                 ⇅
               </button>
               <div style={{ fontSize: 10, color: "#4B5563" }}>You receive (estimated)</div>
@@ -655,10 +655,10 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
               </div>
               {swapError && <div style={{ fontSize: 11, color: "#DC2626" }}>{swapError}</div>}
               {swapTxHash && swapState === "done" && (
-                <a href={`https://testnet.arcscan.app/tx/${swapTxHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#60a5fa" }}>View on explorer</a>
+                <a href={`https://testnet.arcscan.app/tx/${swapTxHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#2563EB" }}>View on explorer</a>
               )}
               <button onClick={doSwap} disabled={isSwapLoading}
-                style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "linear-gradient(90deg, #7c3aed, #a855f7)", color: "#ffffff", fontSize: 12, fontWeight: 700, cursor: isSwapLoading ? "not-allowed" : "pointer", opacity: isSwapLoading ? 0.6 : 1 }}>
+                style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "linear-gradient(90deg, #7c3aed, #5B21B6)", color: "#ffffff", fontSize: 12, fontWeight: 700, cursor: isSwapLoading ? "not-allowed" : "pointer", opacity: isSwapLoading ? 0.6 : 1 }}>
                 {swapState === "approving" && "Approving..."}
                 {swapState === "swapping" && "Swapping..."}
                 {(swapState === "idle" || swapState === "error" || swapState === "done") && "Swap"}
