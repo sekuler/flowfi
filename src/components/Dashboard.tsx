@@ -156,63 +156,63 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
   }, [address, total]);
 
   const distribution = [
-    { label: "USDC", value: usdcVal, color: "#2563eb" },
-    { label: "EURC", value: eurcVal, color: "#7c3aed" },
-    { label: "USYC", value: usycVal, color: "#f59e0b" },
+    { label: "USDC", value: usdcVal, color: "#3B82F6" },
+    { label: "EURC", value: eurcVal, color: "#22C55E" },
+    { label: "USYC", value: usycVal, color: "#F59E0B" },
   ].filter(d => d.value > 0);
 
   const quickActions = [
-    { key: "swap" as const, label: "Swap", emoji: "⇄", color: "#8b5cf6" },
-    { key: "bridge" as const, label: "Bridge", emoji: "⬡", color: "#3b82f6" },
-    { key: "send" as const, label: "Send", emoji: "↗", color: "#10b981" },
-    { key: "perps" as const, label: "Trade", emoji: "▲", color: "#f43f5e" },
+    { key: "swap" as const, label: "Swap", emoji: "⇄", color: "#6D5EF7" },
+    { key: "bridge" as const, label: "Bridge", emoji: "⬡", color: "#3B82F6" },
+    { key: "send" as const, label: "Send", emoji: "↗", color: "#22C55E" },
+    { key: "perps" as const, label: "Trade", emoji: "▲", color: "#F43F5E" },
   ];
 
   const CATEGORY_META: Record<string, { label: string; color: string; bg: string }> = {
-    income: { label: "Income", color: "#6ee7b7", bg: "rgba(16,185,129,0.1)" },
-    expense: { label: "Sent", color: "#fca5a5", bg: "rgba(239,68,68,0.1)" },
-    bridge: { label: "Bridge", color: "#93c5fd", bg: "rgba(59,130,246,0.1)" },
-    other: { label: "Activity", color: "#c4b5fd", bg: "rgba(139,92,246,0.1)" },
+    income: { label: "Income", color: "#16A34A", bg: "rgba(34,197,94,0.1)" },
+    expense: { label: "Sent", color: "#DC2626", bg: "rgba(239,68,68,0.1)" },
+    bridge: { label: "Bridge", color: "#2563EB", bg: "rgba(59,130,246,0.1)" },
+    other: { label: "Activity", color: "#6D5EF7", bg: "rgba(109,94,247,0.1)" },
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Hero: net worth */}
-      <div style={{ background: "linear-gradient(135deg, rgba(79,70,229,0.12), rgba(124,58,237,0.08))", border: "1px solid rgba(79,70,229,0.25)", borderRadius: 18, padding: "1.75rem" }}>
-        <div style={{ fontSize: 11, color: "#a5b4fc", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 8 }}>NET WORTH</div>
-        <div style={{ fontSize: 42, fontWeight: 800, color: "#f8fafc", marginBottom: 8 }}>${total.toFixed(2)}</div>
+      <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.75rem" }}>
+        <div style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 8 }}>NET WORTH</div>
+        <div className="flowfi-mono" style={{ fontSize: 42, fontWeight: 800, color: "#1e293b", marginBottom: 8 }}>${total.toFixed(2)}</div>
 
         <div style={{ display: "flex", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontSize: 11, color: "#818cf8" }}>Today</span>
+            <span style={{ fontSize: 11, color: "#7c6ff0" }}>Today</span>
             {dailyChange.hasData ? (
-              <span style={{ fontSize: 12, fontWeight: 700, color: dailyChange.pct >= 0 ? "#6ee7b7" : "#fca5a5" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: dailyChange.pct >= 0 ? "#16A34A" : "#DC2626" }}>
                 {dailyChange.pct >= 0 ? "▲" : "▼"} {Math.abs(dailyChange.pct).toFixed(1)}%
               </span>
             ) : (
-              <span style={{ fontSize: 11, color: "#475569" }}>tracking...</span>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>tracking...</span>
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontSize: 11, color: "#818cf8" }}>This Week</span>
+            <span style={{ fontSize: 11, color: "#7c6ff0" }}>This Week</span>
             {weeklyChange.hasData ? (
-              <span style={{ fontSize: 12, fontWeight: 700, color: weeklyChange.pct >= 0 ? "#6ee7b7" : "#fca5a5" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: weeklyChange.pct >= 0 ? "#16A34A" : "#DC2626" }}>
                 {weeklyChange.pct >= 0 ? "▲" : "▼"} {Math.abs(weeklyChange.pct).toFixed(1)}%
               </span>
             ) : (
-              <span style={{ fontSize: 11, color: "#475569" }}>tracking...</span>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>tracking...</span>
             )}
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
-          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "0.85rem 1rem" }}>
-            <div style={{ fontSize: 10, color: "#93c5fd", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE USDC</div>
-            <div style={{ fontSize: 18, color: "#f1f5f9", fontWeight: 800 }}>{balances.usdc ?? "..."}</div>
+          <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
+            <div style={{ fontSize: 10, color: "#3B82F6", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE USDC</div>
+            <div className="flowfi-mono" style={{ fontSize: 18, color: "#1e293b", fontWeight: 800 }}>{balances.usdc ?? "..."}</div>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "0.85rem 1rem" }}>
-            <div style={{ fontSize: 10, color: "#c4b5fd", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE EURC</div>
-            <div style={{ fontSize: 18, color: "#f1f5f9", fontWeight: 800 }}>{balances.eurc ?? "..."}</div>
+          <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
+            <div style={{ fontSize: 10, color: "#22C55E", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE EURC</div>
+            <div className="flowfi-mono" style={{ fontSize: 18, color: "#1e293b", fontWeight: 800 }}>{balances.eurc ?? "..."}</div>
           </div>
         </div>
       </div>
@@ -221,18 +221,18 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
         {quickActions.map((a) => (
           <button key={a.key} onClick={() => onNavigate(a.key)}
-            style={{ background: `${a.color}14`, border: `1px solid ${a.color}30`, borderRadius: 14, padding: "1.1rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: `${a.color}22`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, color: a.color }}>{a.emoji}</div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#f1f5f9" }}>{a.label}</span>
+            style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1.1rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+            <div style={{ width: 38, height: 38, borderRadius: 12, background: `${a.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, color: a.color }}>{a.emoji}</div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#1e293b" }}>{a.label}</span>
           </button>
         ))}
       </div>
 
       {/* Portfolio allocation */}
-      <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.25rem" }}>
-        <div style={{ fontSize: 11, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>PORTFOLIO ALLOCATION</div>
+      <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>PORTFOLIO ALLOCATION</div>
         {total === 0 ? (
-          <div style={{ fontSize: 12, color: "#334155" }}>No balances yet.</div>
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>No balances yet.</div>
         ) : (
           <>
             <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
@@ -245,9 +245,9 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
                 <div key={d.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color }} />
-                    <span style={{ color: "#94a3b8" }}>{d.label}</span>
+                    <span style={{ color: "#64748b" }}>{d.label}</span>
                   </div>
-                  <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{((d.value / total) * 100).toFixed(1)}%</span>
+                  <span style={{ color: "#1e293b", fontWeight: 700 }}>{((d.value / total) * 100).toFixed(1)}%</span>
                 </div>
               ))}
             </div>
@@ -257,36 +257,36 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
 
       {/* Activity stats row */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
-        <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: 14, padding: "1rem 1.1rem" }}>
-          <div style={{ fontSize: 19, fontWeight: 800, color: "#6ee7b7" }}>{loading ? "..." : incomingCount}</div>
-          <div style={{ fontSize: 11, color: "#475569" }}>Incoming (recent)</div>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#16A34A" }}>{loading ? "..." : incomingCount}</div>
+          <div style={{ fontSize: 11, color: "#94a3b8" }}>Incoming (recent)</div>
         </div>
-        <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 14, padding: "1rem 1.1rem" }}>
-          <div style={{ fontSize: 19, fontWeight: 800, color: "#fca5a5" }}>{loading ? "..." : outgoingCount}</div>
-          <div style={{ fontSize: 11, color: "#475569" }}>Sent (recent)</div>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#DC2626" }}>{loading ? "..." : outgoingCount}</div>
+          <div style={{ fontSize: 11, color: "#94a3b8" }}>Sent (recent)</div>
         </div>
-        <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1rem 1.1rem" }}>
-          <div style={{ fontSize: 19, fontWeight: 800, color: "#f1f5f9" }}>{loading ? "..." : txCount ?? 0}</div>
-          <div style={{ fontSize: 11, color: "#475569" }}>All-time transactions</div>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#1e293b" }}>{loading ? "..." : txCount ?? 0}</div>
+          <div style={{ fontSize: 11, color: "#94a3b8" }}>All-time transactions</div>
         </div>
       </div>
 
       {/* Recent activity, categorized */}
-      <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.25rem" }}>
-        <div style={{ fontSize: 11, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
-        {loading && <div style={{ fontSize: 12, color: "#334155" }}>Loading...</div>}
-        {!loading && recentActivity.length === 0 && <div style={{ fontSize: 12, color: "#334155" }}>No transactions yet.</div>}
+      <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
+        {loading && <div style={{ fontSize: 12, color: "#94a3b8" }}>Loading...</div>}
+        {!loading && recentActivity.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>No transactions yet.</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {recentActivity.map((tx) => {
             const meta = CATEGORY_META[tx.category];
             return (
               <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.8rem", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}>
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.8rem", borderRadius: 12, background: "#f5f3ff", textDecoration: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: meta.color, background: meta.bg, padding: "2px 8px", borderRadius: 6 }}>{meta.label}</span>
-                  {tx.amount && <span style={{ fontSize: 12, color: "#94a3b8" }}>${tx.amount}</span>}
+                  {tx.amount && <span style={{ fontSize: 12, color: "#475569" }}>${tx.amount}</span>}
                 </div>
-                <span style={{ fontSize: 11, color: "#334155" }}>{tx.age}</span>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>{tx.age}</span>
               </a>
             );
           })}

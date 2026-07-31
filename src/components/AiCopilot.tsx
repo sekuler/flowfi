@@ -69,7 +69,7 @@ async function switchToArc(provider: EIP1193Provider) {
   } catch (e: unknown) {
     const err = e as { code?: number };
     if (err.code === 4902) {
-      await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.testnet.arc.network"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
+      await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://arc-testnet.g.alchemy.com/v2/alch_1L2dTNapY_mz3YEIsoVEN"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
     } else throw e;
   }
 }
@@ -220,55 +220,54 @@ Respond with ONLY the JSON object.`,
   return (
     <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
       {open && (
-        <div style={{ width: 360, maxHeight: 480, background: "#0d1b2f", border: "1px solid rgba(79,70,229,0.3)", borderRadius: 18, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.1))" }}>
+        <div style={{ width: 360, maxHeight: 480, background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, boxShadow: "0 16px 48px rgba(109,94,247,0.2)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 1.1rem", background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 7, background: "linear-gradient(135deg, #4f46e5, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>✦</div>
-              <span style={{ fontSize: 13, fontWeight: 800, color: "#f1f5f9" }}>FlowFi Copilot</span>
+              <div style={{ width: 24, height: 24, borderRadius: 8, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff" }}>✦</div>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#1e293b" }}>FlowFi Copilot</span>
             </div>
-            <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 16 }}>✕</button>
+            <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 16 }}>✕</button>
           </div>
 
           <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: 10, minHeight: 200, maxHeight: 320 }}>
             {messages.length === 0 && (
-              <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>
                 Try: "swap 10 USDC to EURC", "send 5 USDC to 0x...", "open a 5x BTC long with 20 USDC", or "create a pool for ARCC/EURC".
               </div>
             )}
             {messages.map((m, i) => (
               <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "90%" }}>
                 <div style={{
-                  background: m.role === "user" ? "rgba(79,70,229,0.18)" : "rgba(255,255,255,0.03)",
-                  border: m.role === "user" ? "1px solid rgba(79,70,229,0.3)" : "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 10, padding: "0.6rem 0.8rem", fontSize: 13, color: m.role === "user" ? "#c7d2fe" : "#cbd5e1", lineHeight: 1.5,
+                  background: m.role === "user" ? "#6D5EF7" : "#f5f3ff",
+                  borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: m.role === "user" ? "#ffffff" : "#475569", lineHeight: 1.5,
                 }}>
                   {m.content}
                 </div>
                 {m.action && m.action.action !== "unknown" && !m.confirmed && (
-                  <div style={{ marginTop: 6, background: "rgba(79,70,229,0.06)", border: "1px solid rgba(79,70,229,0.2)", borderRadius: 10, padding: "0.7rem 0.8rem" }}>
+                  <div style={{ marginTop: 6, background: "#f5f3ff", borderRadius: 12, padding: "0.7rem 0.8rem" }}>
                     {m.action.reasoning && <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 8px 0" }}>{m.action.reasoning}</p>}
                     <button onClick={() => executeAction(m.action!, i)} disabled={executing}
-                      style={{ width: "100%", padding: "0.55rem", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: executing ? "not-allowed" : "pointer", opacity: executing ? 0.6 : 1 }}>
+                      style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: executing ? "not-allowed" : "pointer", opacity: executing ? 0.6 : 1 }}>
                       {executing ? "Executing..." : "Confirm"}
                     </button>
                   </div>
                 )}
                 {m.confirmed && (
-                  <div style={{ marginTop: 6, fontSize: 11, color: "#6ee7b7", fontWeight: 700 }}>✓ Done</div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#16A34A", fontWeight: 700 }}>✓ Done</div>
                 )}
               </div>
             ))}
-            {loading && <div style={{ fontSize: 12, color: "#64748b" }}>Thinking...</div>}
+            {loading && <div style={{ fontSize: 12, color: "#94a3b8" }}>Thinking...</div>}
           </div>
 
-          <div style={{ display: "flex", gap: 8, padding: "0.9rem", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display: "flex", gap: 8, padding: "0.9rem", borderTop: "1px solid #E8E3FF" }}>
             <input type="text" placeholder="Tell me what to do..." value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
               disabled={loading}
-              style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.6rem 0.8rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
+              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: "#1e293b", outline: "none" }} />
             <button onClick={handleSend} disabled={loading || !input.trim()}
-              style={{ padding: "0.6rem 1rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
+              style={{ padding: "0.6rem 1rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
               Send
             </button>
           </div>
@@ -278,8 +277,8 @@ Respond with ONLY the JSON object.`,
       <button onClick={() => setOpen(!open)}
         style={{
           width: 58, height: 58, borderRadius: "50%", border: "none",
-          background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", fontSize: 22, cursor: "pointer",
-          boxShadow: "0 8px 24px rgba(79,70,229,0.5)", display: "flex", alignItems: "center", justifyContent: "center",
+          background: "#6D5EF7", color: "#fff", fontSize: 22, cursor: "pointer",
+          boxShadow: "0 8px 24px rgba(109,94,247,0.45)", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
         {open ? "✕" : "✦"}
       </button>

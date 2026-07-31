@@ -67,17 +67,17 @@ export default function AiNarrator({ address, balances }: Props) {
   }
 
   return (
-    <div style={{ background: "rgba(79,70,229,0.04)", border: "1px solid rgba(79,70,229,0.15)", borderRadius: 14, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ width: 22, height: 22, borderRadius: 6, background: "linear-gradient(135deg, #4f46e5, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>✦</div>
-        <span style={{ fontSize: 12, color: "#a5b4fc", fontWeight: 700, letterSpacing: "0.5px" }}>ASK YOUR WALLET</span>
+        <div style={{ width: 22, height: 22, borderRadius: 7, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff" }}>✦</div>
+        <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.5px" }}>ASK YOUR WALLET</span>
       </div>
 
       {messages.length === 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {SUGGESTED_QUESTIONS.map((q) => (
             <button key={q} onClick={() => ask(q)} disabled={loading}
-              style={{ padding: "6px 12px", borderRadius: 20, border: "1px solid rgba(79,70,229,0.2)", background: "rgba(79,70,229,0.06)", color: "#a5b4fc", fontSize: 11, cursor: "pointer" }}>
+              style={{ padding: "6px 12px", borderRadius: 999, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 11, cursor: "pointer" }}>
               {q}
             </button>
           ))}
@@ -90,19 +90,18 @@ export default function AiNarrator({ address, balances }: Props) {
             <div key={i} style={{
               alignSelf: m.role === "user" ? "flex-end" : "flex-start",
               maxWidth: "85%",
-              background: m.role === "user" ? "rgba(79,70,229,0.15)" : "rgba(255,255,255,0.03)",
-              border: m.role === "user" ? "1px solid rgba(79,70,229,0.3)" : "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 10,
+              background: m.role === "user" ? "#6D5EF7" : "#ffffff",
+              borderRadius: 12,
               padding: "0.6rem 0.8rem",
               fontSize: 13,
-              color: m.role === "user" ? "#c7d2fe" : "#cbd5e1",
+              color: m.role === "user" ? "#ffffff" : "#475569",
               lineHeight: 1.5,
             }}>
               {m.content}
             </div>
           ))}
           {loading && (
-            <div style={{ alignSelf: "flex-start", fontSize: 12, color: "#64748b" }}>Reading your activity...</div>
+            <div style={{ alignSelf: "flex-start", fontSize: 12, color: "#94a3b8" }}>Reading your activity...</div>
           )}
         </div>
       )}
@@ -112,9 +111,9 @@ export default function AiNarrator({ address, balances }: Props) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") ask(input); }}
           disabled={loading}
-          style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "0.6rem 0.9rem", fontSize: 13, color: "#f1f5f9", outline: "none" }} />
+          style={{ flex: 1, background: "#ffffff", border: "none", borderRadius: 12, padding: "0.6rem 0.9rem", fontSize: 13, color: "#1e293b", outline: "none" }} />
         <button onClick={() => ask(input)} disabled={loading || !input.trim()}
-          style={{ padding: "0.6rem 1rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
+          style={{ padding: "0.6rem 1rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
           Ask
         </button>
       </div>
