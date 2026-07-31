@@ -3,7 +3,7 @@ import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHome from "./components/CopilotHome";
 import TokenLaunch from "./components/TokenLaunch";
 import LendingForm from "./components/LendingForm";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect,} from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
