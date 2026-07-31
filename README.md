@@ -1,51 +1,60 @@
 # FlowFi
 
-**Your stablecoin financial layer on Arc.**
+**AI-powered Stablecoin Operating System**
 
-FlowFi is an AI-powered financial operating system for Arc, combining payments, swaps, perpetuals, liquidity, and escrow into a single application backed by real on-chain smart contracts. Every feature below is deployed and verifiable — no mocked data, no simulated transactions.
+Payments. Bridge. Swaps. Perpetuals. Lending. Token Launch.
+All inside one application — built natively for [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
 
-🔗 **Live demo:** [flowfi-arc.vercel.app](https://flowfi-arc.vercel.app)
-📦 **GitHub:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
-🎥 **Demo video:** [Watch on X](https://x.com/flowfiarc/status/2078926068485173522)
----
-
-> Stablecoin users today need multiple applications for transfers, swaps, bridges, perpetual trading, and escrow. FlowFi combines every major financial primitive into a single AI-powered application built specifically for Arc.
+![FlowFi in 30 seconds](./docs/flowfi-demo.gif)
+*Replace with an actual screen recording — this is the single highest-impact addition you can make to this README.*
 
 ---
 
-## Why FlowFi?
+## Why FlowFi is different
 
-Stablecoin users still rely on multiple disconnected applications for payments, swaps, bridges, derivatives, and escrow. Building on a new L1 usually means starting from zero — no native swap, no escrow, no trading layer, no unified place to hold and move funds.
+- ✓ **No wrapped USDC** — every balance is native, on the chain it lives on
+- ✓ **Real CCTP V2** — Circle's actual burn/attest/mint protocol, not a synthetic bridge
+- ✓ **AI executes transactions** — natural language in, signed on-chain transaction out
+- ✓ **Permissionless liquidity pools** — anyone can create a pool for any token pair
+- ✓ **On-chain perpetuals** — leveraged BTC/ETH trading with live PnL, fully on-chain state
+- ✓ **Seedless wallets** — Circle Developer-Controlled Wallets, no browser extension required
+- ✓ **Built specifically for Arc** — not a multi-chain app with Arc bolted on
 
-FlowFi unifies the entire stablecoin experience into a single interface built specifically for Arc — real smart contracts for every primitive, wrapped in a clean UI, with an AI layer that actually executes transactions instead of just chatting about them.
+---
 
-## Screenshots
+## By the numbers
 
-| Dashboard | Swap |
+| | |
 |---|---|
-| ![Dashboard](./screenshots/1-DASHBOARD.png) | ![Swap](./screenshots/2-SWAP.png) |
-
-| AI-Assisted Send | Perpetuals |
-|---|---|
-| ![Send](./screenshots/3-SEND.png) | ![Perpetuals](./screenshots/4-PERPETUALS.png) |
+| **7** verified smart contracts | **5** financial primitives |
+| **4** supported chains | **20x** max leverage |
+| **100%** on-chain execution | **0** custodial funds held |
 
 ---
 
-## Features
+## Why Arc?
+
+FlowFi is designed around stablecoins, not speculation.
+
+Arc provides native stablecoin infrastructure, first-party Circle integrations (CCTP, Developer-Controlled Wallets, USDC as gas), and a clean developer experience that lets financial primitives — swaps, lending, perpetuals, escrow — live in a single coherent ecosystem instead of being stitched together across incompatible chains.
+
+Building on Arc means FlowFi never has to explain away a bridge risk, a wrapped-asset discount, or a "why is gas paid in a random token" question. USDC is the base layer, not an afterthought.
+
+---
+
+## What's inside
 
 | Feature | What it does |
 |---|---|
-| **Portfolio** | USDC, EURC, USYC balances with live USD equivalents, plus unified cross-chain USDC balance across Arc, Ethereum Sepolia, Base Sepolia, and Arbitrum Sepolia |
-| **Send** | Natural-language transfers ("send 20 USDC to alice.arc"), ArcNS name resolution, address book |
-| **Bridge** | Real CCTP V2 cross-chain USDC transfer — burn/attest/mint via Circle's official TokenMessengerV2, no wrapped tokens |
-| **Swap** | On-chain USDC/EURC swap with an AI advisor that reads live pool liquidity and computes a risk score before every trade |
-| **Perpetuals** | Long/short BTC and ETH with 1x-20x leverage, live TradingView charts, real-time PNL, liquidation price |
-| **Liquidity Pools** | Permissionless AMM factory — anyone can create a pool for any token pair and earn a share of swap fees |
-| **Lending & Borrowing** | Supply USDC to earn interest, or deposit EURC as collateral to borrow USDC at up to 75% LTV |
-| **Token Launch** | Deploy your own ERC20 token with 1,000,000 supply, then create a liquidity pool for it |
-| **Escrow** | Smart-contract-secured freelance payments — funds release only when work is delivered |
-| **AI Understands You** | Type transfers in plain English, get swap risk explained before you trade, and ask questions about your wallet history — all answered by AI grounded in your real on-chain data |
-| **Dashboard** | Portfolio value, token distribution, weekly volume, recent transactions |
+| **AI Copilot** | Type what you want — "swap 10 USDC to EURC", "open a 5x BTC long" — Copilot parses it and executes the on-chain transaction |
+| **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
+| **Bridge (CCTP V2)** | Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia |
+| **Perpetuals** | Long/short BTC and ETH up to 20x leverage, live pricing, on-chain PnL and liquidation tracking |
+| **Lending & Borrowing** | Supply USDC to earn interest, or post EURC as collateral to borrow — 75% max LTV, liquidation at 85% |
+| **Liquidity Pools** | Permissionless AMM — create a pool for any token pair, add/remove liquidity, swap directly against it |
+| **Token Launch** | Deploy your own ERC-20 on Arc and pair it with liquidity in one flow |
+| **Circle Wallet** | Create a wallet with no seed phrase and no browser extension — one address, works across all four supported chains |
+| **Stablecoin Analytics** | Live, on-chain TVL and distribution across every FlowFi contract |
 
 ---
 
@@ -53,71 +62,94 @@ FlowFi unifies the entire stablecoin experience into a single interface built sp
 
 ```
 ┌─────────────────────────────────────────────┐
-│                  FlowFi UI                    │
-│         React + Vite + viem + TypeScript      │
-└───────────────────┬───────────────────────────┘
+│                  Frontend                    │
+│        React + TypeScript + viem             │
+└──────────────────┬────────────────────────────┘
+                    │
+        ┌───────────┼────────────┐
+        │           │            │
+┌───────▼──────┐ ┌──▼─────────┐ ┌▼─────────────┐
+│ Browser Wallet│ │Circle Wallet│ │  AI Copilot  │
+│ (EIP-6963)    │ │(no seed phr)│ │(Claude Sonnet)│
+└───────┬──────┘ └──┬─────────┘ └┬─────────────┘
+        │           │            │
+        └───────────┼────────────┘
                      │
-       ┌─────────────┼─────────────────┐
-       │             │                 │
-┌──────▼──────┐ ┌────▼─────┐  ┌────────▼────────┐
-│  Arc Testnet │ │ Circle    │  │  Claude AI      │
-│  Contracts   │ │ CCTP V2   │  │  (transfers,    │
-│              │ │ Bridge    │  │  swap advisor,  │
-│ ArcSwap      │ │           │  │  wallet Q&A)    │
-│ ArcEscrow    │ └───────────┘  └─────────────────┘
-│ ArcPerps     │
-│ ArcFactory   │
-└──────────────┘
+       ┌─────────────▼──────────────┐
+       │      Arc Testnet (L1)       │
+       │  Swap · Lending · Perps ·   │
+       │  TokenFactory · PoolFactory │
+       └─────────────┬───────────────┘
+                      │ CCTP V2
+       ┌──────────────┼───────────────┐
+       │              │               │
+┌──────▼─────┐ ┌──────▼─────┐ ┌───────▼──────┐
+│ Eth Sepolia│ │Base Sepolia│ │Arbitrum Sepolia│
+└────────────┘ └────────────┘ └────────────────┘
 ```
 
-## Tech Stack
+---
 
-- **Frontend:** React, Vite, TypeScript, viem
-- **Smart contracts:** Solidity, deployed on Arc Testnet
-- **Bridging:** Circle CCTP V2 (TokenMessengerV2 / MessageTransmitterV2)
-- - **AI:** Claude (Anthropic API) — understands natural-language commands, evaluates swap risk before you trade, and explains your wallet history in plain English
-- **Charts:** TradingView widget
-- **Naming:** ArcNS for human-readable address resolution
-- **Hosting:** Vercel
+## Smart contracts (Arc Testnet)
 
-## Deployed Contracts (Arc Testnet)
+| Contract | Address |
+|---|---|
+| Swap (fixed-rate USDC/EURC) | `0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1` |
+| Lending | `0xD3e0171CaCd799E49155eE48981841E9a9d225ab` |
+| Perpetuals | `0x3B4cE1734087e1c67474Ff42982063febE3E4B20` |
+| Pool Factory (permissionless AMM) | `0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8` |
+| Token Factory | `0x481E8919f79A4DA6446EA78cEa70037acB9c85A1` |
+| USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
+| EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 
-| Contract | Address | Purpose | Verified |
-|---|---|---|---|
-| ArcSwap | [`0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1`](https://testnet.arcscan.app/address/0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1?tab=contract) | Fixed-rate USDC/EURC swap | ✅ |
-| ArcEscrow | [`0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75`](https://testnet.arcscan.app/address/0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75?tab=contract) | Conditional freelance payments | ✅ |
-| ArcPerps | [`0x3B4cE1734087e1c67474Ff42982063febE3E4B20`](https://testnet.arcscan.app/address/0x3B4cE1734087e1c67474Ff42982063febE3E4B20?tab=contract) | Leveraged BTC/ETH trading | ✅ |
-| ArcFactory | [`0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9`](https://testnet.arcscan.app/address/0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9?tab=contract) | Permissionless AMM pool creation (legacy) | ✅ |
-| ArcFactoryV2 | [`0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8`](https://testnet.arcscan.app/address/0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8?tab=contract) | Permissionless AMM with real swap function | ✅ |
-| ArcLending | [`0xD3e0171CaCd799E49155eE48981841E9a9d225ab`](https://testnet.arcscan.app/address/0xD3e0171CaCd799E49155eE48981841E9a9d225ab?tab=contract) | USDC lending market with EURC collateral | ✅ |
-| ArcTokenFactory | [`0x481E8919f79A4DA6446EA78cEa70037acB9c85A1`](https://testnet.arcscan.app/address/0x481E8919f79A4DA6446EA78cEa70037acB9c85A1?tab=contract) | Permissionless ERC20 token launch | ✅ |
+All contracts are verified and viewable on [Arcscan](https://testnet.arcscan.app).
 
+---
 
-Explore each contract directly:
-[Swap Contract](https://testnet.arcscan.app/address/0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1) ·
-[Escrow Contract](https://testnet.arcscan.app/address/0xb1CC6EEE3Ff88ED7F6adde1418455F7DE650Ab75) ·
-[Perps Contract](https://testnet.arcscan.app/address/0x3B4cE1734087e1c67474Ff42982063febE3E4B20) ·
-[Factory Contract](https://testnet.arcscan.app/address/0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9)
+## Tech stack
+
+- **Frontend** — React, TypeScript, Vite
+- **Chain interaction** — [viem](https://viem.sh)
+- **Wallets** — EIP-6963 (MetaMask, Rabby, etc.) and Circle Developer-Controlled Wallets
+- **Bridging** — Circle CCTP V2
+- **AI** — Claude Sonnet, used for natural-language transaction parsing and swap risk analysis
+- **Charts** — lightweight-charts
+- **Hosting** — Vercel
+
+---
+
+## Running locally
+
+```bash
+git clone https://github.com/sekuler/flowfi.git
+cd flowfi
+npm install
+
+cp .env.example .env
+# then fill in:
+# VITE_ANTHROPIC_KEY=
+# CIRCLE_API_KEY=
+# CIRCLE_ENTITY_SECRET=
+
+npm run dev
+```
+
+The app runs on Arc Testnet by default — no mainnet funds are ever involved. Get test USDC from [faucet.circle.com](https://faucet.circle.com).
 
 ---
 
 ## Roadmap
 
-- Circle Developer-Controlled Wallets for seed-phrase-free onboarding
-- Decentralized price oracle for Perpetuals
-- Mainnet-track hardening (audits, production wallet security)
+- [ ] Mainnet deployment
+- [ ] Mobile app
+- [ ] Cross-chain intent engine
+- [ ] Oracle-backed perpetuals pricing (currently client-submitted, testnet-only)
+- [ ] Wallet abstraction / account abstraction support
+- [ ] Expanded permissionless pool tooling (concentrated liquidity)
+- [ ] Native yield routing across lending and liquidity positions
 
 ---
 
-## Running Locally
+## Disclaimer
 
-```bash
-npm install
-npm run dev
-```
-
-Requires a `.env` file with `VITE_ANTHROPIC_KEY` for AI features.
-
----
-
-Built for the [Encode Club x Circle Programmable Money Hackathon](https://www.encodeclub.com/programmes/arc-hackathon).
+FlowFi runs entirely on Arc Testnet. All tokens are test assets with no monetary value. Perpetuals pricing is submitted client-side for demo purposes and is **not** sourced from a decentralized oracle — do not use this for anything beyond testnet exploration.
