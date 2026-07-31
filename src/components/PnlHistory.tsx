@@ -13,7 +13,7 @@ interface Props {
 export default function PnlHistory({ trades }: Props) {
   if (trades.length === 0) {
     return (
-      <div style={{ fontSize: 12, color: "#334155", textAlign: "center", padding: "1.5rem" }}>
+      <div style={{ fontSize: 12, color: "#6B7280", textAlign: "center", padding: "1.5rem" }}>
         No closed trades yet. Your PNL history will appear here.
       </div>
     );
@@ -46,46 +46,46 @@ export default function PnlHistory({ trades }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.7rem" }}>
-          <div style={{ fontSize: 10, color: "#334155", marginBottom: 3 }}>CUMULATIVE PNL</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: finalPnl >= 0 ? "#6ee7b7" : "#fca5a5" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 12, padding: "0.7rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ fontSize: 10, color: "#6B7280", marginBottom: 3 }}>CUMULATIVE PNL</div>
+          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 800, color: finalPnl >= 0 ? "#16A34A" : "#DC2626" }}>
             {finalPnl >= 0 ? "+" : ""}${finalPnl.toFixed(2)}
           </div>
         </div>
-        <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.7rem" }}>
-          <div style={{ fontSize: 10, color: "#334155", marginBottom: 3 }}>WIN RATE</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9" }}>{winRate}%</div>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 12, padding: "0.7rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ fontSize: 10, color: "#6B7280", marginBottom: 3 }}>WIN RATE</div>
+          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{winRate}%</div>
         </div>
-        <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.7rem" }}>
-          <div style={{ fontSize: 10, color: "#334155", marginBottom: 3 }}>CLOSED TRADES</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9" }}>{trades.length}</div>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 12, padding: "0.7rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ fontSize: 10, color: "#6B7280", marginBottom: 3 }}>CLOSED TRADES</div>
+          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{trades.length}</div>
         </div>
       </div>
 
-      <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "1rem" }}>
-        <div style={{ fontSize: 10, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 8 }}>PNL OVER TIME</div>
+      <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 8 }}>PNL OVER TIME</div>
         <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: 100, overflow: "visible" }} preserveAspectRatio="none">
           <line x1="0" y1={height - ((0 - min) / range) * height} x2={width} y2={height - ((0 - min) / range) * height}
-            stroke="#334155" strokeWidth="0.3" strokeDasharray="1,1" />
-          <path d={pathD} fill="none" stroke={finalPnl >= 0 ? "#10b981" : "#ef4444"} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            stroke="#d1d5db" strokeWidth="0.3" strokeDasharray="1,1" />
+          <path d={pathD} fill="none" stroke={finalPnl >= 0 ? "#16A34A" : "#DC2626"} strokeWidth="1" vectorEffect="non-scaling-stroke" />
           {coords.map((c, i) => {
             const [x, y] = c.split(",");
-            return <circle key={i} cx={x} cy={y} r="0.8" fill={finalPnl >= 0 ? "#10b981" : "#ef4444"} />;
+            return <circle key={i} cx={x} cy={y} r="0.8" fill={finalPnl >= 0 ? "#16A34A" : "#DC2626"} />;
           })}
         </svg>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {trades.slice().reverse().map((t) => (
-          <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.8rem", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+          <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.8rem", borderRadius: 10, background: "#f5f3ff" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: t.isLong ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)", color: t.isLong ? "#6ee7b7" : "#fca5a5" }}>
+              <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: t.isLong ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: t.isLong ? "#16A34A" : "#DC2626" }}>
                 {t.isLong ? "LONG" : "SHORT"}
               </span>
-              <span style={{ fontSize: 12, color: "#94a3b8" }}>{t.market}-PERP</span>
-              {t.status === 2 && <span style={{ fontSize: 10, color: "#ef4444" }}>Liquidated</span>}
+              <span style={{ fontSize: 12, color: "#4B5563" }}>{t.market}-PERP</span>
+              {t.status === 2 && <span style={{ fontSize: 10, color: "#DC2626" }}>Liquidated</span>}
             </div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: t.pnl >= 0 ? "#6ee7b7" : "#fca5a5" }}>
+            <span className="flowfi-mono" style={{ fontSize: 12, fontWeight: 700, color: t.pnl >= 0 ? "#16A34A" : "#DC2626" }}>
               {t.pnl >= 0 ? "+" : ""}${t.pnl.toFixed(2)}
             </span>
           </div>

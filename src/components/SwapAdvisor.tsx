@@ -148,14 +148,14 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
 
   if (!amountIn || Number(amountIn) <= 0) return null;
 
-  const statusColor = { good: "#6ee7b7", warn: "#fbbf24", bad: "#fca5a5" };
+  const statusColor = { good: "#16A34A", warn: "#B45309", bad: "#DC2626" };
   const statusIcon = { good: "✓", warn: "!", bad: "✕" };
 
   return (
-    <div style={{ background: "rgba(139,92,246,0.04)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 12, color: "#a78bfa", fontWeight: 700, letterSpacing: "0.5px" }}>SWAP ADVISOR</span>
-        {loading && <span style={{ fontSize: 11, color: "#64748b" }}>Analyzing...</span>}
+        <span style={{ fontSize: 12, color: "#5B21B6", fontWeight: 700, letterSpacing: "0.5px" }}>SWAP ADVISOR</span>
+        {loading && <span style={{ fontSize: 11, color: "#6B7280" }}>Analyzing...</span>}
       </div>
 
       {advisory && !loading && (
@@ -163,13 +163,13 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", gap: 2 }}>
               {[1, 2, 3, 4, 5].map((i) => (
-                <span key={i} style={{ fontSize: 16, color: i <= advisory.stars ? "#fbbf24" : "#334155" }}>★</span>
+                <span key={i} style={{ fontSize: 16, color: i <= advisory.stars ? "#B45309" : "#d1d5db" }}>★</span>
               ))}
             </div>
             <span style={{
               fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
-              color: advisory.stars >= 4 ? "#6ee7b7" : advisory.stars >= 3 ? "#fbbf24" : "#fca5a5",
-              background: advisory.stars >= 4 ? "rgba(16,185,129,0.1)" : advisory.stars >= 3 ? "rgba(234,179,8,0.1)" : "rgba(239,68,68,0.1)",
+              color: advisory.stars >= 4 ? "#16A34A" : advisory.stars >= 3 ? "#B45309" : "#DC2626",
+              background: advisory.stars >= 4 ? "rgba(34,197,94,0.12)" : advisory.stars >= 3 ? "rgba(245,158,11,0.12)" : "rgba(239,68,68,0.12)",
             }}>
               {advisory.label}
             </span>
@@ -177,41 +177,41 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748b" }}>Pool Impact</span>
-              <span style={{ color: advisory.poolImpact > 15 ? "#fca5a5" : "#e2e8f0", fontWeight: 600 }}>{advisory.poolImpact.toFixed(2)}%</span>
+              <span style={{ color: "#6B7280" }}>Pool Impact</span>
+              <span style={{ color: advisory.poolImpact > 15 ? "#DC2626" : "#111827", fontWeight: 600 }}>{advisory.poolImpact.toFixed(2)}%</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748b" }}>Pool Liquidity</span>
-              <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{advisory.poolLiquidityOut} {tokenOut}</span>
+              <span style={{ color: "#6B7280" }}>Pool Liquidity</span>
+              <span style={{ color: "#111827", fontWeight: 600 }}>{advisory.poolLiquidityOut} {tokenOut}</span>
             </div>
           </div>
 
-          <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: "0.65rem 0.8rem" }}>
-            <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.5, margin: 0 }}>{advisory.recommendation}</p>
+          <div style={{ background: "#ffffff", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
+            <p style={{ fontSize: 12, color: "#4B5563", lineHeight: 1.5, margin: 0 }}>{advisory.recommendation}</p>
           </div>
 
           <button onClick={() => setShowWhy(!showWhy)}
-            style={{ background: "none", border: "none", color: "#a78bfa", fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, textAlign: "left" }}>
+            style={{ background: "none", border: "none", color: "#5B21B6", fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, textAlign: "left" }}>
             {showWhy ? "Hide breakdown ▲" : "Why this score? ▼"}
           </button>
 
           {showWhy && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, background: "rgba(255,255,255,0.015)", borderRadius: 8, padding: "0.65rem 0.8rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, background: "#ffffff", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
               {advisory.factors.map((f, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
                   <span style={{ width: 16, height: 16, borderRadius: "50%", background: `${statusColor[f.status]}22`, color: statusColor[f.status], fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {statusIcon[f.status]}
                   </span>
-                  <span style={{ color: "#94a3b8", flex: 1 }}>{f.label}</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{f.value}</span>
+                  <span style={{ color: "#4B5563", flex: 1 }}>{f.label}</span>
+                  <span style={{ color: "#111827", fontWeight: 600 }}>{f.value}</span>
                 </div>
               ))}
             </div>
           )}
 
           {advisory.splitSuggestion && (
-            <div style={{ background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.15)", borderRadius: 8, padding: "0.65rem 0.8rem" }}>
-              <p style={{ fontSize: 12, color: "#fbbf24", margin: 0 }}>
+            <div style={{ background: "rgba(245,158,11,0.1)", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
+              <p style={{ fontSize: 12, color: "#B45309", margin: 0 }}>
                 Consider splitting into {advisory.splitSuggestion} smaller swaps to reduce pool impact per transaction.
               </p>
             </div>

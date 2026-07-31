@@ -22,7 +22,7 @@ async function switchToArc(provider: EIP1193Provider) {
   } catch (e: unknown) {
     const err = e as { code?: number };
     if (err.code === 4902) {
-      await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.testnet.arc.network"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
+      await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://arc-testnet.g.alchemy.com/v2/alch_1L2dTNapY_mz3YEIsoVEN"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
     } else throw e;
   }
 }
@@ -87,34 +87,34 @@ export default function AdminRate({ provider, address }: Props) {
   if (!isOwner) return null;
 
   return (
-    <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 10, padding: "1rem", marginTop: "0.75rem" }}>
+    <div style={{ background: "rgba(245,158,11,0.08)", borderRadius: 12, padding: "1rem", marginTop: "0.75rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: 12, color: "#fbbf24", fontWeight: 700 }}>ADMIN: Live FX Rate</span>
-        <span style={{ fontSize: 11, color: "#64748b" }}>Current: {currentRate ?? "..."}</span>
+        <span style={{ fontSize: 12, color: "#B45309", fontWeight: 700 }}>ADMIN: Live FX Rate</span>
+        <span style={{ fontSize: 11, color: "#6B7280" }}>Current: {currentRate ?? "..."}</span>
       </div>
 
       {liveRate && (
-        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8 }}>
+        <div style={{ fontSize: 12, color: "#4B5563", marginBottom: 8 }}>
           Live rate: 1 USD = {liveRate.toFixed(4)} EUR
         </div>
       )}
 
-      {error && <div style={{ fontSize: 11, color: "#fca5a5", marginBottom: 8 }}>{error}</div>}
+      {error && <div style={{ fontSize: 11, color: "#DC2626", marginBottom: 8 }}>{error}</div>}
 
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={fetchLiveRate} disabled={state === "fetching" || state === "updating"}
-          style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.1)", color: "#fbbf24", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: "#ffffff", color: "#B45309", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           {state === "fetching" ? "Fetching..." : "Fetch Live Rate"}
         </button>
         {liveRate && (
           <button onClick={updateOnChain} disabled={state === "updating"}
-            style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
             {state === "updating" ? "Updating..." : "Update On-Chain"}
           </button>
         )}
       </div>
 
-      {state === "done" && <div style={{ fontSize: 11, color: "#6ee7b7", marginTop: 6 }}>Rate updated successfully!</div>}
+      {state === "done" && <div style={{ fontSize: 11, color: "#16A34A", marginTop: 6 }}>Rate updated successfully!</div>}
     </div>
   );
 }

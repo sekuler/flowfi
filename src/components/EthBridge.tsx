@@ -68,19 +68,19 @@ export default function EthBridge({ provider, address }: Props) {
   const isLoading = state === "processing";
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 8, padding: "0.6rem 0.8rem" }}>
-        <p style={{ fontSize: 12, color: "#fcd34d", margin: 0 }}>
+    <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ background: "rgba(245,158,11,0.1)", borderRadius: 12, padding: "0.6rem 0.8rem" }}>
+        <p style={{ fontSize: 12, color: "#B45309", margin: 0 }}>
           Native ETH deposit via each chain's official L1→L2 bridge — Ethereum Sepolia only. Takes several minutes to appear on the destination.
         </p>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Deposit ETH to</label>
+        <label style={{ fontSize: 13, color: "#4B5563", fontWeight: 500 }}>Deposit ETH to</label>
         <div style={{ display: "flex", gap: 8 }}>
           {(["Base Sepolia", "Arbitrum Sepolia"] as Destination[]).map((d) => (
             <button key={d} onClick={() => setDestination(d)} disabled={isLoading}
-              style={{ flex: 1, padding: "0.6rem", borderRadius: 8, border: destination === d ? "2px solid #f59e0b" : "1px solid rgba(255,255,255,0.08)", background: destination === d ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.03)", color: destination === d ? "#fbbf24" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: destination === d ? "rgba(245,158,11,0.15)" : "#f5f3ff", color: destination === d ? "#B45309" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               {d}
             </button>
           ))}
@@ -88,27 +88,27 @@ export default function EthBridge({ provider, address }: Props) {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>Amount</label>
-        <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+        <label style={{ fontSize: 13, color: "#4B5563", fontWeight: 500 }}>Amount</label>
+        <div style={{ display: "flex", alignItems: "center", background: "#f5f3ff", borderRadius: 12, overflow: "hidden" }}>
           <input type="number" min="0.001" step="0.001" placeholder="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
-            style={{ flex: 1, background: "transparent", border: "none", outline: "none", padding: "0.75rem 1rem", fontSize: 18, color: "#f1f5f9", fontWeight: 600 }} />
-          <span style={{ paddingRight: "1rem", color: "#64748b", fontSize: 14, fontWeight: 600 }}>ETH</span>
+            style={{ flex: 1, background: "transparent", border: "none", outline: "none", padding: "0.75rem 1rem", fontSize: 18, color: "#111827", fontWeight: 600 }} />
+          <span style={{ paddingRight: "1rem", color: "#4B5563", fontSize: 14, fontWeight: 600 }}>ETH</span>
         </div>
       </div>
 
-      {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
+      {errorMsg && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
 
       {txHash && state === "done" && (
-        <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "1rem" }}>
-          <p style={{ color: "#6ee7b7", fontWeight: 600, marginBottom: 6 }}>Deposit submitted!</p>
-          <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View on Sepolia Etherscan ↗</a>
-          <p style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>It may take a few minutes to appear on {destination}.</p>
+        <div style={{ background: "rgba(34,197,94,0.1)", borderRadius: 12, padding: "1rem" }}>
+          <p style={{ color: "#16A34A", fontWeight: 600, marginBottom: 6 }}>Deposit submitted!</p>
+          <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563EB", fontSize: 13 }}>View on Sepolia Etherscan ↗</a>
+          <p style={{ fontSize: 11, color: "#6B7280", marginTop: 8 }}>It may take a few minutes to appear on {destination}.</p>
         </div>
       )}
 
       <button onClick={state === "error" ? () => { setState("idle"); setErrorMsg(null); } : doDeposit}
         disabled={isLoading || state === "done"}
-        style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #d97706, #f59e0b)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading || state === "done" ? "not-allowed" : "pointer", opacity: isLoading || state === "done" ? 0.6 : 1 }}>
+        style={{ width: "100%", padding: "0.9rem", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #d97706, #f59e0b)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading || state === "done" ? "not-allowed" : "pointer", opacity: isLoading || state === "done" ? 0.6 : 1 }}>
         {state === "idle" && `Deposit to ${destination}`}
         {isLoading && "Depositing..."}
         {state === "done" && "Done!"}
@@ -117,7 +117,7 @@ export default function EthBridge({ provider, address }: Props) {
 
       {state === "done" && (
         <button onClick={() => { setState("idle"); setTxHash(null); setAmount(""); }}
-          style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+          style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#4B5563", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
           New Deposit
         </button>
       )}
