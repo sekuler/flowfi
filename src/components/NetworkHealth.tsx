@@ -11,7 +11,7 @@ interface ChainStatus {
 }
 
 const CHAINS = [
-  { name: "Arc Testnet", chain: arcTestnet, color: "#4f46e5" },
+  { name: "Arc Testnet", chain: arcTestnet, color: "#7c3aed" },
   { name: "Ethereum Sepolia", chain: sepolia, color: "#627eea" },
   { name: "Base Sepolia", chain: baseSepolia, color: "#0052ff" },
   { name: "Arbitrum Sepolia", chain: arbitrumSepolia, color: "#28a0f0" },
@@ -50,24 +50,24 @@ export default function NetworkHealth() {
   }, []);
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.1rem" }}>
+    <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: "#334155", fontWeight: 700, letterSpacing: "1px" }}>NETWORK HEALTH</div>
-        <a href="https://status.circle.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#60a5fa", textDecoration: "none" }}>Circle Status ↗</a>
+        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px" }}>NETWORK HEALTH</div>
+        <a href="https://status.circle.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#7c3aed", textDecoration: "none" }}>Circle Status ↗</a>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {statuses.map((s) => (
           <div key={s.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.color }} />
-              <span style={{ fontSize: 12, color: "#94a3b8" }}>{s.name}</span>
+              <span style={{ fontSize: 12, color: "#475569" }}>{s.name}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {s.gasPrice && <span style={{ fontSize: 11, color: "#64748b" }}>{s.gasPrice} gwei</span>}
+              {s.gasPrice && <span className="flowfi-mono" style={{ fontSize: 11, color: "#64748b" }}>{s.gasPrice} gwei</span>}
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6,
-                color: s.status === "operational" ? "#6ee7b7" : s.status === "degraded" ? "#fca5a5" : "#64748b",
-                background: s.status === "operational" ? "rgba(16,185,129,0.1)" : s.status === "degraded" ? "rgba(239,68,68,0.1)" : "rgba(100,116,139,0.1)",
+                color: s.status === "operational" ? "#059669" : s.status === "degraded" ? "#dc2626" : "#94a3b8",
+                background: s.status === "operational" ? "rgba(52,211,153,0.12)" : s.status === "degraded" ? "rgba(239,68,68,0.1)" : "rgba(148,163,184,0.12)",
               }}>
                 {s.status === "operational" ? "Healthy" : s.status === "degraded" ? "Slow" : "..."}
               </span>

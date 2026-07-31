@@ -221,14 +221,14 @@ export default function Perpetuals({ provider, address }: Props) {
           <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>
             {closeResult.market}-PERP closed at ${fmtPrice(closeResult.exitPrice)}
           </p>
-          <div style={{ background: "#111a2c", borderRadius: 12, padding: "1rem", marginBottom: 20 }}>
+          <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "1rem", marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#94a3b8" }}>
               <span>Payout</span>
-              <span style={{ color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{closeResult.payout.toFixed(2)} USDC</span>
+              <span style={{ color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{closeResult.payout.toFixed(2)} USDC</span>
             </div>
           </div>
           <button onClick={() => setCloseResult(null)}
-            style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#22d3ee", color: "#04121f", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
+            style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
             Back to Trading
           </button>
         </div>
@@ -245,23 +245,23 @@ export default function Perpetuals({ provider, address }: Props) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
-        <div style={{ background: "#111a2c", borderRadius: 14, padding: "0.9rem 1rem" }}>
+        <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.9rem 1rem" }}>
           <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>{market} PRICE</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#f8fafc", fontFamily: "ui-monospace, monospace" }}>{currentPrice ? `$${fmtPrice(currentPrice)}` : "..."}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#1e293b", fontFamily: "ui-monospace, monospace" }}>{currentPrice ? `$${fmtPrice(currentPrice)}` : "..."}</div>
           {change24h !== null && (
             <div style={{ fontSize: 11, fontWeight: 700, color: change24h >= 0 ? "#6ee7b7" : "#fca5a5", marginTop: 2 }}>
               {change24h >= 0 ? "▲" : "▼"} {Math.abs(change24h).toFixed(2)}% (24h)
             </div>
           )}
         </div>
-        <div style={{ background: "#111a2c", borderRadius: 14, padding: "0.9rem 1rem" }}>
+        <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.9rem 1rem" }}>
           <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>POOL LIQUIDITY</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#f8fafc", fontFamily: "ui-monospace, monospace" }}>{poolLiquidity ? `$${poolLiquidity}` : "..."}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#1e293b", fontFamily: "ui-monospace, monospace" }}>{poolLiquidity ? `$${poolLiquidity}` : "..."}</div>
           <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Available for payouts</div>
         </div>
-        <div style={{ background: "#111a2c", borderRadius: 14, padding: "0.9rem 1rem" }}>
+        <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.9rem 1rem" }}>
           <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>OPEN POSITIONS</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#f8fafc", fontFamily: "ui-monospace, monospace" }}>{openCount}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#1e293b", fontFamily: "ui-monospace, monospace" }}>{openCount}</div>
           <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Your active trades</div>
         </div>
       </div>
@@ -271,7 +271,7 @@ export default function Perpetuals({ provider, address }: Props) {
           <div style={{ display: "flex", gap: 8 }}>
             {(["BTC", "ETH"] as const).map((m) => (
   <button key={m} onClick={() => setMarket(m)} disabled={isLoading}
-    style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: market === m ? "#1b2740" : "#111a2c", color: market === m ? "#67e8f9" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+    style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: market === m ? "#ede9fe" : "#f5f3ff", color: market === m ? "#a855f7" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
     <img src={m === "BTC" ? "https://assets.coingecko.com/coins/images/1/small/bitcoin.png" : "https://assets.coingecko.com/coins/images/279/small/ethereum.png"} alt={m} style={{ width: 16, height: 16, borderRadius: "50%" }} />
     {m}-PERP
   </button>
@@ -280,41 +280,41 @@ export default function Perpetuals({ provider, address }: Props) {
 
           <TradingViewChart symbol={market} />
 
-          <div style={{ background: "#0b1220", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+          <div style={{ background: "#ffffff", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setIsLong(true)} disabled={isLoading}
-                style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: "none", background: isLong ? "rgba(52,211,153,0.18)" : "#111a2c", color: isLong ? "#6ee7b7" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: "none", background: isLong ? "rgba(52,211,153,0.18)" : "#f5f3ff", color: isLong ? "#6ee7b7" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
                 Long
               </button>
               <button onClick={() => setIsLong(false)} disabled={isLoading}
-                style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: "none", background: !isLong ? "rgba(239,68,68,0.18)" : "#111a2c", color: !isLong ? "#fca5a5" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: "none", background: !isLong ? "rgba(239,68,68,0.18)" : "#f5f3ff", color: !isLong ? "#fca5a5" : "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
                 Short
               </button>
             </div>
 
-            <div style={{ borderRadius: 16, background: "#111a2c", padding: "1rem 1.1rem" }}>
+            <div style={{ borderRadius: 16, background: "#f5f3ff", padding: "1rem 1.1rem" }}>
               <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px" }}>Margin (USDC)</label>
               <input type="number" min="0" step="0.01" placeholder="0.00" value={margin} onChange={(e) => setMargin(e.target.value)} disabled={isLoading}
-                style={{ width: "100%", background: "transparent", border: "none", outline: "none", fontSize: 28, color: "#f8fafc", fontWeight: 700, fontFamily: "ui-monospace, monospace", marginTop: 6 }} />
+                style={{ width: "100%", background: "transparent", border: "none", outline: "none", fontSize: 28, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace", marginTop: 6 }} />
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>Leverage</label>
-                <span style={{ fontSize: 13, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{leverage}x</span>
+                <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{leverage}x</span>
               </div>
               <input type="range" min="1" max="20" value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} disabled={isLoading} />
             </div>
 
             {margin && currentPrice && (
-              <div style={{ background: "#111a2c", borderRadius: 12, padding: "0.8rem 0.9rem", display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.8rem 0.9rem", display: "flex", flexDirection: "column", gap: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#64748b" }}>Position Size</span>
-                  <span style={{ color: "#f1f5f9", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>${(Number(margin) * leverage).toFixed(2)}</span>
+                  <span style={{ color: "#1e293b", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>${(Number(margin) * leverage).toFixed(2)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#64748b" }}>Entry Price</span>
-                  <span style={{ color: "#f1f5f9", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>${fmtPrice(currentPrice)}</span>
+                  <span style={{ color: "#1e293b", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>${fmtPrice(currentPrice)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#64748b" }}>Est. Liquidation Price</span>
@@ -340,14 +340,14 @@ export default function Perpetuals({ provider, address }: Props) {
             <div style={{
               width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 10, fontWeight: 800,
-              background: isDone ? "#22d3ee" : isActive ? "#1b2740" : "#111a2c",
-              color: isDone ? "#04121f" : isActive ? "#67e8f9" : "#475569",
+              background: isDone ? "#7c3aed" : isActive ? "#ede9fe" : "#f5f3ff",
+              color: isDone ? "#ffffff" : isActive ? "#a855f7" : "#475569",
             }}>
               {isDone ? "✓" : i + 1}
             </div>
-            <span style={{ fontSize: 9, color: isDone ? "#22d3ee" : isActive ? "#67e8f9" : "#475569" }}>{label[s]}</span>
+            <span style={{ fontSize: 9, color: isDone ? "#7c3aed" : isActive ? "#a855f7" : "#475569" }}>{label[s]}</span>
           </div>
-          {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#22d3ee" : "#111a2c", marginBottom: 12 }} />}
+          {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#7c3aed" : "#f5f3ff", marginBottom: 12 }} />}
         </div>
       );
     })}
@@ -355,7 +355,7 @@ export default function Perpetuals({ provider, address }: Props) {
 )}
             {errorMsg && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
             <button onClick={openPosition} disabled={isLoading || !currentPrice}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: isLong ? "#34d399" : "#ef4444", color: isLong ? "#04121f" : "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading || !currentPrice ? 0.5 : 1 }}>
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: isLong ? "#34d399" : "#ef4444", color: isLong ? "#ffffff" : "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading || !currentPrice ? 0.5 : 1 }}>
               {state === "approving" && "Approving..."}
               {state === "opening" && "Opening..."}
               {(state === "idle" || state === "error") && `Open ${isLong ? "Long" : "Short"} ${leverage}x`}
@@ -363,16 +363,16 @@ export default function Perpetuals({ provider, address }: Props) {
           </div>
         </div>
         {margin && Number(margin) > 0 && currentPrice && (
-  <div style={{ background: "rgba(34,211,238,0.1)", borderRadius: 16, padding: "1.1rem", marginBottom: 12 }}>
-    <div style={{ fontSize: 10, color: "#67e8f9", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>POSITION SUMMARY</div>
+  <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 16, padding: "1.1rem", marginBottom: 12 }}>
+    <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>POSITION SUMMARY</div>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
       <div>
         <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Margin</div>
-        <div style={{ fontSize: 14, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${Number(margin).toFixed(2)}</div>
+        <div style={{ fontSize: 14, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${Number(margin).toFixed(2)}</div>
       </div>
       <div>
         <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Leverage</div>
-        <div style={{ fontSize: 14, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{leverage}x</div>
+        <div style={{ fontSize: 14, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{leverage}x</div>
       </div>
       <div>
         <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Liquidation</div>
@@ -382,7 +382,7 @@ export default function Perpetuals({ provider, address }: Props) {
       </div>
       <div>
         <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>Position Size</div>
-        <div style={{ fontSize: 14, color: "#f1f5f9", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${(Number(margin) * leverage).toFixed(2)}</div>
+        <div style={{ fontSize: 14, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${(Number(margin) * leverage).toFixed(2)}</div>
       </div>
       <div>
         <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>PnL</div>
@@ -400,11 +400,11 @@ export default function Perpetuals({ provider, address }: Props) {
         <div>
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
             <button onClick={() => setShowHistory(false)}
-              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: !showHistory ? "#1b2740" : "transparent", color: !showHistory ? "#67e8f9" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: !showHistory ? "#ede9fe" : "transparent", color: !showHistory ? "#a855f7" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               POSITIONS
             </button>
             <button onClick={() => setShowHistory(true)}
-              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: showHistory ? "#1b2740" : "transparent", color: showHistory ? "#67e8f9" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: showHistory ? "#ede9fe" : "transparent", color: showHistory ? "#a855f7" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               PNL HISTORY
             </button>
           </div>
@@ -420,16 +420,16 @@ export default function Perpetuals({ provider, address }: Props) {
                   const liqPrice = liquidationPrice(p);
                   const confirming = confirmClosingId === p.id;
                   return (
-                    <div key={p.id} style={{ background: "#0b1220", borderRadius: 16, padding: "1.1rem" }}>
+                    <div key={p.id} style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 5, background: p.isLong ? "rgba(52,211,153,0.18)" : "rgba(239,68,68,0.18)", color: p.isLong ? "#6ee7b7" : "#fca5a5" }}>
                             {p.isLong ? "LONG" : "SHORT"}
                           </span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{p.market}-PERP</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{p.market}-PERP</span>
                           <span style={{ fontSize: 11, color: "#64748b" }}>{p.leverage}x</span>
                         </div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: "#67e8f9" }}>{STATUS_LABELS[p.status]}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#a855f7" }}>{STATUS_LABELS[p.status]}</span>
                       </div>
 
                       {live && (
@@ -446,15 +446,15 @@ export default function Perpetuals({ provider, address }: Props) {
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11, marginBottom: 10 }}>
                         <div>
                           <div style={{ color: "#475569", marginBottom: 2 }}>Margin</div>
-                          <div style={{ color: "#f1f5f9", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>${p.margin}</div>
+                          <div style={{ color: "#1e293b", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>${p.margin}</div>
                         </div>
                         <div>
                           <div style={{ color: "#475569", marginBottom: 2 }}>Entry Price</div>
-                          <div style={{ color: "#f1f5f9", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>${fmtPrice(p.entryPriceNum)}</div>
+                          <div style={{ color: "#1e293b", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>${fmtPrice(p.entryPriceNum)}</div>
                         </div>
                         <div>
                           <div style={{ color: "#475569", marginBottom: 2 }}>Mark Price</div>
-                          <div style={{ color: "#f1f5f9", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{price ? `$${fmtPrice(price)}` : "..."}</div>
+                          <div style={{ color: "#1e293b", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{price ? `$${fmtPrice(price)}` : "..."}</div>
                         </div>
                         <div>
                           <div style={{ color: "#475569", marginBottom: 2 }}>Liq. Price</div>
@@ -464,18 +464,18 @@ export default function Perpetuals({ provider, address }: Props) {
 
                       {!confirming && (
                         <button onClick={() => setConfirmClosingId(p.id)} disabled={isLoading}
-                          style={{ width: "100%", padding: "0.5rem", borderRadius: 10, border: "none", background: "#111a2c", color: "#f1f5f9", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                          style={{ width: "100%", padding: "0.5rem", borderRadius: 10, border: "none", background: "#f5f3ff", color: "#1e293b", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                           Close Position
                         </button>
                       )}
                       {confirming && (
                         <div style={{ display: "flex", gap: 6 }}>
                           <button onClick={() => confirmClosePosition(p)} disabled={isLoading}
-                            style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: "#22d3ee", color: "#04121f", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                            style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                             {state === "closing" ? "Closing..." : `Confirm $${price ? fmtPrice(price) : "..."}`}
                           </button>
                           <button onClick={() => setConfirmClosingId(null)} disabled={isLoading}
-                            style={{ padding: "0.5rem 0.8rem", borderRadius: 10, border: "none", background: "#111a2c", color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>
+                            style={{ padding: "0.5rem 0.8rem", borderRadius: 10, border: "none", background: "#f5f3ff", color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>
                             Cancel
                           </button>
                         </div>
