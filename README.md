@@ -6,7 +6,6 @@ Payments. Bridge. Swaps. Perpetuals. Lending. Token Launch.
 All inside one application — built natively for [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
 
 ![FlowFi in 30 seconds](./docs/flowfi-demo.gif)
-*Replace with an actual screen recording — this is the single highest-impact addition you can make to this README.*
 
 ---
 
@@ -28,7 +27,7 @@ All inside one application — built natively for [Arc](https://www.arc.io), Cir
 |---|---|
 | **7** verified smart contracts | **5** financial primitives |
 | **4** supported chains | **20x** max leverage |
-| **100%** on-chain execution | **0** custodial funds held |
+| **100%** on-chain execution | **1** address across all 4 chains |
 
 ---
 
