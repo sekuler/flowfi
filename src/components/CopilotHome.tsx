@@ -2,43 +2,86 @@ import NetworkHealth from "./NetworkHealth";
 import { useState, useEffect } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
+import {
+  Repeat, Hexagon, Rocket, Droplet, Sparkles, TrendingUp, TrendingDown,
+  ChevronRight, ArrowUpRight, ExternalLink, ShieldCheck,
+} from "lucide-react";
 
 const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
 const LENDING_CONTRACT = "0xD3e0171CaCd799E49155eE48981841E9a9d225ab" as `0x${string}`;
+const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
+const LEGACY_AMM = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
+const POOL_FACTORY = "0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8" as `0x${string}`;
+const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
+const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 
 const PERPS_ABI = [
   { type: "function", name: "getUserPositions", stateMutability: "view", inputs: [{ name: "trader", type: "address" }], outputs: [{ name: "", type: "uint256[]" }] },
-  { type: "function", name: "getPosition", stateMutability: "view", inputs: [{ name: "id", type: "uint256" }], outputs: [
-    { name: "trader", type: "address" }, { name: "isLong", type: "bool" }, { name: "margin", type: "uint256" },
-    { name: "leverage", type: "uint256" }, { name: "entryPrice", type: "uint256" }, { name: "exitPrice", type: "uint256" },
-    { name: "pnl", type: "int256" }, { name: "status", type: "uint8" }, { name: "openedAt", type: "uint256" }, { name: "market", type: "string" },
-  ] },
 ] as const;
 
 const LENDING_ABI = [
   { type: "function", name: "currentAPR", stateMutability: "view", inputs: [], outputs: [{ name: "bps", type: "uint256" }] },
-  { type: "function", name: "supplyBalance", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+] as const;
+
+const ERC20_BALANCE_ABI = [
+  { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+] as const;
+
+const POOL_FACTORY_ABI = [
+  { type: "function", name: "allPoolsLength", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
 ] as const;
 
 interface Props {
   address: string;
   balances: { usdc: string | null; eurc: string | null; usyc: string | null; native: string | null };
-  onNavigate: (tab: "swap" | "bridge" | "send" | "perps" | "lending" | "pools") => void;
+  onNavigate: (tab: "swap" | "bridge" | "send" | "perps" | "lending" | "pools" | "launch") => void;
 }
 
-interface OpenPosition {
-  market: string;
-  isLong: boolean;
-  pnl: number;
-  marginNum: number;
-  entryPriceNum: number;
-  leverage: number;
+interface RecentTx {
+  hash: string;
+  method: string;
+  age: string;
 }
+
+const TOKEN_META: Record<string, { color: string; letter: string; name: string }> = {
+  USDC: { color: "#3B82F6", letter: "$", name: "USD Coin" },
+  EURC: { color: "#22C55E", letter: "€", name: "Euro Coin" },
+  USYC: { color: "#F59E0B", letter: "Y", name: "Circle Yield" },
+};
+
+function timeAgo(sec: number) {
+  const diff = Math.floor(Date.now() / 1000) - sec;
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function Sparkline({ color, seed }: { color: string; seed: number }) {
+  const points = Array.from({ length: 16 }, (_, i) => {
+    const v = 50 + Math.sin(i * 0.6 + seed) * 20 + i * 1.5;
+    return `${(i * 100) / 15},${40 - (v / 100) * 36}`;
+  }).join(" ");
+  return (
+    <svg viewBox="0 0 100 40" preserveAspectRatio="none" style={{ width: "100%", height: 40 }}>
+      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+const QUICK_ACTIONS = [
+  { id: "swap" as const, label: "Swap Tokens", desc: "Exchange tokens instantly", Icon: Repeat },
+  { id: "bridge" as const, label: "Bridge", desc: "Transfer assets across chains", Icon: Hexagon },
+  { id: "launch" as const, label: "Launch Token", desc: "Create your own token", Icon: Rocket },
+  { id: "pools" as const, label: "Add Liquidity", desc: "Provide liquidity to earn fees", Icon: Droplet },
+];
 
 export default function CopilotHome({ address, balances, onNavigate }: Props) {
-  const [openPosition, setOpenPosition] = useState<OpenPosition | null>(null);
+  const [openPositionCount, setOpenPositionCount] = useState<number | null>(null);
   const [lendingAPR, setLendingAPR] = useState<string | null>(null);
-  const [supplyBalance, setSupplyBalance] = useState<string | null>(null);
+  const [poolCount, setPoolCount] = useState<number | null>(null);
+  const [tvl, setTvl] = useState<number | null>(null);
+  const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,31 +90,35 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-        const ids = await client.readContract({ address: PERPS_CONTRACT, abi: PERPS_ABI, functionName: "getUserPositions", args: [address as `0x${string}`] });
-        for (const id of (ids as bigint[]).slice().reverse()) {
-          const p = await client.readContract({ address: PERPS_CONTRACT, abi: PERPS_ABI, functionName: "getPosition", args: [id] });
-          const [, isLong, marginRaw, leverage, entry, , , status, , market] = p as any;
-          if (Number(status) === 0) {
-            const marginNum = Number(formatUnits(marginRaw, 6));
-            const entryPriceNum = Number(formatUnits(entry, 6));
-            const priceRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd");
-            const priceData = await priceRes.json();
-            const currentPrice = market === "BTC" ? priceData.bitcoin?.usd : priceData.ethereum?.usd;
-            let pnl = 0;
-            if (currentPrice) {
-              const size = marginNum * Number(leverage);
-              const diff = isLong ? currentPrice - entryPriceNum : entryPriceNum - currentPrice;
-              pnl = (size * diff) / entryPriceNum;
-            }
-            setOpenPosition({ market, isLong, pnl, marginNum, entryPriceNum, leverage: Number(leverage) });
-            break;
-          }
-        }
+        const [ids, apr, poolsLen, usdcSwap, eurcSwap, usdcAmm, eurcAmm, usdcLend, eurcLend] = await Promise.all([
+          client.readContract({ address: PERPS_CONTRACT, abi: PERPS_ABI, functionName: "getUserPositions", args: [address as `0x${string}`] }).catch(() => []),
+          client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "currentAPR" }).catch(() => 0n),
+          client.readContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "allPoolsLength" }).catch(() => 0n),
+          client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [SWAP_CONTRACT] }).catch(() => 0n),
+          client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [SWAP_CONTRACT] }).catch(() => 0n),
+          client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LEGACY_AMM] }).catch(() => 0n),
+          client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LEGACY_AMM] }).catch(() => 0n),
+          client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LENDING_CONTRACT] }).catch(() => 0n),
+          client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LENDING_CONTRACT] }).catch(() => 0n),
+        ]);
 
-        const apr = await client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "currentAPR" });
+        setOpenPositionCount((ids as bigint[]).length);
         setLendingAPR((Number(apr) / 100).toFixed(2));
-        const supBal = await client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "supplyBalance", args: [address as `0x${string}`] });
-        setSupplyBalance(Number(formatUnits(supBal, 6)).toFixed(2));
+        setPoolCount(Number(poolsLen) + 1);
+        setTvl(
+          Number(formatUnits(usdcSwap, 6)) + Number(formatUnits(eurcSwap, 6)) +
+          Number(formatUnits(usdcAmm, 6)) + Number(formatUnits(eurcAmm, 6)) +
+          Number(formatUnits(usdcLend, 6)) + Number(formatUnits(eurcLend, 6))
+        );
+
+        const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${address}&limit=4`);
+        const data = await res.json();
+        const items: RecentTx[] = (data.result ?? []).slice(0, 4).map((tx: any) => ({
+          hash: tx.hash,
+          method: tx.methodId === "0x" ? "Contract Deploy" : (tx.methodId && tx.methodId !== "0x" ? "Transaction" : "Transfer"),
+          age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—",
+        }));
+        setRecentTxs(items);
       } catch {
         /* leave defaults */
       } finally {
@@ -83,61 +130,190 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
 
   const usdcVal = Number(balances.usdc ?? 0);
   const eurcVal = Number(balances.eurc ?? 0);
-  const hasIdleFunds = usdcVal > 10 && Number(supplyBalance ?? 0) === 0;
+  const usycVal = Number(balances.usyc ?? 0);
+  const totalValue = usdcVal + eurcVal + usycVal;
+  const hasIdleFunds = usdcVal > 10;
+  const estYield = hasIdleFunds && lendingAPR ? (usdcVal * Number(lendingAPR)) / 100 : 0;
 
-  const suggestions: { text: string; action: () => void }[] = [];
-  if (hasIdleFunds) suggestions.push({ text: `Supply your idle ${usdcVal.toFixed(0)} USDC to earn ${lendingAPR ?? "..."}% APY`, action: () => onNavigate("lending") });
-  if (openPosition && openPosition.pnl > 0) suggestions.push({ text: `Your ${openPosition.market} position is up $${openPosition.pnl.toFixed(2)} — consider taking profit`, action: () => onNavigate("perps") });
-  if (openPosition && openPosition.pnl < 0) suggestions.push({ text: `Your ${openPosition.market} position is down $${Math.abs(openPosition.pnl).toFixed(2)} — review your risk`, action: () => onNavigate("perps") });
-  if (eurcVal > 5) suggestions.push({ text: `You're holding ${eurcVal.toFixed(0)} EURC — swap or use it as lending collateral`, action: () => onNavigate("swap") });
-  if (suggestions.length === 0) suggestions.push({ text: "Explore Liquidity Pools to start earning swap fees", action: () => onNavigate("pools") });
+  const assets = [
+    { symbol: "USDC", amount: balances.usdc, usd: usdcVal },
+    { symbol: "EURC", amount: balances.eurc, usd: eurcVal },
+    { symbol: "USYC", amount: balances.usyc, usd: usycVal },
+  ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>YOU HOLD</div>
-          <div className="flowfi-mono" style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>{balances.usdc ?? "..."} <span style={{ fontSize: 13, color: "#94a3b8", fontFamily: "Inter, sans-serif" }}>USDC</span></div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      {/* Stat cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>Total Portfolio Value</div>
+          <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>
+            {loading ? "..." : `$${totalValue.toFixed(2)}`}
+          </div>
+          <Sparkline color="#6D5EF7" seed={1} />
         </div>
-        <div className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>YOU HOLD</div>
-          <div className="flowfi-mono" style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>{balances.eurc ?? "..."} <span style={{ fontSize: 13, color: "#94a3b8", fontFamily: "Inter, sans-serif" }}>EURC</span></div>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>Total Value Locked</div>
+          <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>
+            {loading || tvl === null ? "..." : `$${tvl.toFixed(0)}`}
+          </div>
+          <Sparkline color="#6D5EF7" seed={2} />
+        </div>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>Active Pools</div>
+            <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#1e293b" }}>
+              {loading || poolCount === null ? "..." : poolCount}
+            </div>
+          </div>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "flex-end" }}>
+            <Droplet size={18} color="#6D5EF7" />
+          </div>
+        </div>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>Open Positions</div>
+            <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#1e293b" }}>
+              {loading || openPositionCount === null ? "..." : openPositionCount}
+            </div>
+          </div>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "flex-end" }}>
+            <TrendingUp size={18} color="#6D5EF7" />
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div onClick={() => onNavigate("perps")} className="flowfi-glow-card" style={{ cursor: "pointer", background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>OPEN POSITION</div>
-          {loading ? (
-            <div style={{ fontSize: 14, color: "#94a3b8" }}>Loading...</div>
-          ) : openPosition ? (
-            <>
-              <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 700, marginBottom: 2 }}>{openPosition.market} {openPosition.isLong ? "Long" : "Short"} {openPosition.leverage}x</div>
-              <div className="flowfi-mono" style={{ fontSize: 18, fontWeight: 700, color: openPosition.pnl >= 0 ? "#059669" : "#dc2626" }}>{openPosition.pnl >= 0 ? "+" : ""}${openPosition.pnl.toFixed(2)}</div>
-            </>
-          ) : (
-            <div style={{ fontSize: 14, color: "#94a3b8" }}>None</div>
-          )}
-        </div>
-        <div onClick={() => onNavigate("lending")} className="flowfi-glow-card" style={{ cursor: "pointer", background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>LENDING APY</div>
-          <div className="flowfi-mono" style={{ fontSize: 18, fontWeight: 700, color: "#059669" }}>{loading ? "..." : `${lendingAPR ?? "0.00"}%`}</div>
-          {Number(supplyBalance ?? 0) > 0 && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Supplying {supplyBalance} USDC</div>}
-        </div>
-      </div>
-
-      <div style={{ background: "linear-gradient(135deg, #f5f3ff, #ede9fe)", borderRadius: 16, padding: "1.1rem" }}>
-        <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>SUGGESTIONS</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {suggestions.map((s, i) => (
-            <button key={i} onClick={s.action}
-              style={{ textAlign: "left", background: "#ffffff", border: "none", borderRadius: 12, padding: "0.7rem 0.9rem", color: "#475569", fontSize: 13, cursor: "pointer", boxShadow: "0 1px 3px rgba(124,58,237,0.06)" }}>
-              • {s.text}
+      {/* Assets / AI Advisor / Quick Actions */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1fr", gap: "1rem", alignItems: "start" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>Your Assets</div>
+            <button onClick={() => onNavigate("swap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+              View Portfolio <ArrowUpRight size={13} />
             </button>
-          ))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {assets.map((a) => {
+              const meta = TOKEN_META[a.symbol];
+              return (
+                <div key={a.symbol} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 0.25rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: meta.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+                      {meta.letter}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{a.symbol}</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8" }}>{meta.name}</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{a.amount ?? "..."}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8" }}>${a.usd.toFixed(2)}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <Sparkles size={16} color="#6D5EF7" />
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>AI Advisor</div>
+            <span style={{ fontSize: 9, fontWeight: 700, color: "#6D5EF7", background: "#ffffff", padding: "2px 7px", borderRadius: 999 }}>BETA</span>
+          </div>
+          <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem", textAlign: "center" }}>
+            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
+              <Sparkles size={18} color="#6D5EF7" />
+            </div>
+            {hasIdleFunds ? (
+              <>
+                <p style={{ fontSize: 13, color: "#475569", marginBottom: 4 }}>You have <b>{usdcVal.toFixed(0)} USDC</b> idle in your wallet.</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>Supply it to Lending to earn {lendingAPR ?? "..."}% APY.</p>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 2 }}>Estimated Annual Yield</div>
+                <div className="flowfi-mono" style={{ fontSize: 20, fontWeight: 700, color: "#6D5EF7", marginBottom: 2 }}>+${estYield.toFixed(2)}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 14 }}>({lendingAPR ?? "..."}% APY)</div>
+                <button onClick={() => onNavigate("lending")} style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  Review Opportunity
+                </button>
+              </>
+            ) : (
+              <p style={{ fontSize: 13, color: "#64748b" }}>Explore Swap, Bridge, and Lending — Copilot will surface suggestions here as you build activity.</p>
+            )}
+          </div>
+          <p style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", marginTop: 10 }}>AI suggestions are for reference only.</p>
+        </div>
+
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>Quick Actions</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {QUICK_ACTIONS.map(({ id, label, desc, Icon }) => (
+              <button key={id} onClick={() => onNavigate(id)}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "0.6rem", borderRadius: 14, border: "none", background: "transparent", cursor: "pointer", textAlign: "left" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon size={16} color="#6D5EF7" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e293b" }}>{label}</div>
+                  <div style={{ fontSize: 10.5, color: "#94a3b8" }}>{desc}</div>
+                </div>
+                <ChevronRight size={14} color="#c4b5fd" />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Market Overview / Recent Activity */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "1rem", alignItems: "start" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>Market Overview</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>TVL</div>
+              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>{tvl === null ? "..." : `$${tvl.toFixed(0)}`}</div>
+              <Sparkline color="#6D5EF7" seed={3} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>Pools</div>
+              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>{poolCount ?? "..."}</div>
+              <Sparkline color="#6D5EF7" seed={4} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>Lending APY</div>
+              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>{lendingAPR ?? "..."}%</div>
+              <Sparkline color="#6D5EF7" seed={5} />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>Recent Activity</div>
+            <ExternalLink size={13} color="#6D5EF7" />
+          </div>
+          {recentTxs.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>No recent activity yet.</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {recentTxs.map((tx) => (
+              <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.25rem", textDecoration: "none" }}>
+                <span style={{ fontSize: 12.5, color: "#475569" }}>{tx.method}</span>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>{tx.age}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <NetworkHealth />
+
+      <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <ShieldCheck size={18} color="#6D5EF7" />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Your assets are secured by smart contracts</div>
+          <div style={{ fontSize: 11, color: "#94a3b8" }}>FlowFi is non-custodial and built on Arc Testnet.</div>
+        </div>
+      </div>
     </div>
   );
 }
