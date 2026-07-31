@@ -271,7 +271,7 @@ export default function Perpetuals({ provider, address }: Props) {
           <div style={{ display: "flex", gap: 8 }}>
             {(["BTC", "ETH"] as const).map((m) => (
   <button key={m} onClick={() => setMarket(m)} disabled={isLoading}
-    style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: market === m ? "#ede9fe" : "#f5f3ff", color: market === m ? "#a855f7" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+    style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: market === m ? "#ede9fe" : "#f5f3ff", color: market === m ? "#5B21B6" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
     <img src={m === "BTC" ? "https://assets.coingecko.com/coins/images/1/small/bitcoin.png" : "https://assets.coingecko.com/coins/images/279/small/ethereum.png"} alt={m} style={{ width: 16, height: 16, borderRadius: "50%" }} />
     {m}-PERP
   </button>
@@ -341,11 +341,11 @@ export default function Perpetuals({ provider, address }: Props) {
               width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 10, fontWeight: 800,
               background: isDone ? "#7c3aed" : isActive ? "#ede9fe" : "#f5f3ff",
-              color: isDone ? "#ffffff" : isActive ? "#a855f7" : "#374151",
+              color: isDone ? "#ffffff" : isActive ? "#5B21B6" : "#374151",
             }}>
               {isDone ? "✓" : i + 1}
             </div>
-            <span style={{ fontSize: 9, color: isDone ? "#7c3aed" : isActive ? "#a855f7" : "#374151" }}>{label[s]}</span>
+            <span style={{ fontSize: 9, color: isDone ? "#7c3aed" : isActive ? "#5B21B6" : "#374151" }}>{label[s]}</span>
           </div>
           {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#7c3aed" : "#f5f3ff", marginBottom: 12 }} />}
         </div>
@@ -355,7 +355,7 @@ export default function Perpetuals({ provider, address }: Props) {
 )}
             {errorMsg && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
             <button onClick={openPosition} disabled={isLoading || !currentPrice}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: isLong ? "#34d399" : "#ef4444", color: isLong ? "#ffffff" : "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading || !currentPrice ? 0.5 : 1 }}>
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: isLong ? "#16A34A" : "#ef4444", color: isLong ? "#ffffff" : "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading || !currentPrice ? 0.5 : 1 }}>
               {state === "approving" && "Approving..."}
               {state === "opening" && "Opening..."}
               {(state === "idle" || state === "error") && `Open ${isLong ? "Long" : "Short"} ${leverage}x`}
@@ -364,7 +364,7 @@ export default function Perpetuals({ provider, address }: Props) {
         </div>
         {margin && Number(margin) > 0 && currentPrice && (
   <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 16, padding: "1.1rem", marginBottom: 12 }}>
-    <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>POSITION SUMMARY</div>
+    <div style={{ fontSize: 10, color: "#5B21B6", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>POSITION SUMMARY</div>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
       <div>
         <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>Margin</div>
@@ -400,11 +400,11 @@ export default function Perpetuals({ provider, address }: Props) {
         <div>
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
             <button onClick={() => setShowHistory(false)}
-              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: !showHistory ? "#ede9fe" : "transparent", color: !showHistory ? "#a855f7" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: !showHistory ? "#ede9fe" : "transparent", color: !showHistory ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               POSITIONS
             </button>
             <button onClick={() => setShowHistory(true)}
-              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: showHistory ? "#ede9fe" : "transparent", color: showHistory ? "#a855f7" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: showHistory ? "#ede9fe" : "transparent", color: showHistory ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               PNL HISTORY
             </button>
           </div>
@@ -429,7 +429,7 @@ export default function Perpetuals({ provider, address }: Props) {
                           <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{p.market}-PERP</span>
                           <span style={{ fontSize: 11, color: "#4B5563" }}>{p.leverage}x</span>
                         </div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: "#a855f7" }}>{STATUS_LABELS[p.status]}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#5B21B6" }}>{STATUS_LABELS[p.status]}</span>
                       </div>
 
                       {live && (

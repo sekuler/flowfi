@@ -102,7 +102,7 @@ export default function WalletConnect({ onConnected }: Props) {
       )}
       <div style={{ marginTop: 4 }}>
         <span style={{ color: "#4B5563", fontSize: 13 }}>Get test USDC: </span>
-        <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#a855f7", fontSize: 13 }}>faucet.circle.com</a>
+        <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#5B21B6", fontSize: 13 }}>faucet.circle.com</a>
       </div>
     </div>
   );

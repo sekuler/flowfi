@@ -303,7 +303,7 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 460 }}>
       <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-        <p style={{ fontSize: 12, color: "#a855f7", margin: 0 }}>
+        <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>
           Launch your own ERC20 token, pair it against USDC, and seed liquidity — all in one flow.
         </p>
       </div>

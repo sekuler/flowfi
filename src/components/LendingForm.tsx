@@ -224,7 +224,7 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: 460 }}>
       <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-        <p style={{ fontSize: 12, color: "#a855f7", margin: 0 }}>
+        <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>
           Supply USDC to earn interest, or deposit EURC as collateral to borrow USDC. 75% max LTV, liquidation at 85%.
         </p>
       </div>
@@ -246,11 +246,11 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
 
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={() => setTab("supply")}
-          style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: tab === "supply" ? "#ede9fe" : "#f5f3ff", color: tab === "supply" ? "#a855f7" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: tab === "supply" ? "#ede9fe" : "#f5f3ff", color: tab === "supply" ? "#5B21B6" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
           Supply / Earn
         </button>
         <button onClick={() => setTab("borrow")}
-          style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: tab === "borrow" ? "#ede9fe" : "#f5f3ff", color: tab === "borrow" ? "#a855f7" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: tab === "borrow" ? "#ede9fe" : "#f5f3ff", color: tab === "borrow" ? "#5B21B6" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
           Borrow
         </button>
       </div>

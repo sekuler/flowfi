@@ -150,11 +150,11 @@ export default function CircleWallet() {
             </p>
             {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
             <button onClick={createWallet} disabled={loading}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#34d399", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
               {loading ? "Creating wallet..." : "Create Circle Wallet"}
             </button>
             <button onClick={loadPastWallets} disabled={loadingPast}
-              style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "#f5f3ff", color: "#a855f7", fontSize: 13, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
+              style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "#f5f3ff", color: "#5B21B6", fontSize: 13, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
               {loadingPast ? "Loading..." : "Restore a previous wallet"}
             </button>
           </>
@@ -180,7 +180,7 @@ export default function CircleWallet() {
                     </button>
                     {isHidden ? (
                       <button onClick={(e) => unhideWallet(w.address, e)} title="Unhide"
-                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#f5f3ff", color: "#a855f7", fontSize: 13, cursor: "pointer" }}>
+                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#f5f3ff", color: "#5B21B6", fontSize: 13, cursor: "pointer" }}>
                         ↺
                       </button>
                     ) : (
@@ -211,7 +211,7 @@ export default function CircleWallet() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
               <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>USDC</div>
+                <div style={{ fontSize: 10, color: "#5B21B6", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>USDC</div>
                 <div style={{ fontSize: 16, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.usdc ?? "0.00"}
                 </div>
@@ -223,7 +223,7 @@ export default function CircleWallet() {
                 </div>
               </div>
               <div style={{ background: "rgba(249,115,22,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#fdba74", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>cirBTC</div>
+                <div style={{ fontSize: 10, color: "#C2410C", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>cirBTC</div>
                 <div style={{ fontSize: 16, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
                   {loadingBalances && !balances ? "..." : balances?.cirbtc ?? "0.000000"}
                 </div>
@@ -241,7 +241,7 @@ export default function CircleWallet() {
                 {chainList.map((chain) => (
                   <div key={chain} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                     <span style={{ color: "#6B7280" }}>{chain.replace("-", " ")}</span>
-                    <span style={{ color: "#a855f7", fontWeight: 600 }}>✓ Ready</span>
+                    <span style={{ color: "#5B21B6", fontWeight: 600 }}>✓ Ready</span>
                   </div>
                 ))}
               </div>
@@ -260,7 +260,7 @@ export default function CircleWallet() {
               Create Another
             </button>
             <button onClick={loadPastWallets} disabled={loadingPast}
-              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "none", background: "transparent", color: "#a855f7", fontSize: 12, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
+              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "none", background: "transparent", color: "#5B21B6", fontSize: 12, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
               {loadingPast ? "Loading..." : "Switch to a previous wallet"}
             </button>
           </>

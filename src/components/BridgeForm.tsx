@@ -307,11 +307,11 @@ export default function BridgeForm({ provider, address }: Props) {
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%" }}>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setBridgeType("usdc")}
-            style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "usdc" ? "#ede9fe" : "#ffffff", color: bridgeType === "usdc" ? "#a855f7" : "#4B5563", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "usdc" ? "#ede9fe" : "#ffffff", color: bridgeType === "usdc" ? "#5B21B6" : "#4B5563", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
             USDC Bridge
           </button>
           <button onClick={() => setBridgeType("eth")}
-            style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "eth" ? "#ede9fe" : "#ffffff", color: bridgeType === "eth" ? "#a855f7" : "#4B5563", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "eth" ? "#ede9fe" : "#ffffff", color: bridgeType === "eth" ? "#5B21B6" : "#4B5563", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
             ETH Bridge
           </button>
         </div>
@@ -324,18 +324,18 @@ export default function BridgeForm({ provider, address }: Props) {
               {circleWallet && (
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => setUseCircle(false)} disabled={isLoading}
-                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                     Browser Wallet
                   </button>
                   <button onClick={() => setUseCircle(true)} disabled={isLoading}
-                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                     Circle Wallet
                   </button>
                 </div>
               )}
 
               <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.65rem 0.85rem" }}>
-                <p style={{ fontSize: 12, color: "#a855f7", margin: 0 }}>
+                <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>
                   {useCircle
                     ? "Circle Wallet signs both the burn and the mint automatically — no chain switching, no popups."
                     : "Real CCTP V2 bridge — burn on any supported chain, mint native USDC on any other."}
@@ -347,7 +347,7 @@ export default function BridgeForm({ provider, address }: Props) {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {(Object.keys(CHAINS) as ChainKey[]).map((key) => (
                     <button key={key} onClick={() => changeSource(key)} disabled={isLoading}
-                      style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 10, border: "none", background: sourceKey === key ? "#ede9fe" : "#f5f3ff", color: sourceKey === key ? "#a855f7" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 10, border: "none", background: sourceKey === key ? "#ede9fe" : "#f5f3ff", color: sourceKey === key ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                       {key}
                     </button>
                   ))}
@@ -367,7 +367,7 @@ export default function BridgeForm({ provider, address }: Props) {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {(Object.keys(CHAINS) as ChainKey[]).map((key) => (
                     <button key={key} onClick={() => changeDest(key)} disabled={isLoading}
-                      style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 10, border: "none", background: destKey === key ? "#ede9fe" : "#f5f3ff", color: destKey === key ? "#a855f7" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      style={{ flex: "1 1 45%", padding: "0.6rem", borderRadius: 10, border: "none", background: destKey === key ? "#ede9fe" : "#f5f3ff", color: destKey === key ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                       {key}
                     </button>
                   ))}
@@ -415,11 +415,11 @@ export default function BridgeForm({ provider, address }: Props) {
                             width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
                             fontSize: 11, fontWeight: 800,
                             background: isDone ? "#7c3aed" : isActive ? "#ede9fe" : "#f5f3ff",
-                            color: isDone ? "#ffffff" : isActive ? "#a855f7" : "#374151",
+                            color: isDone ? "#ffffff" : isActive ? "#5B21B6" : "#374151",
                           }}>
                             {isDone ? "✓" : i + 1}
                           </div>
-                          <span style={{ fontSize: 9, color: isDone ? "#7c3aed" : isActive ? "#a855f7" : "#374151" }}>{STEP_LABELS_SHORT[s]}</span>
+                          <span style={{ fontSize: 9, color: isDone ? "#7c3aed" : isActive ? "#5B21B6" : "#374151" }}>{STEP_LABELS_SHORT[s]}</span>
                         </div>
                         {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#7c3aed" : "#f5f3ff", marginBottom: 14 }} />}
                       </div>
@@ -430,21 +430,21 @@ export default function BridgeForm({ provider, address }: Props) {
 
               {isLoading && (
                 <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-                  <p style={{ fontSize: 13, color: "#a855f7", margin: 0 }}>{stepLabels[step]}</p>
+                  <p style={{ fontSize: 13, color: "#5B21B6", margin: 0 }}>{stepLabels[step]}</p>
                 </div>
               )}
 
               {errorMsg && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
 
               {burnTxHash && (
-                <a href={`${source.chain.blockExplorers?.default.url}/tx/${burnTxHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#60a5fa" }}>
+                <a href={`${source.chain.blockExplorers?.default.url}/tx/${burnTxHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563EB" }}>
                   Burn Tx on {sourceKey} ↗
                 </a>
               )}
               {mintTxHash && (
                 <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 12, padding: "1rem" }}>
                   <p style={{ color: "#7c3aed", fontWeight: 700, marginBottom: 6 }}>Bridge complete!</p>
-                  <a href={`${dest.chain.blockExplorers?.default.url ?? "https://testnet.arcscan.app"}/tx/${mintTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View mint on {destKey} ↗</a>
+                  <a href={`${dest.chain.blockExplorers?.default.url ?? "https://testnet.arcscan.app"}/tx/${mintTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563EB", fontSize: 13 }}>View mint on {destKey} ↗</a>
                 </div>
               )}
 
@@ -469,7 +469,7 @@ export default function BridgeForm({ provider, address }: Props) {
                   {useCircle
                     ? "Circle Wallet needs USDC and native gas on both the source and destination chains."
                     : `Requires native gas on ${sourceKey} and USDC to bridge.`} Get test tokens from{" "}
-                  <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa" }}>faucet.circle.com</a>.
+                  <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ color: "#2563EB" }}>faucet.circle.com</a>.
                 </p>
               </div>
             </div>

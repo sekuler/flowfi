@@ -16,19 +16,19 @@ interface Props {
 }
 
 const METHOD_META: Record<string, { label: string; color: string }> = {
-  "0xa9059cbb": { label: "Send", color: "#34d399" },
+  "0xa9059cbb": { label: "Send", color: "#16A34A" },
   "0x095ea7b3": { label: "Approve", color: "#f59e0b" },
   "0x74b30078": { label: "Swap", color: "#7c3aed" },
   "0x9cd441da": { label: "Swap", color: "#7c3aed" },
-  "0xe334e8dd": { label: "Escrow", color: "#a855f7" },
-  "0x6a627842": { label: "Bridge", color: "#a855f7" },
-  "0x0ba469bc": { label: "Bridge", color: "#a855f7" },
+  "0xe334e8dd": { label: "Escrow", color: "#5B21B6" },
+  "0x6a627842": { label: "Bridge", color: "#5B21B6" },
+  "0x0ba469bc": { label: "Bridge", color: "#5B21B6" },
   "0x": { label: "Deploy", color: "#4B5563" },
 };
 
 const STATUS_META: Record<string, { label: string; color: string; dot: string }> = {
-  ok: { label: "Success", color: "#16A34A", dot: "#34d399" },
-  pending: { label: "Pending", color: "#fcd34d", dot: "#f59e0b" },
+  ok: { label: "Success", color: "#16A34A", dot: "#16A34A" },
+  pending: { label: "Pending", color: "#B45309", dot: "#f59e0b" },
   error: { label: "Failed", color: "#DC2626", dot: "#ef4444" },
 };
 
@@ -101,11 +101,11 @@ export default function TxHistory({ address }: Props) {
       {circleWallet && (
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => setUseCircle(false)}
-            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
             Browser Wallet
           </button>
           <button onClick={() => setUseCircle(true)}
-            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
             Circle Wallet
           </button>
         </div>
@@ -119,7 +119,7 @@ export default function TxHistory({ address }: Props) {
                 padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
                 border: "none",
                 background: filter === f ? "#ede9fe" : "#f5f3ff",
-                color: filter === f ? "#a855f7" : "#4B5563",
+                color: filter === f ? "#5B21B6" : "#4B5563",
               }}>
               {f === "all" ? "All" : f}
             </button>

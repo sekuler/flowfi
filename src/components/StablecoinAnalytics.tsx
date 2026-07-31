@@ -81,7 +81,7 @@ export default function StablecoinAnalytics() {
           <>
             <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
               <div style={{ width: `${usdcPct}%`, background: "#7c3aed" }} />
-              <div style={{ width: `${eurcPct}%`, background: "#a855f7" }} />
+              <div style={{ width: `${eurcPct}%`, background: "#5B21B6" }} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -90,7 +90,7 @@ export default function StablecoinAnalytics() {
                 <span style={{ color: "#111827", fontWeight: 700 }}>{usdcPct.toFixed(1)}%</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#a855f7" }} />
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#5B21B6" }} />
                 <span style={{ color: "#6B7280" }}>EURC</span>
                 <span style={{ color: "#111827", fontWeight: 700 }}>{eurcPct.toFixed(1)}%</span>
               </div>
@@ -105,7 +105,7 @@ export default function StablecoinAnalytics() {
           <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.swapPool.toFixed(2)}`}</div>
         </div>
         <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, marginBottom: 4 }}>AMM POOL</div>
+          <div style={{ fontSize: 10, color: "#5B21B6", fontWeight: 700, marginBottom: 4 }}>AMM POOL</div>
           <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.ammPool.toFixed(2)}`}</div>
         </div>
         <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
