@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState } from "react";
 import type { EIP1193Provider } from "viem";
 
 type EIP6963ProviderInfo = { uuid: string; name: string; icon: string; rdns: string; };
@@ -48,14 +48,18 @@ const CURATED_WALLETS = [
 ];
 
 export default function WalletConnect({ onConnected }: Props) {
+  const [status, setStatus] = useState<"idle" | "detecting" | "list">("idle");
   const [detected, setDetected] = useState<EIP6963ProviderDetail[]>([]);
-  const [loading, setLoading] = useState(true);
   const [connectingUuid, setConnectingUuid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    discoverWallets().then((found) => { setDetected(found); setLoading(false); });
-  }, []);
+  async function startConnect() {
+    setError(null);
+    setStatus("detecting");
+    const found = await discoverWallets();
+    setDetected(found);
+    setStatus("list");
+  }
 
   async function connectWallet(wallet: EIP6963ProviderDetail) {
     setConnectingUuid(wallet.info.uuid); setError(null);
@@ -77,64 +81,71 @@ export default function WalletConnect({ onConnected }: Props) {
     }
   }
 
-  // Combine curated wallets with anything else EIP-6963 found that isn't in the curated list.
   const extraDetected = detected.filter((d) => !CURATED_WALLETS.some((c) => c.match.includes(d.info.rdns)));
 
   return (
     <div style={{ maxWidth: 420, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.85rem" }}>
       {error && <div style={{ width: "100%", background: "rgba(239,68,68,0.12)", borderRadius: 12, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13, lineHeight: 1.5 }}>{error}</div>}
 
-      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-        <p style={{ fontSize: 13, color: "#4B5563", marginBottom: 2, textAlign: "center" }}>
-          {loading ? "Checking installed wallets..." : "Select a wallet to connect:"}
-        </p>
+      {status !== "list" && (
+        <button onClick={startConnect} disabled={status === "detecting"}
+          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: status === "detecting" ? "not-allowed" : "pointer", opacity: status === "detecting" ? 0.7 : 1 }}>
+          {status === "idle" && "Connect Wallet"}
+          {status === "detecting" && "Detecting wallets..."}
+        </button>
+      )}
 
-        {CURATED_WALLETS.map((c) => {
-          const found = detected.find((d) => c.match.includes(d.info.rdns));
-          const isConnecting = found && connectingUuid === found.info.uuid;
-          const isInstalled = !!found;
+      {status === "list" && (
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
+          <p style={{ fontSize: 13, color: "#4B5563", marginBottom: 2, textAlign: "center" }}>Select a wallet to connect:</p>
 
-          return (
-            <button
-              key={c.name}
-              disabled={loading || connectingUuid !== null}
-              onClick={() => {
-                if (found) connectWallet(found);
-                else window.open(c.installUrl, "_blank", "noopener,noreferrer");
-              }}
-              style={{
-                width: "100%", padding: "0.85rem 1rem", borderRadius: 14, border: "1px solid #D4C9FA",
-                background: "#ffffff", cursor: connectingUuid !== null ? "not-allowed" : "pointer",
-                display: "flex", alignItems: "center", gap: 12,
-                opacity: connectingUuid !== null && !isConnecting ? 0.5 : loading ? 0.7 : 1,
-                boxShadow: "0 1px 3px rgba(109,94,247,0.06)",
-              }}>
-              {found?.info.icon ? (
-                <img src={found.info.icon} alt="" width={28} height={28} style={{ borderRadius: 8, flexShrink: 0 }} />
-              ) : (
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: c.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
-                  {c.letter}
-                </div>
-              )}
-              <span style={{ flex: 1, textAlign: "left", fontSize: 15, fontWeight: 700, color: "#111827" }}>{c.name}</span>
-              {isConnecting ? (
-                <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 600 }}>Connecting...</span>
-              ) : !loading && !isInstalled ? (
-                <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, background: "#f5f3ff", padding: "3px 9px", borderRadius: 999 }}>Install</span>
-              ) : null}
+          {CURATED_WALLETS.map((c) => {
+            const found = detected.find((d) => c.match.includes(d.info.rdns));
+            const isConnecting = found && connectingUuid === found.info.uuid;
+            const isInstalled = !!found;
+
+            return (
+              <button
+                key={c.name}
+                disabled={connectingUuid !== null}
+                onClick={() => {
+                  if (found) connectWallet(found);
+                  else window.open(c.installUrl, "_blank", "noopener,noreferrer");
+                }}
+                style={{
+                  width: "100%", padding: "0.85rem 1rem", borderRadius: 14, border: "1px solid #D4C9FA",
+                  background: "#ffffff", cursor: connectingUuid !== null ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", gap: 12,
+                  opacity: connectingUuid !== null && !isConnecting ? 0.5 : 1,
+                  boxShadow: "0 1px 3px rgba(109,94,247,0.06)",
+                }}>
+                {found?.info.icon ? (
+                  <img src={found.info.icon} alt="" width={28} height={28} style={{ borderRadius: 8, flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: c.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
+                    {c.letter}
+                  </div>
+                )}
+                <span style={{ flex: 1, textAlign: "left", fontSize: 15, fontWeight: 700, color: "#111827" }}>{c.name}</span>
+                {isConnecting ? (
+                  <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 600 }}>Connecting...</span>
+                ) : !isInstalled ? (
+                  <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, background: "#f5f3ff", padding: "3px 9px", borderRadius: 999 }}>Install</span>
+                ) : null}
+              </button>
+            );
+          })}
+
+          {extraDetected.map((w) => (
+            <button key={w.info.uuid} onClick={() => connectWallet(w)} disabled={connectingUuid !== null}
+              style={{ width: "100%", padding: "0.85rem 1rem", borderRadius: 14, border: "1px solid #D4C9FA", background: "#ffffff", cursor: connectingUuid !== null ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 12, opacity: connectingUuid !== null && connectingUuid !== w.info.uuid ? 0.5 : 1, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+              {w.info.icon && <img src={w.info.icon} alt="" width={28} height={28} style={{ borderRadius: 8, flexShrink: 0 }} />}
+              <span style={{ flex: 1, textAlign: "left", fontSize: 15, fontWeight: 700, color: "#111827" }}>{w.info.name}</span>
+              {connectingUuid === w.info.uuid && <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 600 }}>Connecting...</span>}
             </button>
-          );
-        })}
-
-        {extraDetected.map((w) => (
-          <button key={w.info.uuid} onClick={() => connectWallet(w)} disabled={connectingUuid !== null}
-            style={{ width: "100%", padding: "0.85rem 1rem", borderRadius: 14, border: "1px solid #D4C9FA", background: "#ffffff", cursor: connectingUuid !== null ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 12, opacity: connectingUuid !== null && connectingUuid !== w.info.uuid ? 0.5 : 1, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-            {w.info.icon && <img src={w.info.icon} alt="" width={28} height={28} style={{ borderRadius: 8, flexShrink: 0 }} />}
-            <span style={{ flex: 1, textAlign: "left", fontSize: 15, fontWeight: 700, color: "#111827" }}>{w.info.name}</span>
-            {connectingUuid === w.info.uuid && <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 600 }}>Connecting...</span>}
-          </button>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ marginTop: 4 }}>
         <span style={{ color: "#4B5563", fontSize: 13 }}>Get test USDC: </span>
