@@ -27,13 +27,13 @@ export default function ReceiveQR({ address }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", maxWidth: 360, margin: "0 auto" }}>
-      <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 13, color: "#4B5563", fontWeight: 600, textAlign: "center" }}>
           Scan to send USDC, EURC, or ARC to this wallet
         </div>
 
         {qrDataUrl ? (
-          <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 12, padding: 12 }}>
+          <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 12, padding: 12 }}>
             <img src={qrDataUrl} alt="Wallet address QR code" width={220} height={220} style={{ display: "block" }} />
           </div>
         ) : (
@@ -45,7 +45,7 @@ export default function ReceiveQR({ address }: Props) {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: "100%" }}>
           <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px" }}>YOUR ADDRESS</div>
           <div className="flowfi-mono" style={{ fontSize: 13, color: "#111827", wordBreak: "break-all", textAlign: "center" }}>
-  {address.slice(0, 10) + "--demo--" + address.slice(-6)}
+  {address}
 </div>
         </div>
 
