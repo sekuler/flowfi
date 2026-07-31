@@ -6,6 +6,7 @@ type EIP6963ProviderInfo = { uuid: string; name: string; icon: string; rdns: str
 type EIP6963ProviderDetail = { info: EIP6963ProviderInfo; provider: EIP1193Provider; };
 
 declare global {
+  interface Window { ethereum?: EIP1193Provider & { isMetaMask?: boolean; providers?: EIP1193Provider[] }; }
   interface WindowEventMap { "eip6963:announceProvider": CustomEvent<EIP6963ProviderDetail>; }
 }
 
@@ -14,9 +15,32 @@ async function discoverWallets(): Promise<EIP6963ProviderDetail[]> {
   const handler = (e: CustomEvent<EIP6963ProviderDetail>) => { providers.set(e.detail.info.uuid, e.detail); };
   window.addEventListener("eip6963:announceProvider", handler);
   window.dispatchEvent(new Event("eip6963:requestProvider"));
-  await new Promise((r) => setTimeout(r, 300));
+  // Give slower extensions (and mobile in-app browsers) more time to announce themselves.
+  await new Promise((r) => setTimeout(r, 700));
   window.removeEventListener("eip6963:announceProvider", handler);
-  return [...providers.values()];
+
+  const found = [...providers.values()];
+  if (found.length > 0) return found;
+
+  // Legacy fallback: some wallets (or older versions) only expose window.ethereum
+  // without emitting an EIP-6963 announcement. Without this, users on those
+  // wallets would see "No wallet found" and never get a connect popup at all.
+  if (typeof window.ethereum !== "undefined") {
+    const injected = window.ethereum.providers && window.ethereum.providers.length > 0
+      ? window.ethereum.providers
+      : [window.ethereum];
+    return injected.map((p, i) => ({
+      info: {
+        uuid: `legacy-${i}`,
+        name: (p as any).isMetaMask ? "MetaMask" : "Injected Wallet",
+        icon: "",
+        rdns: "legacy",
+      },
+      provider: p,
+    }));
+  }
+
+  return [];
 }
 
 interface Props { onConnected: (provider: EIP1193Provider, address: string, walletName: string) => void; }
@@ -42,8 +66,15 @@ export default function WalletConnect({ onConnected }: Props) {
     
       onConnected(wallet.provider, accounts[0], wallet.info.name);
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setError(err.message ?? "An error occurred."); setStatus("idle");
+      const err = e as { message?: string; code?: number };
+      if (err.code === -32002) {
+        setError("Your wallet already has a connection request open. Open the extension and check for a pending popup.");
+      } else if (err.code === 4001) {
+        setError("Connection request was rejected.");
+      } else {
+        setError(err.message ?? "An error occurred.");
+      }
+      setStatus("idle");
     }
   }
 
