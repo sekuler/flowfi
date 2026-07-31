@@ -37,6 +37,13 @@ interface Props {
   onNavigateToPools: () => void;
 }
 
+const AVATAR_COLORS = ["#6D5EF7", "#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#EC4899", "#14B8A6", "#8B5CF6"];
+function avatarColor(seed: string) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 interface LaunchedToken {
   address: string;
   name: string;
@@ -423,9 +430,14 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
             {searchResults.map((r) => (
               <a key={r.address} href={`https://testnet.arcscan.app/address/${r.address}`} target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", textDecoration: "none" }}>
-                <div>
-                  <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{r.name}</span>
-                  <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{r.symbol}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(r.symbol), display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
+                    {r.symbol[0]}
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{r.name}</span>
+                    <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{r.symbol}</span>
+                  </div>
                 </div>
                 <span style={{ fontSize: 11, color: "#16A34A" }}>{r.supply} supply</span>
               </a>
@@ -442,9 +454,14 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
           {allTokens.map((t) => (
             <a key={t.address} href={`https://testnet.arcscan.app/address/${t.address}`} target="_blank" rel="noopener noreferrer"
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "#f5f3ff", border: "1px solid rgba(109,94,247,0.08)", textDecoration: "none" }}>
-              <div>
-                <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{t.name}</span>
-                <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{t.symbol}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(t.symbol), display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
+                  {t.symbol[0]}
+                </div>
+                <div>
+                  <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{t.name}</span>
+                  <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{t.symbol}</span>
+                </div>
               </div>
               <span style={{ fontSize: 11, color: "#334155" }}>{t.supply} supply</span>
             </a>
