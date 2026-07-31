@@ -113,9 +113,9 @@ function timeAgo(sec: number) {
 function PastelBackground() {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: "#F8F8FC" }}>
-      <div className="flowfi-blob-a" style={{ position: "absolute", top: "-10%", left: "-8%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,124,249,0.15) 0%, transparent 70%)", filter: "blur(50px)" }} />
-      <div className="flowfi-blob-b" style={{ position: "absolute", top: "20%", right: "-10%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(109,94,247,0.12) 0%, transparent 70%)", filter: "blur(50px)" }} />
-      <div className="flowfi-blob-a" style={{ position: "absolute", bottom: "-15%", left: "30%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(109,94,247,0.1) 0%, transparent 70%)", filter: "blur(50px)", animationDelay: "-8s" }} />
+      <div className="flowfi-blob-a" style={{ position: "absolute", top: "-10%", left: "-8%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,124,249,0.28) 0%, transparent 70%)", filter: "blur(50px)" }} />
+      <div className="flowfi-blob-b" style={{ position: "absolute", top: "20%", right: "-10%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(109,94,247,0.24) 0%, transparent 70%)", filter: "blur(50px)" }} />
+      <div className="flowfi-blob-a" style={{ position: "absolute", bottom: "-15%", left: "30%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)", filter: "blur(50px)", animationDelay: "-8s" }} />
     </div>
   );
 }
@@ -251,6 +251,13 @@ export default function App() {
       a { transition: transform 0.12s ease, opacity 0.12s ease; }
       input, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
       input:focus, select:focus { box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
+      input[type="text"], input[type="number"], input[type="email"], input[type="search"], select, textarea {
+        border: 1.5px solid #D4C9FA !important;
+      }
+      input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, select:focus, textarea:focus {
+        border-color: #6D5EF7 !important;
+      }
+      input::placeholder { color: #9CA3AF; }
       @keyframes flowfi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
       @keyframes flowfi-skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
@@ -328,7 +335,7 @@ export default function App() {
           {LANDING_FEATURES.map((f, i) => {
             const Icon = LANDING_FEATURE_ICONS[i];
             return (
-              <div key={f.title} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 18, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #E8E3FF" }}>
+              <div key={f.title} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 18, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA" }}>
                 <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
                   <Icon size={18} color="#6D5EF7" strokeWidth={2} />
                 </div>
@@ -434,7 +441,7 @@ export default function App() {
         </header>
 
         <div style={{ padding: "2.5rem" }}>
-          <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "home" ? 1200 : tab === "perps" || tab === "pools" || tab === "swap" || tab === "bridge" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
+          <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "home" || tab === "bridge" ? 1200 : tab === "perps" || tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
                 {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
@@ -460,7 +467,7 @@ export default function App() {
                     const meta = TOKEN_META[label];
                     const usd = usdEquivalent(label, value);
                     return (
-                      <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #E8E3FF" }}>
+                      <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                           {label === "USDC" || label === "EURC" ? (
   <img src={label === "USDC" ? "https://assets.coingecko.com/coins/images/6319/small/usdc.png" : "https://assets.coingecko.com/coins/images/26045/small/euro.png"} alt={label} style={{ width: 20, height: 20, borderRadius: "50%" }} />
@@ -476,7 +483,7 @@ export default function App() {
                   })}
                 </div>
 
-                <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #E8E3FF" }}>
+                <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA" }}>
                   <div>
                     <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>ARC</div>
                     <div style={{ fontSize: 13, color: "#4B5563" }}>Gas Balance</div>
@@ -516,7 +523,7 @@ export default function App() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {recentTxs.map((tx) => (
                         <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
-                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 12, background: "#ffffff", textDecoration: "none", boxShadow: "0 1px 3px rgba(124,58,237,0.06)" , border: "1px solid #E8E3FF" }}>
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 12, background: "#ffffff", textDecoration: "none", boxShadow: "0 1px 3px rgba(124,58,237,0.06)" , border: "1px solid #D4C9FA" }}>
                           <span style={{ fontSize: 12, color: "#374151" }}>{tx.method}</span>
                           <span style={{ fontSize: 11, color: "#6B7280" }}>{tx.age}</span>
                         </a>

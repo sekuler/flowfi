@@ -495,19 +495,55 @@ export default function BridgeForm({ provider, address }: Props) {
               </div>
             </div>
 
-            <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.1rem", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Zap size={14} color="#6D5EF7" />
-                <span style={{ fontSize: 12, color: "#4B5563" }}><b style={{ color: "#111827" }}>Fast</b> — transfers under 2 minutes</span>
+            <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Supported assets</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                {[
+                  { symbol: "USDC", name: "USD Coin", color: "#3B82F6" },
+                  { symbol: "EURC", name: "Euro Coin", color: "#22C55E" },
+                  { symbol: "ARCC", name: "Arc Coin", color: "#6D5EF7" },
+                ].map((t) => (
+                  <div key={t.symbol} style={{ textAlign: "center" }}>
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: t.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, margin: "0 auto 6px" }}>
+                      {t.symbol[0]}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#111827" }}>{t.symbol}</div>
+                    <div style={{ fontSize: 9, color: "#6B7280" }}>{t.name}</div>
+                  </div>
+                ))}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Globe size={14} color="#6D5EF7" />
-                <span style={{ fontSize: 12, color: "#4B5563" }}><b style={{ color: "#111827" }}>4 chains</b> — Arc, Ethereum, Base, Arbitrum</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <ShieldCheck size={14} color="#6D5EF7" />
-                <span style={{ fontSize: 12, color: "#4B5563" }}><b style={{ color: "#111827" }}>Secure</b> — audited by Circle</span>
-              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bridgeType === "usdc" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <ShieldCheck size={18} color="#6D5EF7" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 2 }}>Secure</div>
+              <div style={{ fontSize: 12, color: "#6B7280" }}>Audited by Circle and industry leaders</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Zap size={18} color="#6D5EF7" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 2 }}>Fast</div>
+              <div style={{ fontSize: 12, color: "#6B7280" }}>Average transfer time under 2 minutes</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Globe size={18} color="#6D5EF7" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 2 }}>Cross-chain</div>
+              <div style={{ fontSize: 12, color: "#6B7280" }}>Move assets across multiple supported networks</div>
             </div>
           </div>
         </div>
