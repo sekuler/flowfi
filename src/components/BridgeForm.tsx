@@ -101,6 +101,22 @@ export default function BridgeForm({ provider, address }: Props) {
   const source = CHAINS[sourceKey];
   const dest = CHAINS[destKey];
 
+  const [sourceBalance, setSourceBalance] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setSourceBalance(null);
+    (async () => {
+      try {
+        const client = createPublicClient({ chain: source.chain, transport: http() });
+        const bal = await client.readContract({ address: source.usdc, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] });
+        if (!cancelled) setSourceBalance(Number(bal) / 1e6 + "");
+      } catch {
+        if (!cancelled) setSourceBalance("—");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sourceKey, address]);
+
   function changeSource(key: ChainKey) {
     setSourceKey(key);
     setSourceOpen(false);
@@ -338,7 +354,12 @@ export default function BridgeForm({ provider, address }: Props) {
             )}
 
             <div>
-              <label style={{ fontSize: 13, color: "#4B5563", fontWeight: 600 }}>From</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#4B5563", fontWeight: 600 }}>From</label>
+                <span className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280" }}>
+                  Balance: <span style={{ color: "#6D5EF7", fontWeight: 700 }}>{sourceBalance ?? "..."} USDC</span>
+                </span>
+              </div>
               <div style={{ marginTop: 6 }}>
                 <ChainRow chainKey={sourceKey} open={sourceOpen} setOpen={setSourceOpen} onSelect={changeSource} />
               </div>
@@ -353,7 +374,15 @@ export default function BridgeForm({ provider, address }: Props) {
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>USDC</span>
                 </span>
               </div>
-              <div className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>{amount ? `$${Number(amount).toFixed(2)}` : "$0.00"}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                <span className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280" }}>{amount ? `$${Number(amount).toFixed(2)}` : "$0.00"}</span>
+                {sourceBalance && sourceBalance !== "—" && (
+                  <button onClick={() => setAmount(sourceBalance)} disabled={isLoading}
+                    style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>
+                    Max
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ display: "flex", justifyContent: "center", marginTop: -6, marginBottom: -6 }}>
@@ -499,14 +528,18 @@ export default function BridgeForm({ provider, address }: Props) {
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Supported assets</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
-                  { symbol: "USDC", name: "USD Coin", color: "#3B82F6" },
-                  { symbol: "EURC", name: "Euro Coin", color: "#22C55E" },
-                  { symbol: "ARCC", name: "Arc Coin", color: "#6D5EF7" },
+                  { symbol: "USDC", name: "USD Coin", logo: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
+                  { symbol: "EURC", name: "Euro Coin", logo: "https://assets.coingecko.com/coins/images/26045/small/euro.png" },
+                  { symbol: "ARCC", name: "Arc Coin", logo: null },
                 ].map((t) => (
                   <div key={t.symbol} style={{ textAlign: "center" }}>
-                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: t.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, margin: "0 auto 6px" }}>
-                      {t.symbol[0]}
-                    </div>
+                    {t.logo ? (
+                      <img src={t.logo} alt={t.symbol} style={{ width: 34, height: 34, borderRadius: "50%", margin: "0 auto 6px", display: "block" }} />
+                    ) : (
+                      <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, margin: "0 auto 6px" }}>
+                        {t.symbol[0]}
+                      </div>
+                    )}
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#111827" }}>{t.symbol}</div>
                     <div style={{ fontSize: 9, color: "#6B7280" }}>{t.name}</div>
                   </div>
