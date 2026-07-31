@@ -180,7 +180,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       {/* Hero: net worth */}
       <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.75rem" }}>
         <div style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 8 }}>NET WORTH</div>
-        <div className="flowfi-mono" style={{ fontSize: 42, fontWeight: 800, color: "#1e293b", marginBottom: 8 }}>${total.toFixed(2)}</div>
+        <div className="flowfi-mono" style={{ fontSize: 42, fontWeight: 800, color: "#111827", marginBottom: 8 }}>${total.toFixed(2)}</div>
 
         <div style={{ display: "flex", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -190,7 +190,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
                 {dailyChange.pct >= 0 ? "▲" : "▼"} {Math.abs(dailyChange.pct).toFixed(1)}%
               </span>
             ) : (
-              <span style={{ fontSize: 11, color: "#94a3b8" }}>tracking...</span>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>tracking...</span>
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -200,7 +200,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
                 {weeklyChange.pct >= 0 ? "▲" : "▼"} {Math.abs(weeklyChange.pct).toFixed(1)}%
               </span>
             ) : (
-              <span style={{ fontSize: 11, color: "#94a3b8" }}>tracking...</span>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>tracking...</span>
             )}
           </div>
         </div>
@@ -208,11 +208,11 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
           <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
             <div style={{ fontSize: 10, color: "#3B82F6", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE USDC</div>
-            <div className="flowfi-mono" style={{ fontSize: 18, color: "#1e293b", fontWeight: 800 }}>{balances.usdc ?? "..."}</div>
+            <div className="flowfi-mono" style={{ fontSize: 18, color: "#111827", fontWeight: 800 }}>{balances.usdc ?? "..."}</div>
           </div>
           <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
             <div style={{ fontSize: 10, color: "#22C55E", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE EURC</div>
-            <div className="flowfi-mono" style={{ fontSize: 18, color: "#1e293b", fontWeight: 800 }}>{balances.eurc ?? "..."}</div>
+            <div className="flowfi-mono" style={{ fontSize: 18, color: "#111827", fontWeight: 800 }}>{balances.eurc ?? "..."}</div>
           </div>
         </div>
       </div>
@@ -223,16 +223,16 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
           <button key={a.key} onClick={() => onNavigate(a.key)}
             style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1.1rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
             <div style={{ width: 38, height: 38, borderRadius: 12, background: `${a.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, color: a.color }}>{a.emoji}</div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#1e293b" }}>{a.label}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>{a.label}</span>
           </button>
         ))}
       </div>
 
       {/* Portfolio allocation */}
       <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>PORTFOLIO ALLOCATION</div>
+        <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>PORTFOLIO ALLOCATION</div>
         {total === 0 ? (
-          <div style={{ fontSize: 12, color: "#94a3b8" }}>No balances yet.</div>
+          <div style={{ fontSize: 12, color: "#6B7280" }}>No balances yet.</div>
         ) : (
           <>
             <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
@@ -245,9 +245,9 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
                 <div key={d.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color }} />
-                    <span style={{ color: "#64748b" }}>{d.label}</span>
+                    <span style={{ color: "#4B5563" }}>{d.label}</span>
                   </div>
-                  <span style={{ color: "#1e293b", fontWeight: 700 }}>{((d.value / total) * 100).toFixed(1)}%</span>
+                  <span style={{ color: "#111827", fontWeight: 700 }}>{((d.value / total) * 100).toFixed(1)}%</span>
                 </div>
               ))}
             </div>
@@ -259,23 +259,23 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#16A34A" }}>{loading ? "..." : incomingCount}</div>
-          <div style={{ fontSize: 11, color: "#94a3b8" }}>Incoming (recent)</div>
+          <div style={{ fontSize: 11, color: "#6B7280" }}>Incoming (recent)</div>
         </div>
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#DC2626" }}>{loading ? "..." : outgoingCount}</div>
-          <div style={{ fontSize: 11, color: "#94a3b8" }}>Sent (recent)</div>
+          <div style={{ fontSize: 11, color: "#6B7280" }}>Sent (recent)</div>
         </div>
         <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-          <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#1e293b" }}>{loading ? "..." : txCount ?? 0}</div>
-          <div style={{ fontSize: 11, color: "#94a3b8" }}>All-time transactions</div>
+          <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#111827" }}>{loading ? "..." : txCount ?? 0}</div>
+          <div style={{ fontSize: 11, color: "#6B7280" }}>All-time transactions</div>
         </div>
       </div>
 
       {/* Recent activity, categorized */}
       <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
-        {loading && <div style={{ fontSize: 12, color: "#94a3b8" }}>Loading...</div>}
-        {!loading && recentActivity.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>No transactions yet.</div>}
+        <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
+        {loading && <div style={{ fontSize: 12, color: "#6B7280" }}>Loading...</div>}
+        {!loading && recentActivity.length === 0 && <div style={{ fontSize: 12, color: "#6B7280" }}>No transactions yet.</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {recentActivity.map((tx) => {
             const meta = CATEGORY_META[tx.category];
@@ -284,9 +284,9 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
                 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.8rem", borderRadius: 12, background: "#f5f3ff", textDecoration: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: meta.color, background: meta.bg, padding: "2px 8px", borderRadius: 6 }}>{meta.label}</span>
-                  {tx.amount && <span style={{ fontSize: 12, color: "#475569" }}>${tx.amount}</span>}
+                  {tx.amount && <span style={{ fontSize: 12, color: "#374151" }}>${tx.amount}</span>}
                 </div>
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{tx.age}</span>
+                <span style={{ fontSize: 11, color: "#6B7280" }}>{tx.age}</span>
               </a>
             );
           })}

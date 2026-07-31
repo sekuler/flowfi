@@ -291,11 +291,11 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
       {circleWallet && (
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => setUseCircle(false)} disabled={isLoading}
-            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#a855f7" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
             Browser Wallet
           </button>
           <button onClick={() => setUseCircle(true)} disabled={isLoading}
-            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#a855f7" : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#a855f7" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
             Circle Wallet
           </button>
         </div>
@@ -304,8 +304,8 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         {(["USDC", "EURC"] as const).map((t) => (
           <div key={t} style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.7rem 0.75rem", textAlign: "center" }}>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>{t} Balance</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", fontFamily: "ui-monospace, monospace" }}>
+            <div style={{ fontSize: 11, color: "#4B5563", marginBottom: 2 }}>{t} Balance</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>
               {t === "USDC" ? activeBalances.usdc : activeBalances.eurc}
             </div>
           </div>
@@ -313,29 +313,29 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
       </div>
 
       <div style={{ background: "rgba(168,85,247,0.1)", borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
-        <label style={{ fontSize: 12, color: "#c4b5fd", fontWeight: 700, letterSpacing: "0.5px" }}>AI TRANSFER</label>
+        <label style={{ fontSize: 12, color: "#7C3AED", fontWeight: 700, letterSpacing: "0.5px" }}>AI TRANSFER</label>
         <div style={{ display: "flex", gap: 8 }}>
           <input type="text" placeholder="e.g. send 20 USDC to alice.arc" value={aiCommand}
             onChange={function (e) { setAiCommand(e.target.value); }}
             onKeyDown={function (e) { if (e.key === "Enter") parseAiCommand(); }}
             disabled={aiParsing || isLoading}
-            style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.9rem", fontSize: 13, color: "#1e293b", outline: "none" }} />
+            style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.9rem", fontSize: 13, color: "#111827", outline: "none" }} />
           <button onClick={parseAiCommand} disabled={aiParsing || isLoading || !aiCommand.trim()}
             style={{ padding: "0.65rem 1.1rem", borderRadius: 10, border: "none", background: "#a855f7", color: "#fff", fontSize: 18, fontWeight: 900, cursor: aiParsing || !aiCommand.trim() ? "not-allowed" : "pointer", opacity: aiParsing || !aiCommand.trim() ? 0.6 : 1 }}>
             {aiParsing ? "..." : "➢"}
           </button>
         </div>
-        {aiError && <span style={{ fontSize: 11, color: "#fca5a5" }}>{aiError}</span>}
-        {aiFilled && !aiError && <span style={{ fontSize: 11, color: "#6ee7b7" }}>Form filled below — review and send.</span>}
+        {aiError && <span style={{ fontSize: 11, color: "#DC2626" }}>{aiError}</span>}
+        {aiFilled && !aiError && <span style={{ fontSize: 11, color: "#16A34A" }}>Form filled below — review and send.</span>}
       </div>
 
       <div style={{ background: "#ffffff", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px" }}>Token</label>
+          <label style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px" }}>Token</label>
           <div style={{ display: "flex", gap: 8 }}>
             {TOKENS.map((t) => (
               <button key={t} onClick={function () { setToken(t); }} disabled={isLoading}
-                style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: token === t ? "#ede9fe" : "#f5f3ff", color: token === t ? "#a855f7" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: token === t ? "#ede9fe" : "#f5f3ff", color: token === t ? "#a855f7" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                 {t}
               </button>
             ))}
@@ -344,14 +344,14 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Recipient Address or .arc Name</label>
+            <label style={{ fontSize: 11, color: "#4B5563", fontWeight: 600 }}>Recipient Address or .arc Name</label>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={pasteAddress} disabled={isLoading}
                 style={{ background: "none", border: "none", color: "#a855f7", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
                 Paste
               </button>
               <button onClick={function () { setShowAddressBook(!showAddressBook); }} disabled={isLoading}
-                style={{ background: "none", border: "none", color: "#c4b5fd", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                style={{ background: "none", border: "none", color: "#7C3AED", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
                 Address Book {contacts.length > 0 ? `(${contacts.length})` : ""}
               </button>
             </div>
@@ -360,30 +360,30 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
           {showAddressBook && (
             <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.5rem", display: "flex", flexDirection: "column", gap: 4, maxHeight: 160, overflowY: "auto" }}>
               {contacts.length === 0 && (
-                <span style={{ fontSize: 11, color: "#475569", padding: "0.5rem" }}>No saved contacts yet.</span>
+                <span style={{ fontSize: 11, color: "#374151", padding: "0.5rem" }}>No saved contacts yet.</span>
               )}
               {contacts.map((c) => (
                 <div key={c.address} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0.5rem", borderRadius: 8 }}>
                   <button onClick={function () { pickContact(c); }} style={{ flex: 1, textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                    <div style={{ fontSize: 12, color: "#1e293b", fontWeight: 600 }}>{c.name}</div>
-                    <div style={{ fontSize: 10, color: "#475569", fontFamily: "ui-monospace, monospace" }}>{c.address.slice(0, 8)}...{c.address.slice(-6)}</div>
+                    <div style={{ fontSize: 12, color: "#111827", fontWeight: 600 }}>{c.name}</div>
+                    <div style={{ fontSize: 10, color: "#374151", fontFamily: "ui-monospace, monospace" }}>{c.address.slice(0, 8)}...{c.address.slice(-6)}</div>
                   </button>
-                  <button onClick={function () { deleteContact(c.address); }} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, padding: "0 6px" }}>×</button>
+                  <button onClick={function () { deleteContact(c.address); }} style={{ background: "none", border: "none", color: "#4B5563", cursor: "pointer", fontSize: 14, padding: "0 6px" }}>×</button>
                 </div>
               ))}
             </div>
           )}
 
           <input type="text" placeholder="0x... or alice.arc" value={recipient} onChange={function (e) { setRecipient(e.target.value); }} disabled={isLoading}
-            style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 14, color: "#1e293b", outline: "none", fontFamily: "ui-monospace, monospace" }} />
+            style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 14, color: "#111827", outline: "none", fontFamily: "ui-monospace, monospace" }} />
           {isArcName && resolving && (
-            <span style={{ fontSize: 11, color: "#64748b" }}>Resolving name...</span>
+            <span style={{ fontSize: 11, color: "#4B5563" }}>Resolving name...</span>
           )}
           {isArcName && resolvedAddress && !resolving && (
-            <span style={{ fontSize: 11, color: "#6ee7b7" }}>Resolves to {resolvedAddress.slice(0, 6)}...{resolvedAddress.slice(-4)}</span>
+            <span style={{ fontSize: 11, color: "#16A34A" }}>Resolves to {resolvedAddress.slice(0, 6)}...{resolvedAddress.slice(-4)}</span>
           )}
           {isArcName && resolveError && !resolving && (
-            <span style={{ fontSize: 11, color: "#fca5a5" }}>{resolveError}</span>
+            <span style={{ fontSize: 11, color: "#DC2626" }}>{resolveError}</span>
           )}
 
           {canSaveContact && !showSaveContact && (
@@ -395,18 +395,18 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
           {showSaveContact && (
             <div style={{ display: "flex", gap: 6 }}>
               <input type="text" placeholder="Contact name" value={newContactName} onChange={function (e) { setNewContactName(e.target.value); }}
-                style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: 12, color: "#1e293b", outline: "none" }} />
+                style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: 12, color: "#111827", outline: "none" }} />
               <button onClick={saveCurrentContact} style={{ padding: "0.5rem 0.75rem", borderRadius: 8, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Save</button>
             </div>
           )}
         </div>
 
         <div style={{ borderRadius: 16, background: "#f5f3ff", padding: "1rem 1.1rem" }}>
-          <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px" }}>Amount</label>
+          <label style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px" }}>Amount</label>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 6 }}>
             <input type="number" min="0" step="0.01" placeholder="0.00" value={amount} onChange={function (e) { setAmount(e.target.value); }} disabled={isLoading}
-              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 28, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
-            <span style={{ color: "#64748b", fontSize: 14, fontWeight: 600 }}>{token}</span>
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 28, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
+            <span style={{ color: "#4B5563", fontSize: 14, fontWeight: 600 }}>{token}</span>
           </div>
           <button onClick={function () { setAmount(currentBalance); }} disabled={isLoading}
             style={{ marginTop: 6, background: "none", border: "none", color: "#7c3aed", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>
@@ -415,13 +415,13 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
         </div>
 
         {errorMsg && (
-          <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>
+          <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>
             {errorMsg}
           </div>
         )}
         {txHash && sendState === "done" && (
           <div style={{ background: "rgba(52,211,153,0.1)", borderRadius: 12, padding: "1rem" }}>
-            <p style={{ color: "#6ee7b7", fontWeight: 700, marginBottom: 6 }}>Sent successfully!</p>
+            <p style={{ color: "#16A34A", fontWeight: 700, marginBottom: 6 }}>Sent successfully!</p>
             <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 13 }}>View on Explorer</a>
           </div>
         )}
@@ -435,7 +435,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
         </button>
         {sendState === "done" && (
           <button onClick={function () { setSendState("idle"); setTxHash(null); }}
-            style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+            style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#6B7280", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
             New Transfer
           </button>
         )}

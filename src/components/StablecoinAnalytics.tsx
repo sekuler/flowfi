@@ -65,34 +65,34 @@ export default function StablecoinAnalytics() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <div style={{ background: "linear-gradient(135deg, rgba(79,70,229,0.12), rgba(124,58,237,0.08))", border: "1px solid rgba(79,70,229,0.25)", borderRadius: 18, padding: "1.5rem" }}>
-        <div style={{ fontSize: 11, color: "#a5b4fc", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 6 }}>PLATFORM STABLECOIN TVL</div>
-        <div style={{ fontSize: 36, fontWeight: 800, color: "#f8fafc" }}>{loading ? "..." : `$${totalTVL.toFixed(2)}`}</div>
-        <p style={{ fontSize: 11, color: "#818cf8", marginTop: 4 }}>Held across ArcSwap, Liquidity Pools, and ArcLending — verifiable on-chain</p>
+      <div style={{ background: "linear-gradient(135deg, #f5f3ff, #ede9fe)", borderRadius: 18, padding: "1.5rem" }}>
+        <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 6 }}>PLATFORM STABLECOIN TVL</div>
+        <div className="flowfi-mono" style={{ fontSize: 36, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${totalTVL.toFixed(2)}`}</div>
+        <p style={{ fontSize: 11, color: "#7c3aed", marginTop: 4 }}>Held across ArcSwap, Liquidity Pools, and ArcLending — verifiable on-chain</p>
       </div>
 
-      <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "1.25rem" }}>
-        <div style={{ fontSize: 11, color: "#334155", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>DISTRIBUTION BY STABLECOIN</div>
+      <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+        <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>DISTRIBUTION BY STABLECOIN</div>
         {loading ? (
-          <div style={{ fontSize: 12, color: "#334155" }}>Loading...</div>
+          <div style={{ fontSize: 12, color: "#6B7280" }}>Loading...</div>
         ) : totalTVL === 0 ? (
-          <div style={{ fontSize: 12, color: "#334155" }}>No liquidity yet.</div>
+          <div style={{ fontSize: 12, color: "#6B7280" }}>No liquidity yet.</div>
         ) : (
           <>
             <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
-              <div style={{ width: `${usdcPct}%`, background: "#2563eb" }} />
-              <div style={{ width: `${eurcPct}%`, background: "#7c3aed" }} />
+              <div style={{ width: `${usdcPct}%`, background: "#7c3aed" }} />
+              <div style={{ width: `${eurcPct}%`, background: "#a855f7" }} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2563eb" }} />
-                <span style={{ color: "#94a3b8" }}>USDC</span>
-                <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{usdcPct.toFixed(1)}%</span>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#7c3aed" }} />
+                <span style={{ color: "#6B7280" }}>USDC</span>
+                <span style={{ color: "#111827", fontWeight: 700 }}>{usdcPct.toFixed(1)}%</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#7c3aed" }} />
-                <span style={{ color: "#94a3b8" }}>EURC</span>
-                <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{eurcPct.toFixed(1)}%</span>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#a855f7" }} />
+                <span style={{ color: "#6B7280" }}>EURC</span>
+                <span style={{ color: "#111827", fontWeight: 700 }}>{eurcPct.toFixed(1)}%</span>
               </div>
             </div>
           </>
@@ -100,24 +100,24 @@ export default function StablecoinAnalytics() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
-        <div style={{ background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 14, padding: "1rem" }}>
-          <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700, marginBottom: 4 }}>SWAP POOL</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9" }}>{loading ? "..." : `$${metrics?.swapPool.toFixed(2)}`}</div>
+        <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, marginBottom: 4 }}>SWAP POOL</div>
+          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.swapPool.toFixed(2)}`}</div>
         </div>
-        <div style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.15)", borderRadius: 14, padding: "1rem" }}>
-          <div style={{ fontSize: 10, color: "#60a5fa", fontWeight: 700, marginBottom: 4 }}>AMM POOL</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9" }}>{loading ? "..." : `$${metrics?.ammPool.toFixed(2)}`}</div>
+        <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, marginBottom: 4 }}>AMM POOL</div>
+          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.ammPool.toFixed(2)}`}</div>
         </div>
-        <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: 14, padding: "1rem" }}>
-          <div style={{ fontSize: 10, color: "#6ee7b7", fontWeight: 700, marginBottom: 4 }}>LENDING POOL</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9" }}>{loading ? "..." : `$${metrics?.lendingPool.toFixed(2)}`}</div>
+        <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          <div style={{ fontSize: 10, color: "#059669", fontWeight: 700, marginBottom: 4 }}>LENDING POOL</div>
+          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.lendingPool.toFixed(2)}`}</div>
         </div>
       </div>
 
-      <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-        <p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: "0.75rem 1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+        <p style={{ fontSize: 11, color: "#4B5563", margin: 0 }}>
           All figures read live from on-chain contract balances — refreshes every 60 seconds. Verify any figure on{" "}
-          <a href="https://testnet.arcscan.app" target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa" }}>Arc Explorer</a>.
+          <a href="https://testnet.arcscan.app" target="_blank" rel="noopener noreferrer" style={{ color: "#7c3aed" }}>Arc Explorer</a>.
         </p>
       </div>
     </div>

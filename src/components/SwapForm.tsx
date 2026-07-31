@@ -270,11 +270,11 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             {circleWallet && (
               <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
                 <button onClick={() => setUseCircle(false)} disabled={isLoading}
-                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#a855f7" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#a855f7" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                   Browser Wallet
                 </button>
                 <button onClick={() => setUseCircle(true)} disabled={isLoading}
-                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#a855f7" : "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#a855f7" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                   Circle Wallet
                 </button>
               </div>
@@ -282,20 +282,20 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
             <div style={{ borderRadius: 16, background: "#f5f3ff", padding: "1rem 1.1rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px" }}>You pay</span>
-                <span style={{ fontSize: 11, color: "#475569" }}>Balance: {currentBalance} {tokenIn}</span>
+                <span style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px" }}>You pay</span>
+                <span style={{ fontSize: 11, color: "#374151" }}>Balance: {currentBalance} {tokenIn}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <input type="number" min="0" step="0.01" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
-                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 32, color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
+                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 32, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <button
                     onClick={() => setTokenInOpen(!tokenInOpen)}
                     disabled={isLoading}
                     style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#ede9fe", border: "none", cursor: "pointer" }}>
                     <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#ffffff" }}>{tokenIn[0]}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{tokenIn}</span>
-                    <span style={{ fontSize: 9, color: "#64748b" }}>▾</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenIn}</span>
+                    <span style={{ fontSize: 9, color: "#4B5563" }}>▾</span>
                   </button>
                   {tokenInOpen && (
                     <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20, background: "#ffffff", borderRadius: 12, padding: 6, minWidth: 140, boxShadow: "0 12px 30px rgba(124,58,237,0.15)" }}>
@@ -304,7 +304,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                           onClick={() => { setTokenIn(t); setTokenOut(t === "USDC" ? "EURC" : "USDC"); setTokenInOpen(false); }}
                           style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: t === tokenIn ? "rgba(124,58,237,0.1)" : "transparent", border: "none", cursor: t === tokenIn ? "not-allowed" : "pointer", opacity: t === tokenIn ? 0.4 : 1 }}>
                           <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#ffffff" }}>{t[0]}</span>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{t}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{t}</span>
                         </button>
                       ))}
                     </div>
@@ -325,17 +325,17 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             </div>
 
             <div style={{ borderRadius: 16, background: "#f5f3ff", padding: "1rem 1.1rem" }}>
-              <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 10 }}>You receive</div>
+              <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 10 }}>You receive</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 32, fontWeight: 700, color: "#1e293b", fontFamily: "ui-monospace, monospace" }}>{estimatedOut}</span>
+                <span style={{ fontSize: 32, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{estimatedOut}</span>
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <button
                     onClick={() => setTokenOutOpen(!tokenOutOpen)}
                     disabled={isLoading}
                     style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#ede9fe", border: "none", cursor: "pointer" }}>
                     <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#ffffff" }}>{tokenOut[0]}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{tokenOut}</span>
-                    <span style={{ fontSize: 9, color: "#64748b" }}>▾</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenOut}</span>
+                    <span style={{ fontSize: 9, color: "#4B5563" }}>▾</span>
                   </button>
                   {tokenOutOpen && (
                     <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20, background: "#ffffff", borderRadius: 12, padding: 6, minWidth: 140, boxShadow: "0 12px 30px rgba(124,58,237,0.15)" }}>
@@ -344,7 +344,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                           onClick={() => { setTokenOut(t); setTokenIn(t === "USDC" ? "EURC" : "USDC"); setTokenOutOpen(false); }}
                           style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: t === tokenOut ? "rgba(124,58,237,0.1)" : "transparent", border: "none", cursor: t === tokenOut ? "not-allowed" : "pointer", opacity: t === tokenOut ? 0.4 : 1 }}>
                           <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#ffffff" }}>{t[0]}</span>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{t}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{t}</span>
                         </button>
                       ))}
                     </div>
@@ -355,36 +355,36 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
             {rateStale && (
               <div style={{ background: "rgba(239,68,68,0.1)", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
-                <p style={{ fontSize: 12, color: "#fca5a5", margin: 0 }}>
+                <p style={{ fontSize: 12, color: "#DC2626", margin: 0 }}>
                   Pool rate ({poolRate?.toFixed(4)}) differs from the live market rate ({marketRate?.toFixed(4)}) by more than 1%. This swap uses the pool's fixed rate.
                 </p>
               </div>
             )}
 
             {amount && Number(amount) > 0 && Number(estimatedOut) > 0 && (
-              <div style={{ background: "#0d1626", borderRadius: 12, padding: "0.9rem 1rem", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.9rem 1rem", display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                  <span style={{ color: "#64748b" }}>You receive</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{estimatedOut} {tokenOut}</span>
+                  <span style={{ color: "#4B5563" }}>You receive</span>
+                  <span style={{ color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{estimatedOut} {tokenOut}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                  <span style={{ color: "#64748b" }}>Rate</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>1 {tokenIn} = {tokenIn === "USDC" ? poolRate?.toFixed(4) : (poolRate ? (1 / poolRate).toFixed(4) : "...")} {tokenOut}</span>
+                  <span style={{ color: "#4B5563" }}>Rate</span>
+                  <span style={{ color: "#111827", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>1 {tokenIn} = {tokenIn === "USDC" ? poolRate?.toFixed(4) : (poolRate ? (1 / poolRate).toFixed(4) : "...")} {tokenOut}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                  <span style={{ color: "#64748b" }}>Fee</span>
+                  <span style={{ color: "#4B5563" }}>Fee</span>
                   <span style={{ color: "#34d399", fontWeight: 600 }}>0% — fixed-rate pool</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                  <span style={{ color: "#64748b" }}>Minimum received</span>
-                  <span style={{ color: "#e2e8f0", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{estimatedOut} {tokenOut}</span>
+                  <span style={{ color: "#4B5563" }}>Minimum received</span>
+                  <span style={{ color: "#111827", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{estimatedOut} {tokenOut}</span>
                 </div>
               </div>
             )}
 
             <SwapAdvisor tokenIn={tokenIn} tokenOut={tokenOut} amountIn={amount} amountOut={estimatedOut} />
 
-            {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: 13 }}>{errorMsg}</div>}
+            {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
 
             {txHash && swapState === "done" && (
               <div style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 12, padding: "1rem" }}>
@@ -405,14 +405,14 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                         width: 20, height: 20, borderRadius: "50%",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 11, fontWeight: 700,
-                        background: done ? "#7c3aed" : active ? "rgba(168,85,247,0.25)" : "rgba(255,255,255,0.06)",
-                        color: done ? "#ffffff" : active ? "#c4b5fd" : "#475569",
+                        background: done ? "#7c3aed" : active ? "rgba(168,85,247,0.25)" : "rgba(109,94,247,0.1)",
+                        color: done ? "#ffffff" : active ? "#7C3AED" : "#374151",
                         border: active ? "1px solid #a855f7" : "none",
                       }}>
                         {done ? "✓" : i + 1}
                       </div>
-                      <span style={{ fontSize: 11, color: done ? "#7c3aed" : active ? "#c4b5fd" : "#475569" }}>{label}</span>
-                      {i < SWAP_STEPS.length - 1 && <span style={{ width: 16, height: 1, background: "rgba(255,255,255,0.1)" }} />}
+                      <span style={{ fontSize: 11, color: done ? "#7c3aed" : active ? "#7C3AED" : "#374151" }}>{label}</span>
+                      {i < SWAP_STEPS.length - 1 && <span style={{ width: 16, height: 1, background: "rgba(109,94,247,0.15)" }} />}
                     </div>
                   );
                 })}
@@ -431,14 +431,14 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
             {swapState === "done" && (
               <button onClick={() => { setSwapState("idle"); setTxHash(null); }}
-                style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#64748b", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#4B5563", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
                 New swap
               </button>
             )}
           </div>
 
           <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.75rem 1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-            <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+            <p style={{ fontSize: 12, color: "#4B5563", margin: 0 }}>
               Pool rate: 1 USDC ≈ {poolRate?.toFixed(4) ?? "..."} EURC
               {marketRate && <span> · Live market: {marketRate.toFixed(4)}</span>}
             </p>
@@ -449,40 +449,40 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ROUTE DETAILS</div>
+            <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ROUTE DETAILS</div>
             {poolLiquidity ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#64748b" }}>USDC in pool</span>
-                  <span style={{ color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity.usdc}</span>
+                  <span style={{ color: "#4B5563" }}>USDC in pool</span>
+                  <span style={{ color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity.usdc}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#64748b" }}>EURC in pool</span>
-                  <span style={{ color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity.eurc}</span>
+                  <span style={{ color: "#4B5563" }}>EURC in pool</span>
+                  <span style={{ color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity.eurc}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#64748b" }}>Pool rate</span>
-                  <span style={{ color: "#1e293b", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolRate?.toFixed(4) ?? "..."}</span>
+                  <span style={{ color: "#4B5563" }}>Pool rate</span>
+                  <span style={{ color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolRate?.toFixed(4) ?? "..."}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#64748b" }}>Live EUR/USD</span>
-                  <span style={{ color: marketRate ? "#1e293b" : "#475569", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{marketRate?.toFixed(4) ?? "—"}</span>
+                  <span style={{ color: "#4B5563" }}>Live EUR/USD</span>
+                  <span style={{ color: marketRate ? "#111827" : "#374151", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{marketRate?.toFixed(4) ?? "—"}</span>
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: "#475569" }}>Loading...</div>
+              <div style={{ fontSize: 12, color: "#374151" }}>Loading...</div>
             )}
           </div>
 
           <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
-            {contractTxs.length === 0 && <div style={{ fontSize: 12, color: "#475569" }}>No recent activity yet.</div>}
+            <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
+            {contractTxs.length === 0 && <div style={{ fontSize: 12, color: "#374151" }}>No recent activity yet.</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {contractTxs.map((tx) => (
                 <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.55rem 0.7rem", borderRadius: 10, background: "#f5f3ff", textDecoration: "none" }}>
                   <span style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600 }}>{tx.method}</span>
-                  <span style={{ fontSize: 11, color: "#475569" }}>{tx.age}</span>
+                  <span style={{ fontSize: 11, color: "#374151" }}>{tx.age}</span>
                 </a>
               ))}
             </div>
@@ -498,7 +498,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
           <div className="flowfi-ticker-track" style={{ display: "flex", gap: 32, whiteSpace: "nowrap", width: "max-content" }}>
             {[...tickerItems, ...tickerItems].map((tx, i) => (
-              <span key={i} style={{ fontSize: 12, color: "#64748b", fontFamily: "ui-monospace, monospace" }}>
+              <span key={i} style={{ fontSize: 12, color: "#4B5563", fontFamily: "ui-monospace, monospace" }}>
                 {tx.method} · {tx.age}
               </span>
             ))}

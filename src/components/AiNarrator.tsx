@@ -94,14 +94,14 @@ export default function AiNarrator({ address, balances }: Props) {
               borderRadius: 12,
               padding: "0.6rem 0.8rem",
               fontSize: 13,
-              color: m.role === "user" ? "#ffffff" : "#475569",
+              color: m.role === "user" ? "#ffffff" : "#374151",
               lineHeight: 1.5,
             }}>
               {m.content}
             </div>
           ))}
           {loading && (
-            <div style={{ alignSelf: "flex-start", fontSize: 12, color: "#94a3b8" }}>Reading your activity...</div>
+            <div style={{ alignSelf: "flex-start", fontSize: 12, color: "#6B7280" }}>Reading your activity...</div>
           )}
         </div>
       )}
@@ -111,7 +111,7 @@ export default function AiNarrator({ address, balances }: Props) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") ask(input); }}
           disabled={loading}
-          style={{ flex: 1, background: "#ffffff", border: "none", borderRadius: 12, padding: "0.6rem 0.9rem", fontSize: 13, color: "#1e293b", outline: "none" }} />
+          style={{ flex: 1, background: "#ffffff", border: "none", borderRadius: 12, padding: "0.6rem 0.9rem", fontSize: 13, color: "#111827", outline: "none" }} />
         <button onClick={() => ask(input)} disabled={loading || !input.trim()}
           style={{ padding: "0.6rem 1rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
           Ask
