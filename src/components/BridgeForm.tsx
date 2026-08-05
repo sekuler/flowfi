@@ -4,6 +4,7 @@ import { createPublicClient, createWalletClient, custom, http, erc20Abi } from "
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
+import { addPoints } from "../gamification";
 import EthBridge from "./EthBridge";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
 import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, BookOpen } from "lucide-react";
@@ -201,6 +202,7 @@ export default function BridgeForm({ provider, address }: Props) {
     setMintTxHash(mintHash);
     setStep("done");
     showToast("Bridge completed", "success");
+    addPoints(15);
   }
 
   async function doBridge() {
@@ -278,6 +280,7 @@ export default function BridgeForm({ provider, address }: Props) {
       setMintTxHash(mintHash);
       setStep("done");
       showToast("Bridge completed", "success");
+    addPoints(15);
     } catch (e: unknown) {
       const err = e as { message?: string };
       setErrorMsg(err.message ?? "Bridge failed.");

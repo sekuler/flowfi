@@ -22,6 +22,7 @@ import AiNarrator from "./components/AiNarrator";
 import AiCopilot from "./components/AiCopilot";
 import ToastContainer from "./components/ToastContainer";
 import NotificationCenter from "./components/NotificationCenter";
+import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
 import { showToast } from "./toast";
 import {
   Home, LayoutGrid, ArrowUpRight, ArrowDownLeft, Repeat, TrendingUp, Droplet,
@@ -170,6 +171,15 @@ function AppInner() {
   const [copied, setCopied] = useState(false);
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
   const [eurUsdRate, setEurUsdRate] = useState<number | null>(null);
+  const [nickname, setNicknameState] = useState<string | null>(null);
+  const [points, setPoints] = useState(0);
+
+  useEffect(() => {
+    setNicknameState(getNickname());
+    setPoints(getPoints());
+    const interval = setInterval(() => setPoints(getPoints()), 3000);
+    return () => clearInterval(interval);
+  }, []);
 
  function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
   setWallet({ provider, address, walletName });
@@ -418,7 +428,18 @@ function AppInner() {
           ))}
         </nav>
         <div style={{ padding: "0.65rem 1.25rem", marginTop: "auto" }}>
-          <div style={{ fontSize: 10, color: "#8B7CF9", marginBottom: 4, fontWeight: 700, letterSpacing: "1px" }}>CONNECTED</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <span style={{ fontSize: 10, color: "#8B7CF9", fontWeight: 700, letterSpacing: "1px" }}>CONNECTED</span>
+            <button onClick={() => {
+              const next = window.prompt("Set a local nickname (only visible to you, this browser only):", nickname ?? "");
+              if (next === null) return;
+              if (next.trim()) { setNicknameState(next.trim()); saveNickname(next.trim()); }
+              else { setNicknameState(null); clearNickname(); }
+            }} title="Set a local nickname" style={{ background: "none", border: "none", color: "#8B7CF9", cursor: "pointer", fontSize: 10, fontWeight: 700 }}>
+              {nickname ? "Edit" : "+ Nickname"}
+            </button>
+          </div>
+          {nickname && <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", marginBottom: 2 }}>{nickname}</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div className="flowfi-mono" style={{ fontSize: 13, color: "#374151" }}>{shortAddr}</div>
             <button onClick={copyAddress} title="Copy address"
@@ -427,6 +448,10 @@ function AppInner() {
             </button>
           </div>
           <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{wallet.walletName}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, background: "rgba(109,94,247,0.08)", borderRadius: 999, padding: "4px 10px", width: "fit-content" }}>
+            <Sparkles size={11} color="#6D5EF7" />
+            <span className="flowfi-mono" style={{ fontSize: 11, fontWeight: 700, color: "#6D5EF7" }}>{points} pts</span>
+          </div>
           <button onClick={() => setWallet(null)} style={{ marginTop: 10, fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
         </div>
         <div style={{ padding: "0.5rem 1.25rem", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -566,7 +591,12 @@ function AppInner() {
 
             {tab === "dashboard" && <Dashboard address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
             {tab === "analytics" && <StablecoinAnalytics />}
-            {tab === "history" && <TxHistory address={wallet.address} />}
+            {tab === "history" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <AiNarrator address={wallet.address} balances={balances} />
+                <TxHistory address={wallet.address} />
+              </div>
+            )}
             {tab === "receive" && <ReceiveQR address={wallet.address} />}
             {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} />}
             {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}

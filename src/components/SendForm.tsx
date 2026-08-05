@@ -3,6 +3,9 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo } from "../circleWalletHelpers";
+import { showToast } from "../toast";
+import { addPoints } from "../gamification";
+import QRScanner from "./QRScanner";
 import { loadContacts, saveContacts, type Contact } from "../contacts";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
@@ -55,6 +58,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [showAddressBook, setShowAddressBook] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [showSaveContact, setShowSaveContact] = useState(false);
   const [newContactName, setNewContactName] = useState("");
 
@@ -261,6 +265,8 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
         });
         setTxHash(hash);
         setSendState("done");
+        showToast("Sent successfully", "success");
+        addPoints(5);
         setAmount("");
         setRecipient("");
         setResolvedAddress(null);
@@ -287,6 +293,8 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
       if (!hash) throw new Error("Transaction failed.");
       setTxHash(hash);
       setSendState("done");
+      showToast("Sent successfully", "success");
+      addPoints(5);
       setAmount("");
       setRecipient("");
       setResolvedAddress(null);
@@ -363,6 +371,10 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <label style={{ fontSize: 11, color: "#4B5563", fontWeight: 600 }}>Recipient Address or .arc Name</label>
             <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowScanner(true)} disabled={isLoading}
+                style={{ background: "none", border: "none", color: "#5B21B6", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                Scan QR
+              </button>
               <button onClick={pasteAddress} disabled={isLoading}
                 style={{ background: "none", border: "none", color: "#5B21B6", fontSize: 11, cursor: "pointer", padding: 0, fontWeight: 600 }}>
                 Paste
@@ -476,6 +488,13 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
           </button>
         )}
       </div>
+
+      {showScanner && (
+        <QRScanner
+          onScan={(result) => { setRecipient(result.trim()); setShowScanner(false); }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }
