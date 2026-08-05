@@ -7,6 +7,7 @@ import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
 import { addPoints } from "../gamification";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo } from "../circleWalletHelpers";
+import { getDCAPlan, setDCAPlan, clearDCAPlan, markDCAExecuted, isDCADue, type DCAPlan, type DCAFrequency } from "../dca";
 
 const SWAP_STEPS = ["Approving", "Swapping", "Done"];
 function swapStepIndex(state: string) {
@@ -84,6 +85,12 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [tokenOutOpen, setTokenOutOpen] = useState(false);
 
   const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
+  const [dcaPlan, setDcaPlanState] = useState<DCAPlan | null>(null);
+  const [dcaAmount, setDcaAmount] = useState("20");
+  const [dcaFrequency, setDcaFrequency] = useState<DCAFrequency>("weekly");
+  const [runningDCA, setRunningDCA] = useState(false);
+
+  useEffect(() => { setDcaPlanState(getDCAPlan()); }, []);
   const [useCircle, setUseCircle] = useState(false);
   const [circleBalances, setCircleBalances] = useState<{ usdc: string; eurc: string } | null>(null);
 
@@ -261,6 +268,34 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   }
 
   const isLoading = swapState === "approving" || swapState === "swapping";
+
+  async function executeDCANow() {
+    if (!dcaPlan || runningDCA) return;
+    setRunningDCA(true);
+    try {
+      await switchToArc(provider);
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
+      const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const amountIn = parseUnits(String(dcaPlan.amount), 6);
+
+      const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountIn], account: address as `0x${string}` });
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+      const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountIn], account: address as `0x${string}` });
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      markDCAExecuted();
+      setDcaPlanState(getDCAPlan());
+      addPoints(10);
+      showToast(`DCA buy complete: ${dcaPlan.amount} USDC → EURC`, "success");
+      onRefresh();
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      showToast(err.message ?? "DCA buy failed.", "error");
+    } finally {
+      setRunningDCA(false);
+    }
+  }
   const tickerItems = contractTxs.length > 0 ? contractTxs : DEMO_TICKER;
 
   return (
@@ -451,6 +486,51 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+            <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>DCA — RECURRING BUY</div>
+            {!dcaPlan ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <p style={{ fontSize: 11, color: "#6B7280", margin: 0, lineHeight: 1.5 }}>
+                  Set an amount and interval. FlowFi will remind you to buy when it's due — you confirm each time.
+                </p>
+                <input type="number" min="1" value={dcaAmount} onChange={(e) => setDcaAmount(e.target.value)}
+                  style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.5rem 0.7rem", fontSize: 13, color: "#111827", outline: "none" }} placeholder="USDC amount" />
+                <div style={{ display: "flex", gap: 6 }}>
+                  {(["daily", "weekly", "monthly"] as DCAFrequency[]).map((f) => (
+                    <button key={f} onClick={() => setDcaFrequency(f)}
+                      style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: dcaFrequency === f ? "#ede9fe" : "#f5f3ff", color: dcaFrequency === f ? "#5B21B6" : "#6B7280", fontSize: 10.5, fontWeight: 700, cursor: "pointer", textTransform: "capitalize" }}>
+                      {f}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => { if (Number(dcaAmount) > 0) { setDCAPlan(Number(dcaAmount), dcaFrequency); setDcaPlanState(getDCAPlan()); } }}
+                  style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  Set Up DCA
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontSize: 12.5, color: "#111827" }}>
+                  Buy <b>{dcaPlan.amount} USDC → EURC</b>, {dcaPlan.frequency}
+                </div>
+                <div style={{ fontSize: 11, color: isDCADue(dcaPlan) ? "#B45309" : "#6B7280" }}>
+                  {isDCADue(dcaPlan) ? "Due now" : "Not due yet"}
+                  {dcaPlan.lastExecuted && ` · last: ${new Date(dcaPlan.lastExecuted).toLocaleDateString()}`}
+                </div>
+                {isDCADue(dcaPlan) && (
+                  <button onClick={executeDCANow} disabled={runningDCA}
+                    style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: runningDCA ? "not-allowed" : "pointer", opacity: runningDCA ? 0.6 : 1 }}>
+                    {runningDCA ? "Buying..." : "Run DCA Now"}
+                  </button>
+                )}
+                <button onClick={() => { clearDCAPlan(); setDcaPlanState(null); }}
+                  style={{ width: "100%", padding: "0.45rem", borderRadius: 10, border: "none", background: "transparent", color: "#6B7280", fontSize: 11, cursor: "pointer" }}>
+                  Cancel plan
+                </button>
+              </div>
+            )}
+          </div>
+
           <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ROUTE DETAILS</div>
             {poolLiquidity ? (

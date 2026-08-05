@@ -3,12 +3,18 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
+import { addPoints } from "../gamification";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
 const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
 const FACTORY_CONTRACT = "0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9" as `0x${string}`;
+const LENDING_CONTRACT = "0xD3e0171CaCd799E49155eE48981841E9a9d225ab" as `0x${string}`;
+
+const LENDING_ABI = [
+  { type: "function", name: "supply", stateMutability: "nonpayable", inputs: [{ name: "amount", type: "uint256" }], outputs: [] },
+] as const;
 
 const KNOWN_TOKENS: Record<string, `0x${string}`> = {
   USDC: USDC_ADDRESS,
@@ -40,8 +46,15 @@ interface Props {
   onNavigate: (tab: "bridge") => void;
 }
 
+interface Allocation {
+  category: "lending" | "swap_to_eurc" | "idle";
+  amount: number;
+  percent: number;
+  note: string;
+}
+
 interface ParsedAction {
-  action: "swap" | "send" | "perp_open" | "create_pool" | "bridge" | "unknown";
+  action: "swap" | "send" | "perp_open" | "create_pool" | "bridge" | "strategy" | "unknown";
   fromToken?: string;
   toToken?: string;
   amount?: number;
@@ -52,6 +65,7 @@ interface ParsedAction {
   market?: string;
   tokenA?: string;
   tokenB?: string;
+  allocations?: Allocation[];
   summary: string;
   reasoning?: string;
 }
@@ -98,7 +112,7 @@ export default function AiCopilot({ provider, address, balances, onRefresh, onNa
 
 Schema:
 {
-  "action": "swap" | "send" | "perp_open" | "create_pool" | "bridge" | "unknown",
+  "action": "swap" | "send" | "perp_open" | "create_pool" | "bridge" | "strategy" | "unknown",
   "fromToken": "USDC" | "EURC" | "USYC" | "ARCC" | "CIRBTC" (for swap),
   "toToken": "USDC" | "EURC" | "USYC" | "ARCC" | "CIRBTC" (for swap),
   "amount": number (omit if useAllBalance is true),
@@ -108,9 +122,12 @@ Schema:
   "leverage": number (for perp_open, 1-20),
   "market": "BTC" | "ETH" (for perp_open),
   "tokenA": string, "tokenB": string (for create_pool),
+  "allocations": [{ "category": "lending" | "swap_to_eurc" | "idle", "amount": number, "percent": number, "note": "short reason for this allocation" }] (ONLY for action "strategy"),
   "summary": "short one-line plain-English summary of what will happen",
   "reasoning": "one short sentence on any relevant risk or note"
 }
+
+Use "strategy" when the user describes a total amount and asks for a plan, allocation, or strategy (e.g. "I have 500 USDC, give me the safest strategy", "how should I split my USDC"). Allocations must sum to the user's stated amount and only use the three categories above — "lending" supplies USDC to earn yield, "swap_to_eurc" diversifies into EURC, "idle" is a deliberate cash reserve. Do not invent other categories (no LP, no perps) since those require extra parameters this schema doesn't support. A "safest" strategy should favor "lending" and "idle" over "swap_to_eurc". Explain each allocation's purpose briefly in its "note".
 
 Only USDC and EURC are swappable on the fixed-rate pool. If the request is ambiguous, ill-formed, or not one of the supported actions, set action to "unknown" and explain in summary.
 Available user balances: USDC ${balances.usdc}, EURC ${balances.eurc}.
@@ -205,6 +222,26 @@ Respond with ONLY the JSON object.`,
         setMessages((prev) => [...prev, { role: "assistant", content: "Bridging needs a network switch, so I've taken you to the Bridge tab — pick your source chain and confirm there." }]);
         setExecuting(false);
         return;
+      } else if (action.action === "strategy") {
+        if (!action.allocations || action.allocations.length === 0) throw new Error("No allocation plan to execute.");
+        for (const alloc of action.allocations) {
+          if (alloc.category === "idle" || alloc.amount <= 0) continue;
+          const amountUnits = parseUnits(String(alloc.amount), 6);
+
+          if (alloc.category === "lending") {
+            const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [LENDING_CONTRACT, amountUnits], account: address as `0x${string}` });
+            await publicClient.waitForTransactionReceipt({ hash: approveHash });
+            const hash = await wc.writeContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "supply", args: [amountUnits], account: address as `0x${string}` });
+            await publicClient.waitForTransactionReceipt({ hash });
+          } else if (alloc.category === "swap_to_eurc") {
+            const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountUnits], account: address as `0x${string}` });
+            await publicClient.waitForTransactionReceipt({ hash: approveHash });
+            const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountUnits], account: address as `0x${string}` });
+            await publicClient.waitForTransactionReceipt({ hash });
+          }
+        }
+        showToast("Strategy executed", "success");
+        addPoints(25);
       }
 
       setMessages((prev) => prev.map((m, i) => i === msgIndex ? { ...m, confirmed: true } : m));
@@ -220,7 +257,7 @@ Respond with ONLY the JSON object.`,
   return (
     <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
       {open && (
-        <div style={{ width: 360, maxHeight: 480, background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, boxShadow: "0 16px 48px rgba(109,94,247,0.2)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
+        <div style={{ width: 360, maxHeight: 480, background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "0 16px 48px rgba(109,94,247,0.2)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 1.1rem", background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 24, height: 24, borderRadius: 8, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff" }}>✦</div>
@@ -232,7 +269,7 @@ Respond with ONLY the JSON object.`,
           <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: 10, minHeight: 200, maxHeight: 320 }}>
             {messages.length === 0 && (
               <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6 }}>
-                Try: "swap 10 USDC to EURC", "send 5 USDC to 0x...", "open a 5x BTC long with 20 USDC", or "create a pool for ARCC/EURC".
+                Try: "I have 500 USDC, give me the safest strategy", "swap 10 USDC to EURC", "send 5 USDC to 0x...", or "open a 5x BTC long with 20 USDC".
               </div>
             )}
             {messages.map((m, i) => (
@@ -245,10 +282,23 @@ Respond with ONLY the JSON object.`,
                 </div>
                 {m.action && m.action.action !== "unknown" && !m.confirmed && (
                   <div style={{ marginTop: 6, background: "#f5f3ff", borderRadius: 12, padding: "0.7rem 0.8rem" }}>
+                    {m.action.action === "strategy" && m.action.allocations && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8 }}>
+                        {m.action.allocations.map((a, ai) => (
+                          <div key={ai} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", borderRadius: 8, padding: "5px 8px" }}>
+                            <div>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#111827", textTransform: "capitalize" }}>{a.category.replace("_", " ")}</span>
+                              <span style={{ fontSize: 10, color: "#6B7280", marginLeft: 6 }}>{a.note}</span>
+                            </div>
+                            <span className="flowfi-mono" style={{ fontSize: 11, fontWeight: 700, color: "#6D5EF7" }}>${a.amount} · {a.percent}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {m.action.reasoning && <p style={{ fontSize: 11, color: "#4B5563", margin: "0 0 8px 0" }}>{m.action.reasoning}</p>}
                     <button onClick={() => executeAction(m.action!, i)} disabled={executing}
                       style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: executing ? "not-allowed" : "pointer", opacity: executing ? 0.6 : 1 }}>
-                      {executing ? "Executing..." : "Confirm"}
+                      {executing ? "Executing..." : m.action.action === "strategy" ? "Execute Strategy" : "Confirm"}
                     </button>
                   </div>
                 )}
@@ -260,7 +310,7 @@ Respond with ONLY the JSON object.`,
             {loading && <div style={{ fontSize: 12, color: "#6B7280" }}>Thinking...</div>}
           </div>
 
-          <div style={{ display: "flex", gap: 8, padding: "0.9rem", borderTop: "1px solid #E8E3FF" }}>
+          <div style={{ display: "flex", gap: 8, padding: "0.9rem", borderTop: "1px solid #D4C9FA" }}>
             <input type="text" placeholder="Tell me what to do..." value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
