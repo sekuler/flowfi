@@ -5,6 +5,7 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
+import { addPoints } from "../gamification";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo } from "../circleWalletHelpers";
 
 const SWAP_STEPS = ["Approving", "Swapping", "Done"];
@@ -221,6 +222,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
         setTxHash(hash); setSwapState("done"); setAmount(""); setEstimatedOut("0.00");
         showToast("Swap completed", "success");
+      addPoints(10);
       } catch (e: unknown) {
         const err = e as { message?: string };
         setErrorMsg(err.message ?? "Unexpected error."); setSwapState("error");
@@ -250,6 +252,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
       setTxHash(hash); setSwapState("done"); setAmount(""); setEstimatedOut("0.00");
       showToast("Swap completed", "success");
+      addPoints(10);
       onRefresh();
     } catch (e: unknown) {
       const err = e as { message?: string };
@@ -421,7 +424,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
               disabled={isLoading || swapState === "done"}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: isLoading || swapState === "done" ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" ? 0.5 : 1, marginTop: 4 }}>
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" ? 0.5 : 1, marginTop: 4 }}>
               {swapState === "idle" && "Swap"}
               {swapState === "approving" && "Approving..."}
               {swapState === "swapping" && "Swapping..."}

@@ -1,7 +1,8 @@
 import NetworkHealth from "./NetworkHealth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
+import { showToast } from "../toast";
 import {
   Repeat, Hexagon, Rocket, Droplet, Sparkles, TrendingUp,
   ChevronRight, ArrowUpRight, ExternalLink, ShieldCheck,
@@ -135,6 +136,25 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
   const hasIdleFunds = usdcVal > 10;
   const estYield = hasIdleFunds && lendingAPR ? (usdcVal * Number(lendingAPR)) / 100 : 0;
 
+  // Simple, real (not fabricated) concentration-based risk score: a portfolio
+  // sitting 100% in one asset scores riskier than one spread across several.
+  const riskScore = (() => {
+    if (totalValue === 0) return null;
+    const shares = [usdcVal, eurcVal, usycVal].filter((v) => v > 0).map((v) => v / totalValue);
+    const herfindahl = shares.reduce((sum, s) => sum + s * s, 0); // 1 = fully concentrated, lower = more diversified
+    return Math.round(herfindahl * 10);
+  })();
+
+  // Pushes a one-time-per-session notification when there's a clear, real action
+  // available (idle USDC that could be earning yield) — not a spammy repeat.
+  const notifiedIdleRef = useRef(false);
+  useEffect(() => {
+    if (hasIdleFunds && lendingAPR && !notifiedIdleRef.current) {
+      notifiedIdleRef.current = true;
+      showToast(`You have ${usdcVal.toFixed(0)} idle USDC. Supplying it to Lending could earn ${lendingAPR}% APY.`, "info");
+    }
+  }, [hasIdleFunds, lendingAPR, usdcVal]);
+
   const assets = [
     { symbol: "USDC", amount: balances.usdc, usd: usdcVal },
     { symbol: "EURC", amount: balances.eurc, usd: eurcVal },
@@ -145,21 +165,21 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
       {/* Stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Total Portfolio Value</div>
           <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827", marginBottom: 4 }}>
             {loading ? "..." : `$${totalValue.toFixed(2)}`}
           </div>
           <Sparkline color="#6D5EF7" seed={1} />
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Total Value Locked</div>
           <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827", marginBottom: 4 }}>
             {loading || tvl === null ? "..." : `$${tvl.toFixed(0)}`}
           </div>
           <Sparkline color="#6D5EF7" seed={2} />
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Active Pools</div>
             <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>
@@ -170,7 +190,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
             <Droplet size={18} color="#6D5EF7" />
           </div>
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Open Positions</div>
             <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>
@@ -185,7 +205,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
 
       {/* Assets / AI Advisor / Quick Actions */}
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1fr", gap: "1rem", alignItems: "start" }}>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Your Assets</div>
             <button onClick={() => onNavigate("swap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
@@ -214,9 +234,17 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
               );
             })}
           </div>
+          {riskScore !== null && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #F5F3FF", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11.5, color: "#6B7280" }}>Concentration Risk</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: riskScore >= 8 ? "#DC2626" : riskScore >= 5 ? "#B45309" : "#16A34A" }}>
+                {riskScore}/10 {riskScore >= 8 ? "· concentrated" : riskScore >= 5 ? "· moderate" : "· diversified"}
+              </span>
+            </div>
+          )}
         </div>
 
-        <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <Sparkles size={16} color="#6D5EF7" />
             <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>AI Advisor</div>
@@ -244,7 +272,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
           <p style={{ fontSize: 10, color: "#6B7280", textAlign: "center", marginTop: 10 }}>AI suggestions are for reference only.</p>
         </div>
 
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Quick Actions</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {QUICK_ACTIONS.map(({ id, label, desc, Icon }) => (
@@ -266,7 +294,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
 
       {/* Market Overview / Recent Activity */}
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "1rem", alignItems: "start" }}>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Market Overview</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
             <div>
@@ -287,7 +315,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
           </div>
         </div>
 
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Recent Activity</div>
             <ExternalLink size={13} color="#6D5EF7" />
@@ -307,7 +335,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
 
       <NetworkHealth />
 
-      <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <ShieldCheck size={18} color="#6D5EF7" />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Your assets are secured by smart contracts</div>

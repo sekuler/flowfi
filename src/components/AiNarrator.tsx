@@ -11,10 +11,31 @@ interface Message {
 }
 
 const SUGGESTED_QUESTIONS = [
+  "Find my last bridge transaction",
+  "Where did my USDC go this week?",
   "What's my biggest transaction?",
-  "Summarize my activity this week",
   "How much have I sent in total?",
 ];
+
+// If the AI's answer mentions a full tx hash, turn it into a clickable
+// Arcscan link instead of leaving it as inert text the user has to copy.
+function renderWithTxLinks(text: string) {
+  const hashPattern = /0x[a-fA-F0-9]{64}/g;
+  const parts = text.split(hashPattern);
+  const hashes = text.match(hashPattern) ?? [];
+  const nodes: (string | JSX.Element)[] = [];
+  parts.forEach((part, i) => {
+    nodes.push(part);
+    if (hashes[i]) {
+      nodes.push(
+        <a key={i} href={`https://testnet.arcscan.app/tx/${hashes[i]}`} target="_blank" rel="noopener noreferrer" style={{ color: "#6D5EF7", fontWeight: 600 }}>
+          {hashes[i].slice(0, 10)}...{hashes[i].slice(-6)}
+        </a>
+      );
+    }
+  });
+  return nodes;
+}
 
 export default function AiNarrator({ address, balances }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,7 +88,7 @@ export default function AiNarrator({ address, balances }: Props) {
   }
 
   return (
-    <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ width: 22, height: 22, borderRadius: 7, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff" }}>✦</div>
         <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.5px" }}>ASK YOUR WALLET</span>
@@ -97,7 +118,7 @@ export default function AiNarrator({ address, balances }: Props) {
               color: m.role === "user" ? "#ffffff" : "#374151",
               lineHeight: 1.5,
             }}>
-              {m.content}
+              {m.role === "assistant" ? renderWithTxLinks(m.content) : m.content}
             </div>
           ))}
           {loading && (

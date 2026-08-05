@@ -12,12 +12,17 @@ const ERC20_BALANCE_ABI = [
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
 ] as const;
 
+const LENDING_ABI = [
+  { type: "function", name: "currentAPR", stateMutability: "view", inputs: [], outputs: [{ name: "bps", type: "uint256" }] },
+] as const;
+
 interface Metrics {
   usdcTotal: number;
   eurcTotal: number;
   swapPool: number;
   ammPool: number;
   lendingPool: number;
+  lendingAPR: string;
 }
 
 export default function StablecoinAnalytics() {
@@ -40,6 +45,7 @@ export default function StablecoinAnalytics() {
 
         const usdcTotal = usdcBalances.reduce((sum, b) => sum + Number(formatUnits(b, 6)), 0);
         const eurcTotal = eurcBalances.reduce((sum, b) => sum + Number(formatUnits(b, 6)), 0);
+        const apr = await client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "currentAPR" });
 
         setMetrics({
           usdcTotal,
@@ -47,6 +53,7 @@ export default function StablecoinAnalytics() {
           swapPool: Number(formatUnits(usdcBalances[0], 6)) + Number(formatUnits(eurcBalances[0], 6)),
           ammPool: Number(formatUnits(usdcBalances[1], 6)) + Number(formatUnits(eurcBalances[1], 6)),
           lendingPool: Number(formatUnits(usdcBalances[2], 6)) + Number(formatUnits(eurcBalances[2], 6)),
+          lendingAPR: (Number(apr) / 100).toFixed(2),
         });
       } catch {
         setMetrics(null);
@@ -97,6 +104,24 @@ export default function StablecoinAnalytics() {
             </div>
           </>
         )}
+      </div>
+
+      <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+        <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>STABLECOIN HUB — SUPPORTED ON FLOWFI</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11, color: "#6B7280", fontWeight: 700, marginBottom: 6, padding: "0 0.25rem" }}>
+          <span></span><span>USDC</span><span>EURC</span>
+        </div>
+        {[
+          { label: "Lending APY", usdc: loading ? "..." : `${metrics?.lendingAPR ?? "..."}%`, eurc: "collateral only" },
+          { label: "Swappable", usdc: "Yes", eurc: "Yes" },
+          { label: "Bridgeable (CCTP)", usdc: "Yes · 4 chains", eurc: "Not yet" },
+        ].map((row) => (
+          <div key={row.label} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 12.5, padding: "0.6rem 0.25rem", borderTop: "1px solid #F5F3FF" }}>
+            <span style={{ color: "#374151", fontWeight: 600 }}>{row.label}</span>
+            <span style={{ color: "#111827" }}>{row.usdc}</span>
+            <span style={{ color: "#111827" }}>{row.eurc}</span>
+          </div>
+        ))}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
