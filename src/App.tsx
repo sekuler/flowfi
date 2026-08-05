@@ -21,11 +21,12 @@ import LiquidityPools from "./components/LiquidityPools";
 import AiNarrator from "./components/AiNarrator";
 import AiCopilot from "./components/AiCopilot";
 import ToastContainer from "./components/ToastContainer";
+import NotificationCenter from "./components/NotificationCenter";
 import { showToast } from "./toast";
 import {
   Home, LayoutGrid, ArrowUpRight, ArrowDownLeft, Repeat, TrendingUp, Droplet,
   Landmark, Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
-  Sparkles, Bell, Moon, Power, Copy, Check, RefreshCw,
+  Sparkles, Moon, Power, Copy, Check, RefreshCw,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -441,11 +442,7 @@ function AppInner() {
 
       <main style={{ marginLeft: 220, flex: 1, minHeight: "100vh", position: "relative", zIndex: 1 }}>
         <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: "1.25rem 2.5rem" }}>
-          <button disabled title="Coming soon"
-            style={{ position: "relative", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#6D5EF7" }}>
-            <Bell size={16} />
-            <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
-          </button>
+          <NotificationCenter />
           <button disabled title="Coming soon"
             style={{ position: "relative", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#6D5EF7" }}>
             <Moon size={16} />

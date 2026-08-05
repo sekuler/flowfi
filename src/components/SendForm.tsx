@@ -47,6 +47,8 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
   const [resolving, setResolving] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
+  const [riskWarning, setRiskWarning] = useState<string | null>(null);
+  const [checkingRisk, setCheckingRisk] = useState(false);
   const [sendState, setSendState] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -62,6 +64,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
 
   useEffect(() => { setContacts(loadContacts()); }, []);
   useEffect(() => { setCircleWallet(getCircleWallet()); }, []);
+  useEffect(() => { setRiskWarning(null); }, [recipient]);
 
   useEffect(() => {
     if (!useCircle || !circleWallet) return;
@@ -193,7 +196,26 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
 
   const effectiveAddress = isArcName ? resolvedAddress : recipient;
 
-  async function doSend() {
+  // Checks whether the recipient address has ever transacted on Arc Testnet before.
+  // A completely fresh address is the single strongest signal of a mistyped
+  // address or a scam destination, so we surface it before the funds move.
+  async function checkRecipientRisk(addr: string): Promise<string | null> {
+    const isKnownContact = contacts.some((c) => c.address.toLowerCase() === addr.toLowerCase());
+    if (isKnownContact) return null;
+    try {
+      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${addr}&limit=1`);
+      const data = await res.json();
+      const hasHistory = Array.isArray(data.result) && data.result.length > 0;
+      if (!hasHistory) {
+        return "This address has no previous on-chain activity on Arc Testnet. Double-check it before sending — this is often a sign of a typo or an unfamiliar destination.";
+      }
+      return null;
+    } catch {
+      return null; // If the check itself fails, don't block a legitimate send over it.
+    }
+  }
+
+  async function doSend(skipRiskCheck = false) {
     if (isArcName && !resolvedAddress) {
       setErrorMsg(resolveError ?? "This name is not registered or has no address linked.");
       return;
@@ -211,7 +233,19 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
       setErrorMsg("Cannot send to your own address.");
       return;
     }
+
+    if (!skipRiskCheck) {
+      setCheckingRisk(true);
+      const warning = await checkRecipientRisk(effectiveAddress);
+      setCheckingRisk(false);
+      if (warning) {
+        setRiskWarning(warning);
+        return;
+      }
+    }
+
     setErrorMsg(null);
+    setRiskWarning(null);
     setSendState("sending");
     setTxHash(null);
 
@@ -402,16 +436,35 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
             {errorMsg}
           </div>
         )}
+        {riskWarning && (
+          <div style={{ background: "rgba(245,158,11,0.12)", borderRadius: 12, padding: "0.9rem 1rem", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <span style={{ fontSize: 15, flexShrink: 0 }}>⚠️</span>
+              <p style={{ fontSize: 13, color: "#B45309", margin: 0, lineHeight: 1.5 }}>{riskWarning}</p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { setRiskWarning(null); doSend(true); }}
+                style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: "#f59e0b", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                Send Anyway
+              </button>
+              <button onClick={() => setRiskWarning(null)}
+                style={{ padding: "0.6rem 1rem", borderRadius: 10, border: "none", background: "#ffffff", color: "#6B7280", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {txHash && sendState === "done" && (
           <div style={{ background: "rgba(52,211,153,0.1)", borderRadius: 12, padding: "1rem" }}>
             <p style={{ color: "#16A34A", fontWeight: 700, marginBottom: 6 }}>Sent successfully!</p>
             <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#2563EB", fontSize: 13 }}>View on Explorer</a>
           </div>
         )}
-        <button onClick={sendState === "error" ? function () { setSendState("idle"); setErrorMsg(null); } : doSend}
-          disabled={isLoading || sendState === "done"}
-          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: isLoading || sendState === "done" ? "not-allowed" : "pointer", opacity: isLoading || sendState === "done" ? 0.5 : 1 }}>
-          {sendState === "idle" && "Send"}
+        <button onClick={sendState === "error" ? function () { setSendState("idle"); setErrorMsg(null); } : () => doSend()}
+          disabled={isLoading || sendState === "done" || checkingRisk || !!riskWarning}
+          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: isLoading || sendState === "done" ? "not-allowed" : "pointer", opacity: isLoading || sendState === "done" || checkingRisk || !!riskWarning ? 0.5 : 1 }}>
+          {sendState === "idle" && !checkingRisk && "Send"}
+          {checkingRisk && "Checking address..."}
           {sendState === "sending" && "Sending..."}
           {sendState === "done" && "Sent!"}
           {sendState === "error" && "Try Again"}
