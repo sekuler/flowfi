@@ -64,6 +64,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
   const [incomingCount, setIncomingCount] = useState(0);
   const [outgoingCount, setOutgoingCount] = useState(0);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
+  const [activityBreakdown, setActivityBreakdown] = useState<{ label: string; pct: number; color: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [dailyChange, setDailyChange] = useState<{ pct: number; hasData: boolean }>({ pct: 0, hasData: false });
   const [weeklyChange, setWeeklyChange] = useState<{ pct: number; hasData: boolean }>({ pct: 0, hasData: false });
@@ -103,6 +104,24 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
         setIncomingCount(inCount);
         setOutgoingCount(outCount);
         setRecentActivity(activity.slice(0, 6));
+
+        // Activity breakdown by type, using the fuller 20-tx sample rather
+        // than just the 6 shown in "Recent Activity" — a more representative slice.
+        const breakdownCounts: Record<string, number> = {};
+        for (const tx of txs.slice(0, 20)) {
+          let label = "Other";
+          if (tx.methodId === "0x74b30078" || tx.methodId === "0x9cd441da") label = "Swap";
+          else if (tx.methodId === "0x8e0250ee" || tx.methodId === "0x57ecfd28") label = "Bridge";
+          else if (tx.methodId === "0xa9059cbb") label = "Send";
+          else if (tx.methodId === "0x095ea7b3") label = "Approve";
+          breakdownCounts[label] = (breakdownCounts[label] ?? 0) + 1;
+        }
+        const total20 = txs.slice(0, 20).length;
+        const colors: Record<string, string> = { Swap: "#6D5EF7", Bridge: "#3B82F6", Send: "#22C55E", Approve: "#F59E0B", Other: "#9CA3AF" };
+        const breakdown = Object.entries(breakdownCounts)
+          .map(([label, count]) => ({ label, pct: total20 > 0 ? (count / total20) * 100 : 0, color: colors[label] ?? "#9CA3AF" }))
+          .sort((a, b) => b.pct - a.pct);
+        setActivityBreakdown(breakdown);
       } catch {
         setTxCount(null);
         setRecentActivity([]);
@@ -178,7 +197,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Hero: net worth */}
-      <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.75rem" }}>
+      <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.75rem" }}>
         <div style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 8 }}>NET WORTH</div>
         <div className="flowfi-mono" style={{ fontSize: 42, fontWeight: 800, color: "#111827", marginBottom: 8 }}>${total.toFixed(2)}</div>
 
@@ -221,7 +240,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
         {quickActions.map((a) => (
           <button key={a.key} onClick={() => onNavigate(a.key)}
-            style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1.1rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+            style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1.1rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
             <div style={{ width: 38, height: 38, borderRadius: 12, background: `${a.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, color: a.color }}>{a.emoji}</div>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>{a.label}</span>
           </button>
@@ -229,7 +248,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       </div>
 
       {/* Portfolio allocation */}
-      <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>PORTFOLIO ALLOCATION</div>
         {total === 0 ? (
           <div style={{ fontSize: 12, color: "#6B7280" }}>No balances yet.</div>
@@ -255,24 +274,48 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
         )}
       </div>
 
+      {/* Activity breakdown by transaction type */}
+      {activityBreakdown.length > 0 && (
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+          <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ACTIVITY BREAKDOWN</div>
+          <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
+            {activityBreakdown.map((b) => (
+              <div key={b.label} style={{ width: `${b.pct}%`, background: b.color }} />
+            ))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {activityBreakdown.map((b) => (
+              <div key={b.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: b.color }} />
+                  <span style={{ color: "#4B5563" }}>{b.label}</span>
+                </div>
+                <span style={{ color: "#111827", fontWeight: 700 }}>{b.pct.toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 10, marginBottom: 0 }}>Based on your last {Math.min(20, txCount ?? 0)} transactions.</p>
+        </div>
+      )}
+
       {/* Activity stats row */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#16A34A" }}>{loading ? "..." : incomingCount}</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>Incoming (recent)</div>
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#DC2626" }}>{loading ? "..." : outgoingCount}</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>Sent (recent)</div>
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#111827" }}>{loading ? "..." : txCount ?? 0}</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>All-time transactions</div>
         </div>
       </div>
 
       {/* Recent activity, categorized */}
-      <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
         {loading && <div style={{ fontSize: 12, color: "#6B7280" }}>Loading...</div>}
         {!loading && recentActivity.length === 0 && <div style={{ fontSize: 12, color: "#6B7280" }}>No transactions yet.</div>}

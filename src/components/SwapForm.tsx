@@ -151,7 +151,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         const pool = Number(rate) / 1e6;
         setPoolRate(pool);
 
-        const res = await fetch("https://api.frankfurter.app/latest?from=USD&to=EUR");
+        const res = await fetch("https://api.frankfurter.dev/v1/latest?from=EUR&to=USD");
         const data = await res.json();
         const market = data.rates?.EUR;
         if (market) {

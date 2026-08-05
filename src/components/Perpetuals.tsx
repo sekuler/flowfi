@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import TradingViewChart from "./TradingViewChart";
 import PnlHistory from "./PnlHistory";
+import { getLimitOrders, addLimitOrder, removeLimitOrder, isOrderTriggered, type LimitOrder } from "../limitOrders";
+import { showToast } from "../toast";
+import { addPoints } from "../gamification";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
@@ -93,7 +96,7 @@ export default function Perpetuals({ provider, address }: Props) {
   const [closeResult, setCloseResult] = useState<CloseResult | null>(null);
   const [confirmClosingId, setConfirmClosingId] = useState<number | null>(null);
   const [poolLiquidity, setPoolLiquidity] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [rightTab, setRightTab] = useState<"positions" | "alerts" | "history">("positions");
 
   const loadPrices = useCallback(async () => {
     try {
@@ -157,26 +160,59 @@ export default function Perpetuals({ provider, address }: Props) {
   const openCount = positions.filter(p => p.status === 0).length;
   const closedTrades = positions.filter(p => p.status !== 0).slice().reverse();
 
-  async function openPosition() {
-    if (!margin || isNaN(Number(margin)) || Number(margin) <= 0) { setErrorMsg("Enter a valid margin amount."); return; }
-    if (!currentPrice) { setErrorMsg("Price not loaded yet."); return; }
+  const [limitOrders, setLimitOrders] = useState<LimitOrder[]>([]);
+  const [showLimitForm, setShowLimitForm] = useState(false);
+  const [limitTrigger, setLimitTrigger] = useState("");
+  const [limitDirection, setLimitDirection] = useState<"above" | "below">("below");
+  const [limitIsLong, setLimitIsLong] = useState(true);
+  const [limitMargin, setLimitMargin] = useState("20");
+  const [limitLeverage, setLimitLeverage] = useState(5);
+  const notifiedOrderIds = useRef<Set<number>>(new Set());
+
+  useEffect(() => { setLimitOrders(getLimitOrders()); }, []);
+
+  // Every price refresh, check whether any saved limit order has been triggered.
+  useEffect(() => {
+    for (const order of limitOrders) {
+      const price = prices[order.market];
+      if (price && isOrderTriggered(order, price) && !notifiedOrderIds.current.has(order.id)) {
+        notifiedOrderIds.current.add(order.id);
+        showToast(`Price alert: ${order.market} is ${order.direction} $${order.triggerPrice}. Ready to open your ${order.isLong ? "long" : "short"}.`, "info");
+      }
+    }
+  }, [prices, limitOrders]);
+
+  async function openPosition(overrides?: { market?: "BTC" | "ETH"; isLong?: boolean; margin?: string; leverage?: number; orderIdToRemove?: number }) {
+    const effMarket = overrides?.market ?? market;
+    const effIsLong = overrides?.isLong ?? isLong;
+    const effMargin = overrides?.margin ?? margin;
+    const effLeverage = overrides?.leverage ?? leverage;
+    const effPrice = prices[effMarket];
+
+    if (!effMargin || isNaN(Number(effMargin)) || Number(effMargin) <= 0) { setErrorMsg("Enter a valid margin amount."); return; }
+    if (!effPrice) { setErrorMsg("Price not loaded yet."); return; }
     setErrorMsg(null);
     try {
       await switchToArc(provider);
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-      const marginUnits = parseUnits(margin, 6);
-      const priceUnits = BigInt(Math.round(currentPrice * 1e6));
+      const marginUnits = parseUnits(effMargin, 6);
+      const priceUnits = BigInt(Math.round(effPrice * 1e6));
 
       setState("approving");
       const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [PERPS_CONTRACT, marginUnits], account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
       setState("opening");
-      const openHash = await wc.writeContract({ address: PERPS_CONTRACT, abi: PERPS_ABI, functionName: "openPosition", args: [isLong, marginUnits, BigInt(leverage), priceUnits, market], account: address as `0x${string}` });
+      const openHash = await wc.writeContract({ address: PERPS_CONTRACT, abi: PERPS_ABI, functionName: "openPosition", args: [effIsLong, marginUnits, BigInt(effLeverage), priceUnits, effMarket], account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash: openHash });
 
       setState("idle"); setMargin("");
+      if (overrides?.orderIdToRemove) {
+        removeLimitOrder(overrides.orderIdToRemove);
+        setLimitOrders(getLimitOrders());
+        addPoints(15);
+      }
       await loadPositions();
       await loadPoolLiquidity();
     } catch (e: unknown) {
@@ -228,7 +264,7 @@ export default function Perpetuals({ provider, address }: Props) {
             </div>
           </div>
           <button onClick={() => setCloseResult(null)}
-            style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
+            style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: "pointer" }}>
             Back to Trading
           </button>
         </div>
@@ -354,7 +390,7 @@ export default function Perpetuals({ provider, address }: Props) {
   </div>
 )}
             {errorMsg && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
-            <button onClick={openPosition} disabled={isLoading || !currentPrice}
+            <button onClick={() => openPosition()} disabled={isLoading || !currentPrice}
               style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: isLong ? "#16A34A" : "#ef4444", color: isLong ? "#ffffff" : "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading || !currentPrice ? 0.5 : 1 }}>
               {state === "approving" && "Approving..."}
               {state === "opening" && "Opening..."}
@@ -399,17 +435,100 @@ export default function Perpetuals({ provider, address }: Props) {
 
         <div>
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-            <button onClick={() => setShowHistory(false)}
-              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: !showHistory ? "#ede9fe" : "transparent", color: !showHistory ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={() => setRightTab("positions")}
+              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: rightTab === "positions" ? "#ede9fe" : "transparent", color: rightTab === "positions" ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               POSITIONS
             </button>
-            <button onClick={() => setShowHistory(true)}
-              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: showHistory ? "#ede9fe" : "transparent", color: showHistory ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={() => setRightTab("alerts")}
+              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: rightTab === "alerts" ? "#ede9fe" : "transparent", color: rightTab === "alerts" ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              ALERTS {limitOrders.length > 0 ? `(${limitOrders.length})` : ""}
+            </button>
+            <button onClick={() => setRightTab("history")}
+              style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: rightTab === "history" ? "#ede9fe" : "transparent", color: rightTab === "history" ? "#5B21B6" : "#4B5563", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               PNL HISTORY
             </button>
           </div>
 
-          {!showHistory && (
+          {rightTab === "alerts" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <p style={{ fontSize: 11, color: "#6B7280", margin: 0, lineHeight: 1.5 }}>
+                Set a target price. FlowFi checks it while you're on this page and alerts you when it's hit — you confirm and open the position yourself.
+              </p>
+
+              {!showLimitForm ? (
+                <button onClick={() => setShowLimitForm(true)}
+                  style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  + New Price Alert
+                </button>
+              ) : (
+                <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.8rem", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => setLimitIsLong(true)} style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: limitIsLong ? "rgba(34,197,94,0.18)" : "#ffffff", color: limitIsLong ? "#16A34A" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Long</button>
+                    <button onClick={() => setLimitIsLong(false)} style={{ flex: 1, padding: "0.4rem", borderRadius: 8, border: "none", background: !limitIsLong ? "rgba(239,68,68,0.18)" : "#ffffff", color: !limitIsLong ? "#DC2626" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Short</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "#6B7280" }}>{market} price</span>
+                    <select value={limitDirection} onChange={(e) => setLimitDirection(e.target.value as "above" | "below")}
+                      style={{ background: "#ffffff", border: "none", borderRadius: 8, fontSize: 11, padding: "4px 6px", color: "#111827" }}>
+                      <option value="below">drops below</option>
+                      <option value="above">rises above</option>
+                    </select>
+                  </div>
+                  <input type="number" placeholder="Target price ($)" value={limitTrigger} onChange={(e) => setLimitTrigger(e.target.value)}
+                    style={{ background: "#ffffff", border: "none", borderRadius: 8, padding: "0.5rem 0.7rem", fontSize: 12, color: "#111827", outline: "none" }} />
+                  <input type="number" placeholder="Margin (USDC)" value={limitMargin} onChange={(e) => setLimitMargin(e.target.value)}
+                    style={{ background: "#ffffff", border: "none", borderRadius: 8, padding: "0.5rem 0.7rem", fontSize: 12, color: "#111827", outline: "none" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "#6B7280" }}>Leverage: {limitLeverage}x</span>
+                    <input type="range" min="1" max="20" value={limitLeverage} onChange={(e) => setLimitLeverage(Number(e.target.value))} style={{ width: 100 }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => {
+                      if (!limitTrigger || Number(limitTrigger) <= 0) return;
+                      addLimitOrder({ market, direction: limitDirection, triggerPrice: Number(limitTrigger), isLong: limitIsLong, margin: Number(limitMargin), leverage: limitLeverage });
+                      setLimitOrders(getLimitOrders());
+                      setLimitTrigger(""); setShowLimitForm(false);
+                    }} style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      Save Alert
+                    </button>
+                    <button onClick={() => setShowLimitForm(false)} style={{ padding: "0.5rem 0.8rem", borderRadius: 8, border: "none", background: "#ffffff", color: "#6B7280", fontSize: 11, cursor: "pointer" }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {limitOrders.length === 0 && !showLimitForm && (
+                <div style={{ fontSize: 11, color: "#9CA3AF", textAlign: "center", padding: "1rem 0" }}>No price alerts set.</div>
+              )}
+              {limitOrders.map((order) => {
+                const price = prices[order.market];
+                const triggered = price ? isOrderTriggered(order, price) : false;
+                return (
+                  <div key={order.id} style={{ background: triggered ? "rgba(34,197,94,0.1)" : "#f5f3ff", borderRadius: 12, padding: "0.7rem 0.8rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: "#111827" }}>
+                        {order.market} {order.direction === "below" ? "<" : ">"} ${order.triggerPrice} → {order.isLong ? "Long" : "Short"} {order.leverage}x
+                      </span>
+                      <button onClick={() => { removeLimitOrder(order.id); setLimitOrders(getLimitOrders()); }}
+                        style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: 12 }}>×</button>
+                    </div>
+                    {triggered ? (
+                      <button onClick={() => openPosition({ market: order.market, isLong: order.isLong, margin: String(order.margin), leverage: order.leverage, orderIdToRemove: order.id })}
+                        disabled={isLoading}
+                        style={{ width: "100%", padding: "0.45rem", borderRadius: 8, border: "none", background: "#16A34A", color: "#fff", fontSize: 11, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer" }}>
+                        Triggered — Open Now
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 10.5, color: "#6B7280" }}>Current: {price ? `$${fmtPrice(price)}` : "..."}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {rightTab === "positions" && (
             <>
               {loadingPositions && <div style={{ fontSize: 12, color: "#334155" }}>Loading...</div>}
               {!loadingPositions && positions.filter(p => p.status === 0).length === 0 && <div style={{ fontSize: 12, color: "#334155" }}>No open positions.</div>}
@@ -487,7 +606,7 @@ export default function Perpetuals({ provider, address }: Props) {
             </>
           )}
 
-          {showHistory && <PnlHistory trades={closedTrades} />}
+          {rightTab === "history" && <PnlHistory trades={closedTrades} />}
         </div>
       </div>
     </div>

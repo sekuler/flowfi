@@ -24,6 +24,7 @@ import ToastContainer from "./components/ToastContainer";
 import NotificationCenter from "./components/NotificationCenter";
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
 import { getDCAPlan, isDCADue } from "./dca";
+import { getRules, isRuleDue, markRuleTriggered } from "./automation";
 import { showToast } from "./toast";
 import {
   Home, LayoutGrid, ArrowUpRight, ArrowDownLeft, Repeat, TrendingUp, Droplet,
@@ -210,6 +211,14 @@ function AppInner() {
         native: Number(formatUnits(native as bigint, 18)).toFixed(4),
       });
       setLastUpdated(Math.floor(Date.now() / 1000));
+
+      const usdcNum = Number(formatUnits(usdc as bigint, 6));
+      for (const rule of getRules()) {
+        if (isRuleDue(rule, usdcNum)) {
+          markRuleTriggered(rule.id);
+          showToast(`Automation: USDC balance is above ${rule.conditionValue} — you set a reminder to supply ${rule.actionAmount} USDC to Lending. Open Lending to confirm.`, "info");
+        }
+      }
     } catch {
       setBalances({ usdc: "—", eurc: "—", usyc: "—", native: "—" });
     }
@@ -232,7 +241,7 @@ function AppInner() {
 
   async function loadEurRate() {
     try {
-      const res = await fetch("https://api.frankfurter.app/latest?from=EUR&to=USD");
+      const res = await fetch("https://api.frankfurter.dev/v1/latest?from=EUR&to=USD");
       const data = await res.json();
       if (data.rates?.USD) setEurUsdRate(data.rates.USD);
     } catch {
