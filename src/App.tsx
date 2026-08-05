@@ -24,6 +24,7 @@ import ToastContainer from "./components/ToastContainer";
 import NotificationCenter from "./components/NotificationCenter";
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
 import { getDCAPlan, isDCADue } from "./dca";
+import { getCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
 import { getRules, isRuleDue, markRuleTriggered } from "./automation";
 import { showToast } from "./toast";
 import {
@@ -174,6 +175,8 @@ function AppInner() {
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
   const [eurUsdRate, setEurUsdRate] = useState<number | null>(null);
   const [nickname, setNicknameState] = useState<string | null>(null);
+  const [circleWalletInfo, setCircleWalletInfo] = useState<CircleWalletInfo | null>(null);
+  const [circleBalances, setCircleBalances] = useState<{ usdc: string; eurc: string } | null>(null);
   const [points, setPoints] = useState(0);
 
   useEffect(() => {
@@ -187,6 +190,28 @@ function AppInner() {
     }
 
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const info = getCircleWallet();
+    setCircleWalletInfo(info);
+    if (!info) return;
+    let cancelled = false;
+    async function loadCircleBalances() {
+      try {
+        const client = createPublicClient({ chain: arcTestnet, transport: http() });
+        const [usdc, eurc] = await Promise.all([
+          client.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: "balanceOf", args: [info!.address as `0x${string}`] }),
+          client.readContract({ address: ARC_EURC, abi: erc20Abi, functionName: "balanceOf", args: [info!.address as `0x${string}`] }),
+        ]);
+        if (!cancelled) setCircleBalances({ usdc: Number(formatUnits(usdc as bigint, 6)).toFixed(2), eurc: Number(formatUnits(eurc as bigint, 6)).toFixed(2) });
+      } catch {
+        if (!cancelled) setCircleBalances({ usdc: "—", eurc: "—" });
+      }
+    }
+    loadCircleBalances();
+    const interval = setInterval(loadCircleBalances, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
  function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
@@ -526,6 +551,7 @@ function AppInner() {
 {tab === "home" && <CopilotHome address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
 {tab === "portfolio" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px" }}>BROWSER WALLET · {shortAddr}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
                   {(["USDC", "EURC", "USYC"] as const).map((label) => {
                     const value = label === "USDC" ? balances.usdc : label === "EURC" ? balances.eurc : balances.usyc;
@@ -548,6 +574,31 @@ function AppInner() {
                   })}
                 </div>
 
+                {circleWalletInfo && (
+                  <>
+                    <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginTop: 6 }}>CIRCLE WALLET · {circleWalletInfo.address.slice(0, 6)}...{circleWalletInfo.address.slice(-4)}</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                      {(["USDC", "EURC"] as const).map((label) => (
+                        <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)", border: "1px solid #D4C9FA" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                            <img src={label === "USDC" ? "https://assets.coingecko.com/coins/images/6319/small/usdc.png" : "https://assets.coingecko.com/coins/images/26045/small/euro.png"} alt={label} style={{ width: 20, height: 20, borderRadius: "50%" }} />
+                            <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px" }}>{label}</div>
+                          </div>
+                          <div className="flowfi-mono" style={{ fontSize: 22, fontWeight: 700, color: label === "USDC" ? "#3B82F6" : "#22C55E" }}>
+                            {circleBalances ? (label === "USDC" ? circleBalances.usdc : circleBalances.eurc) : <Skeleton width={70} height={22} />}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#6B7280", marginTop: 4 }}>Same address, 4 chains</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {!circleWalletInfo && (
+                  <button onClick={() => setTab("circlewallet")}
+                    style={{ background: "#f5f3ff", border: "none", borderRadius: 14, padding: "0.9rem 1rem", color: "#6D5EF7", fontSize: 12.5, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+                    + Create a Circle Wallet to see it alongside your browser wallet here
+                  </button>
+                )}
                 <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA" }}>
                   <div>
                     <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>ARC</div>

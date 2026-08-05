@@ -16,6 +16,32 @@ const LENDING_ABI = [
   { type: "function", name: "supply", stateMutability: "nonpayable", inputs: [{ name: "amount", type: "uint256" }], outputs: [] },
 ] as const;
 
+const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
+const DOMAIN_BY_CHAIN: Record<string, number> = {
+  "Ethereum Sepolia": 0,
+  "Arbitrum Sepolia": 3,
+  "Base Sepolia": 6,
+  "Arc Testnet": 26,
+};
+
+const DEPOSIT_FOR_BURN_ABI = [{
+  type: "function", name: "depositForBurn", stateMutability: "nonpayable",
+  inputs: [
+    { name: "amount", type: "uint256" },
+    { name: "destinationDomain", type: "uint32" },
+    { name: "mintRecipient", type: "bytes32" },
+    { name: "burnToken", type: "address" },
+    { name: "destinationCaller", type: "bytes32" },
+    { name: "maxFee", type: "uint256" },
+    { name: "minFinalityThreshold", type: "uint32" },
+  ],
+  outputs: [],
+}] as const;
+
+function bytes32Address(addr: string): `0x${string}` {
+  return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
+}
+
 const KNOWN_TOKENS: Record<string, `0x${string}`> = {
   USDC: USDC_ADDRESS,
   EURC: EURC_ADDRESS,
@@ -60,6 +86,7 @@ interface ParsedAction {
   amount?: number;
   useAllBalance?: boolean;
   recipient?: string;
+  destinationChain?: string;
   isLong?: boolean;
   leverage?: number;
   market?: string;
@@ -118,6 +145,7 @@ Schema:
   "amount": number (omit if useAllBalance is true),
   "useAllBalance": boolean (true if user says "all my X"),
   "recipient": string (address or .arc name, for send),
+  "destinationChain": "Arc Testnet" | "Ethereum Sepolia" | "Base Sepolia" | "Arbitrum Sepolia" (ONLY for send, ONLY if the user names a specific chain the recipient should receive funds on, e.g. "send 50 USDC to 0xABC on Base" — omit entirely if no chain is mentioned, defaulting to a normal same-chain transfer on Arc),
   "isLong": boolean (for perp_open),
   "leverage": number (for perp_open, 1-20),
   "market": "BTC" | "ETH" (for perp_open),
@@ -184,11 +212,30 @@ Respond with ONLY the JSON object.`,
         showToast("Swap completed", "success");
       } else if (action.action === "send") {
         if (!action.recipient || !action.amount) throw new Error("Missing recipient or amount.");
-        const tokenAddress = action.fromToken === "EURC" ? EURC_ADDRESS : USDC_ADDRESS;
         const amountUnits = parseUnits(String(action.amount), 6);
-        const hash = await wc.writeContract({ address: tokenAddress, abi: erc20Abi, functionName: "transfer", args: [action.recipient as `0x${string}`, amountUnits], account: address as `0x${string}` });
-        await publicClient.waitForTransactionReceipt({ hash });
-        showToast("Send completed", "success");
+
+        if (action.destinationChain && action.destinationChain !== "Arc Testnet") {
+          // Cross-chain send: CCTP lets the minted USDC land directly in someone
+          // else's wallet on the destination chain — no manual Bridge tab needed.
+          const domain = DOMAIN_BY_CHAIN[action.destinationChain];
+          if (domain === undefined) throw new Error(`Unsupported destination chain: ${action.destinationChain}`);
+
+          const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [TOKEN_MESSENGER, amountUnits], account: address as `0x${string}` });
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+          const burnHash = await wc.writeContract({
+            address: TOKEN_MESSENGER, abi: DEPOSIT_FOR_BURN_ABI, functionName: "depositForBurn",
+            args: [amountUnits, domain, bytes32Address(action.recipient), USDC_ADDRESS, bytes32Address("0x0000000000000000000000000000000000000000"), 500n, 1000],
+            account: address as `0x${string}`,
+          });
+          await publicClient.waitForTransactionReceipt({ hash: burnHash });
+          showToast(`USDC sent to ${action.recipient.slice(0, 6)}...${action.recipient.slice(-4)} on ${action.destinationChain} — it will arrive once Circle attests the transfer (usually 1-2 min).`, "info");
+        } else {
+          const tokenAddress = action.fromToken === "EURC" ? EURC_ADDRESS : USDC_ADDRESS;
+          const hash = await wc.writeContract({ address: tokenAddress, abi: erc20Abi, functionName: "transfer", args: [action.recipient as `0x${string}`, amountUnits], account: address as `0x${string}` });
+          await publicClient.waitForTransactionReceipt({ hash });
+          showToast("Send completed", "success");
+        }
       } else if (action.action === "perp_open") {
         if (!action.amount || !action.leverage || !action.market) throw new Error("Missing position details.");
         const priceRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd");
@@ -269,7 +316,7 @@ Respond with ONLY the JSON object.`,
           <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: 10, minHeight: 200, maxHeight: 320 }}>
             {messages.length === 0 && (
               <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6 }}>
-                Try: "I have 500 USDC, give me the safest strategy", "swap 10 USDC to EURC", "send 5 USDC to 0x...", or "open a 5x BTC long with 20 USDC".
+                Try: "I have 500 USDC, give me the safest strategy", "send 20 USDC to 0x... on Base", "swap 10 USDC to EURC", or "open a 5x BTC long with 20 USDC".
               </div>
             )}
             {messages.map((m, i) => (
