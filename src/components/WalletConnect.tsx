@@ -1,6 +1,9 @@
 ﻿import { useState } from "react";
 import type { EIP1193Provider } from "viem";
 
+// Get a free project ID from https://cloud.reown.com and paste it below.
+const WALLETCONNECT_PROJECT_ID: string = "4084fea887972a480fbc1b78b5599990";
+
 type EIP6963ProviderInfo = { uuid: string; name: string; icon: string; rdns: string; };
 type EIP6963ProviderDetail = { info: EIP6963ProviderInfo; provider: EIP1193Provider; };
 
@@ -83,6 +86,36 @@ export default function WalletConnect({ onConnected }: Props) {
 
   const extraDetected = detected.filter((d) => !CURATED_WALLETS.some((c) => c.match.includes(d.info.rdns)));
 
+  async function connectWithWalletConnect() {
+    if (WALLETCONNECT_PROJECT_ID === "PASTE_YOUR_PROJECT_ID_HERE") {
+      setError("WalletConnect isn't configured yet. Get a free Project ID at cloud.reown.com and add it to WalletConnect.tsx.");
+      return;
+    }
+    setConnectingUuid("walletconnect"); setError(null);
+    try {
+      const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
+      const wcProvider = await EthereumProvider.init({
+        projectId: WALLETCONNECT_PROJECT_ID,
+        showQrModal: true,
+        optionalChains: [5042002, 1, 8453, 42161, 11155111],
+        metadata: {
+          name: "FlowFi",
+          description: "The AI-powered DeFi operating system for Arc.",
+          url: window.location.origin,
+          icons: [`${window.location.origin}/favicon.ico`],
+        },
+      });
+      await wcProvider.enable();
+      const accounts = wcProvider.accounts as string[];
+      if (!accounts?.[0]) throw new Error("No account found.");
+      onConnected(wcProvider as unknown as EIP1193Provider, accounts[0], "WalletConnect");
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setError(err.message ?? "WalletConnect failed to initialize.");
+      setConnectingUuid(null);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 420, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.85rem" }}>
       {error && <div style={{ width: "100%", background: "rgba(239,68,68,0.12)", borderRadius: 12, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13, lineHeight: 1.5 }}>{error}</div>}
@@ -98,6 +131,26 @@ export default function WalletConnect({ onConnected }: Props) {
       {status === "list" && (
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
           <p style={{ fontSize: 13, color: "#4B5563", marginBottom: 2, textAlign: "center" }}>Select a wallet to connect:</p>
+
+          <button
+            disabled={connectingUuid !== null}
+            onClick={connectWithWalletConnect}
+            style={{
+              width: "100%", padding: "0.85rem 1rem", borderRadius: 14, border: "1px solid #D4C9FA",
+              background: "#ffffff", cursor: connectingUuid !== null ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", gap: 12,
+              opacity: connectingUuid !== null && connectingUuid !== "walletconnect" ? 0.5 : 1,
+              boxShadow: "0 1px 3px rgba(109,94,247,0.06)",
+            }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: "#3396FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 32 20" fill="none"><path d="M6.5 7.5c5.2-5 13.6-5 18.8 0l.6.6c.3.2.3.7 0 .9l-2.1 2c-.1.1-.3.1-.4 0l-.8-.8c-3.6-3.5-9.4-3.5-13 0l-.9.8c-.1.1-.3.1-.4 0l-2.1-2c-.3-.2-.3-.7 0-.9l.3-.6zm23.2 4.3l1.9 1.8c.3.2.3.7 0 .9l-8.4 8.2c-.3.3-.7.3-1 0l-6-5.8c-.1 0-.1 0-.2 0l-6 5.8c-.3.3-.7.3-1 0L.6 14.5c-.3-.2-.3-.7 0-.9l1.9-1.8c.3-.3.7-.3 1 0l6 5.8c.1 0 .1 0 .2 0l6-5.8c.3-.3.7-.3 1 0l6 5.8c.1 0 .1 0 .2 0l6-5.8c.2-.3.6-.3.9 0z" fill="#fff"/></svg>
+            </div>
+            <div style={{ flex: 1, textAlign: "left" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>WalletConnect</div>
+              <div style={{ fontSize: 10.5, color: "#6B7280" }}>Best for mobile — scan with any wallet app</div>
+            </div>
+            {connectingUuid === "walletconnect" && <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 600 }}>Connecting...</span>}
+          </button>
 
           {CURATED_WALLETS.map((c) => {
             const found = detected.find((d) => c.match.includes(d.info.rdns));

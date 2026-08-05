@@ -23,6 +23,7 @@ import AiCopilot from "./components/AiCopilot";
 import ToastContainer from "./components/ToastContainer";
 import NotificationCenter from "./components/NotificationCenter";
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
+import { getDCAPlan, isDCADue } from "./dca";
 import { showToast } from "./toast";
 import {
   Home, LayoutGrid, ArrowUpRight, ArrowDownLeft, Repeat, TrendingUp, Droplet,
@@ -178,6 +179,12 @@ function AppInner() {
     setNicknameState(getNickname());
     setPoints(getPoints());
     const interval = setInterval(() => setPoints(getPoints()), 3000);
+
+    const plan = getDCAPlan();
+    if (plan && isDCADue(plan)) {
+      showToast(`Your DCA plan is due: buy ${plan.amount} USDC → EURC. Open Swap to run it.`, "info");
+    }
+
     return () => clearInterval(interval);
   }, []);
 
