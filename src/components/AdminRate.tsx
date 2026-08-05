@@ -50,7 +50,7 @@ export default function AdminRate({ provider, address }: Props) {
   async function fetchLiveRate() {
     setState("fetching"); setError(null);
     try {
-      const res = await fetch("https://api.frankfurter.app/latest?from=USD&to=EUR");
+      const res = await fetch("https://api.frankfurter.dev/v1/latest?from=USD&to=EUR");
       const data = await res.json();
       const rate = data.rates?.EUR;
       if (!rate) throw new Error("Rate not found in response.");

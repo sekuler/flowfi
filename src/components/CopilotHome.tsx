@@ -3,9 +3,11 @@ import { useState, useEffect, useRef } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 import { showToast } from "../toast";
+import { getRules, addRule, removeRule, type AutomationRule } from "../automation";
+import { computeMemoryInsight, type MemoryInsight } from "../memory";
 import {
   Repeat, Hexagon, Rocket, Droplet, Sparkles, TrendingUp,
-  ChevronRight, ArrowUpRight, ExternalLink, ShieldCheck,
+  ChevronRight, ArrowUpRight, ExternalLink, ShieldCheck, Brain,
 } from "lucide-react";
 
 const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
@@ -79,6 +81,7 @@ const QUICK_ACTIONS = [
 
 export default function CopilotHome({ address, balances, onNavigate }: Props) {
   const [openPositionCount, setOpenPositionCount] = useState<number | null>(null);
+  const [memoryInsight, setMemoryInsight] = useState<MemoryInsight | null>(null);
   const [lendingAPR, setLendingAPR] = useState<string | null>(null);
   const [poolCount, setPoolCount] = useState<number | null>(null);
   const [tvl, setTvl] = useState<number | null>(null);
@@ -127,6 +130,10 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       }
     }
     if (address) load();
+  }, [address]);
+
+  useEffect(() => {
+    if (address) computeMemoryInsight(address).then(setMemoryInsight);
   }, [address]);
 
   const usdcVal = Number(balances.usdc ?? 0);
@@ -270,6 +277,12 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
             )}
           </div>
           <p style={{ fontSize: 10, color: "#6B7280", textAlign: "center", marginTop: 10 }}>AI suggestions are for reference only.</p>
+          {memoryInsight && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #EDE9FE", display: "flex", alignItems: "flex-start", gap: 6 }}>
+              <Brain size={13} color="#6D5EF7" style={{ flexShrink: 0, marginTop: 1 }} />
+              <p style={{ fontSize: 11, color: "#5B21B6", margin: 0, lineHeight: 1.5 }}>{memoryInsight.text}</p>
+            </div>
+          )}
         </div>
 
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
@@ -291,6 +304,8 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
           </div>
         </div>
       </div>
+
+      <AutomationCard usdcVal={usdcVal} onNavigate={onNavigate} />
 
       {/* Market Overview / Recent Activity */}
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "1rem", alignItems: "start" }}>
@@ -341,6 +356,71 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
           <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Your assets are secured by smart contracts</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>FlowFi is non-custodial and built on Arc Testnet.</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AutomationCard({ usdcVal, onNavigate }: { usdcVal: number; onNavigate: (tab: "lending") => void }) {
+  const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [threshold, setThreshold] = useState("1000");
+  const [lendAmount, setLendAmount] = useState("500");
+
+  useEffect(() => { setRules(getRules()); }, []);
+
+  return (
+    <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Automation Rules</div>
+        <button onClick={() => setShowForm(!showForm)} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          {showForm ? "Cancel" : "+ New Rule"}
+        </button>
+      </div>
+      <p style={{ fontSize: 11.5, color: "#6B7280", margin: "0 0 10px 0" }}>
+        Checked whenever your balances refresh — this reminds you, it doesn't act on its own without your confirmation.
+      </p>
+
+      {showForm && (
+        <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.8rem", display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: "#374151" }}>IF my USDC balance is above</div>
+          <input type="number" value={threshold} onChange={(e) => setThreshold(e.target.value)}
+            style={{ background: "#ffffff", border: "none", borderRadius: 8, padding: "0.5rem 0.7rem", fontSize: 12, color: "#111827", outline: "none" }} />
+          <div style={{ fontSize: 12, color: "#374151" }}>THEN remind me to supply to Lending</div>
+          <input type="number" value={lendAmount} onChange={(e) => setLendAmount(e.target.value)}
+            style={{ background: "#ffffff", border: "none", borderRadius: 8, padding: "0.5rem 0.7rem", fontSize: 12, color: "#111827", outline: "none" }} />
+          <button onClick={() => {
+            if (!threshold || !lendAmount) return;
+            addRule({ condition: "usdc_above", conditionValue: Number(threshold), action: "lend", actionAmount: Number(lendAmount) });
+            setRules(getRules());
+            setShowForm(false);
+          }} style={{ padding: "0.5rem", borderRadius: 8, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Save Rule
+          </button>
+        </div>
+      )}
+
+      {rules.length === 0 && !showForm && (
+        <div style={{ fontSize: 11.5, color: "#9CA3AF", textAlign: "center", padding: "0.5rem 0" }}>No automation rules yet.</div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {rules.map((rule) => {
+          const conditionMet = usdcVal > rule.conditionValue;
+          return (
+            <div key={rule.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: conditionMet ? "rgba(34,197,94,0.1)" : "#f5f3ff", borderRadius: 10, padding: "0.6rem 0.8rem" }}>
+              <span style={{ fontSize: 11.5, color: "#111827" }}>
+                IF USDC &gt; {rule.conditionValue} → lend {rule.actionAmount}
+                {conditionMet && <span style={{ color: "#16A34A", fontWeight: 700, marginLeft: 6 }}>· active</span>}
+              </span>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {conditionMet && (
+                  <button onClick={() => onNavigate("lending")} style={{ fontSize: 10.5, fontWeight: 700, color: "#16A34A", background: "none", border: "none", cursor: "pointer" }}>Go</button>
+                )}
+                <button onClick={() => { removeRule(rule.id); setRules(getRules()); }} style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: 12 }}>×</button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
