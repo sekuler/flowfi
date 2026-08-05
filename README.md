@@ -5,8 +5,6 @@
 Payments. Bridge. Swaps. Perpetuals. Lending. Token Launch.
 All inside one application — built natively for [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
 
-![FlowFi in 30 seconds](./docs/flowfi-demo.gif)
-
 ---
 
 ## Why FlowFi is different
@@ -86,6 +84,26 @@ Building on Arc means FlowFi never has to explain away a bridge risk, a wrapped-
 │ Eth Sepolia│ │Base Sepolia│ │Arbitrum Sepolia│
 └────────────┘ └────────────┘ └────────────────┘
 ```
+
+---
+
+## Screenshots
+
+| | |
+|---|---|
+| **Landing** | ![Landing](./screenshots/1-LANDING.png) |
+| **Home** | ![Home](./screenshots/2-HOME.png) |
+| **Dashboard** | ![Dashboard](./screenshots/3-DASHBOARD.png) |
+| **Portfolio** | ![Portfolio](./screenshots/4-PORTFOLIO.png) |
+| **Swap** | ![Swap](./screenshots/5-SWAP.png) |
+| **Bridge** | ![Bridge](./screenshots/6-BRIDGE.png) |
+| **Send** | ![Send](./screenshots/7-SEND.png) |
+| **Lending** | ![Lending](./screenshots/8-LENDING.png) |
+| **Perpetuals** | ![Perpetuals](./screenshots/9-PERPETUALS.png) |
+| **Token Launch** | ![Token Launch](./screenshots/10-TOKENLAUNCH.png) |
+| **Liquidity Pools** | ![Liquidity Pools](./screenshots/11-LIQUIDITYPOOLS.png) |
+| **Circle Wallet** | ![Circle Wallet](./screenshots/12-CIRCLEWALLET.png) |
+| **History** | ![History](./screenshots/13-HISTORY.png) |
 
 ---
 
