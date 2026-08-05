@@ -3,18 +3,13 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo } from "../circleWalletHelpers";
+import { loadContacts, saveContacts, type Contact } from "../contacts";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const TOKENS = ["USDC", "EURC"] as const;
 type Token = (typeof TOKENS)[number];
 const TOKEN_ADDRESSES: Record<Token, `0x${string}`> = { USDC: USDC_ADDRESS, EURC: EURC_ADDRESS };
-const ADDRESS_BOOK_KEY = "flowfi-address-book";
-
-interface Contact {
-  name: string;
-  address: string;
-}
 
 async function switchToArc(provider: EIP1193Provider) {
   try {
@@ -25,18 +20,6 @@ async function switchToArc(provider: EIP1193Provider) {
       await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://arc-testnet.g.alchemy.com/v2/alch_1L2dTNapY_mz3YEIsoVEN"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
     } else throw e;
   }
-}
-
-function loadContacts(): Contact[] {
-  try {
-    return JSON.parse(localStorage.getItem(ADDRESS_BOOK_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveContacts(contacts: Contact[]) {
-  localStorage.setItem(ADDRESS_BOOK_KEY, JSON.stringify(contacts));
 }
 
 interface Props {
@@ -427,7 +410,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
         )}
         <button onClick={sendState === "error" ? function () { setSendState("idle"); setErrorMsg(null); } : doSend}
           disabled={isLoading || sendState === "done"}
-          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: isLoading || sendState === "done" ? "not-allowed" : "pointer", opacity: isLoading || sendState === "done" ? 0.5 : 1 }}>
+          style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: isLoading || sendState === "done" ? "not-allowed" : "pointer", opacity: isLoading || sendState === "done" ? 0.5 : 1 }}>
           {sendState === "idle" && "Send"}
           {sendState === "sending" && "Sending..."}
           {sendState === "done" && "Sent!"}
