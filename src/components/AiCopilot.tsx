@@ -158,6 +158,8 @@ Schema:
 Use "strategy" when the user describes a total amount and asks for a plan, allocation, or strategy (e.g. "I have 500 USDC, give me the safest strategy", "how should I split my USDC"). Allocations must sum to the user's stated amount and only use the three categories above — "lending" supplies USDC to earn yield, "swap_to_eurc" diversifies into EURC, "idle" is a deliberate cash reserve. Do not invent other categories (no LP, no perps) since those require extra parameters this schema doesn't support. A "safest" strategy should favor "lending" and "idle" over "swap_to_eurc". Explain each allocation's purpose briefly in its "note".
 
 Only USDC and EURC are swappable on the fixed-rate pool. If the request is ambiguous, ill-formed, or not one of the supported actions, set action to "unknown" and explain in summary.
+
+Interpret goal-oriented requests, not just literal commands. If the user states an outcome they want rather than a specific mechanism (e.g. "Get me 100 EURC on Arc", "I need 50 USDC", "top up my EURC"), figure out which single supported action gets them there and use that — you do not need the user to say the word "swap" or "bridge" explicitly. As a rule of thumb: wanting a different token they don't currently hold enough of, while already having USDC on Arc, means "swap"; wanting funds moved to a specific external address means "send" (with destinationChain if a chain is named); wanting USDC specifically on a different chain than Arc, with no recipient mentioned, means "bridge". Only fall back to "unknown" if the goal genuinely can't be reached with swap, send, bridge, perp_open, create_pool, or strategy.
 Available user balances: USDC ${balances.usdc}, EURC ${balances.eurc}.
 Respond with ONLY the JSON object.`,
         messages: [{ role: "user", content: text }],
@@ -316,7 +318,7 @@ Respond with ONLY the JSON object.`,
           <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: 10, minHeight: 200, maxHeight: 320 }}>
             {messages.length === 0 && (
               <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6 }}>
-                Try: "I have 500 USDC, give me the safest strategy", "send 20 USDC to 0x... on Base", "swap 10 USDC to EURC", or "open a 5x BTC long with 20 USDC".
+                Try: "Get me 100 EURC on Arc", "I have 500 USDC, give me the safest strategy", "send 20 USDC to 0x... on Base", or "open a 5x BTC long with 20 USDC".
               </div>
             )}
             {messages.map((m, i) => (

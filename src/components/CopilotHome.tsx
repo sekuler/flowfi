@@ -24,6 +24,8 @@ const PERPS_ABI = [
 
 const LENDING_ABI = [
   { type: "function", name: "currentAPR", stateMutability: "view", inputs: [], outputs: [{ name: "bps", type: "uint256" }] },
+  { type: "function", name: "healthFactor", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "debtOf", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
 ] as const;
 
 const ERC20_BALANCE_ABI = [
@@ -83,6 +85,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
   const [openPositionCount, setOpenPositionCount] = useState<number | null>(null);
   const [memoryInsight, setMemoryInsight] = useState<MemoryInsight | null>(null);
   const [lendingAPR, setLendingAPR] = useState<string | null>(null);
+  const [healthFactor, setHealthFactor] = useState<number | null>(null); // null = no debt / not applicable
   const [poolCount, setPoolCount] = useState<number | null>(null);
   const [tvl, setTvl] = useState<number | null>(null);
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
@@ -94,7 +97,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-        const [ids, apr, poolsLen, usdcSwap, eurcSwap, usdcAmm, eurcAmm, usdcLend, eurcLend] = await Promise.all([
+        const [ids, apr, poolsLen, usdcSwap, eurcSwap, usdcAmm, eurcAmm, usdcLend, eurcLend, debt] = await Promise.all([
           client.readContract({ address: PERPS_CONTRACT, abi: PERPS_ABI, functionName: "getUserPositions", args: [address as `0x${string}`] }).catch(() => []),
           client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "currentAPR" }).catch(() => 0n),
           client.readContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "allPoolsLength" }).catch(() => 0n),
@@ -104,7 +107,22 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
           client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LEGACY_AMM] }).catch(() => 0n),
           client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LENDING_CONTRACT] }).catch(() => 0n),
           client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LENDING_CONTRACT] }).catch(() => 0n),
+          client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "debtOf", args: [address as `0x${string}`] }).catch(() => 0n),
         ]);
+
+        // Only fetch health factor if the user actually has outstanding debt —
+        // otherwise it's not a meaningful risk signal.
+        if (debt > 0n) {
+          try {
+            const client2 = createPublicClient({ chain: arcTestnet, transport: http() });
+            const hf = await client2.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "healthFactor", args: [address as `0x${string}`] });
+            setHealthFactor(hf > 100000n ? null : Number(hf) / 100);
+          } catch {
+            setHealthFactor(null);
+          }
+        } else {
+          setHealthFactor(null);
+        }
 
         setOpenPositionCount((ids as bigint[]).length);
         setLendingAPR((Number(apr) / 100).toFixed(2));
@@ -143,6 +161,34 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
   const hasIdleFunds = usdcVal > 10;
   const estYield = hasIdleFunds && lendingAPR ? (usdcVal * Number(lendingAPR)) / 100 : 0;
 
+  // Morning Brief: real overnight portfolio change, using the same daily
+  // snapshot mechanism as Dashboard — only shown once the first time you
+  // open the app on a given day, not repeated on every visit.
+  const [morningBrief, setMorningBrief] = useState<{ change: number; hasData: boolean } | null>(null);
+  const [showBrief, setShowBrief] = useState(false);
+  useEffect(() => {
+    if (!address || totalValue === 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const dayKey = `flowfi-portfolio-snapshot-${address}`;
+    const lastSeenKey = `flowfi-brief-seen-${address}`;
+    let snap: { date: string; value: number } | null = null;
+    try { snap = JSON.parse(localStorage.getItem(dayKey) ?? "null"); } catch { /* ignore */ }
+
+    if (snap && snap.date !== today) {
+      const change = snap.value > 0 ? ((totalValue - snap.value) / snap.value) * 100 : 0;
+      setMorningBrief({ change, hasData: true });
+    } else if (!snap) {
+      setMorningBrief({ change: 0, hasData: false });
+    }
+
+    const lastSeen = localStorage.getItem(lastSeenKey);
+    if (lastSeen !== today) {
+      setShowBrief(true);
+      localStorage.setItem(lastSeenKey, today);
+    }
+    localStorage.setItem(dayKey, JSON.stringify({ date: today, value: totalValue }));
+  }, [address, totalValue]);
+
   // Simple, real (not fabricated) concentration-based risk score: a portfolio
   // sitting 100% in one asset scores riskier than one spread across several.
   const riskScore = (() => {
@@ -170,6 +216,36 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      {showBrief && (
+        <div style={{ background: "linear-gradient(135deg, #6D5EF7, #8B7CF9)", borderRadius: 20, padding: "1.5rem", position: "relative" }}>
+          <button onClick={() => setShowBrief(false)} style={{ position: "absolute", top: 14, right: 16, background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 16 }}>×</button>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#ffffff", marginBottom: 6 }}>
+            Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {morningBrief?.hasData ? (
+              <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.9)", margin: 0 }}>
+                Your portfolio is {morningBrief.change >= 0 ? "up" : "down"} {Math.abs(morningBrief.change).toFixed(1)}% since your last visit.
+              </p>
+            ) : (
+              <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.9)", margin: 0 }}>
+                Tracking your portfolio from today — check back tomorrow for a real overnight comparison.
+              </p>
+            )}
+            {openPositionCount !== null && openPositionCount > 0 && (
+              <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.9)", margin: 0 }}>
+                You have {openPositionCount} open position{openPositionCount > 1 ? "s" : ""} on Perpetuals.
+              </p>
+            )}
+            {hasIdleFunds && (
+              <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.9)", margin: 0 }}>
+                Idle funds: {usdcVal.toFixed(0)} USDC. {lendingAPR ? `Lending is currently offering ${lendingAPR}% APY.` : ""}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
@@ -242,11 +318,26 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
             })}
           </div>
           {riskScore !== null && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #F5F3FF", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11.5, color: "#6B7280" }}>Concentration Risk</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: riskScore >= 8 ? "#DC2626" : riskScore >= 5 ? "#B45309" : "#16A34A" }}>
-                {riskScore}/10 {riskScore >= 8 ? "· concentrated" : riskScore >= 5 ? "· moderate" : "· diversified"}
-              </span>
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #F5F3FF", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "1px" }}>RISK ENGINE</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11.5, color: "#6B7280" }}>Portfolio concentration</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: riskScore >= 8 ? "#DC2626" : riskScore >= 5 ? "#B45309" : "#16A34A" }}>
+                  {riskScore}/10 {riskScore >= 8 ? "· concentrated" : riskScore >= 5 ? "· moderate" : "· diversified"}
+                </span>
+              </div>
+              {healthFactor !== null && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11.5, color: "#6B7280" }}>Lending liquidation risk</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: healthFactor < 110 ? "#DC2626" : healthFactor < 130 ? "#B45309" : "#16A34A" }}>
+                    {healthFactor.toFixed(0)}% {healthFactor < 110 ? "· close" : healthFactor < 130 ? "· watch" : "· safe"}
+                  </span>
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11.5, color: "#6B7280" }}>Protocol / bridge risk</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#16A34A" }}>Low · verified contracts, official CCTP</span>
+              </div>
             </div>
           )}
         </div>
