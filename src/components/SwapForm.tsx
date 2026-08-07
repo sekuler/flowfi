@@ -20,6 +20,15 @@ function swapStepIndex(state: string) {
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
+const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
+
+const LEGACY_AMM_ABI = [
+  { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+] as const;
+
+const LEGACY_AMM_SWAP_ABI = [
+  { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+] as const;
 
 const SWAP_ABI = [
   { type: "function", name: "swapUsdcToEurc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }], outputs: [] },
@@ -123,12 +132,14 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [rateStale, setRateStale] = useState(false);
   const [poolLiquidity, setPoolLiquidity] = useState<{ usdc: string; eurc: string } | null>(null);
   const [contractTxs, setContractTxs] = useState<ContractTx[]>([]);
+  const [legacyOut, setLegacyOut] = useState<string | null>(null);
+  const [useLegacyRoute, setUseLegacyRoute] = useState(false);
 
   const activeBalances = useCircle && circleBalances ? circleBalances : { usdc: balances.usdc ?? "...", eurc: balances.eurc ?? "..." };
   const currentBalance = tokenIn === "USDC" ? activeBalances.usdc : activeBalances.eurc;
 
   const estimate = useCallback(async () => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setEstimatedOut("0.00"); return; }
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setEstimatedOut("0.00"); setLegacyOut(null); return; }
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const amountIn = parseUnits(amount, 6);
@@ -136,12 +147,33 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         ? await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getEurcOut", args: [amountIn] })
         : await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getUsdcOut", args: [amountIn] });
       setEstimatedOut(Number(formatUnits(out as bigint, 6)).toFixed(4));
+
+      // Compare against the Legacy AMM route too — real second liquidity
+      // source on FlowFi, so the better route can be genuinely surfaced
+      // instead of only ever showing the fixed-rate pool.
+      try {
+        const legacyOutRaw = await client.readContract({
+          address: LEGACY_AMM_CONTRACT, abi: LEGACY_AMM_ABI, functionName: "getAmountOut",
+          args: [tokenIn === "USDC", amountIn],
+        });
+        setLegacyOut(Number(formatUnits(legacyOutRaw as bigint, 6)).toFixed(4));
+      } catch {
+        setLegacyOut(null);
+      }
     } catch {
       setEstimatedOut("0.00");
+      setLegacyOut(null);
     }
   }, [amount, tokenIn]);
 
   useEffect(() => { estimate(); }, [estimate]);
+
+  // Auto-pick whichever route quotes more, so the toggle below reflects the
+  // actual best price rather than defaulting to the fixed-rate pool.
+  useEffect(() => {
+    if (legacyOut && Number(legacyOut) > Number(estimatedOut)) setUseLegacyRoute(true);
+    else setUseLegacyRoute(false);
+  }, [legacyOut, estimatedOut]);
 
   useEffect(() => {
     async function checkRates() {
@@ -151,7 +183,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         const pool = Number(rate) / 1e6;
         setPoolRate(pool);
 
-        const res = await fetch("https://api.frankfurter.dev/v1/latest?from=EUR&to=USD");
+        const res = await fetch("https://api.frankfurter.dev/v1/latest?from=USD&to=EUR");
         const data = await res.json();
         const market = data.rates?.EUR;
         if (market) {
@@ -241,20 +273,26 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       await switchToArc(provider);
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const routeContract = useLegacyRoute ? LEGACY_AMM_CONTRACT : SWAP_CONTRACT;
 
       setSwapState("approving");
       const approveHash = await wc.writeContract({
         address: tokenAddress, abi: erc20Abi, functionName: "approve",
-        args: [SWAP_CONTRACT, amountIn], account: address as `0x${string}`,
+        args: [routeContract, amountIn], account: address as `0x${string}`,
       });
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
       setSwapState("swapping");
-      const hash = await wc.writeContract({
-        address: SWAP_CONTRACT, abi: SWAP_ABI,
-        functionName: tokenIn === "USDC" ? "swapUsdcToEurc" : "swapEurcToUsdc",
-        args: [amountIn], account: address as `0x${string}`,
-      });
+      const hash = useLegacyRoute
+        ? await wc.writeContract({
+            address: LEGACY_AMM_CONTRACT, abi: LEGACY_AMM_SWAP_ABI, functionName: "swap",
+            args: [tokenIn === "USDC", amountIn, legacyOut ? (parseUnits(legacyOut, 6) * 99n) / 100n : 0n], account: address as `0x${string}`,
+          })
+        : await wc.writeContract({
+            address: SWAP_CONTRACT, abi: SWAP_ABI,
+            functionName: tokenIn === "USDC" ? "swapUsdcToEurc" : "swapEurcToUsdc",
+            args: [amountIn], account: address as `0x${string}`,
+          });
       await publicClient.waitForTransactionReceipt({ hash });
 
       setTxHash(hash); setSwapState("done"); setAmount(""); setEstimatedOut("0.00");
@@ -365,7 +403,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             <div style={{ borderRadius: 16, background: "#f5f3ff", padding: "1rem 1.1rem" }}>
               <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 10 }}>You receive</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 32, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{estimatedOut}</span>
+                <span style={{ fontSize: 32, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{useLegacyRoute && legacyOut ? legacyOut : estimatedOut}</span>
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <button
                     onClick={() => setTokenOutOpen(!tokenOutOpen)}
@@ -417,6 +455,30 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                   <span style={{ color: "#4B5563" }}>Minimum received</span>
                   <span style={{ color: "#111827", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{estimatedOut} {tokenOut}</span>
                 </div>
+              </div>
+            )}
+
+            {legacyOut && Number(amount) > 0 && (
+              <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.85rem", display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 2 }}>ROUTES ON FLOWFI</div>
+                {[
+                  { name: "Fixed-Rate Pool", out: estimatedOut, isLegacy: false },
+                  { name: "Legacy AMM", out: legacyOut, isLegacy: true },
+                ].sort((a, b) => Number(b.out) - Number(a.out)).map((route, i) => (
+                  <button key={route.name} onClick={() => setUseLegacyRoute(route.isLegacy)}
+                    style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      padding: "0.6rem 0.75rem", borderRadius: 10, border: "none", cursor: "pointer",
+                      background: useLegacyRoute === route.isLegacy ? "#ffffff" : "transparent",
+                      boxShadow: useLegacyRoute === route.isLegacy ? "0 1px 3px rgba(109,94,247,0.15)" : "none",
+                    }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {i === 0 && <span style={{ fontSize: 9, fontWeight: 800, color: "#16A34A", background: "rgba(34,197,94,0.15)", padding: "2px 6px", borderRadius: 999 }}>BEST</span>}
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{route.name}</span>
+                    </div>
+                    <span className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: i === 0 ? "#16A34A" : "#4B5563" }}>{route.out} {tokenOut}</span>
+                  </button>
+                ))}
               </div>
             )}
 

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
 import { addPoints } from "../gamification";
+import { computeMemoryInsight } from "../memory";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
@@ -121,6 +122,11 @@ export default function AiCopilot({ provider, address, balances, onRefresh, onNa
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [memoryText, setMemoryText] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (address) computeMemoryInsight(address).then((insight) => setMemoryText(insight?.text ?? null));
+  }, [address]);
 
   async function parseCommand(text: string): Promise<ParsedAction> {
     const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
@@ -161,6 +167,7 @@ Only USDC and EURC are swappable on the fixed-rate pool. If the request is ambig
 
 Interpret goal-oriented requests, not just literal commands. If the user states an outcome they want rather than a specific mechanism (e.g. "Get me 100 EURC on Arc", "I need 50 USDC", "top up my EURC"), figure out which single supported action gets them there and use that — you do not need the user to say the word "swap" or "bridge" explicitly. As a rule of thumb: wanting a different token they don't currently hold enough of, while already having USDC on Arc, means "swap"; wanting funds moved to a specific external address means "send" (with destinationChain if a chain is named); wanting USDC specifically on a different chain than Arc, with no recipient mentioned, means "bridge". Only fall back to "unknown" if the goal genuinely can't be reached with swap, send, bridge, perp_open, create_pool, or strategy.
 Available user balances: USDC ${balances.usdc}, EURC ${balances.eurc}.
+${memoryText ? `What you know about this user's real recent behavior, from their actual transaction history: ${memoryText} Use this naturally when relevant — for example, weight a "strategy" allocation toward what they already do, or mention it briefly in your reasoning if it's genuinely relevant. Never state this as a fact if it isn't directly implied by the note above, and never fabricate additional behavioral claims beyond it.` : ""}
 Respond with ONLY the JSON object.`,
         messages: [{ role: "user", content: text }],
       }),
@@ -319,6 +326,11 @@ Respond with ONLY the JSON object.`,
             {messages.length === 0 && (
               <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6 }}>
                 Try: "Get me 100 EURC on Arc", "I have 500 USDC, give me the safest strategy", "send 20 USDC to 0x... on Base", or "open a 5x BTC long with 20 USDC".
+                {memoryText && (
+                  <div style={{ marginTop: 10, background: "#f5f3ff", borderRadius: 10, padding: "0.6rem 0.75rem", color: "#5B21B6", fontSize: 11.5 }}>
+                    ✦ {memoryText}
+                  </div>
+                )}
               </div>
             )}
             {messages.map((m, i) => (
