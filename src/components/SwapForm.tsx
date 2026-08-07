@@ -20,13 +20,14 @@ function swapStepIndex(state: string) {
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
-const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
+const POOL_FACTORY_V2 = "0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8" as `0x${string}`;
 
-const LEGACY_AMM_ABI = [
-  { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+const POOL_FACTORY_ABI = [
+  { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
 ] as const;
 
-const LEGACY_AMM_SWAP_ABI = [
+const POOL_V2_ABI = [
+  { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
   { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
 ] as const;
 
@@ -133,6 +134,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [poolLiquidity, setPoolLiquidity] = useState<{ usdc: string; eurc: string } | null>(null);
   const [contractTxs, setContractTxs] = useState<ContractTx[]>([]);
   const [legacyOut, setLegacyOut] = useState<string | null>(null);
+  const [legacyPoolAddress, setLegacyPoolAddress] = useState<`0x${string}` | null>(null);
   const [useLegacyRoute, setUseLegacyRoute] = useState(false);
 
   const activeBalances = useCircle && circleBalances ? circleBalances : { usdc: balances.usdc ?? "...", eurc: balances.eurc ?? "..." };
@@ -148,17 +150,26 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         : await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getUsdcOut", args: [amountIn] });
       setEstimatedOut(Number(formatUnits(out as bigint, 6)).toFixed(4));
 
-      // Compare against the Legacy AMM route too — real second liquidity
-      // source on FlowFi, so the better route can be genuinely surfaced
-      // instead of only ever showing the fixed-rate pool.
+      // Compare against a real Pool Factory V2 pool for USDC/EURC, if one
+      // exists — a second genuine liquidity source on FlowFi, so the better
+      // route can be surfaced instead of only ever showing the fixed-rate pool.
       try {
-        const legacyOutRaw = await client.readContract({
-          address: LEGACY_AMM_CONTRACT, abi: LEGACY_AMM_ABI, functionName: "getAmountOut",
-          args: [tokenIn === "USDC", amountIn],
-        });
-        setLegacyOut(Number(formatUnits(legacyOutRaw as bigint, 6)).toFixed(4));
+        const poolAddress = await client.readContract({
+          address: POOL_FACTORY_V2, abi: POOL_FACTORY_ABI, functionName: "getPool",
+          args: [USDC_ADDRESS, EURC_ADDRESS],
+        }) as `0x${string}`;
+        if (poolAddress === "0x0000000000000000000000000000000000000000") {
+          setLegacyOut(null);
+        } else {
+          const legacyOutRaw = await client.readContract({
+            address: poolAddress, abi: POOL_V2_ABI, functionName: "getAmountOut",
+            args: [tokenIn === "USDC", amountIn],
+          });
+          setLegacyOut(Number(formatUnits(legacyOutRaw as bigint, 6)).toFixed(4));
+          setLegacyPoolAddress(poolAddress);
+        }
       } catch (legacyErr) {
-        console.error("Legacy AMM quote failed:", legacyErr);
+        console.error("Pool V2 quote failed:", legacyErr);
         setLegacyOut(null);
       }
     } catch {
@@ -274,7 +285,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       await switchToArc(provider);
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-      const routeContract = useLegacyRoute ? LEGACY_AMM_CONTRACT : SWAP_CONTRACT;
+      const routeContract = useLegacyRoute && legacyPoolAddress ? legacyPoolAddress : SWAP_CONTRACT;
 
       setSwapState("approving");
       const approveHash = await wc.writeContract({
@@ -284,9 +295,9 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
       setSwapState("swapping");
-      const hash = useLegacyRoute
+      const hash = useLegacyRoute && legacyPoolAddress
         ? await wc.writeContract({
-            address: LEGACY_AMM_CONTRACT, abi: LEGACY_AMM_SWAP_ABI, functionName: "swap",
+            address: legacyPoolAddress, abi: POOL_V2_ABI, functionName: "swap",
             args: [tokenIn === "USDC", amountIn, legacyOut ? (parseUnits(legacyOut, 6) * 99n) / 100n : 0n], account: address as `0x${string}`,
           })
         : await wc.writeContract({
@@ -464,7 +475,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                 <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 2 }}>ROUTES ON FLOWFI</div>
                 {[
                   { name: "Fixed-Rate Pool", out: estimatedOut, isLegacy: false },
-                  { name: "Legacy AMM", out: legacyOut, isLegacy: true },
+                  { name: "Pool Factory V2", out: legacyOut, isLegacy: true },
                 ].sort((a, b) => Number(b.out) - Number(a.out)).map((route, i) => (
                   <button key={route.name} onClick={() => setUseLegacyRoute(route.isLegacy)}
                     style={{
