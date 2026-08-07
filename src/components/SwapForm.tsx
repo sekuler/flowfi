@@ -157,7 +157,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
           args: [tokenIn === "USDC", amountIn],
         });
         setLegacyOut(Number(formatUnits(legacyOutRaw as bigint, 6)).toFixed(4));
-      } catch {
+      } catch (legacyErr) {
+        console.error("Legacy AMM quote failed:", legacyErr);
         setLegacyOut(null);
       }
     } catch {
