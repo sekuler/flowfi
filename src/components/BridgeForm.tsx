@@ -67,6 +67,10 @@ async function switchChain(provider: EIP1193Provider, chainIdHex: string, addPar
     throw e;
   }
 
+  // Even when the wallet already knows this chain, re-offering it via
+  // wallet_addEthereumChain can prompt some wallets (MetaMask in particular)
+  // to update a stale/unreliable saved RPC endpoint to the one we prefer.
+  // This is best-effort — most wallets just no-op if nothing changed.
   if (addParams) {
     try {
       await provider.request({ method: "wallet_addEthereumChain", params: [addParams] });
@@ -137,17 +141,18 @@ export default function BridgeForm({ provider, address }: Props) {
   useEffect(() => {
     let cancelled = false;
     setSourceBalance(null);
+    const effectiveAddress = useCircle && circleWallet ? circleWallet.address : address;
     (async () => {
       try {
         const client = createPublicClient({ chain: source.chain, transport: http() });
-        const bal = await client.readContract({ address: source.usdc, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] });
+        const bal = await client.readContract({ address: source.usdc, abi: erc20Abi, functionName: "balanceOf", args: [effectiveAddress as `0x${string}`] });
         if (!cancelled) setSourceBalance(Number(bal) / 1e6 + "");
       } catch {
         if (!cancelled) setSourceBalance("—");
       }
     })();
     return () => { cancelled = true; };
-  }, [sourceKey, address]);
+  }, [sourceKey, address, useCircle, circleWallet]);
 
   function changeSource(key: ChainKey) {
     setSourceKey(key);
