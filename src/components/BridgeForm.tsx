@@ -62,7 +62,17 @@ async function switchChain(provider: EIP1193Provider, chainIdHex: string, addPar
     const err = e as { code?: number };
     if (err.code === 4902 && addParams) {
       await provider.request({ method: "wallet_addEthereumChain", params: [addParams] });
-    } else throw e;
+      return;
+    }
+    throw e;
+  }
+
+  if (addParams) {
+    try {
+      await provider.request({ method: "wallet_addEthereumChain", params: [addParams] });
+    } catch {
+      // Ignore — the chain switch above already succeeded either way.
+    }
   }
 }
 
