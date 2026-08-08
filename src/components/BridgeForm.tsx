@@ -75,6 +75,19 @@ function bytes32Address(addr: string): `0x${string}` {
   return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
 }
 
+// Turns raw viem/wallet errors into a short, human message instead of dumping
+// the full technical error (calldata, docs links, etc.) in front of the user.
+function friendlyError(e: unknown): string {
+  const err = e as { message?: string; code?: number; shortMessage?: string };
+  if (err.code === 4001 || err.message?.includes("User rejected")) {
+    return "You rejected the request in your wallet. No funds were moved — try again when you're ready.";
+  }
+  if (err.message?.includes("insufficient funds") || err.message?.includes("exceeds balance")) {
+    return "Insufficient balance to cover this amount plus gas.";
+  }
+  return err.shortMessage ?? err.message ?? "Bridge failed. Please try again.";
+}
+
 const HOW_IT_WORKS = [
   { title: "Select assets", desc: "Choose the chains and USDC amount you want to bridge" },
   { title: "Approve & Burn", desc: "Approve the transfer and burn USDC on the source chain" },
@@ -220,8 +233,7 @@ export default function BridgeForm({ provider, address }: Props) {
       try {
         await doBridgeWithCircle();
       } catch (e: unknown) {
-        const err = e as { message?: string };
-        setErrorMsg(err.message ?? "Bridge failed.");
+        setErrorMsg(friendlyError(e));
         setStep("error");
       }
       return;
@@ -282,8 +294,7 @@ export default function BridgeForm({ provider, address }: Props) {
       showToast("Bridge completed", "success");
     addPoints(15);
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setErrorMsg(err.message ?? "Bridge failed.");
+      setErrorMsg(friendlyError(e));
       setStep("error");
     }
   }
