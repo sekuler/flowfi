@@ -2,6 +2,14 @@
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
+
+// The default public RPC endpoints viem ships for these testnets sometimes
+// route through free-tier providers (e.g. drpc.org) that reject certain
+// calls with "chain is not available on free plan". Pin a reliable public
+// RPC per chain instead of trusting the SDK defaults.
+const sepoliaReliable = { ...sepolia, rpcUrls: { default: { http: ["https://ethereum-sepolia-rpc.publicnode.com"] } } };
+const baseSepoliaReliable = { ...baseSepolia, rpcUrls: { default: { http: ["https://base-sepolia-rpc.publicnode.com"] } } };
+const arbitrumSepoliaReliable = { ...arbitrumSepolia, rpcUrls: { default: { http: ["https://arbitrum-sepolia-rpc.publicnode.com"] } } };
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
 import { addPoints } from "../gamification";
@@ -15,9 +23,9 @@ const IRIS_API = "https://iris-api-sandbox.circle.com/v2/messages";
 
 const CHAINS = {
   "Arc Testnet": { chain: arcTestnet, domain: 26, usdc: "0x3600000000000000000000000000000000000000" as `0x${string}`, chainIdHex: ARC_CHAIN_ID_HEX, isArc: true, circleChain: "ARC-TESTNET" as CircleChain, dot: "#6D5EF7" },
-  "Ethereum Sepolia": { chain: sepolia, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, chainIdHex: "0xaa36a7", isArc: false, circleChain: "ETH-SEPOLIA" as CircleChain, dot: "#627eea" },
-  "Base Sepolia": { chain: baseSepolia, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, chainIdHex: "0x14a34", isArc: false, circleChain: "BASE-SEPOLIA" as CircleChain, dot: "#0052ff" },
-  "Arbitrum Sepolia": { chain: arbitrumSepolia, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, chainIdHex: "0x66eee", isArc: false, circleChain: "ARB-SEPOLIA" as CircleChain, dot: "#28a0f0" },
+  "Ethereum Sepolia": { chain: sepoliaReliable, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, chainIdHex: "0xaa36a7", isArc: false, circleChain: "ETH-SEPOLIA" as CircleChain, dot: "#627eea" },
+  "Base Sepolia": { chain: baseSepoliaReliable, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, chainIdHex: "0x14a34", isArc: false, circleChain: "BASE-SEPOLIA" as CircleChain, dot: "#0052ff" },
+  "Arbitrum Sepolia": { chain: arbitrumSepoliaReliable, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, chainIdHex: "0x66eee", isArc: false, circleChain: "ARB-SEPOLIA" as CircleChain, dot: "#28a0f0" },
 } as const;
 type ChainKey = keyof typeof CHAINS;
 
