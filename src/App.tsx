@@ -193,25 +193,29 @@ function AppInner() {
   }, []);
 
   useEffect(() => {
-    const info = getCircleWallet();
-    setCircleWalletInfo(info);
-    if (!info) return;
     let cancelled = false;
-    async function loadCircleBalances() {
+    async function loadCircleBalances(info: CircleWalletInfo) {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
         const [usdc, eurc] = await Promise.all([
-          client.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: "balanceOf", args: [info!.address as `0x${string}`] }),
-          client.readContract({ address: ARC_EURC, abi: erc20Abi, functionName: "balanceOf", args: [info!.address as `0x${string}`] }),
+          client.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: "balanceOf", args: [info.address as `0x${string}`] }),
+          client.readContract({ address: ARC_EURC, abi: erc20Abi, functionName: "balanceOf", args: [info.address as `0x${string}`] }),
         ]);
         if (!cancelled) setCircleBalances({ usdc: Number(formatUnits(usdc as bigint, 6)).toFixed(2), eurc: Number(formatUnits(eurc as bigint, 6)).toFixed(2) });
       } catch {
         if (!cancelled) setCircleBalances({ usdc: "—", eurc: "—" });
       }
     }
-    loadCircleBalances();
-    const interval = setInterval(loadCircleBalances, 15000);
-    return () => { cancelled = true; clearInterval(interval); };
+    function refresh() {
+      const info = getCircleWallet();
+      setCircleWalletInfo(info);
+      if (info) loadCircleBalances(info);
+      else setCircleBalances(null);
+    }
+    refresh();
+    const interval = setInterval(refresh, 15000);
+    window.addEventListener("circle-wallet-changed", refresh);
+    return () => { cancelled = true; clearInterval(interval); window.removeEventListener("circle-wallet-changed", refresh); };
   }, []);
 
  function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
