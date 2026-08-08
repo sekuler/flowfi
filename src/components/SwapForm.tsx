@@ -106,6 +106,9 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
   useEffect(() => {
     setCircleWallet(getCircleWallet());
+    function handleWalletChange() { setCircleWallet(getCircleWallet()); }
+    window.addEventListener("circle-wallet-changed", handleWalletChange);
+    return () => window.removeEventListener("circle-wallet-changed", handleWalletChange);
   }, []);
 
   useEffect(() => {

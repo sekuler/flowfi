@@ -32,10 +32,15 @@ export function getCircleWallet(): CircleWalletInfo | null {
 
 export function saveCircleWallet(info: CircleWalletInfo) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(info));
+  // Notify any already-mounted components (Swap, Bridge, etc.) that the
+  // active Circle Wallet changed, so they don't keep using a stale one
+  // captured on their initial mount.
+  window.dispatchEvent(new Event("circle-wallet-changed"));
 }
 
 export function forgetCircleWallet() {
   localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new Event("circle-wallet-changed"));
 }
 
 export function getWalletIdForChain(info: CircleWalletInfo | null, chain: CircleChain): string | null {

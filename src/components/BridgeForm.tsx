@@ -132,7 +132,12 @@ export default function BridgeForm({ provider, address }: Props) {
   const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
   const [useCircle, setUseCircle] = useState(false);
 
-  useEffect(() => { setCircleWallet(getCircleWallet()); }, []);
+  useEffect(() => {
+    setCircleWallet(getCircleWallet());
+    function handleWalletChange() { setCircleWallet(getCircleWallet()); }
+    window.addEventListener("circle-wallet-changed", handleWalletChange);
+    return () => window.removeEventListener("circle-wallet-changed", handleWalletChange);
+  }, []);
 
   const source = CHAINS[sourceKey];
   const dest = CHAINS[destKey];
