@@ -371,22 +371,22 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </div>
             )}
 
-            <div style={{ borderRadius: 16, background: "transparent", border: "none", padding: "1rem 0" }}>
+            <div style={{ borderRadius: 20, background: "#ffffff", border: "1px solid #EDE9FE", padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <span style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px" }}>You pay</span>
-                <span style={{ fontSize: 11, color: "#374151" }}>Balance: {currentBalance} {tokenIn}</span>
+                <span style={{ fontSize: 12, color: "#6B7280", fontWeight: 500 }}>You pay</span>
+                <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 600 }}>Balance: {currentBalance} {tokenIn}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <input type="number" min="0" step="0.01" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
-                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 32, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
+                <input type="number" min="0" step="0.01" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
+                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 34, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <button
                     onClick={() => setTokenInOpen(!tokenInOpen)}
                     disabled={isLoading}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#ede9fe", border: "none", cursor: "pointer" }}>
-                    <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#ffffff" }}>{tokenIn[0]}</span>
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px 7px 7px", borderRadius: 999, background: "#F5F3FF", border: "none", cursor: "pointer" }}>
+                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#ffffff" }}>{tokenIn[0]}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenIn}</span>
-                    <span style={{ fontSize: 9, color: "#4B5563" }}>▾</span>
+                    <span style={{ fontSize: 9, color: "#6B7280" }}>▾</span>
                   </button>
                   {tokenInOpen && (
                     <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20, background: "#ffffff", borderRadius: 12, padding: 6, minWidth: 140, boxShadow: "0 12px 30px rgba(124,58,237,0.15)" }}>
@@ -402,27 +402,28 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                   )}
                 </div>
               </div>
+              <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>{amount && Number(amount) > 0 ? `$${Number(amount).toFixed(2)}` : "$0.00"}</div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", marginTop: -10, marginBottom: -10, position: "relative", zIndex: 1 }}>
+            <div style={{ display: "flex", justifyContent: "center", marginTop: -14, marginBottom: -14, position: "relative", zIndex: 1 }}>
               <button onClick={flipTokens} disabled={isLoading}
-                style={{ width: 32, height: 32, borderRadius: 10, background: "#ffffff", border: "3px solid #ffffff", color: "#7c3aed", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", border: "1px solid #EDE9FE", color: "#7c3aed", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.1)" }}>
                 ↓
               </button>
             </div>
 
-            <div style={{ borderRadius: 16, background: "transparent", border: "none", padding: "1rem 0" }}>
-              <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 10 }}>You receive</div>
+            <div style={{ borderRadius: 20, background: "#ffffff", border: "1px solid #EDE9FE", padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+              <div style={{ fontSize: 12, color: "#6B7280", fontWeight: 500, marginBottom: 10 }}>You receive</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 32, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{useLegacyRoute && legacyOut ? legacyOut : estimatedOut}</span>
+                <span style={{ fontSize: 34, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{useLegacyRoute && legacyOut ? legacyOut : estimatedOut}</span>
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <button
                     onClick={() => setTokenOutOpen(!tokenOutOpen)}
                     disabled={isLoading}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#ede9fe", border: "none", cursor: "pointer" }}>
-                    <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#ffffff" }}>{tokenOut[0]}</span>
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px 7px 7px", borderRadius: 999, background: "#F5F3FF", border: "none", cursor: "pointer" }}>
+                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#ffffff" }}>{tokenOut[0]}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenOut}</span>
-                    <span style={{ fontSize: 9, color: "#4B5563" }}>▾</span>
+                    <span style={{ fontSize: 9, color: "#6B7280" }}>▾</span>
                   </button>
                   {tokenOutOpen && (
                     <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20, background: "#ffffff", borderRadius: 12, padding: 6, minWidth: 140, boxShadow: "0 12px 30px rgba(124,58,237,0.15)" }}>
@@ -438,6 +439,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                   )}
                 </div>
               </div>
+              <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>{(useLegacyRoute && legacyOut ? Number(legacyOut) : Number(estimatedOut)) > 0 ? `$${(useLegacyRoute && legacyOut ? Number(legacyOut) : Number(estimatedOut)).toFixed(2)}` : "$0.00"}</div>
             </div>
 
             {rateStale && (
