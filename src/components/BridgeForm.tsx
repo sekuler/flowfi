@@ -429,7 +429,7 @@ export default function BridgeForm({ provider, address }: Props) {
 
             <div style={{ display: "flex", justifyContent: "center", marginTop: -14, marginBottom: -14 }}>
               <button onClick={flipChains} disabled={isLoading}
-                style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", border: "1px solid #D4C9FA", color: "#6D5EF7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.1)" }}>
+                style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", border: "1px solid #D4C9FA", color: "#6D5EF7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.1)", position: "relative", top: "10px" }}>
                 <ArrowDownUp size={15} />
               </button>
             </div>
