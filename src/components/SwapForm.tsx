@@ -533,7 +533,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 10 }}>
               {[25, 50, 75, 100].map((pct) => (
                 <button key={pct} onClick={() => setAmount((Number(currentBalance) * pct / 100).toFixed(6))} disabled={isLoading}
-                  style={{ background: "#6D5EF7", border: "none", borderRadius: 999, padding: "4px 12px", color: "#ffffff", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.3)" }}>
+                  style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 10, padding: "6px 14px", color: "#111827", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.08)" }}>
                   {pct === 100 ? "Max" : `${pct}%`}
                 </button>
               ))}
