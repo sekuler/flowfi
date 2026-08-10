@@ -334,12 +334,12 @@ function AppInner() {
       a { transition: transform 0.12s ease, opacity 0.12s ease; }
       input, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
       input:focus, select:focus { box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
-      input[type="text"], input[type="number"], input[type="email"], input[type="search"], select, textarea {
-        border: 1.5px solid #D4C9FA !important;
-      }
-      input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, select:focus, textarea:focus {
-        border-color: #6D5EF7 !important;
-      }
+      input:focus, select:focus { box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+         }
       input::placeholder { color: #9CA3AF; }
       @keyframes flowfi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
