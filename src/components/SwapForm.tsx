@@ -378,7 +378,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <input type="number" min="0" step="0.01" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
-                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 34, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
+                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", boxShadow: "none", fontSize: 34, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <button
                     onClick={() => setTokenInOpen(!tokenInOpen)}
