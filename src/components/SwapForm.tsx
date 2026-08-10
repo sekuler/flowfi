@@ -411,7 +411,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </button>
             </div>
 
-            <div style={{ borderRadius: 16, background: "#f5f3ff", padding: "1rem 1.1rem" }}>
+            <div style={{ borderRadius: 16, background: "transparent", border: "none", padding: "1rem 0" }}>
               <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 10 }}>You receive</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <span style={{ fontSize: 32, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{useLegacyRoute && legacyOut ? legacyOut : estimatedOut}</span>
