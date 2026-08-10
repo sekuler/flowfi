@@ -371,7 +371,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </div>
             )}
 
-            <div style={{ borderRadius: 16, background: "#ffffff", border: "1px solid #D4C9FA", padding: "1rem 1.1rem" }}>
+            <div style={{ borderRadius: 16, background: "transparent", border: "none", padding: "1rem 0" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                 <span style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px" }}>You pay</span>
                 <span style={{ fontSize: 11, color: "#374151" }}>Balance: {currentBalance} {tokenIn}</span>
