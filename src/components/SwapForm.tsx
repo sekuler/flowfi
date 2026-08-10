@@ -402,10 +402,16 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                   )}
                 </div>
               </div>
-              <button onClick={() => setAmount(currentBalance)} disabled={isLoading}
-                style={{ marginTop: 6, background: "none", border: "none", color: "#7c3aed", fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0 }}>
-                Max
-              </button>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[25, 50, 75, 100].map((pct) => (
+                    <button key={pct} onClick={() => setAmount((Number(currentBalance) * pct / 100).toFixed(6))} disabled={isLoading}
+                      style={{ background: "#f5f3ff", border: "none", borderRadius: 999, padding: "3px 9px", color: "#5B21B6", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+                      {pct === 100 ? "Max" : `${pct}%`}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div style={{ display: "flex", justifyContent: "center", marginTop: -10, marginBottom: -10, position: "relative", zIndex: 1 }}>
