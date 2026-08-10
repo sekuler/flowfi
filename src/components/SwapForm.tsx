@@ -402,16 +402,6 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                   )}
                 </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {[25, 50, 75, 100].map((pct) => (
-                    <button key={pct} onClick={() => setAmount((Number(currentBalance) * pct / 100).toFixed(6))} disabled={isLoading}
-                      style={{ background: "#f5f3ff", border: "none", borderRadius: 999, padding: "3px 9px", color: "#5B21B6", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
-                      {pct === 100 ? "Max" : `${pct}%`}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
             <div style={{ display: "flex", justifyContent: "center", marginTop: -10, marginBottom: -10, position: "relative", zIndex: 1 }}>
@@ -539,6 +529,15 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                 })}
               </div>
             )}
+
+            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+              {[25, 50, 75, 100].map((pct) => (
+                <button key={pct} onClick={() => setAmount((Number(currentBalance) * pct / 100).toFixed(6))} disabled={isLoading}
+                  style={{ background: "#6D5EF7", border: "none", borderRadius: 999, padding: "4px 12px", color: "#ffffff", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.3)" }}>
+                  {pct === 100 ? "Max" : `${pct}%`}
+                </button>
+              ))}
+            </div>
 
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
               disabled={isLoading || swapState === "done"}
