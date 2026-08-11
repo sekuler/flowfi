@@ -1,4 +1,5 @@
 import NetworkHealth from "./NetworkHealth";
+import AiNarrator from "./AiNarrator";
 import { useState, useEffect, useRef } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
@@ -6,8 +7,8 @@ import { showToast } from "../toast";
 import { getRules, addRule, removeRule, type AutomationRule } from "../automation";
 import { computeMemoryInsight, type MemoryInsight } from "../memory";
 import {
-  Repeat, Hexagon, Rocket, Droplet, Sparkles, TrendingUp,
-  ChevronRight, ArrowUpRight, ExternalLink, ShieldCheck, Brain,
+  Droplet, Sparkles, TrendingUp,
+  ArrowUpRight, ExternalLink, ShieldCheck, Brain,
 } from "lucide-react";
 
 const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
@@ -73,13 +74,6 @@ function Sparkline({ color, seed }: { color: string; seed: number }) {
     </svg>
   );
 }
-
-const QUICK_ACTIONS = [
-  { id: "swap" as const, label: "Swap Tokens", desc: "Exchange tokens instantly", Icon: Repeat },
-  { id: "bridge" as const, label: "Bridge", desc: "Transfer assets across chains", Icon: Hexagon },
-  { id: "launch" as const, label: "Launch Token", desc: "Create your own token", Icon: Rocket },
-  { id: "pools" as const, label: "Add Liquidity", desc: "Provide liquidity to earn fees", Icon: Droplet },
-];
 
 export default function CopilotHome({ address, balances, onNavigate }: Props) {
   const [openPositionCount, setOpenPositionCount] = useState<number | null>(null);
@@ -377,22 +371,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
         </div>
 
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Quick Actions</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {QUICK_ACTIONS.map(({ id, label, desc, Icon }) => (
-              <button key={id} onClick={() => onNavigate(id)}
-                style={{ display: "flex", alignItems: "center", gap: 10, padding: "0.6rem", borderRadius: 14, border: "none", background: "transparent", cursor: "pointer", textAlign: "left" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Icon size={16} color="#6D5EF7" />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#111827" }}>{label}</div>
-                  <div style={{ fontSize: 10.5, color: "#6B7280" }}>{desc}</div>
-                </div>
-                <ChevronRight size={14} color="#c4b5fd" />
-              </button>
-            ))}
-          </div>
+          <AiNarrator address={address} balances={balances} />
         </div>
       </div>
 

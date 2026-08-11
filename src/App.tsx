@@ -18,7 +18,6 @@ import UnifiedBalance from "./components/UnifiedBalance";
 import CircleWallet from "./components/CircleWallet";
 import Perpetuals from "./components/Perpetuals";
 import LiquidityPools from "./components/LiquidityPools";
-import AiNarrator from "./components/AiNarrator";
 import AiCopilot from "./components/AiCopilot";
 import ToastContainer from "./components/ToastContainer";
 import MarketTicker from "./components/MarketTicker";
@@ -634,8 +633,6 @@ function AppInner() {
 
                 <UnifiedBalance address={wallet.address} />
 
-                <AiNarrator address={wallet.address} balances={balances} />
-
                 {recentTxs.length > 0 && (
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -664,12 +661,7 @@ function AppInner() {
 
             {tab === "dashboard" && <Dashboard address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
             {tab === "analytics" && <StablecoinAnalytics />}
-            {tab === "history" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                <AiNarrator address={wallet.address} balances={balances} />
-                <TxHistory address={wallet.address} />
-              </div>
-            )}
+            {tab === "history" && <TxHistory address={wallet.address} />}
             {tab === "receive" && <ReceiveQR address={wallet.address} />}
             {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} />}
             {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
