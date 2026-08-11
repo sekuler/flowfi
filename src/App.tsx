@@ -21,6 +21,7 @@ import LiquidityPools from "./components/LiquidityPools";
 import AiNarrator from "./components/AiNarrator";
 import AiCopilot from "./components/AiCopilot";
 import ToastContainer from "./components/ToastContainer";
+import MarketTicker from "./components/MarketTicker";
 import NotificationCenter from "./components/NotificationCenter";
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
 import { getDCAPlan, isDCADue } from "./dca";
@@ -334,12 +335,12 @@ function AppInner() {
       a { transition: transform 0.12s ease, opacity 0.12s ease; }
       input, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
       input:focus, select:focus { box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
-      input:focus, select:focus { box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
-      input[type="number"]::-webkit-outer-spin-button,
-      input[type="number"]::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-         }
+      input[type="text"], input[type="number"], input[type="email"], input[type="search"], select, textarea {
+        border: 1.5px solid #D4C9FA !important;
+      }
+      input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, select:focus, textarea:focus {
+        border-color: #6D5EF7 !important;
+      }
       input::placeholder { color: #9CA3AF; }
       @keyframes flowfi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
@@ -511,6 +512,7 @@ function AppInner() {
       </aside>
 
       <main style={{ marginLeft: 220, flex: 1, minHeight: "100vh", position: "relative", zIndex: 1 }}>
+        <MarketTicker />
         <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: "1.25rem 2.5rem" }}>
           <NotificationCenter />
           <button disabled title="Coming soon"
