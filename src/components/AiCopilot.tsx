@@ -313,7 +313,7 @@ Respond with ONLY the JSON object.`,
 
   return (
     <>
-      <div style={expanded
+      <div style={open && expanded
         ? { position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 999 }
         : { position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
       {open && (
