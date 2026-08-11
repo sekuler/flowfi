@@ -118,7 +118,7 @@ async function switchToArc(provider: EIP1193Provider) {
 
 export default function AiCopilot({ provider, address, balances, onRefresh, onNavigate }: Props) {
   const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -169,6 +169,7 @@ Only USDC and EURC are swappable on the fixed-rate pool. If the request is ambig
 Interpret goal-oriented requests, not just literal commands. If the user states an outcome they want rather than a specific mechanism (e.g. "Get me 100 EURC on Arc", "I need 50 USDC", "top up my EURC"), figure out which single supported action gets them there and use that — you do not need the user to say the word "swap" or "bridge" explicitly. As a rule of thumb: wanting a different token they don't currently hold enough of, while already having USDC on Arc, means "swap"; wanting funds moved to a specific external address means "send" (with destinationChain if a chain is named); wanting USDC specifically on a different chain than Arc, with no recipient mentioned, means "bridge". Only fall back to "unknown" if the goal genuinely can't be reached with swap, send, bridge, perp_open, create_pool, or strategy.
 Available user balances: USDC ${balances.usdc}, EURC ${balances.eurc}.
 ${memoryText ? `What you know about this user's real recent behavior, from their actual transaction history: ${memoryText} Use this naturally when relevant — for example, weight a "strategy" allocation toward what they already do, or mention it briefly in your reasoning if it's genuinely relevant. Never state this as a fact if it isn't directly implied by the note above, and never fabricate additional behavioral claims beyond it.` : ""}
+The "summary" field must be written in the same language the user's message is written in — if they write in Turkish, write the summary in Turkish; if in English, write it in English.
 Respond with ONLY the JSON object.`,
         messages: [{ role: "user", content: text }],
       }),
@@ -179,6 +180,41 @@ Respond with ONLY the JSON object.`,
     return JSON.parse(cleaned);
   }
 
+  // For requests that aren't a supported action (market/analysis questions,
+  // general chat), answer directly using real live price data instead of
+  // just telling the user "not supported" — same no-financial-advice rule
+  // as the wallet narrator.
+  async function answerGeneralQuestion(text: string): Promise<string> {
+    let marketContext = "";
+    try {
+      const marketRes = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
+      );
+      const marketData = await marketRes.json();
+      marketContext = `Live market data (USD): BTC $${marketData.bitcoin?.usd} (${marketData.bitcoin?.usd_24h_change?.toFixed(2)}% 24h), ETH $${marketData.ethereum?.usd} (${marketData.ethereum?.usd_24h_change?.toFixed(2)}% 24h), SOL $${marketData.solana?.usd} (${marketData.solana?.usd_24h_change?.toFixed(2)}% 24h).`;
+    } catch {
+      marketContext = "Live market data was unavailable for this response.";
+    }
+    const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 250,
+        system: `You are FlowFi Copilot. The user's message isn't a transaction command — it's a general or market question. Live market data: ${marketContext} Answer briefly and factually, grounded only in the data given. You must NEVER recommend buying, selling, or holding anything, and never call something a "good" or "bad" time to trade — if asked for a recommendation, politely decline and just state the facts you have. Always respond in the same language the user wrote in. Keep it under 3 sentences.`,
+        messages: [{ role: "user", content: text }],
+      }),
+    });
+    const data = await response.json();
+    return data.content?.[0]?.text ?? "I couldn't find an answer to that.";
+  }
+
   async function handleSend() {
     if (!input.trim() || loading) return;
     const text = input.trim();
@@ -187,7 +223,12 @@ Respond with ONLY the JSON object.`,
     setLoading(true);
     try {
       const action = await parseCommand(text);
-      setMessages((prev) => [...prev, { role: "assistant", content: action.summary, action }]);
+      if (action.action === "unknown") {
+        const answer = await answerGeneralQuestion(text);
+        setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
+      } else {
+        setMessages((prev) => [...prev, { role: "assistant", content: action.summary, action }]);
+      }
     } catch {
       setMessages((prev) => [...prev, { role: "assistant", content: "I couldn't understand that. Try something like \"swap 10 USDC to EURC\" or \"open a 5x BTC long with 20 USDC\"." }]);
     } finally {
@@ -313,7 +354,7 @@ Respond with ONLY the JSON object.`,
 
   return (
     <>
-      <div style={open && expanded
+      <div style={expanded
         ? { position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 999 }
         : { position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
       {open && (
@@ -397,7 +438,7 @@ Respond with ONLY the JSON object.`,
         </div>
       )}
 
-      {!open && (
+      {!expanded && (
         <button onClick={() => setOpen(!open)}
           style={{
             width: 58, height: 58, borderRadius: "50%", border: "none",
