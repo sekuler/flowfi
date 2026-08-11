@@ -397,7 +397,7 @@ Respond with ONLY the JSON object.`,
         </div>
       )}
 
-      {!expanded && (
+      {!open && (
         <button onClick={() => setOpen(!open)}
           style={{
             width: 58, height: 58, borderRadius: "50%", border: "none",
