@@ -4,13 +4,13 @@
 // that real data — nothing is fabricated or predicted.
 //
 // Honesty limits, on purpose:
-// - CoinGecko's free tier doesn't provide clean 1-hour or 1-month candles,
-//   so we only report timeframes we can genuinely back with real data:
-//   4H (from 7 days of native 4h candles), 1D, and 1W (aggregated from daily
-//   closes). We do not fake 1H/1M granularity we don't actually have.
-// - Token unlock/vesting schedules are not available from any free source
-//   we've integrated. The AI is instructed to say so rather than guess.
-// - No news/catalyst data is integrated yet.
+// - 1H candles are built by aggregating CoinGecko's real 30-minute candles
+//   (from its 1-day OHLC endpoint) two at a time — genuine data, not faked.
+// - 1M (monthly) is not included — no reliable long-range granularity is
+//   available on the free tier without noisy gaps, so it's omitted rather
+//   than approximated.
+// - Token unlock/vesting schedules and news/catalysts are not integrated
+//   yet. The AI is instructed to say so rather than guess.
 
 interface Candle { time: number; open: number; high: number; low: number; close: number; }
 
@@ -28,16 +28,6 @@ function computeRSI(closes: number[], period = 14): number | null {
   return 100 - 100 / (1 + rs);
 }
 
-function computeEMA(closes: number[], period: number): number | null {
-  if (closes.length < period) return null;
-  const k = 2 / (period + 1);
-  let ema = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  for (let i = period; i < closes.length; i++) {
-    ema = closes[i] * k + ema * (1 - k);
-  }
-  return ema;
-}
-
 function computeEMASeries(closes: number[], period: number): number[] {
   if (closes.length < period) return [];
   const k = 2 / (period + 1);
@@ -49,6 +39,11 @@ function computeEMASeries(closes: number[], period: number): number[] {
     series.push(ema);
   }
   return series;
+}
+
+function computeEMA(closes: number[], period: number): number | null {
+  const series = computeEMASeries(closes, period);
+  return series.length ? series[series.length - 1] : null;
 }
 
 function computeMACD(closes: number[]): { macd: number; signal: number } | null {
@@ -75,6 +70,25 @@ function pivotLevels(high: number, low: number, close: number) {
   };
 }
 
+// Simple, honest market-structure read: compares the first half vs second
+// half of a window's swing highs/lows — not a fabricated pattern-recognition
+// claim, just a plain comparison of real numbers.
+function marketStructure(candles: Candle[]): string {
+  const mid = Math.floor(candles.length / 2);
+  const firstHalf = candles.slice(0, mid);
+  const secondHalf = candles.slice(mid);
+  if (firstHalf.length === 0 || secondHalf.length === 0) return "not enough data";
+  const highFirst = Math.max(...firstHalf.map((c) => c.high));
+  const highSecond = Math.max(...secondHalf.map((c) => c.high));
+  const lowFirst = Math.min(...firstHalf.map((c) => c.low));
+  const lowSecond = Math.min(...secondHalf.map((c) => c.low));
+  const higherHighs = highSecond > highFirst;
+  const higherLows = lowSecond > lowFirst;
+  if (higherHighs && higherLows) return "higher highs and higher lows (uptrend structure)";
+  if (!higherHighs && !higherLows) return "lower highs and lower lows (downtrend structure)";
+  return "mixed / consolidating structure";
+}
+
 function fmt(n: number): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: n < 1 ? 6 : 2 });
 }
@@ -90,22 +104,24 @@ async function fetchOHLC(coinId: string, days: string): Promise<Candle[] | null>
   }
 }
 
-function timeframeSection(label: string, candles: Candle[]): string {
-  const closes = candles.map((c) => c.close);
-  const last = candles[candles.length - 1];
-  const rsi = computeRSI(closes);
-  const levels = pivotLevels(
-    Math.max(...candles.map((c) => c.high)),
-    Math.min(...candles.map((c) => c.low)),
-    last.close
-  );
-  let out = `\n${label}:\n`;
-  out += `  RSI(14): ${rsi !== null ? rsi.toFixed(1) : "not enough data"}\n`;
-  out += `  Pivot levels — R3 $${fmt(levels.r3)}, R2 $${fmt(levels.r2)}, R1 $${fmt(levels.r1)}, Pivot $${fmt(levels.pivot)}, S1 $${fmt(levels.s1)}, S2 $${fmt(levels.s2)}, S3 $${fmt(levels.s3)}\n`;
-  return out;
+// Aggregate real 30-min candles (CoinGecko's native days=1 granularity) into
+// genuine 1-hour candles, two at a time.
+function aggregateHourly(thirtyMin: Candle[]): Candle[] {
+  const hourly: Candle[] = [];
+  for (let i = 0; i < thirtyMin.length; i += 2) {
+    const chunk = thirtyMin.slice(i, i + 2);
+    if (chunk.length === 0) continue;
+    hourly.push({
+      time: chunk[0].time,
+      open: chunk[0].open,
+      close: chunk[chunk.length - 1].close,
+      high: Math.max(...chunk.map((c) => c.high)),
+      low: Math.min(...chunk.map((c) => c.low)),
+    });
+  }
+  return hourly;
 }
 
-// Resample a daily OHLC series into weekly candles for a real (not faked) 1W view.
 function resampleWeekly(daily: Candle[]): Candle[] {
   const weeks: Candle[] = [];
   for (let i = 0; i < daily.length; i += 7) {
@@ -122,6 +138,41 @@ function resampleWeekly(daily: Candle[]): Candle[] {
   return weeks;
 }
 
+function timeframeBlock(label: string, candles: Candle[], includeStructure = true): string {
+  const closes = candles.map((c) => c.close);
+  const rsi = computeRSI(closes);
+  let out = `${label}: RSI(14) ${rsi !== null ? rsi.toFixed(1) : "n/a"}`;
+  if (includeStructure) out += `, structure: ${marketStructure(candles)}`;
+  return out + "\n";
+}
+
+async function extractCoinQuery(question: string): Promise<string | null> {
+  try {
+    const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 20,
+        system: "The user's message may be in any language and may mention a cryptocurrency (by name or ticker, e.g. 'BTC', 'dogecoin', 'ETH'). Respond with ONLY the coin's common English name or ticker, nothing else, no punctuation, no explanation. If no specific coin is mentioned, respond with exactly: NONE",
+        messages: [{ role: "user", content: question }],
+      }),
+    });
+    const data = await res.json();
+    const text: string = (data.content?.[0]?.text ?? "").trim();
+    if (!text || text.toUpperCase() === "NONE") return null;
+    return text;
+  } catch {
+    return null;
+  }
+}
+
 export async function buildMarketContext(question: string): Promise<string> {
   let context = "";
 
@@ -136,7 +187,9 @@ export async function buildMarketContext(question: string): Promise<string> {
   }
 
   try {
-    const searchRes = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(question)}`);
+    const extracted = await extractCoinQuery(question);
+    const searchTerm = extracted ?? question;
+    const searchRes = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(searchTerm)}`);
     const searchData = await searchRes.json();
     const coinId: string | undefined = searchData.coins?.[0]?.id;
     if (!coinId) return context;
@@ -156,35 +209,52 @@ export async function buildMarketContext(question: string): Promise<string> {
     context += `Circulating supply: ${md.circulating_supply ? Number(md.circulating_supply).toLocaleString() : "unknown"}\n`;
     context += `Total supply: ${md.total_supply ? Number(md.total_supply).toLocaleString() : "unknown"}\n`;
     context += `Max supply: ${md.max_supply ? Number(md.max_supply).toLocaleString() : "uncapped or unknown"}\n`;
-    context += `Token unlock schedule: NO DATA SOURCE AVAILABLE — do not guess or invent unlock dates/amounts. If asked, say this data isn't available yet.\n`;
+    context += `Token unlock schedule: NO DATA SOURCE AVAILABLE — do not guess or invent unlock dates/amounts.\n`;
+    context += `News/catalysts: NO DATA SOURCE AVAILABLE — do not invent news or events.\n`;
 
-    // Real 4H timeframe (native 4h candles from CoinGecko's 7-day OHLC).
-    const ohlc7d = await fetchOHLC(coinId, "7");
-    if (ohlc7d && ohlc7d.length >= 10) {
-      context += timeframeSection("4H timeframe (from real 7-day 4-hour candles)", ohlc7d);
+    // Real 1H (aggregated from genuine 30-min candles).
+    const ohlc1d = await fetchOHLC(coinId, "1");
+    if (ohlc1d && ohlc1d.length >= 4) {
+      const hourly = aggregateHourly(ohlc1d);
+      context += "\n" + timeframeBlock("1H (aggregated from real 30-min candles)", hourly);
     }
 
-    // Real 1D timeframe (daily candles from a 90-day window).
+    // Real 4H (native candles from CoinGecko's 7-day OHLC).
+    const ohlc7d = await fetchOHLC(coinId, "7");
+    if (ohlc7d && ohlc7d.length >= 10) {
+      context += timeframeBlock("4H (native candles, 7-day window)", ohlc7d);
+    }
+
+    // Real 1D (daily candles from a 90-day window) — also used for EMA/MACD/pivots.
     const ohlc90d = await fetchOHLC(coinId, "90");
     if (ohlc90d && ohlc90d.length >= 15) {
-      context += timeframeSection("1D timeframe (from real 90-day daily candles)", ohlc90d);
+      context += timeframeBlock("1D (native daily candles, 90-day window)", ohlc90d);
+
       const closes90 = ohlc90d.map((c) => c.close);
       const ema20 = computeEMA(closes90, 20);
       const ema50 = computeEMA(closes90, 50);
       const macd = computeMACD(closes90);
       const price = closes90[closes90.length - 1];
-      context += `  Price vs EMA20 (${ema20 ? fmt(ema20) : "n/a"}): ${ema20 ? (price > ema20 ? "above" : "below") : "not enough data"}\n`;
-      context += `  Price vs EMA50 (${ema50 ? fmt(ema50) : "n/a"}): ${ema50 ? (price > ema50 ? "above" : "below") : "not enough data"}\n`;
-      if (macd) context += `  MACD: ${macd.macd.toFixed(4)}, Signal: ${macd.signal.toFixed(4)} (${macd.macd > macd.signal ? "bullish crossover state" : "bearish crossover state"})\n`;
+      context += `\nEMA20: $${ema20 ? fmt(ema20) : "n/a"} — price is ${ema20 ? (price > ema20 ? "above" : "below") : "n/a"} it\n`;
+      context += `EMA50: $${ema50 ? fmt(ema50) : "n/a"} — price is ${ema50 ? (price > ema50 ? "above" : "below") : "n/a"} it\n`;
+      if (macd) context += `MACD: ${macd.macd.toFixed(4)}, Signal: ${macd.signal.toFixed(4)} (${macd.macd > macd.signal ? "bullish crossover state" : "bearish crossover state"})\n`;
 
-      // Real 1W timeframe, aggregated from the same real daily data (no extra fabricated data).
+      // 3 real support + 3 real resistance levels from the 1D pivot calculation.
+      const levels = pivotLevels(
+        Math.max(...ohlc90d.slice(-30).map((c) => c.high)),
+        Math.min(...ohlc90d.slice(-30).map((c) => c.low)),
+        price
+      );
+      context += `\nPivot levels (from the last 30 days of real daily data):\n`;
+      context += `Resistance: R1 $${fmt(levels.r1)}, R2 $${fmt(levels.r2)}, R3 $${fmt(levels.r3)}\n`;
+      context += `Support: S1 $${fmt(levels.s1)}, S2 $${fmt(levels.s2)}, S3 $${fmt(levels.s3)}\n`;
+
+      // Real 1W (aggregated from the same real daily data).
       const weekly = resampleWeekly(ohlc90d);
       if (weekly.length >= 5) {
-        context += timeframeSection("1W timeframe (aggregated from real daily candles)", weekly);
+        context += "\n" + timeframeBlock("1W (aggregated from real daily candles)", weekly);
       }
     }
-
-    context += `\nNote: 1H and 1M timeframes are not included — no reliable free real-time granularity is available for them, so they are omitted rather than approximated.\n`;
   } catch {
     context += "\nCould not resolve additional technical detail for the specific coin asked about.\n";
   }
