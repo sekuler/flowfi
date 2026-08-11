@@ -118,6 +118,7 @@ async function switchToArc(provider: EIP1193Provider) {
 
 export default function AiCopilot({ provider, address, balances, onRefresh, onNavigate }: Props) {
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -311,18 +312,29 @@ Respond with ONLY the JSON object.`,
   }
 
   return (
-    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
+    <>
+      <div style={expanded
+        ? { position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 999 }
+        : { position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
       {open && (
-        <div style={{ width: 360, maxHeight: 480, background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "0 16px 48px rgba(109,94,247,0.2)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 1.1rem", background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)" }}>
+        <div style={expanded
+          ? { width: "min(420px, 100vw)", height: "100vh", background: "#ffffff", borderLeft: "1px solid #D4C9FA", boxShadow: "-16px 0 48px rgba(17,24,39,0.12)", display: "flex", flexDirection: "column", overflow: "hidden" }
+          : { width: 360, maxHeight: 480, background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "0 16px 48px rgba(109,94,247,0.2)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: expanded ? "1.1rem 1.4rem" : "0.9rem 1.1rem", background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 8, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff" }}>✦</div>
-              <span style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>FlowFi Copilot</span>
+              <div style={{ width: expanded ? 30 : 24, height: expanded ? 30 : 24, borderRadius: 8, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: expanded ? 15 : 12, color: "#fff" }}>✦</div>
+              <span style={{ fontSize: expanded ? 16 : 13, fontWeight: 800, color: "#111827" }}>FlowFi Copilot</span>
             </div>
-            <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 16 }}>✕</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <button onClick={() => setExpanded(!expanded)} title={expanded ? "Shrink" : "Expand"}
+                style={{ background: "rgba(109,94,247,0.1)", border: "none", borderRadius: 8, color: "#6D5EF7", cursor: "pointer", fontSize: 13, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {expanded ? "⤡" : "⤢"}
+              </button>
+              <button onClick={() => { setOpen(false); setExpanded(false); }} style={{ background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 16 }}>✕</button>
+            </div>
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: 10, minHeight: 200, maxHeight: 320 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: expanded ? "1.4rem" : "1rem", display: "flex", flexDirection: "column", gap: expanded ? 14 : 10, minHeight: expanded ? undefined : 200, maxHeight: expanded ? undefined : 320 }}>
             {messages.length === 0 && (
               <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6 }}>
                 Try: "Get me 100 EURC on Arc", "I have 500 USDC, give me the safest strategy", "send 20 USDC to 0x... on Base", or "open a 5x BTC long with 20 USDC".
@@ -371,28 +383,31 @@ Respond with ONLY the JSON object.`,
             {loading && <div style={{ fontSize: 12, color: "#6B7280" }}>Thinking...</div>}
           </div>
 
-          <div style={{ display: "flex", gap: 8, padding: "0.9rem", borderTop: "1px solid #D4C9FA" }}>
+          <div style={{ display: "flex", gap: 8, padding: expanded ? "1.2rem 1.4rem" : "0.9rem", borderTop: "1px solid #D4C9FA" }}>
             <input type="text" placeholder="Tell me what to do..." value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
               disabled={loading}
-              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none" }} />
+              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 12, padding: expanded ? "0.9rem 1.1rem" : "0.6rem 0.8rem", fontSize: expanded ? 15 : 13, color: "#111827", outline: "none" }} />
             <button onClick={handleSend} disabled={loading || !input.trim()}
-              style={{ padding: "0.6rem 1rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
+              style={{ padding: expanded ? "0.9rem 1.4rem" : "0.6rem 1rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: expanded ? 15 : 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
               Send
             </button>
           </div>
         </div>
       )}
 
-      <button onClick={() => setOpen(!open)}
-        style={{
-          width: 58, height: 58, borderRadius: "50%", border: "none",
-          background: "#6D5EF7", color: "#fff", fontSize: 22, cursor: "pointer",
-          boxShadow: "0 8px 24px rgba(109,94,247,0.45)", display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-        {open ? "✕" : "✦"}
-      </button>
-    </div>
+      {!expanded && (
+        <button onClick={() => setOpen(!open)}
+          style={{
+            width: 58, height: 58, borderRadius: "50%", border: "none",
+            background: "#6D5EF7", color: "#fff", fontSize: 22, cursor: "pointer",
+            boxShadow: "0 8px 24px rgba(109,94,247,0.45)", display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+          {open ? "✕" : "✦"}
+        </button>
+      )}
+      </div>
+    </>
   );
 }
