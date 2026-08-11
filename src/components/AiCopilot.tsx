@@ -118,7 +118,7 @@ async function switchToArc(provider: EIP1193Provider) {
 
 export default function AiCopilot({ provider, address, balances, onRefresh, onNavigate }: Props) {
   const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
