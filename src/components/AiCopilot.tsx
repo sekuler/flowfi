@@ -3,6 +3,7 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
+import { buildMarketContext } from "../marketData";
 import { addPoints } from "../gamification";
 import { computeMemoryInsight } from "../memory";
 
@@ -185,16 +186,7 @@ Respond with ONLY the JSON object.`,
   // just telling the user "not supported" — same no-financial-advice rule
   // as the wallet narrator.
   async function answerGeneralQuestion(text: string): Promise<string> {
-    let marketContext = "";
-    try {
-      const marketRes = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
-      );
-      const marketData = await marketRes.json();
-      marketContext = `Live market data (USD): BTC $${marketData.bitcoin?.usd} (${marketData.bitcoin?.usd_24h_change?.toFixed(2)}% 24h), ETH $${marketData.ethereum?.usd} (${marketData.ethereum?.usd_24h_change?.toFixed(2)}% 24h), SOL $${marketData.solana?.usd} (${marketData.solana?.usd_24h_change?.toFixed(2)}% 24h).`;
-    } catch {
-      marketContext = "Live market data was unavailable for this response.";
-    }
+    const marketContext = await buildMarketContext(text);
     const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -206,8 +198,36 @@ Respond with ONLY the JSON object.`,
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 250,
-        system: `You are FlowFi Copilot. The user's message isn't a transaction command — it's a general or market question. Live market data: ${marketContext} Answer briefly and factually, grounded only in the data given. You must NEVER recommend buying, selling, or holding anything, and never call something a "good" or "bad" time to trade — if asked for a recommendation, politely decline and just state the facts you have. Always respond in the same language the user wrote in. Keep it under 3 sentences.`,
+        max_tokens: 900,
+        system: `You are FlowFi Copilot. The user's message isn't a transaction command — it's a general or market question. Live market data: ${marketContext}
+
+CRITICAL RULE FOR MARKET ANALYSIS: When the user asks for analysis of a specific coin, you're given real computed technical data (RSI per timeframe, pivot-based support/resistance levels R1-R3/S1-S3, EMA20/50 position, MACD, volume, supply). Structure your answer like a real analysis report, using this format as a guide (adapt naturally, don't force sections that have no data):
+
+[Coin] Analysis
+Price, market cap, 24h volume, price change (24h/7d/30d)
+
+Trend (by timeframe)
+For each real timeframe you were given (4H / 1D / 1W — never invent 1H or 1M, we don't have that data): RSI value and a plain-language read (overbought above 70, oversold below 30, otherwise neutral)
+
+Key levels (from the 1D timeframe's pivot data)
+Resistance: R1, R2, R3 — Support: S1, S2, S3
+Then a hedged, non-predictive line like "A move above R1 would put R2 in view" — use "could"/"may"/"historically", never "will".
+
+Technical structure
+Price vs EMA20/EMA50, and MACD crossover state — described as current positioning, not a forecast.
+
+Volume
+24h volume and its relation to the recent price move, only if you can genuinely infer it from the data given.
+
+Supply
+Circulating/total/max supply, briefly, only if relevant.
+
+Token unlocks
+If asked or relevant: state plainly that no unlock/vesting data source is available — never invent a date or amount.
+
+You must NEVER recommend buying, selling, or holding anything, never call something a "good" or "bad" time to trade, and never predict what a level will do next. Always respond in the same language the user wrote in. If they want a visual chart, mention they can find live candlestick charts with adjustable timeframes on the Perpetuals page. ALWAYS end a market-analysis answer with this exact disclaimer, translated into the response language: "This analysis is provided for informational and educational purposes only and does not constitute financial, investment, or trading advice. Technical indicators and market data can be inaccurate or change rapidly. Always conduct your own research and make your own decisions."
+
+For simple factual questions, skip the full report and just answer directly and briefly.`,
         messages: [{ role: "user", content: text }],
       }),
     });
@@ -390,7 +410,7 @@ Respond with ONLY the JSON object.`,
               <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "90%" }}>
                 <div style={{
                   background: m.role === "user" ? "#6D5EF7" : "#f5f3ff",
-                  borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: m.role === "user" ? "#ffffff" : "#374151", lineHeight: 1.5,
+                  borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: m.role === "user" ? "#ffffff" : "#374151", lineHeight: 1.5, whiteSpace: "pre-wrap",
                 }}>
                   {m.content}
                 </div>
