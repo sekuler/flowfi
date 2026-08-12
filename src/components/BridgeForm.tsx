@@ -407,7 +407,7 @@ export default function BridgeForm({ provider, address }: Props) {
               </div>
             </div>
 
-            <div style={{ borderRadius: 16, border: "1px solid #D4C9FA", padding: "1rem 1.1rem", background: "#ffffff" }}>
+            <div style={{ borderRadius: 16, border: "1px solid #D4C9FA", padding: "1rem 1.1rem" }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <input type="number" min="0" step="0.01" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
                   style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", boxShadow: "none", fontSize: 32, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
@@ -427,9 +427,9 @@ export default function BridgeForm({ provider, address }: Props) {
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", marginTop: -14, marginBottom: -14 }}>
+            <div style={{ display: "flex", justifyContent: "center", marginTop: -6, marginBottom: -6 }}>
               <button onClick={flipChains} disabled={isLoading}
-                style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", border: "1px solid #D4C9FA", color: "#6D5EF7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.1)", position: "relative", top: "10px" }}>
+                style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", border: "1px solid #D4C9FA", color: "#6D5EF7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.1)" }}>
                 <ArrowDownUp size={15} />
               </button>
             </div>
