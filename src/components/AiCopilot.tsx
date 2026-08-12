@@ -204,7 +204,7 @@ Respond with ONLY the JSON object.`,
 CRITICAL RULE FOR MARKET ANALYSIS: When the user asks for analysis of a specific coin, you're given real computed technical data (RSI per timeframe, pivot-based support/resistance levels R1-R3/S1-S3, EMA20/50 position, MACD, volume, supply). Structure your answer like a real analysis report, using this format as a guide (adapt naturally, don't force sections that have no data):
 
 [Coin] Analysis
-Price, market cap, 24h volume, price change (24h/7d/30d)
+Price, market cap, 24h volume, price change (24h/7d/30d), and supply (circulating/total/max) — ALWAYS include supply, every time.
 
 Trend (by timeframe)
 For each real timeframe you were given (4H / 1D / 1W — never invent 1H or 1M, we don't have that data): RSI value and a plain-language read (overbought above 70, oversold below 30, otherwise neutral)
