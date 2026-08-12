@@ -133,7 +133,10 @@ function bucketize(points, pointsPerBucket) {
 }
 
 function timeframeSummary(candles) {
-  if (!candles || candles.length < 5) return null;
+  // Require enough candles for RSI(14) to be meaningful — if we don't have
+  // that, don't infer a trend/structure either. Partial data (e.g. 6-7
+  // monthly candles) should show as "insufficient", not a real trend.
+  if (!candles || candles.length < 15) return null;
   const closes = candles.map((c) => c.close);
   return { rsi: computeRSI(closes), structure: marketStructure(candles), candleCount: candles.length };
 }
