@@ -184,8 +184,29 @@ module.exports = async function handler(req, res) {
       pivots = pivotLevels(Math.max(...recent.map((c) => c.high)), Math.min(...recent.map((c) => c.low)), price);
     }
 
+    // Detect stablecoin-like assets using two real, honest signals — never
+    // a guess: (1) CoinGecko's own category tags, or (2) genuinely low
+    // 30-day price volatility (real math on real data). Standard technical
+    // analysis (RSI/MACD/support-resistance/scenarios) is misleading for
+    // these assets, so the frontend renders a different, more relevant view.
+    const categories = Array.isArray(detail.categories) ? detail.categories : [];
+    const isStablecoinByCategory = categories.some((c) =>
+      typeof c === "string" && /stablecoin/i.test(c)
+    );
+    let isLowVolatility = false;
+    if (candles1D && candles1D.length >= 15) {
+      const recent = candles1D.slice(-30);
+      const high = Math.max(...recent.map((c) => c.high));
+      const low = Math.min(...recent.map((c) => c.low));
+      const mid = (high + low) / 2;
+      const rangePct = mid > 0 ? ((high - low) / mid) * 100 : 100;
+      isLowVolatility = rangePct < 5; // less than 5% range over 30 days
+    }
+    const assetType = (isStablecoinByCategory || isLowVolatility) ? "stablecoin" : "crypto_asset";
+
     const result = {
       coinId,
+      assetType,
       name: detail.name,
       symbol: detail.symbol ? detail.symbol.toUpperCase() : undefined,
       price: md.current_price ? md.current_price.usd : null,
