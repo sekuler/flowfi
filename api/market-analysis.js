@@ -1,17 +1,24 @@
 // api/market-analysis.js
 //
-// Server-side market data + technical analysis engine. Runs once per coin
-// per cache window (90s), no matter how many users ask — instead of every
-// browser hitting CoinGecko directly (which was hitting rate limits).
+// Server-side market data + technical analysis engine. Uses CoinGecko's
+// /market_chart endpoint (NOT /ohlc) because market_chart gives genuine
+// granularity on the free tier:
+//   - days <= 90: hourly price points
+//   - days  > 90: daily price points (00:00 UTC)
+// The /ohlc endpoint silently degrades to 4-day candles for any request
+// beyond 30 days on the free tier — that was the root cause of "1D" actually
+// being 4-day data earlier. market_chart avoids that entirely.
 //
-// Returns clean, structured JSON. No AI involved here at all — this is pure
-// data + math. The AI layer (Copilot) only interprets these exact numbers,
-// never generates its own.
+// We build our own candles (open/high/low/close) by grouping consecutive
+// price points into buckets — real math on real data, not fabricated.
+//
+// Cached 90s per coin so repeated requests (from any user) don't hammer
+// CoinGecko — this endpoint only actually calls out once per coin per 90s.
 //
 // GET /api/market-analysis?coinId=bitcoin
 
 const CACHE_TTL_MS = 90 * 1000;
-const cache = new Map(); // coinId -> { data, timestamp }
+const cache = new Map();
 
 function computeRSI(closes, period = 14) {
   if (closes.length < period + 1) return null;
@@ -85,61 +92,50 @@ function marketStructure(candles) {
   return "consolidating";
 }
 
-async function fetchOHLCOnce(coinId, days) {
-  const res = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}/ohlc?vs_currency=usd&days=${days}`);
-  if (!res.ok) throw new Error(`OHLC fetch failed (${res.status}) for days=${days}`);
-  const raw = await res.json();
-  if (!Array.isArray(raw) || raw.length === 0) throw new Error(`Empty OHLC for days=${days}`);
-  return raw.map((c) => ({ time: c[0], open: c[1], high: c[2], low: c[3], close: c[4] }));
+// Fetch raw [timestamp, price] points from market_chart, with one retry.
+async function fetchPricePointsOnce(coinId, days) {
+  const res = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`);
+  if (!res.ok) throw new Error(`market_chart fetch failed (${res.status}) for days=${days}`);
+  const data = await res.json();
+  if (!data.prices || data.prices.length === 0) throw new Error(`Empty market_chart for days=${days}`);
+  return data.prices; // [[timestamp, price], ...]
 }
 
-async function fetchOHLC(coinId, days) {
+async function fetchPricePoints(coinId, days) {
   try {
-    return await fetchOHLCOnce(coinId, days);
+    return await fetchPricePointsOnce(coinId, days);
   } catch {
     await new Promise((r) => setTimeout(r, 1500));
     try {
-      return await fetchOHLCOnce(coinId, days);
+      return await fetchPricePointsOnce(coinId, days);
     } catch {
       return null;
     }
   }
 }
 
-function aggregateHourly(thirtyMin) {
-  const hourly = [];
-  for (let i = 0; i < thirtyMin.length; i += 2) {
-    const chunk = thirtyMin.slice(i, i + 2);
+// Groups raw price points into candles by a fixed number of points per bucket.
+function bucketize(points, pointsPerBucket) {
+  const candles = [];
+  for (let i = 0; i < points.length; i += pointsPerBucket) {
+    const chunk = points.slice(i, i + pointsPerBucket);
     if (chunk.length === 0) continue;
-    hourly.push({
-      time: chunk[0].time, open: chunk[0].open, close: chunk[chunk.length - 1].close,
-      high: Math.max(...chunk.map((c) => c.high)), low: Math.min(...chunk.map((c) => c.low)),
+    const prices = chunk.map((p) => p[1]);
+    candles.push({
+      time: chunk[0][0],
+      open: prices[0],
+      close: prices[prices.length - 1],
+      high: Math.max(...prices),
+      low: Math.min(...prices),
     });
   }
-  return hourly;
-}
-
-function resample(daily, groupSize) {
-  const groups = [];
-  for (let i = 0; i < daily.length; i += groupSize) {
-    const chunk = daily.slice(i, i + groupSize);
-    if (chunk.length === 0) continue;
-    groups.push({
-      time: chunk[0].time, open: chunk[0].open, close: chunk[chunk.length - 1].close,
-      high: Math.max(...chunk.map((c) => c.high)), low: Math.min(...chunk.map((c) => c.low)),
-    });
-  }
-  return groups;
+  return candles;
 }
 
 function timeframeSummary(candles) {
   if (!candles || candles.length < 5) return null;
   const closes = candles.map((c) => c.close);
-  return {
-    rsi: computeRSI(closes),
-    structure: marketStructure(candles),
-    candleCount: candles.length,
-  };
+  return { rsi: computeRSI(closes), structure: marketStructure(candles), candleCount: candles.length };
 }
 
 module.exports = async function handler(req, res) {
@@ -160,29 +156,27 @@ module.exports = async function handler(req, res) {
     const md = detail.market_data;
     if (!md) return res.status(500).json({ error: "No market data available for this coin" });
 
-    // Fetch all real OHLCV windows. Sequential with small gaps to be gentle
-    // on CoinGecko's free tier — this whole thing is cached for 90s anyway,
-    // so it only actually runs once every 90s per coin regardless of traffic.
-    const ohlc1 = await fetchOHLC(coinId, "1");    // 30-min native candles -> 1H
-    await new Promise((r) => setTimeout(r, 400));
-    const ohlc7 = await fetchOHLC(coinId, "7");    // 4H native candles
-    await new Promise((r) => setTimeout(r, 400));
-    const ohlc90 = await fetchOHLC(coinId, "90");  // daily native candles -> 1D, 1W
-    await new Promise((r) => setTimeout(r, 400));
-    const ohlc365 = await fetchOHLC(coinId, "365"); // daily candles over a year -> 1M
+    // Only 2 real CoinGecko calls needed:
+    // - days=7 gives real HOURLY points -> genuine 1H and 4H candles
+    // - days=180 gives real DAILY points (since >90) -> genuine 1D, 1W, 1M candles
+    const hourlyPoints = await fetchPricePoints(coinId, "7");
+    await new Promise((r) => setTimeout(r, 500));
+    const dailyPoints = await fetchPricePoints(coinId, "180");
 
-    const hourly = ohlc1 ? aggregateHourly(ohlc1) : null;
-    const weekly = ohlc90 ? resample(ohlc90, 7) : null;
-    const monthly = ohlc365 ? resample(ohlc365, 30) : null;
+    const candles1H = hourlyPoints ? bucketize(hourlyPoints, 1) : null;   // 1 point/hour = 1H candles
+    const candles4H = hourlyPoints ? bucketize(hourlyPoints, 4) : null;  // 4 points = 4H candles
+    const candles1D = dailyPoints ? bucketize(dailyPoints, 1) : null;    // 1 point/day = 1D candles
+    const candles1W = dailyPoints ? bucketize(dailyPoints, 7) : null;    // 7 points = 1W candles
+    const candles1M = dailyPoints ? bucketize(dailyPoints, 30) : null;   // 30 points = 1M candles
 
-    const closes1D = ohlc90 ? ohlc90.map((c) => c.close) : [];
+    const closes1D = candles1D ? candles1D.map((c) => c.close) : [];
     const ema20 = closes1D.length ? computeEMA(closes1D, 20) : null;
     const ema50 = closes1D.length ? computeEMA(closes1D, 50) : null;
     const macd = closes1D.length ? computeMACD(closes1D) : null;
 
     let pivots = null;
-    if (ohlc90 && ohlc90.length >= 5) {
-      const recent = ohlc90.slice(-30);
+    if (candles1D && candles1D.length >= 5) {
+      const recent = candles1D.slice(-30);
       const price = closes1D[closes1D.length - 1];
       pivots = pivotLevels(Math.max(...recent.map((c) => c.high)), Math.min(...recent.map((c) => c.low)), price);
     }
@@ -205,11 +199,11 @@ module.exports = async function handler(req, res) {
         max: md.max_supply ?? null,
       },
       timeframes: {
-        "1H": timeframeSummary(hourly),
-        "4H": timeframeSummary(ohlc7),
-        "1D": timeframeSummary(ohlc90),
-        "1W": timeframeSummary(weekly),
-        "1M": timeframeSummary(monthly),
+        "1H": timeframeSummary(candles1H),
+        "4H": timeframeSummary(candles4H),
+        "1D": timeframeSummary(candles1D),
+        "1W": timeframeSummary(candles1W),
+        "1M": timeframeSummary(candles1M),
       },
       technicals: {
         ema20, ema50,
