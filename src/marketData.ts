@@ -90,8 +90,8 @@ async function getAiInsight(data: any, question: string): Promise<string> {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 200,
-        system: `You write ONLY a short 2-3 sentence "multi-timeframe insight" paragraph for a crypto analysis card. The price, market cap, and per-timeframe RSI/trend numbers are ALREADY shown to the user above this paragraph in a table — do NOT restate the price, the percentage changes, or repeat "X is trading at $Y" style openers. Instead, synthesize what the numbers together suggest structurally: e.g. contrast short-term vs longer-term momentum, note if a timeframe's RSI is notably stronger/weaker than others, or note the overall bias implied by the mix of timeframes. Use ONLY the exact numbers given below — never invent or alter any. Never recommend buying, selling, or holding, never call something a "good" or "bad" time to trade, never predict what will happen next — describe the current picture only. Respond in the same language as the user's original question. Output ONLY the paragraph, no headers, no markdown.
+        max_tokens: 120,
+        system: `You write ONLY a short, MAXIMUM 2-sentence "multi-timeframe insight" for a crypto analysis card. Hard limit: 2 sentences, no more. The price, market cap, per-timeframe RSI/trend, and MACD are ALREADY shown to the user above this text in their own sections — do NOT restate the price, percentage changes, specific EMA values, or specific MACD values (those are shown elsewhere). Instead, purely synthesize the momentum/structure picture: contrast short-term vs longer-term momentum, note if a timeframe's RSI stands out (overbought >70, oversold <30), and note the overall structural bias. Use ONLY the exact numbers given below — never invent or alter any. Never recommend buying, selling, or holding, never call something a "good" or "bad" time to trade, never predict what will happen next. Respond in the same language as the user's original question. Output ONLY the 1-2 sentences, no headers, no markdown, and make sure your response is a complete thought that doesn't get cut off.
 
 Data:
 ${JSON.stringify(data, null, 2)}`,
@@ -138,15 +138,22 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
     out += `Not enough data to compute levels.\n`;
   }
 
+  const macd = data.technicals?.macd;
+  if (macd) {
+    out += `\nMACD ${macd.bullish ? "🟢 Bullish" : "🔴 Bearish"}\n`;
+    out += `${macd.value.toFixed(2)} ${macd.bullish ? "above" : "below"} signal ${macd.signal.toFixed(2)}\n`;
+  }
+
   const insight = await getAiInsight(data, question);
   if (insight) out += `\nMULTI-TIMEFRAME INSIGHT\n${insight}\n`;
 
   // Deterministic, template-based — not AI-generated, so it's always
-  // consistent and directly tied to the real pivot numbers above.
+  // consistent, correctly hedged ("could", never "will"), and directly tied
+  // to the real pivot ladder above.
   if (p) {
     out += `\nWHAT TO WATCH\n`;
-    out += `Above ${fmtCompact(p.r1)}: a resistance breakout becomes the next thing to watch.\n`;
-    out += `Below ${fmtCompact(p.s1)}: downside momentum could put the next support zones in focus.\n`;
+    out += `🟢 Bullish scenario\nA sustained move above ${fmtCompact(p.r1)} could bring ${fmtCompact(p.r2)} and ${fmtCompact(p.r3)} into focus.\n`;
+    out += `🔴 Bearish scenario\nA break below ${fmtCompact(p.s1)} could shift attention toward ${fmtCompact(p.s2)} and ${fmtCompact(p.s3)}.\n`;
   }
 
   out += `\nTokenomics\n${fmt(data.supply?.circulating)} circulating · ${data.supply?.max ? fmt(data.supply.max) + " max supply" : "uncapped supply"}\n`;
