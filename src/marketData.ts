@@ -90,8 +90,8 @@ async function getAiInsight(data: any, question: string): Promise<string> {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 120,
-        system: `You write ONLY a short, MAXIMUM 2-sentence "multi-timeframe insight" for a crypto analysis card. Hard limit: 2 sentences, no more. The price, market cap, per-timeframe RSI/trend, and MACD are ALREADY shown to the user above this text in their own sections — do NOT restate the price, percentage changes, specific EMA values, or specific MACD values (those are shown elsewhere). Instead, purely synthesize the momentum/structure picture: contrast short-term vs longer-term momentum, note if a timeframe's RSI stands out (overbought >70, oversold <30), and note the overall structural bias. Use ONLY the exact numbers given below — never invent or alter any. Never recommend buying, selling, or holding, never call something a "good" or "bad" time to trade, never predict what will happen next. Respond in the same language as the user's original question. Output ONLY the 1-2 sentences, no headers, no markdown, and make sure your response is a complete thought that doesn't get cut off.
+        max_tokens: 150,
+        system: `You write ONLY a "multi-timeframe insight" for a crypto analysis card. HARD LIMITS, no exceptions: maximum 300 characters total, maximum 2 sentences. Count carefully — if you're unsure whether you're near the limit, write a shorter first sentence so the whole thing fits. Never end mid-sentence; a shorter complete thought is always better than a longer cut-off one. The price, market cap, per-timeframe RSI/trend, and MACD are ALREADY shown to the user above this text in their own sections — do NOT restate the price, percentage changes, specific EMA values, or specific MACD values (those are shown elsewhere). Instead, purely synthesize the momentum/structure picture: contrast short-term vs longer-term momentum, note if a timeframe's RSI stands out (overbought >70, oversold <30), and note the overall structural bias. Do NOT use the word "divergence" or its translations (e.g. Turkish "uyumsuzluk") — that is a specific technical term (price vs. indicator moving opposite directions) and doesn't apply just because RSI values differ across timeframes. If you want to describe RSI values differing across timeframes, say something like "momentum ayrışması" (Turkish) / "momentum divergence across timeframes" only if literally describing differing RSI levels, not implying the technical divergence pattern. Use ONLY the exact numbers given below — never invent or alter any. Never recommend buying, selling, or holding, never call something a "good" or "bad" time to trade, never predict what will happen next. Respond in the same language as the user's original question. Output ONLY the sentence(s), no headers, no markdown.
 
 Data:
 ${JSON.stringify(data, null, 2)}`,
@@ -99,7 +99,14 @@ ${JSON.stringify(data, null, 2)}`,
       }),
     });
     const json = await res.json();
-    return json.content?.[0]?.text?.trim() ?? "";
+    const raw = json.content?.[0]?.text?.trim() ?? "";
+    // Safety net in case the model exceeds the 300-char instruction anyway —
+    // never show a sentence cut off mid-word. Trim to the last complete
+    // sentence boundary within a hard 320-char ceiling.
+    if (raw.length <= 320) return raw;
+    const truncated = raw.slice(0, 320);
+    const lastSentenceEnd = Math.max(truncated.lastIndexOf(". "), truncated.lastIndexOf(".\n"), truncated.lastIndexOf("? "), truncated.lastIndexOf("! "));
+    return lastSentenceEnd > 50 ? truncated.slice(0, lastSentenceEnd + 1) : truncated;
   } catch {
     return "";
   }
