@@ -125,6 +125,10 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
     return null;
   }
 
+  if (data.assetType === "stablecoin") {
+    return formatStablecoinAnalysis(data, question);
+  }
+
   let out = `${data.name} · ${data.symbol}\n`;
   out += `${fmtCompact(data.price)}\n`;
   out += `${pct(data.change?.h24)} 24H · ${pct(data.change?.d7)} 7D · ${pct(data.change?.d30)} 30D\n\n`;
@@ -174,6 +178,78 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
     }
   }
 
+  out += `\n⚠️ Not financial advice. Always conduct your own research and make your own decisions.`;
+
+  return out;
+}
+
+// Separate, honest format for stablecoin-like assets — standard technical
+// analysis (RSI/MACD/support-resistance/bullish-bearish scenarios) is
+// misleading for a price that's supposed to sit near a peg, so we don't
+// show it. We only show what's genuinely meaningful here: price stability,
+// trend/momentum in relative (not price-level) terms, supply, and unlocks.
+// We deliberately do NOT claim to know APY, yield source, or redemption
+// mechanics — we have no reliable data source for those per-token, and
+// showing them without real data would mean fabricating.
+async function getStablecoinInsight(data: any, question: string): Promise<string> {
+  try {
+    const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 150,
+        system: `You write ONLY a MAXIMUM 300-character, maximum-2-sentence note about a stablecoin-like asset's price stability. This is NOT a volatile crypto asset — do not use bullish/bearish trading language, do not discuss support/resistance breakouts, do not discuss "momentum" the way you would for BTC. Instead, factually describe how close the price is holding to its recent range, and whether recent movement has been minor or notable, using the exact numbers given. Do not claim to know the yield/APY, redemption mechanism, or backing assets — you don't have that data, so don't mention them at all. Use ONLY the exact numbers given below. Never recommend buying, selling, or holding. Respond in the same language as the user's original question. Output ONLY the sentence(s), no headers, no markdown.
+
+Data:
+${JSON.stringify(data, null, 2)}`,
+        messages: [{ role: "user", content: question }],
+      }),
+    });
+    const json = await res.json();
+    const raw = json.content?.[0]?.text?.trim() ?? "";
+    if (raw.length <= 320) return raw;
+    const truncated = raw.slice(0, 320);
+    const lastSentenceEnd = Math.max(truncated.lastIndexOf(". "), truncated.lastIndexOf(".\n"));
+    return lastSentenceEnd > 50 ? truncated.slice(0, lastSentenceEnd + 1) : truncated;
+  } catch {
+    return "";
+  }
+}
+
+async function formatStablecoinAnalysis(data: any, question: string): Promise<string> {
+  let out = `${data.name} · ${data.symbol} (stable-value asset)\n`;
+  out += `$${fmt(data.price)}\n`;
+  out += `${pct(data.change?.h24)} 24H · ${pct(data.change?.d7)} 7D · ${pct(data.change?.d30)} 30D\n\n`;
+
+  out += `PRICE STABILITY\n`;
+  for (const tf of ["1H", "4H", "1D", "1W"] as const) {
+    const t = data.timeframes?.[tf];
+    const rsiText = t?.rsi != null ? `RSI ${t.rsi.toFixed(1)}` : "";
+    out += `${trendDot(t?.structure)} ${tf} — ${trendLabel(t?.structure)}${rsiText ? " · " + rsiText : ""}\n`;
+  }
+
+  const insight = await getStablecoinInsight(data, question);
+  if (insight) out += `\nSTABILITY NOTE\n${insight}\n`;
+
+  out += `\nSupply\n${fmt(data.supply?.circulating)} circulating · ${data.supply?.max ? fmt(data.supply.max) + " max supply" : "uncapped supply"}\n`;
+
+  const curated = getTokenUnlockInfo(data.coinId);
+  if (curated) {
+    if (curated.unlockStatus.type === "scheduled") {
+      out += `Next unlock: ${curated.unlockStatus.date} — ${curated.unlockStatus.amount} (${curated.unlockStatus.percentOfCirculating}).\n`;
+    } else if (curated.unlockStatus.type === "no_fixed_schedule") {
+      out += `No fixed unlock schedule — ${curated.unlockStatus.note}\n`;
+    }
+  }
+
+  out += `\nNote: This looks like a stable-value asset, so standard technical analysis (RSI/MACD/support-resistance breakout scenarios) isn't shown — those tools are built for volatile assets and would be misleading here.\n`;
   out += `\n⚠️ Not financial advice. Always conduct your own research and make your own decisions.`;
 
   return out;
