@@ -12,6 +12,8 @@
 // - Token unlock/vesting schedules and news/catalysts are not integrated
 //   yet. The AI is instructed to say so rather than guess.
 
+import { getTokenUnlockInfo } from "./tokenUnlocks";
+
 interface Candle { time: number; open: number; high: number; low: number; close: number; }
 
 function computeRSI(closes: number[], period = 14): number | null {
@@ -209,7 +211,20 @@ export async function buildMarketContext(question: string): Promise<string> {
     context += `Circulating supply: ${md.circulating_supply ? Number(md.circulating_supply).toLocaleString() : "unknown"}\n`;
     context += `Total supply: ${md.total_supply ? Number(md.total_supply).toLocaleString() : "unknown"}\n`;
     context += `Max supply: ${md.max_supply ? Number(md.max_supply).toLocaleString() : "uncapped or unknown"}\n`;
-    context += `Token unlock schedule: NO DATA SOURCE AVAILABLE — do not guess or invent unlock dates/amounts.\n`;
+    const curated = getTokenUnlockInfo(coinId);
+    if (curated) {
+      context += `\nCurated unlock/tokenomics data (manually verified on ${curated.recordedAt}, source: ${curated.source}):\n`;
+      context += `Allocation breakdown: ${Object.entries(curated.allocationBreakdown).map(([k, v]) => `${k} ${v}`).join(", ")}\n`;
+      if (curated.unlockStatus.type === "not_yet_provided") {
+        context += `Unlock schedule: not yet gathered for this token — say this data isn't available yet rather than guessing.\n`;
+      } else if (curated.unlockStatus.type === "no_fixed_schedule") {
+        context += `Unlock schedule: no fixed cliff date. ${curated.unlockStatus.note}\n`;
+      } else {
+        context += `Next scheduled unlock: ${curated.unlockStatus.date} — ${curated.unlockStatus.amount} (${curated.unlockStatus.percentOfCirculating}). Note: this was recorded on ${curated.recordedAt} and may be stale if that date has already passed — mention this date as informational, and if it's clearly in the past relative to today, say the schedule may need a refresh rather than presenting it as still upcoming.\n`;
+      }
+    } else {
+      context += `Token unlock schedule: NO DATA SOURCE AVAILABLE — do not guess or invent unlock dates/amounts.\n`;
+    }
     context += `News/catalysts: NO DATA SOURCE AVAILABLE — do not invent news or events.\n`;
 
     // Real 1H (aggregated from genuine 30-min candles).
