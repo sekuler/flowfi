@@ -232,13 +232,21 @@ export async function buildMarketContext(question: string): Promise<string> {
     if (ohlc1d && ohlc1d.length >= 4) {
       const hourly = aggregateHourly(ohlc1d);
       context += "\n" + timeframeBlock("1H (aggregated from real 30-min candles)", hourly);
+    } else {
+      context += "\n1H: data temporarily unavailable (likely a rate limit on the free data source) — say so honestly if asked, don't show a blank n/a without explanation.\n";
     }
+
+    await new Promise((r) => setTimeout(r, 300));
 
     // Real 4H (native candles from CoinGecko's 7-day OHLC).
     const ohlc7d = await fetchOHLC(coinId, "7");
     if (ohlc7d && ohlc7d.length >= 10) {
       context += timeframeBlock("4H (native candles, 7-day window)", ohlc7d);
+    } else {
+      context += "4H: data temporarily unavailable (likely a rate limit on the free data source).\n";
     }
+
+    await new Promise((r) => setTimeout(r, 300));
 
     // Real 1D (daily candles from a 90-day window) — also used for EMA/MACD/pivots.
     const ohlc90d = await fetchOHLC(coinId, "90");
@@ -269,6 +277,8 @@ export async function buildMarketContext(question: string): Promise<string> {
       if (weekly.length >= 5) {
         context += "\n" + timeframeBlock("1W (aggregated from real daily candles)", weekly);
       }
+    } else {
+      context += "1D and 1W: data temporarily unavailable (likely a rate limit on the free data source) — EMA/MACD/pivot levels could not be computed either, since they depend on this data. Say so honestly if asked, don't show blank n/a rows without explanation.\n";
     }
   } catch {
     context += "\nCould not resolve additional technical detail for the specific coin asked about.\n";
