@@ -91,7 +91,14 @@ async function getAiInsight(data: any, question: string): Promise<string> {
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 150,
-        system: `You write ONLY a "multi-timeframe insight" for a crypto analysis card. HARD LIMITS, no exceptions: maximum 300 characters total, maximum 2 sentences. Count carefully — if you're unsure whether you're near the limit, write a shorter first sentence so the whole thing fits. Never end mid-sentence; a shorter complete thought is always better than a longer cut-off one. The price, market cap, per-timeframe RSI/trend, and MACD are ALREADY shown to the user above this text in their own sections — do NOT restate the price, percentage changes, specific EMA values, or specific MACD values (those are shown elsewhere).
+        system: `You write ONLY a "multi-timeframe insight" for a crypto analysis card.
+
+THREE NON-NEGOTIABLE RULES — violating any of these is a critical failure:
+1. NEVER contradict or soften a given trend/structure value. If a timeframe's structure says "uptrend", your text must treat it as an uptrend — never describe it as "under pressure", "weak", "bearish", or similar, even subtly. Same for "downtrend" — never describe it as strong or bullish.
+2. NEVER conflate RSI level with trend/structure. RSI and structure are two separate, independent numbers you're given — a neutral RSI (40-60) does NOT mean weak structure, and a strong uptrend does NOT mean high RSI. Describe each using only what that specific number shows, never inferring one from the other.
+3. ONLY use a technical term (overbought, oversold, bullish crossover, bearish crossover, momentum divergence, etc.) when the actual supplied numeric condition for it is genuinely met. Never use a technical term for flavor or because it "sounds right" — check the number first.
+
+Hard limits, no exceptions: maximum 300 characters total, maximum 2 sentences. Count carefully — if you're unsure whether you're near the limit, write a shorter first sentence so the whole thing fits. Never end mid-sentence; a shorter complete thought is always better than a longer cut-off one. The price, market cap, per-timeframe RSI/trend, and MACD are ALREADY shown to the user above this text in their own sections — do NOT restate the price, percentage changes, specific EMA values, or specific MACD values (those are shown elsewhere).
 
 TIMEFRAME LABELS: preserve the timeframe labels EXACTLY as given: 1H, 4H, 1D, 1W, 1M. Never translate them (e.g. never write "1S" for 1H in Turkish or any other language-adapted label) — they stay in English exactly as written, always.
 
@@ -217,7 +224,11 @@ async function getStablecoinInsight(data: any, question: string): Promise<string
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 150,
-        system: `You write ONLY a MAXIMUM 300-character, maximum-2-sentence note about a stablecoin-like asset's price stability. This is NOT a volatile crypto asset — do not use bullish/bearish trading language, do not discuss support/resistance breakouts, do not discuss "momentum" the way you would for BTC. Preserve timeframe labels EXACTLY as given (1H, 4H, 1D, 1W) — never translate them. Base everything strictly on the supplied data, not a generic template — if all timeframes show similar stability, say so plainly rather than inventing contrast. Factually describe how close the price is holding to its recent range, and whether recent movement has been minor or notable, using the exact numbers given. Do not claim to know the yield/APY, redemption mechanism, or backing assets — you don't have that data, so don't mention them at all. Use ONLY the exact numbers given below. Never recommend buying, selling, or holding. Respond in the same language as the user's original question. Output ONLY the sentence(s), no headers, no markdown.
+        system: `You write ONLY a MAXIMUM 300-character, maximum-2-sentence note about a stablecoin-like asset's price stability.
+
+THREE NON-NEGOTIABLE RULES: (1) Never contradict a given trend/structure value — if it says "uptrend", don't call it weak or under pressure. (2) Never conflate RSI level with trend/structure — they're independent numbers, describe each on its own terms. (3) Only use a technical term when its exact numeric condition is genuinely met.
+
+This is NOT a volatile crypto asset — do not use bullish/bearish trading language, do not discuss support/resistance breakouts, do not discuss "momentum" the way you would for BTC. Preserve timeframe labels EXACTLY as given (1H, 4H, 1D, 1W) — never translate them. Base everything strictly on the supplied data, not a generic template — if all timeframes show similar stability, say so plainly rather than inventing contrast. Factually describe how close the price is holding to its recent range, and whether recent movement has been minor or notable, using the exact numbers given. Do not claim to know the yield/APY, redemption mechanism, or backing assets — you don't have that data, so don't mention them at all. Use ONLY the exact numbers given below. Never recommend buying, selling, or holding. Respond in the same language as the user's original question. Output ONLY the sentence(s), no headers, no markdown.
 
 Data:
 ${JSON.stringify(data, null, 2)}`,
