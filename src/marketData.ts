@@ -91,7 +91,19 @@ async function getAiInsight(data: any, question: string): Promise<string> {
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 150,
-        system: `You write ONLY a "multi-timeframe insight" for a crypto analysis card. HARD LIMITS, no exceptions: maximum 300 characters total, maximum 2 sentences. Count carefully — if you're unsure whether you're near the limit, write a shorter first sentence so the whole thing fits. Never end mid-sentence; a shorter complete thought is always better than a longer cut-off one. The price, market cap, per-timeframe RSI/trend, and MACD are ALREADY shown to the user above this text in their own sections — do NOT restate the price, percentage changes, specific EMA values, or specific MACD values (those are shown elsewhere). Instead, purely synthesize the momentum/structure picture: contrast short-term vs longer-term momentum, note if a timeframe's RSI stands out (overbought >70, oversold <30), and note the overall structural bias. Do NOT use the word "divergence" or its translations (e.g. Turkish "uyumsuzluk") — that is a specific technical term (price vs. indicator moving opposite directions) and doesn't apply just because RSI values differ across timeframes. If you want to describe RSI values differing across timeframes, say something like "momentum ayrışması" (Turkish) / "momentum divergence across timeframes" only if literally describing differing RSI levels, not implying the technical divergence pattern. Use ONLY the exact numbers given below — never invent or alter any. Never recommend buying, selling, or holding, never call something a "good" or "bad" time to trade, never predict what will happen next. Respond in the same language as the user's original question. Output ONLY the sentence(s), no headers, no markdown.
+        system: `You write ONLY a "multi-timeframe insight" for a crypto analysis card. HARD LIMITS, no exceptions: maximum 300 characters total, maximum 2 sentences. Count carefully — if you're unsure whether you're near the limit, write a shorter first sentence so the whole thing fits. Never end mid-sentence; a shorter complete thought is always better than a longer cut-off one. The price, market cap, per-timeframe RSI/trend, and MACD are ALREADY shown to the user above this text in their own sections — do NOT restate the price, percentage changes, specific EMA values, or specific MACD values (those are shown elsewhere).
+
+TIMEFRAME LABELS: preserve the timeframe labels EXACTLY as given: 1H, 4H, 1D, 1W, 1M. Never translate them (e.g. never write "1S" for 1H in Turkish or any other language-adapted label) — they stay in English exactly as written, always.
+
+ANALYSIS CONSISTENCY — read these before writing anything:
+- The narrative must be derived directly from the supplied timeframe data, nothing else.
+- Never describe a timeframe as bearish or "under pressure" when its structure is explicitly "uptrend" (or bullish when explicitly "downtrend"), unless another supplied indicator clearly and specifically contradicts it.
+- Never infer weakness or pressure solely from RSI being in the neutral 40-60 range — neutral RSI means neutral momentum, not weakness. Only call momentum "weak" if RSI is genuinely low, or "strong"/"overbought" if genuinely high.
+- Do not use generic market-analysis phrases (like "short-term strength, long-term weakness") unless the actual supplied data specifically supports that exact pattern — check every timeframe before writing, don't default to a template.
+- If ALL timeframes show the same structure (all uptrend, or all downtrend), explicitly say so — acknowledge the alignment rather than inventing a contrast that isn't there.
+- If timeframes genuinely conflict (some uptrend, some downtrend), explicitly describe that real conflict.
+
+Instead, purely synthesize the momentum/structure picture using only what the data actually shows: note if a timeframe's RSI stands out (overbought >70, oversold <30), and state the overall structural bias truthfully. Do NOT use the word "divergence" or its translations (e.g. Turkish "uyumsuzluk") — that is a specific technical term (price vs. indicator moving opposite directions) and doesn't apply just because RSI values differ across timeframes. If you want to describe RSI values differing across timeframes, say something like "momentum ayrışması" (Turkish) / "momentum divergence across timeframes" only if literally describing differing RSI levels, not implying the technical divergence pattern. Use ONLY the exact numbers given below — never invent or alter any. Never recommend buying, selling, or holding, never call something a "good" or "bad" time to trade, never predict what will happen next. Respond in the same language as the user's original question. Output ONLY the sentence(s), no headers, no markdown.
 
 Data:
 ${JSON.stringify(data, null, 2)}`,
@@ -151,8 +163,8 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
 
   const macd = data.technicals?.macd;
   if (macd) {
-    out += `\nMACD ${macd.bullish ? "🟢 Bullish" : "🔴 Bearish"}\n`;
-    out += `${macd.value.toFixed(2)} ${macd.bullish ? "above" : "below"} signal ${macd.signal.toFixed(2)}\n`;
+    out += `\nMACD: ${macd.bullish ? "Bullish crossover / positive momentum" : "Bearish crossover / negative momentum"}\n`;
+    out += `(${macd.value.toFixed(2)} ${macd.bullish ? "above" : "below"} signal ${macd.signal.toFixed(2)})\n`;
   }
 
   const insight = await getAiInsight(data, question);
@@ -172,9 +184,9 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
   const curated = getTokenUnlockInfo(coinId);
   if (curated) {
     if (curated.unlockStatus.type === "scheduled") {
-      out += `Next unlock: ${curated.unlockStatus.date} — ${curated.unlockStatus.amount} (${curated.unlockStatus.percentOfCirculating}).\n`;
+      out += `\nUpcoming Unlock\n${curated.unlockStatus.date}\n${curated.unlockStatus.amount} · ${curated.unlockStatus.percentOfCirculating}\n`;
     } else if (curated.unlockStatus.type === "no_fixed_schedule") {
-      out += `No fixed unlock schedule — ${curated.unlockStatus.note}\n`;
+      out += `\nUnlock Schedule\nNo fixed unlock schedule — ${curated.unlockStatus.note}\n`;
     }
   }
 
@@ -205,7 +217,7 @@ async function getStablecoinInsight(data: any, question: string): Promise<string
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 150,
-        system: `You write ONLY a MAXIMUM 300-character, maximum-2-sentence note about a stablecoin-like asset's price stability. This is NOT a volatile crypto asset — do not use bullish/bearish trading language, do not discuss support/resistance breakouts, do not discuss "momentum" the way you would for BTC. Instead, factually describe how close the price is holding to its recent range, and whether recent movement has been minor or notable, using the exact numbers given. Do not claim to know the yield/APY, redemption mechanism, or backing assets — you don't have that data, so don't mention them at all. Use ONLY the exact numbers given below. Never recommend buying, selling, or holding. Respond in the same language as the user's original question. Output ONLY the sentence(s), no headers, no markdown.
+        system: `You write ONLY a MAXIMUM 300-character, maximum-2-sentence note about a stablecoin-like asset's price stability. This is NOT a volatile crypto asset — do not use bullish/bearish trading language, do not discuss support/resistance breakouts, do not discuss "momentum" the way you would for BTC. Preserve timeframe labels EXACTLY as given (1H, 4H, 1D, 1W) — never translate them. Base everything strictly on the supplied data, not a generic template — if all timeframes show similar stability, say so plainly rather than inventing contrast. Factually describe how close the price is holding to its recent range, and whether recent movement has been minor or notable, using the exact numbers given. Do not claim to know the yield/APY, redemption mechanism, or backing assets — you don't have that data, so don't mention them at all. Use ONLY the exact numbers given below. Never recommend buying, selling, or holding. Respond in the same language as the user's original question. Output ONLY the sentence(s), no headers, no markdown.
 
 Data:
 ${JSON.stringify(data, null, 2)}`,
@@ -243,7 +255,7 @@ async function formatStablecoinAnalysis(data: any, question: string): Promise<st
   const curated = getTokenUnlockInfo(data.coinId);
   if (curated) {
     if (curated.unlockStatus.type === "scheduled") {
-      out += `Next unlock: ${curated.unlockStatus.date} — ${curated.unlockStatus.amount} (${curated.unlockStatus.percentOfCirculating}).\n`;
+      out += `\nUpcoming Unlock\n${curated.unlockStatus.date}\n${curated.unlockStatus.amount} · ${curated.unlockStatus.percentOfCirculating}\n`;
     } else if (curated.unlockStatus.type === "no_fixed_schedule") {
       out += `No fixed unlock schedule — ${curated.unlockStatus.note}\n`;
     }
