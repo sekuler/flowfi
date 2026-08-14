@@ -86,6 +86,7 @@ export default function AiNarrator({ address, balances }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   async function ask(question: string) {
     if (!question.trim() || loading) return;
@@ -144,57 +145,68 @@ export default function AiNarrator({ address, balances }: Props) {
   }
 
   return (
-    <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ width: 22, height: 22, borderRadius: 7, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff" }}>✦</div>
-        <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.5px" }}>ASK YOUR WALLET</span>
-      </div>
-
-      {messages.length === 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {SUGGESTED_QUESTIONS.map((q) => (
-            <button key={q} onClick={() => ask(q)} disabled={loading}
-              style={{ padding: "6px 12px", borderRadius: 999, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 11, cursor: "pointer" }}>
-              {q}
-            </button>
-          ))}
-        </div>
+    <>
+      {expanded && (
+        <div onClick={() => setExpanded(false)} style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.35)", zIndex: 998 }} />
       )}
-
-      {messages.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 480, overflowY: "auto" }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{
-              alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-              maxWidth: "92%",
-              background: m.role === "user" ? "#6D5EF7" : "#ffffff",
-              borderRadius: 12,
-              padding: "0.6rem 0.8rem",
-              fontSize: 13,
-              color: m.role === "user" ? "#ffffff" : "#374151",
-              lineHeight: 1.5,
-              whiteSpace: "pre-wrap",
-            }}>
-              {m.role === "assistant" ? (isAnalysisMessage(m.content) ? renderAnalysisContent(m.content) : renderWithTxLinks(m.content)) : m.content}
-            </div>
-          ))}
-          {loading && (
-            <div style={{ alignSelf: "flex-start", fontSize: 12, color: "#6B7280" }}>Reading your activity...</div>
-          )}
+      <div style={expanded
+        ? { position: "fixed", top: 16, right: 16, bottom: 16, left: "auto", width: "min(560px, calc(100vw - 32px))", zIndex: 999, background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "-16px 0 48px rgba(17,24,39,0.2)", padding: "1.4rem", display: "flex", flexDirection: "column", gap: 12, overflow: "hidden" }
+        : { background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: expanded ? 26 : 22, height: expanded ? 26 : 22, borderRadius: 7, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: expanded ? 13 : 11, color: "#fff" }}>✦</div>
+            <span style={{ fontSize: expanded ? 14 : 12, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.5px" }}>ASK YOUR WALLET</span>
+          </div>
+          <button onClick={() => setExpanded(!expanded)} title={expanded ? "Shrink" : "Expand"}
+            style={{ background: "rgba(109,94,247,0.1)", border: "none", borderRadius: 8, color: "#6D5EF7", cursor: "pointer", fontSize: 13, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {expanded ? "⤡" : "⤢"}
+          </button>
         </div>
-      )}
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <input type="text" placeholder="Ask about your wallet activity..." value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") ask(input); }}
-          disabled={loading}
-          style={{ flex: 1, background: "#ffffff", border: "none", borderRadius: 12, padding: "0.6rem 0.9rem", fontSize: 13, color: "#111827", outline: "none" }} />
-        <button onClick={() => ask(input)} disabled={loading || !input.trim()}
-          style={{ padding: "0.6rem 1rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
-          Ask
-        </button>
+        {messages.length === 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {SUGGESTED_QUESTIONS.map((q) => (
+              <button key={q} onClick={() => ask(q)} disabled={loading}
+                style={{ padding: "6px 12px", borderRadius: 999, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 11, cursor: "pointer" }}>
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {messages.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto", flex: expanded ? 1 : undefined, maxHeight: expanded ? undefined : 480 }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{
+                alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                maxWidth: m.role === "user" ? "92%" : "100%",
+                background: m.role === "user" ? "#6D5EF7" : "#ffffff",
+                borderRadius: 12,
+                padding: expanded ? "0.9rem 1.1rem" : "0.6rem 0.8rem",
+                color: m.role === "user" ? "#ffffff" : "#374151",
+                whiteSpace: "pre-wrap",
+              }}>
+                {m.role === "assistant" ? (isAnalysisMessage(m.content) ? renderAnalysisContent(m.content) : <span style={{ fontSize: 13, lineHeight: 1.5 }}>{renderWithTxLinks(m.content)}</span>) : <span style={{ fontSize: expanded ? 15 : 13, lineHeight: 1.5 }}>{m.content}</span>}
+              </div>
+            ))}
+            {loading && (
+              <div style={{ alignSelf: "flex-start", fontSize: 12, color: "#6B7280" }}>Reading your activity...</div>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <input type="text" placeholder="Ask about your wallet activity..." value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") ask(input); }}
+            disabled={loading}
+            style={{ flex: 1, background: expanded ? "#f5f3ff" : "#ffffff", border: "none", borderRadius: 12, padding: expanded ? "0.9rem 1.1rem" : "0.6rem 0.9rem", fontSize: expanded ? 15 : 13, color: "#111827", outline: "none" }} />
+          <button onClick={() => ask(input)} disabled={loading || !input.trim()}
+            style={{ padding: expanded ? "0.9rem 1.4rem" : "0.6rem 1rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: expanded ? 15 : 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
+            Ask
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
