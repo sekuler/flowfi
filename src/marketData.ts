@@ -98,6 +98,8 @@ THREE NON-NEGOTIABLE RULES — violating any of these is a critical failure:
 2. NEVER conflate RSI level with trend/structure. RSI and structure are two separate, independent numbers you're given — a neutral RSI (40-60) does NOT mean weak structure, and a strong uptrend does NOT mean high RSI. Describe each using only what that specific number shows, never inferring one from the other.
 3. ONLY use a technical term (overbought, oversold, bullish crossover, bearish crossover, momentum divergence, etc.) when the actual supplied numeric condition for it is genuinely met. Never use a technical term for flavor or because it "sounds right" — check the number first.
 
+STRUCTURE-VS-MOMENTUM CAN DIFFER — THIS IS NORMAL, EXPLAIN IT WHEN IT HAPPENS: If all timeframes share the same structure (e.g. all "uptrend"), only call this "full alignment" or "complete agreement" if the RSI values are ALSO consistent with that read (not deeply oversold/overbought in a way that contradicts the structure's implied strength). If the structure is aligned (e.g. all uptrend) but RSI values are notably weak (e.g. oversold, <35) on the shorter timeframes, say so explicitly and explain the distinction: structure (price highs/lows) staying in an uptrend while momentum (RSI) weakens on shorter timeframes is a completely normal, non-contradictory pattern — briefly frame it that way rather than calling it a "perfect" or "complete" alignment when the momentum picture is actually mixed. Never say "tam bir uyum" / "full alignment" / "complete agreement" unless RSI values across the timeframes are also reasonably consistent with each other, not just the structure labels.
+
 Hard limits, no exceptions: maximum 300 characters total, maximum 2 sentences. Count carefully — if you're unsure whether you're near the limit, write a shorter first sentence so the whole thing fits. Never end mid-sentence; a shorter complete thought is always better than a longer cut-off one. The price, market cap, per-timeframe RSI/trend, and MACD are ALREADY shown to the user above this text in their own sections — do NOT restate the price, percentage changes, specific EMA values, or specific MACD values (those are shown elsewhere).
 
 TIMEFRAME LABELS: preserve the timeframe labels EXACTLY as given: 1H, 4H, 1D, 1W, 1M. Never translate them (e.g. never write "1S" for 1H in Turkish or any other language-adapted label) — they stay in English exactly as written, always.
@@ -107,7 +109,7 @@ ANALYSIS CONSISTENCY — read these before writing anything:
 - Never describe a timeframe as bearish or "under pressure" when its structure is explicitly "uptrend" (or bullish when explicitly "downtrend"), unless another supplied indicator clearly and specifically contradicts it.
 - Never infer weakness or pressure solely from RSI being in the neutral 40-60 range — neutral RSI means neutral momentum, not weakness. Only call momentum "weak" if RSI is genuinely low, or "strong"/"overbought" if genuinely high.
 - Do not use generic market-analysis phrases (like "short-term strength, long-term weakness") unless the actual supplied data specifically supports that exact pattern — check every timeframe before writing, don't default to a template.
-- If ALL timeframes show the same structure (all uptrend, or all downtrend), explicitly say so — acknowledge the alignment rather than inventing a contrast that isn't there.
+- If ALL timeframes show the same structure (all uptrend, or all downtrend), explicitly say so — acknowledge the alignment rather than inventing a contrast that isn't there. But per the rule above, don't call it "full alignment" if RSI tells a genuinely different momentum story — describe both the structural alignment AND the momentum picture honestly.
 - If timeframes genuinely conflict (some uptrend, some downtrend), explicitly describe that real conflict.
 
 Instead, purely synthesize the momentum/structure picture using only what the data actually shows: note if a timeframe's RSI stands out (overbought >70, oversold <30), and state the overall structural bias truthfully. Do NOT use the word "divergence" or its translations (e.g. Turkish "uyumsuzluk") — that is a specific technical term (price vs. indicator moving opposite directions) and doesn't apply just because RSI values differ across timeframes. If you want to describe RSI values differing across timeframes, say something like "momentum ayrışması" (Turkish) / "momentum divergence across timeframes" only if literally describing differing RSI levels, not implying the technical divergence pattern. Use ONLY the exact numbers given below — never invent or alter any. Never recommend buying, selling, or holding, never call something a "good" or "bad" time to trade, never predict what will happen next. Respond in the same language as the user's original question. Output ONLY the sentence(s), no headers, no markdown.
@@ -171,7 +173,7 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
   const macd = data.technicals?.macd;
   if (macd) {
     out += `\nMACD: ${macd.bullish ? "Bullish crossover / positive momentum" : "Bearish crossover / negative momentum"}\n`;
-    out += `(${macd.value.toFixed(2)} ${macd.bullish ? "above" : "below"} signal ${macd.signal.toFixed(2)})\n`;
+    out += `(${macd.value.toFixed(4)} ${macd.bullish ? "above" : "below"} signal ${macd.signal.toFixed(4)})\n`;
   }
 
   const insight = await getAiInsight(data, question);
@@ -191,9 +193,9 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
   const curated = getTokenUnlockInfo(coinId);
   if (curated) {
     if (curated.unlockStatus.type === "scheduled") {
-      out += `\nUpcoming Unlock\n${curated.unlockStatus.date}\n${curated.unlockStatus.amount} · ${curated.unlockStatus.percentOfCirculating}\n`;
+      out += `\nToken Vesting & Unlocks\nUpcoming: ${curated.unlockStatus.date}\n${curated.unlockStatus.amount} · ${curated.unlockStatus.percentOfCirculating}\n`;
     } else if (curated.unlockStatus.type === "no_fixed_schedule") {
-      out += `\nUnlock Schedule\nNo fixed unlock schedule — ${curated.unlockStatus.note}\n`;
+      out += `\nToken Vesting & Unlocks\nOngoing linear vesting (no single cliff date) — ${curated.unlockStatus.note}\n`;
     }
   }
 
@@ -266,9 +268,9 @@ async function formatStablecoinAnalysis(data: any, question: string): Promise<st
   const curated = getTokenUnlockInfo(data.coinId);
   if (curated) {
     if (curated.unlockStatus.type === "scheduled") {
-      out += `\nUpcoming Unlock\n${curated.unlockStatus.date}\n${curated.unlockStatus.amount} · ${curated.unlockStatus.percentOfCirculating}\n`;
+      out += `\nToken Vesting & Unlocks\nUpcoming: ${curated.unlockStatus.date}\n${curated.unlockStatus.amount} · ${curated.unlockStatus.percentOfCirculating}\n`;
     } else if (curated.unlockStatus.type === "no_fixed_schedule") {
-      out += `No fixed unlock schedule — ${curated.unlockStatus.note}\n`;
+      out += `\nToken Vesting & Unlocks\nOngoing linear vesting (no single cliff date) — ${curated.unlockStatus.note}\n`;
     }
   }
 
