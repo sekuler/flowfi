@@ -40,6 +40,69 @@ const DEPOSIT_FOR_BURN_ABI = [{
   outputs: [],
 }] as const;
 
+// Known section headers used by getFormattedMarketAnalysis / stablecoin
+// format. Any line matching one of these exactly gets rendered as a small
+// uppercase section label with a divider, instead of plain text — this is
+// what turns the flat analysis string into visually separated "cards"
+// without changing the underlying data function.
+const ANALYSIS_SECTION_HEADERS = new Set([
+  "TIMEFRAME", "KEY LEVELS", "MULTI-TIMEFRAME INSIGHT", "WHAT TO WATCH",
+  "Tokenomics", "Token Vesting & Unlocks", "PRICE STABILITY", "STABILITY NOTE", "Supply",
+]);
+
+function renderMessageContent(content: string, expanded: boolean) {
+  const lines = content.split("\n");
+  const nodes: JSX.Element[] = [];
+  let i = 0;
+
+  // First line: coin name/symbol, rendered larger.
+  if (lines[0]) {
+    nodes.push(
+      <div key="title" style={{ fontSize: expanded ? 17 : 14, fontWeight: 800, color: "#111827", marginBottom: 2 }}>
+        {lines[0]}
+      </div>
+    );
+    i = 1;
+  }
+  // Second line: price, rendered largest and bold.
+  if (lines[1] && lines[1].startsWith("$")) {
+    nodes.push(
+      <div key="price" style={{ fontSize: expanded ? 22 : 16, fontWeight: 800, color: "#6D5EF7", fontFamily: "ui-monospace, monospace", marginBottom: 2 }}>
+        {lines[1]}
+      </div>
+    );
+    i = 2;
+  }
+
+  for (; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (ANALYSIS_SECTION_HEADERS.has(trimmed)) {
+      nodes.push(
+        <div key={i} style={{ marginTop: 10, marginBottom: 2, paddingTop: 8, borderTop: "1px solid #E5E0FA", fontSize: expanded ? 12 : 11, fontWeight: 800, letterSpacing: 0.6, color: "#6D5EF7", textTransform: "uppercase" }}>
+          {trimmed}
+        </div>
+      );
+    } else if (trimmed.startsWith("⚠️")) {
+      nodes.push(
+        <div key={i} style={{ marginTop: 10, fontSize: expanded ? 12 : 10, color: "#9CA3AF", lineHeight: 1.4 }}>
+          {line}
+        </div>
+      );
+    } else if (trimmed.length > 0) {
+      nodes.push(
+        <div key={i} style={{ fontSize: expanded ? 14 : 12.5, color: "#374151", lineHeight: 1.55 }}>
+          {line}
+        </div>
+      );
+    } else {
+      nodes.push(<div key={i} style={{ height: 2 }} />);
+    }
+  }
+
+  return <>{nodes}</>;
+}
+
 function bytes32Address(addr: string): `0x${string}` {
   return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
 }
@@ -352,11 +415,11 @@ Respond with ONLY the JSON object.`,
   return (
     <>
       <div style={expanded
-        ? { position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 999 }
+        ? { position: "fixed", top: 16, right: 16, bottom: 16, zIndex: 999 }
         : { position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
       {open && (
         <div style={expanded
-          ? { width: "min(420px, 100vw)", height: "100vh", background: "#ffffff", borderLeft: "1px solid #D4C9FA", boxShadow: "-16px 0 48px rgba(17,24,39,0.12)", display: "flex", flexDirection: "column", overflow: "hidden" }
+          ? { width: "min(520px, calc(100vw - 32px))", maxWidth: 560, height: "100%", background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "-16px 0 48px rgba(17,24,39,0.16)", display: "flex", flexDirection: "column", overflow: "hidden" }
           : { width: 360, maxHeight: 480, background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "0 16px 48px rgba(109,94,247,0.2)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: expanded ? "1.1rem 1.4rem" : "0.9rem 1.1rem", background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -384,12 +447,12 @@ Respond with ONLY the JSON object.`,
               </div>
             )}
             {messages.map((m, i) => (
-              <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "90%" }}>
+              <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: m.role === "user" ? "90%" : "100%" }}>
                 <div style={{
                   background: m.role === "user" ? "#6D5EF7" : "#f5f3ff",
-                  borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 13, color: m.role === "user" ? "#ffffff" : "#374151", lineHeight: 1.5, whiteSpace: "pre-wrap",
+                  borderRadius: 12, padding: expanded ? "0.9rem 1.1rem" : "0.6rem 0.8rem", color: m.role === "user" ? "#ffffff" : "#374151",
                 }}>
-                  {m.content}
+                  {m.role === "assistant" ? renderMessageContent(m.content, expanded) : <span style={{ fontSize: expanded ? 15 : 13 }}>{m.content}</span>}
                 </div>
                 {m.action && m.action.action !== "unknown" && !m.confirmed && (
                   <div style={{ marginTop: 6, background: "#f5f3ff", borderRadius: 12, padding: "0.7rem 0.8rem" }}>

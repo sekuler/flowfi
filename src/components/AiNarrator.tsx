@@ -20,6 +20,50 @@ const SUGGESTED_QUESTIONS = [
 
 // If the AI's answer mentions a full tx hash, turn it into a clickable
 // Arcscan link instead of leaving it as inert text the user has to copy.
+const ANALYSIS_SECTION_HEADERS = new Set([
+  "TIMEFRAME", "KEY LEVELS", "MULTI-TIMEFRAME INSIGHT", "WHAT TO WATCH",
+  "Tokenomics", "Token Vesting & Unlocks", "PRICE STABILITY", "STABILITY NOTE", "Supply",
+]);
+
+function isAnalysisMessage(text: string): boolean {
+  const firstLine = text.split("\n")[0] ?? "";
+  return /TIMEFRAME|PRICE STABILITY/.test(text) && !firstLine.startsWith("Elimdeki");
+}
+
+function renderAnalysisContent(content: string) {
+  const lines = content.split("\n");
+  const nodes: JSX.Element[] = [];
+  let i = 0;
+
+  if (lines[0]) {
+    nodes.push(<div key="title" style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 2 }}>{lines[0]}</div>);
+    i = 1;
+  }
+  if (lines[1] && lines[1].startsWith("$")) {
+    nodes.push(<div key="price" style={{ fontSize: 20, fontWeight: 800, color: "#6D5EF7", fontFamily: "ui-monospace, monospace", marginBottom: 2 }}>{lines[1]}</div>);
+    i = 2;
+  }
+
+  for (; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (ANALYSIS_SECTION_HEADERS.has(trimmed)) {
+      nodes.push(
+        <div key={i} style={{ marginTop: 10, marginBottom: 2, paddingTop: 8, borderTop: "1px solid #E5E0FA", fontSize: 12, fontWeight: 800, letterSpacing: 0.6, color: "#6D5EF7", textTransform: "uppercase" }}>
+          {trimmed}
+        </div>
+      );
+    } else if (trimmed.startsWith("⚠️")) {
+      nodes.push(<div key={i} style={{ marginTop: 10, fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{line}</div>);
+    } else if (trimmed.length > 0) {
+      nodes.push(<div key={i} style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.55 }}>{line}</div>);
+    } else {
+      nodes.push(<div key={i} style={{ height: 2 }} />);
+    }
+  }
+  return <>{nodes}</>;
+}
+
 function renderWithTxLinks(text: string) {
   const hashPattern = /0x[a-fA-F0-9]{64}/g;
   const parts = text.split(hashPattern);
@@ -131,7 +175,7 @@ export default function AiNarrator({ address, balances }: Props) {
               lineHeight: 1.5,
               whiteSpace: "pre-wrap",
             }}>
-              {m.role === "assistant" ? renderWithTxLinks(m.content) : m.content}
+              {m.role === "assistant" ? (isAnalysisMessage(m.content) ? renderAnalysisContent(m.content) : renderWithTxLinks(m.content)) : m.content}
             </div>
           ))}
           {loading && (
