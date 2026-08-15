@@ -82,6 +82,7 @@ function liquidationPrice(p: Position): number {
   return p.isLong ? p.entryPriceNum - move : p.entryPriceNum + move;
 }
 
+
 export default function Perpetuals({ provider, address }: Props) {
   const [market, setMarket] = useState<"BTC" | "ETH">("BTC");
   const [prices, setPrices] = useState<{ BTC: number | null; ETH: number | null }>({ BTC: null, ETH: null });
@@ -274,13 +275,15 @@ export default function Perpetuals({ provider, address }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      <div style={{ background: "rgba(239,68,68,0.1)", borderRadius: 10, padding: "0.7rem 1rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(239,68,68,0.1)", borderRadius: 10, padding: "0.7rem 1rem" }}>
+        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.5px", padding: "3px 8px", borderRadius: 6, background: "#DC2626", color: "#ffffff", flexShrink: 0 }}>
+          EXPERIMENTAL
+        </span>
         <p style={{ fontSize: 12, color: "#DC2626", margin: 0 }}>
-          Testnet demo — prices submitted client-side, not from a decentralized oracle. Not for real funds.
+          Testnet demo only — prices are submitted client-side, not from a decentralized oracle (Stork/Pyth not yet integrated). Not accurate, not for real funds, and not part of the current mainnet roadmap.
         </p>
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.75rem" }}>
         <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.9rem 1rem" }}>
           <div style={{ fontSize: 10, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>{market} PRICE</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{currentPrice ? `$${fmtPrice(currentPrice)}` : "..."}</div>
@@ -301,22 +304,21 @@ export default function Perpetuals({ provider, address }: Props) {
           <div style={{ fontSize: 11, color: "#374151", marginTop: 2 }}>Your active trades</div>
         </div>
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "1rem", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)", gap: "1rem", alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <div style={{ display: "flex", gap: 8 }}>
             {(["BTC", "ETH"] as const).map((m) => (
-  <button key={m} onClick={() => setMarket(m)} disabled={isLoading}
-    style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: market === m ? "#ede9fe" : "#f5f3ff", color: market === m ? "#5B21B6" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-    <img src={m === "BTC" ? "https://assets.coingecko.com/coins/images/1/small/bitcoin.png" : "https://assets.coingecko.com/coins/images/279/small/ethereum.png"} alt={m} style={{ width: 16, height: 16, borderRadius: "50%" }} />
-    {m}-PERP
-  </button>
-))}
+              <button key={m} onClick={() => setMarket(m)} disabled={isLoading}
+                style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "none", background: market === m ? "#ede9fe" : "#f5f3ff", color: market === m ? "#5B21B6" : "#4B5563", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <img src={m === "BTC" ? "https://assets.coingecko.com/coins/images/1/small/bitcoin.png" : "https://assets.coingecko.com/coins/images/279/small/ethereum.png"} alt={m} style={{ width: 16, height: 16, borderRadius: "50%" }} />
+                {m}-PERP
+              </button>
+            ))}
           </div>
 
           <TradingViewChart symbol={market} />
 
-          <div style={{ background: "#ffffff", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          <div style={{ background: "#ffffff", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setIsLong(true)} disabled={isLoading}
                 style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: "none", background: isLong ? "rgba(52,211,153,0.18)" : "#f5f3ff", color: isLong ? "#16A34A" : "#4B5563", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
@@ -361,34 +363,34 @@ export default function Perpetuals({ provider, address }: Props) {
               </div>
             )}
 
-{(state === "approving" || state === "opening") && (
-  <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0.3rem 0" }}>
-    {["approving", "opening"].map((s, i) => {
-      const order = ["approving", "opening"];
-      const currentIndex = order.indexOf(state);
-      const isDone = currentIndex > i;
-      const isActive = state === s;
-      const isLast = i === order.length - 1;
-      const label: Record<string, string> = { approving: "Approve", opening: "Open" };
-      return (
-        <div key={s} style={{ display: "flex", alignItems: "center", flex: isLast ? "0 0 auto" : 1 }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <div style={{
-              width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 10, fontWeight: 800,
-              background: isDone ? "#7c3aed" : isActive ? "#ede9fe" : "#f5f3ff",
-              color: isDone ? "#ffffff" : isActive ? "#5B21B6" : "#374151",
-            }}>
-              {isDone ? "✓" : i + 1}
-            </div>
-            <span style={{ fontSize: 9, color: isDone ? "#7c3aed" : isActive ? "#5B21B6" : "#374151" }}>{label[s]}</span>
-          </div>
-          {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#7c3aed" : "#f5f3ff", marginBottom: 12 }} />}
-        </div>
-      );
-    })}
-  </div>
-)}
+            {(state === "approving" || state === "opening") && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0.3rem 0" }}>
+                {["approving", "opening"].map((s, i) => {
+                  const order = ["approving", "opening"];
+                  const currentIndex = order.indexOf(state);
+                  const isDone = currentIndex > i;
+                  const isActive = state === s;
+                  const isLast = i === order.length - 1;
+                  const label: Record<string, string> = { approving: "Approve", opening: "Open" };
+                  return (
+                    <div key={s} style={{ display: "flex", alignItems: "center", flex: isLast ? "0 0 auto" : 1 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <div style={{
+                          width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 10, fontWeight: 800,
+                          background: isDone ? "#7c3aed" : isActive ? "#ede9fe" : "#f5f3ff",
+                          color: isDone ? "#ffffff" : isActive ? "#5B21B6" : "#374151",
+                        }}>
+                          {isDone ? "✓" : i + 1}
+                        </div>
+                        <span style={{ fontSize: 9, color: isDone ? "#7c3aed" : isActive ? "#5B21B6" : "#374151" }}>{label[s]}</span>
+                      </div>
+                      {!isLast && <div style={{ height: 2, flex: 1, background: isDone ? "#7c3aed" : "#f5f3ff", marginBottom: 12 }} />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {errorMsg && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
             <button onClick={() => openPosition()} disabled={isLoading || !currentPrice}
               style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: isLong ? "#16A34A" : "#ef4444", color: isLong ? "#ffffff" : "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading || !currentPrice ? 0.5 : 1 }}>
@@ -399,39 +401,39 @@ export default function Perpetuals({ provider, address }: Props) {
           </div>
         </div>
         {margin && Number(margin) > 0 && currentPrice && (
-  <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 16, padding: "1.1rem", marginBottom: 12 }}>
-    <div style={{ fontSize: 10, color: "#5B21B6", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>POSITION SUMMARY</div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-      <div>
-        <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>Margin</div>
-        <div style={{ fontSize: 14, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${Number(margin).toFixed(2)}</div>
-      </div>
-      <div>
-        <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>Leverage</div>
-        <div style={{ fontSize: 14, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{leverage}x</div>
-      </div>
-      <div>
-        <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>Liquidation</div>
-        <div style={{ fontSize: 14, color: "#DC2626", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
-          ${fmtPrice(isLong ? currentPrice - currentPrice / leverage : currentPrice + currentPrice / leverage)}
-        </div>
-      </div>
-      <div>
-        <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>Position Size</div>
-        <div style={{ fontSize: 14, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${(Number(margin) * leverage).toFixed(2)}</div>
-      </div>
-      <div>
-        <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>PnL</div>
-        <div style={{ fontSize: 14, color: "#4B5563", fontWeight: 700 }}>—</div>
-      </div>
-      <div>
-        <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>ROI</div>
-        <div style={{ fontSize: 14, color: "#4B5563", fontWeight: 700 }}>—</div>
-      </div>
-    </div>
-    <p style={{ fontSize: 10, color: "#374151", marginTop: 10, marginBottom: 0 }}>Preview before opening — PnL and ROI appear once the position is live.</p>
-  </div>
-)}
+          <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 16, padding: "1.1rem", marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: "#5B21B6", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>POSITION SUMMARY</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>Margin</div>
+                <div style={{ fontSize: 14, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${Number(margin).toFixed(2)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>Leverage</div>
+                <div style={{ fontSize: 14, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{leverage}x</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>Liquidation</div>
+                <div style={{ fontSize: 14, color: "#DC2626", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+                  ${fmtPrice(isLong ? currentPrice - currentPrice / leverage : currentPrice + currentPrice / leverage)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>Position Size</div>
+                <div style={{ fontSize: 14, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${(Number(margin) * leverage).toFixed(2)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>PnL</div>
+                <div style={{ fontSize: 14, color: "#4B5563", fontWeight: 700 }}>—</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 2 }}>ROI</div>
+                <div style={{ fontSize: 14, color: "#4B5563", fontWeight: 700 }}>—</div>
+              </div>
+            </div>
+            <p style={{ fontSize: 10, color: "#374151", marginTop: 10, marginBottom: 0 }}>Preview before opening — PnL and ROI appear once the position is live.</p>
+          </div>
+        )}
 
         <div>
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
@@ -539,7 +541,7 @@ export default function Perpetuals({ provider, address }: Props) {
                   const liqPrice = liquidationPrice(p);
                   const confirming = confirmClosingId === p.id;
                   return (
-                    <div key={p.id} style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+                    <div key={p.id} style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 5, background: p.isLong ? "rgba(52,211,153,0.18)" : "rgba(239,68,68,0.18)", color: p.isLong ? "#16A34A" : "#DC2626" }}>
@@ -605,7 +607,6 @@ export default function Perpetuals({ provider, address }: Props) {
               </div>
             </>
           )}
-
           {rightTab === "history" && <PnlHistory trades={closedTrades} />}
         </div>
       </div>
