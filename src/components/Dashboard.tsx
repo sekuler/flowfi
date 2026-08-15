@@ -11,15 +11,27 @@ interface ActivityItem {
   hash: string;
   age: string;
   amount: string;
-  category: "income" | "expense" | "bridge" | "other";
+  category: "income" | "expense" | "bridge" | "swap" | "supply" | "withdraw" | "deposit" | "borrow" | "repay" | "position" | "pool" | "token" | "other";
 }
 
-const METHOD_CATEGORY: Record<string, "income" | "expense" | "bridge" | "other"> = {
-  "0xa9059cbb": "expense", // transfer (outgoing from user's perspective when they call it)
-  "0x095ea7b3": "other",   // approve
-  "0x74b30078": "other",   // swap
-  "0x9cd441da": "other",   // swap
-  "0xe334e8dd": "other",   // escrow
+const METHOD_CATEGORY: Record<string, "income" | "expense" | "bridge" | "swap" | "supply" | "withdraw" | "deposit" | "borrow" | "repay" | "position" | "pool" | "token" | "other"> = {
+  "0xa9059cbb": "expense",  // transfer
+  "0x095ea7b3": "other",    // approve
+  "0x74b30078": "swap",     // swapUsdcToEurc
+  "0x3eb4812c": "swap",     // swapEurcToUsdc
+  "0x08c84c21": "swap",     // Pool V2 swap(bool,uint256,uint256)
+  "0x9cd441da": "swap",     // legacy AMM swap variant
+  "0x35403023": "supply",   // supply(uint256)
+  "0x2e1a7d4d": "withdraw", // withdraw(uint256)
+  "0xbad4a01f": "deposit",  // depositCollateral(uint256)
+  "0xc5ebeaec": "borrow",   // borrow(uint256)
+  "0x371fd8e6": "repay",    // repay(uint256)
+  "0x5e1a7dde": "position", // openPosition(...)
+  "0x2d6ce61d": "position", // closePosition(uint256,uint256)
+  "0x884db063": "pool",     // createPool(...)
+  "0x5b060530": "token",    // createToken(...)
+  "0x6fd3504e": "bridge",   // depositForBurn (CCTP)
+  "0xe334e8dd": "other",    // escrow
 };
 
 function timeAgo(sec: number) {
@@ -192,6 +204,15 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
     income: { label: "Income", color: "#16A34A", bg: "rgba(34,197,94,0.1)" },
     expense: { label: "Sent", color: "#DC2626", bg: "rgba(239,68,68,0.1)" },
     bridge: { label: "Bridge", color: "#2563EB", bg: "rgba(59,130,246,0.1)" },
+    swap: { label: "Swap", color: "#6D5EF7", bg: "rgba(109,94,247,0.1)" },
+    supply: { label: "Supply", color: "#16A34A", bg: "rgba(34,197,94,0.1)" },
+    withdraw: { label: "Withdraw", color: "#B45309", bg: "rgba(245,158,11,0.1)" },
+    deposit: { label: "Deposit Collateral", color: "#16A34A", bg: "rgba(34,197,94,0.1)" },
+    borrow: { label: "Borrow", color: "#DC2626", bg: "rgba(239,68,68,0.1)" },
+    repay: { label: "Repay", color: "#16A34A", bg: "rgba(34,197,94,0.1)" },
+    position: { label: "Perps", color: "#7C3AED", bg: "rgba(124,58,237,0.1)" },
+    pool: { label: "Liquidity Pool", color: "#0EA5E9", bg: "rgba(14,165,233,0.1)" },
+    token: { label: "Token Launch", color: "#DB2777", bg: "rgba(219,39,119,0.1)" },
     other: { label: "Activity", color: "#6D5EF7", bg: "rgba(109,94,247,0.1)" },
   };
 
