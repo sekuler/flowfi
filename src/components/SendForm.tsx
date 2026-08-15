@@ -206,6 +206,21 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
   async function checkRecipientRisk(addr: string): Promise<string | null> {
     const isKnownContact = contacts.some((c) => c.address.toLowerCase() === addr.toLowerCase());
     if (isKnownContact) return null;
+
+    // Address-poisoning check: does this address share the same first/last
+    // characters as a known contact but differ in the middle? Scammers send
+    // 0-value transfers from lookalike addresses hoping you copy-paste the
+    // wrong one from your recent activity later.
+    const target = addr.toLowerCase();
+    const lookalike = contacts.find((c) => {
+      const known = c.address.toLowerCase();
+      if (known === target) return false;
+      return known.slice(0, 6) === target.slice(0, 6) && known.slice(-4) === target.slice(-4);
+    });
+    if (lookalike) {
+      return `This address closely resembles your saved contact "${lookalike.name}" (${lookalike.address.slice(0, 6)}...${lookalike.address.slice(-4)}) but is NOT the same address. This is a common scam pattern — double-check very carefully before sending.`;
+    }
+
     try {
       const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${addr}&limit=1`);
       const data = await res.json();

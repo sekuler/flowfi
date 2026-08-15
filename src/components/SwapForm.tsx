@@ -10,6 +10,19 @@ import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type C
 import { getDCAPlan, setDCAPlan, clearDCAPlan, markDCAExecuted, isDCADue, type DCAPlan, type DCAFrequency } from "../dca";
 
 const SWAP_STEPS = ["Approving", "Swapping", "Done"];
+// Turns raw viem/wallet errors into a short, human message instead of dumping
+// the full technical error (calldata, docs links, etc.) in front of the user.
+function friendlyError(e: unknown): string {
+  const err = e as { message?: string; code?: number; shortMessage?: string };
+  if (err.code === 4001 || err.message?.includes("User rejected")) {
+    return "You rejected the request in your wallet. No funds were moved — try again when you're ready.";
+  }
+  if (err.message?.includes("insufficient funds") || err.message?.includes("exceeds balance")) {
+    return "Insufficient balance to cover this amount plus gas.";
+  }
+  return err.shortMessage ?? err.message ?? "Swap failed. Please try again.";
+}
+
 function swapStepIndex(state: string) {
   if (state === "approving") return 0;
   if (state === "swapping") return 1;
@@ -134,6 +147,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [poolRate, setPoolRate] = useState<number | null>(null);
   const [marketRate, setMarketRate] = useState<number | null>(null);
   const [rateStale, setRateStale] = useState(false);
+  const [staleRateAcknowledged, setStaleRateAcknowledged] = useState(false);
   const [poolLiquidity, setPoolLiquidity] = useState<{ usdc: string; eurc: string } | null>(null);
   const [contractTxs, setContractTxs] = useState<ContractTx[]>([]);
   const [legacyOut, setLegacyOut] = useState<string | null>(null);
@@ -204,7 +218,9 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         if (market) {
           setMarketRate(market);
           const diff = Math.abs(pool - market) / market;
-          setRateStale(diff > 0.01);
+          const isStale = diff > 0.01;
+          setRateStale(isStale);
+          if (!isStale) setStaleRateAcknowledged(false);
         }
       } catch {
         /* ignore, silently skip staleness check */
@@ -278,8 +294,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         showToast("Swap completed", "success");
       addPoints(10);
       } catch (e: unknown) {
-        const err = e as { message?: string };
-        setErrorMsg(err.message ?? "Unexpected error."); setSwapState("error");
+        setErrorMsg(friendlyError(e)); setSwapState("error");
       }
       return;
     }
@@ -315,8 +330,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       addPoints(10);
       onRefresh();
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setErrorMsg(err.message ?? "Unexpected error."); setSwapState("error");
+      setErrorMsg(friendlyError(e)); setSwapState("error");
     }
   }
 
@@ -343,8 +357,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       showToast(`DCA buy complete: ${dcaPlan.amount} USDC → EURC`, "success");
       onRefresh();
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      showToast(err.message ?? "DCA buy failed.", "error");
+      showToast(friendlyError(e), "error");
     } finally {
       setRunningDCA(false);
     }
@@ -442,11 +455,15 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>{(useLegacyRoute && legacyOut ? Number(legacyOut) : Number(estimatedOut)) > 0 ? `$${(useLegacyRoute && legacyOut ? Number(legacyOut) : Number(estimatedOut)).toFixed(2)}` : "$0.00"}</div>
             </div>
 
-            {rateStale && (
-              <div style={{ background: "rgba(239,68,68,0.1)", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
+            {rateStale && !useLegacyRoute && (
+              <div style={{ background: "rgba(239,68,68,0.1)", borderRadius: 10, padding: "0.65rem 0.8rem", display: "flex", flexDirection: "column", gap: 8 }}>
                 <p style={{ fontSize: 12, color: "#DC2626", margin: 0 }}>
-                  Pool rate ({poolRate?.toFixed(4)}) differs from the live market rate ({marketRate?.toFixed(4)}) by more than 1%. This swap uses the pool's fixed rate.
+                  Pool rate ({poolRate?.toFixed(4)}) differs from the live market rate ({marketRate?.toFixed(4)}) by more than 1%. This route has no slippage protection — the fixed rate is used regardless.
                 </p>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#DC2626", cursor: "pointer" }}>
+                  <input type="checkbox" checked={staleRateAcknowledged} onChange={(e) => setStaleRateAcknowledged(e.target.checked)} />
+                  I understand and want to proceed at this rate
+                </label>
               </div>
             )}
 
@@ -542,8 +559,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             </div>
 
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
-              disabled={isLoading || swapState === "done"}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" ? 0.5 : 1, marginTop: 4 }}>
+              disabled={isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged)}
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged) ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged) ? 0.5 : 1, marginTop: 4 }}>
               {swapState === "idle" && "Swap"}
               {swapState === "approving" && "Approving..."}
               {swapState === "swapping" && "Swapping..."}

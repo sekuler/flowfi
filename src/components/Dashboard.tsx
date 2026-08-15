@@ -252,7 +252,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>PORTFOLIO ALLOCATION</div>
         {total === 0 ? (
-          <EmptyState icon="💰" title="No balances yet" subtitle="Fund your wallet to see your portfolio here" />
+          <EmptyState icon="💰" title="No balances yet" subtitle="Get free testnet USDC and EURC to get started" actionLabel="Get Testnet USDC" actionHref="https://faucet.circle.com" />
         ) : (
           <>
             <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
