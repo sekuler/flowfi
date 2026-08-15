@@ -3,6 +3,31 @@ import AiNarrator from "./AiNarrator";
 import { useState, useEffect, useRef } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
+
+// Real method-selector → label mapping (verified via keccak256 of each real
+// function signature) — not a guess, and not just "Transaction" for everything.
+const METHOD_LABELS: Record<string, string> = {
+  "0xa9059cbb": "Send",
+  "0x095ea7b3": "Approve",
+  "0x74b30078": "Swap",
+  "0x3eb4812c": "Swap",
+  "0x08c84c21": "Swap",
+  "0x9cd441da": "Swap",
+  "0x35403023": "Supply",
+  "0x2e1a7d4d": "Withdraw",
+  "0xbad4a01f": "Deposit Collateral",
+  "0xc5ebeaec": "Borrow",
+  "0x371fd8e6": "Repay",
+  "0x5e1a7dde": "Open Position",
+  "0x2d6ce61d": "Close Position",
+  "0x884db063": "Create Pool",
+  "0x5b060530": "Launch Token",
+  "0x6fd3504e": "Bridge",
+};
+function labelForMethodId(methodId: string | undefined): string {
+  if (!methodId || methodId === "0x") return "Contract Deploy";
+  return METHOD_LABELS[methodId] ?? "Activity";
+}
 import { showToast } from "../toast";
 import { getRules, addRule, removeRule, type AutomationRule } from "../automation";
 import { computeMemoryInsight, type MemoryInsight } from "../memory";
@@ -131,7 +156,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
         const data = await res.json();
         const items: RecentTx[] = (data.result ?? []).slice(0, 4).map((tx: any) => ({
           hash: tx.hash,
-          method: tx.methodId === "0x" ? "Contract Deploy" : (tx.methodId && tx.methodId !== "0x" ? "Transaction" : "Transfer"),
+          method: labelForMethodId(tx.methodId),
           age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—",
         }));
         setRecentTxs(items);
