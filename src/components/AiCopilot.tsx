@@ -414,12 +414,15 @@ Respond with ONLY the JSON object.`,
 
   return (
     <>
+      {expanded && open && (
+        <div onClick={() => setExpanded(false)} style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.35)", zIndex: 998 }} />
+      )}
       <div style={expanded
         ? { position: "fixed", top: 16, right: 16, bottom: 16, zIndex: 999 }
         : { position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
       {open && (
         <div style={expanded
-          ? { width: "min(520px, calc(100vw - 32px))", maxWidth: 560, height: "100%", background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "-16px 0 48px rgba(17,24,39,0.16)", display: "flex", flexDirection: "column", overflow: "hidden" }
+          ? { width: "min(560px, calc(100vw - 32px))", height: "100%", background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "-16px 0 48px rgba(17,24,39,0.16)", display: "flex", flexDirection: "column", overflow: "hidden" }
           : { width: 360, maxHeight: 480, background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "0 16px 48px rgba(109,94,247,0.2)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: expanded ? "1.1rem 1.4rem" : "0.9rem 1.1rem", background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

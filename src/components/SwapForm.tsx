@@ -637,7 +637,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: "#374151" }}>Loading...</div>
+              <div style={{ fontSize: 12, color: "#6B7280" }}>Loading...</div>
             )}
           </div>
 

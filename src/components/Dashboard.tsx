@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import EmptyState from "./EmptyState";
 
 interface Props {
   address: string;
@@ -251,7 +252,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>PORTFOLIO ALLOCATION</div>
         {total === 0 ? (
-          <div style={{ fontSize: 12, color: "#6B7280" }}>No balances yet.</div>
+          <EmptyState icon="💰" title="No balances yet" subtitle="Fund your wallet to see your portfolio here" />
         ) : (
           <>
             <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
@@ -318,7 +319,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
         {loading && <div style={{ fontSize: 12, color: "#6B7280" }}>Loading...</div>}
-        {!loading && recentActivity.length === 0 && <div style={{ fontSize: 12, color: "#6B7280" }}>No transactions yet.</div>}
+        {!loading && recentActivity.length === 0 && <EmptyState icon="📭" title="No transactions yet" subtitle="Your recent activity will show up here" />}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {recentActivity.map((tx) => {
             const meta = CATEGORY_META[tx.category];
