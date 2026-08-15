@@ -56,7 +56,7 @@ function renderAnalysisContent(content: string) {
     } else if (trimmed.startsWith("⚠️")) {
       nodes.push(<div key={i} style={{ marginTop: 10, fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{line}</div>);
     } else if (trimmed.length > 0) {
-      nodes.push(<div key={i} style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.55 }}>{line}</div>);
+      nodes.push(<div key={i} style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.55, overflowWrap: "break-word", wordBreak: "break-word" }}>{line}</div>);
     } else {
       nodes.push(<div key={i} style={{ height: 2 }} />);
     }
@@ -151,7 +151,7 @@ export default function AiNarrator({ address, balances }: Props) {
       )}
       <div style={expanded
         ? { position: "fixed", top: 16, right: 16, bottom: 16, left: "auto", width: "min(560px, calc(100vw - 32px))", zIndex: 999, background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "-16px 0 48px rgba(17,24,39,0.2)", padding: "1.4rem", display: "flex", flexDirection: "column", gap: 12, overflow: "hidden" }
-        : { background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 10 }}>
+        : { background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 10, minWidth: 0, overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: expanded ? 26 : 22, height: expanded ? 26 : 22, borderRadius: 7, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: expanded ? 13 : 11, color: "#fff" }}>✦</div>
@@ -185,6 +185,8 @@ export default function AiNarrator({ address, balances }: Props) {
                 padding: expanded ? "0.9rem 1.1rem" : "0.6rem 0.8rem",
                 color: m.role === "user" ? "#ffffff" : "#374151",
                 whiteSpace: "pre-wrap",
+                minWidth: 0,
+                overflowWrap: "break-word",
               }}>
                 {m.role === "assistant" ? (isAnalysisMessage(m.content) ? renderAnalysisContent(m.content) : <span style={{ fontSize: 13, lineHeight: 1.5 }}>{renderWithTxLinks(m.content)}</span>) : <span style={{ fontSize: expanded ? 15 : 13, lineHeight: 1.5 }}>{m.content}</span>}
               </div>
