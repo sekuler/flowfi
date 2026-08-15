@@ -384,7 +384,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                     onClick={() => setTokenInOpen(!tokenInOpen)}
                     disabled={isLoading}
                     style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px 7px 7px", borderRadius: 999, background: "#F5F3FF", border: "none", cursor: "pointer" }}>
-                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#ffffff" }}>{tokenIn[0]}</span>
+                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#ffffff" }}>{tokenIn[0]}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenIn}</span>
                     <span style={{ fontSize: 9, color: "#6B7280" }}>▾</span>
                   </button>
@@ -394,7 +394,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                         <button key={t} disabled={t === tokenIn}
                           onClick={() => { setTokenIn(t); setTokenOut(t === "USDC" ? "EURC" : "USDC"); setTokenInOpen(false); }}
                           style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: t === tokenIn ? "rgba(124,58,237,0.1)" : "transparent", border: "none", cursor: t === tokenIn ? "not-allowed" : "pointer", opacity: t === tokenIn ? 0.4 : 1 }}>
-                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#ffffff" }}>{t[0]}</span>
+                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#ffffff" }}>{t[0]}</span>
                           <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{t}</span>
                         </button>
                       ))}
@@ -407,7 +407,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
             <div style={{ display: "flex", justifyContent: "center", marginTop: -14, marginBottom: -14, position: "relative", zIndex: 1 }}>
               <button onClick={flipTokens} disabled={isLoading}
-                style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", border: "1px solid #EDE9FE", color: "#7c3aed", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.1)" }}>
+                style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", border: "1px solid #EDE9FE", color: "#6D5EF7", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.1)" }}>
                 ↓
               </button>
             </div>
@@ -421,7 +421,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                     onClick={() => setTokenOutOpen(!tokenOutOpen)}
                     disabled={isLoading}
                     style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px 7px 7px", borderRadius: 999, background: "#F5F3FF", border: "none", cursor: "pointer" }}>
-                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#ffffff" }}>{tokenOut[0]}</span>
+                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#ffffff" }}>{tokenOut[0]}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenOut}</span>
                     <span style={{ fontSize: 9, color: "#6B7280" }}>▾</span>
                   </button>
@@ -431,7 +431,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                         <button key={t} disabled={t === tokenOut}
                           onClick={() => { setTokenOut(t); setTokenIn(t === "USDC" ? "EURC" : "USDC"); setTokenOutOpen(false); }}
                           style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: t === tokenOut ? "rgba(124,58,237,0.1)" : "transparent", border: "none", cursor: t === tokenOut ? "not-allowed" : "pointer", opacity: t === tokenOut ? 0.4 : 1 }}>
-                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#ffffff" }}>{t[0]}</span>
+                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#ffffff" }}>{t[0]}</span>
                           <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{t}</span>
                         </button>
                       ))}
@@ -501,7 +501,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
             {txHash && swapState === "done" && (
               <div style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 12, padding: "1rem" }}>
-                <p style={{ color: "#7c3aed", fontWeight: 700, marginBottom: 6 }}>Swap successful!</p>
+                <p style={{ color: "#6D5EF7", fontWeight: 700, marginBottom: 6 }}>Swap successful!</p>
                 <a href={"https://testnet.arcscan.app/tx/" + txHash} target="_blank" rel="noopener noreferrer" style={{ color: "#2563EB", fontSize: 13 }}>View on explorer</a>
               </div>
             )}
@@ -518,13 +518,13 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                         width: 20, height: 20, borderRadius: "50%",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 11, fontWeight: 700,
-                        background: done ? "#7c3aed" : active ? "rgba(168,85,247,0.25)" : "rgba(109,94,247,0.1)",
-                        color: done ? "#ffffff" : active ? "#7C3AED" : "#374151",
+                        background: done ? "#6D5EF7" : active ? "rgba(168,85,247,0.25)" : "rgba(109,94,247,0.1)",
+                        color: done ? "#ffffff" : active ? "#6D5EF7" : "#374151",
                         border: active ? "1px solid #5B21B6" : "none",
                       }}>
                         {done ? "✓" : i + 1}
                       </div>
-                      <span style={{ fontSize: 11, color: done ? "#7c3aed" : active ? "#7C3AED" : "#374151" }}>{label}</span>
+                      <span style={{ fontSize: 11, color: done ? "#6D5EF7" : active ? "#6D5EF7" : "#374151" }}>{label}</span>
                       {i < SWAP_STEPS.length - 1 && <span style={{ width: 16, height: 1, background: "rgba(109,94,247,0.15)" }} />}
                     </div>
                   );
@@ -543,7 +543,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
               disabled={isLoading || swapState === "done"}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" ? 0.5 : 1, marginTop: 4 }}>
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" ? 0.5 : 1, marginTop: 4 }}>
               {swapState === "idle" && "Swap"}
               {swapState === "approving" && "Approving..."}
               {swapState === "swapping" && "Swapping..."}
@@ -648,7 +648,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               {contractTxs.map((tx) => (
                 <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.55rem 0.7rem", borderRadius: 10, background: "#f5f3ff", textDecoration: "none" }}>
-                  <span style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600 }}>{tx.method}</span>
+                  <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 600 }}>{tx.method}</span>
                   <span style={{ fontSize: 11, color: "#374151" }}>{tx.age}</span>
                 </a>
               ))}
@@ -658,8 +658,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       </div>
 
       <div style={{ position: "relative", zIndex: 1, marginTop: "0.75rem", background: "#ffffff", borderRadius: 14, padding: "0.7rem 0", display: "flex", alignItems: "center", gap: 10, overflow: "hidden", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-        <span style={{ fontSize: 11, color: "#7c3aed", fontWeight: 700, paddingLeft: 14, flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#7c3aed" }} />
+        <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, paddingLeft: 14, flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6D5EF7" }} />
           LIVE
         </span>
         <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
