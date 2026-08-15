@@ -499,7 +499,7 @@ function AppInner() {
             <Sparkles size={11} color="#6D5EF7" />
             <span className="flowfi-mono" style={{ fontSize: 11, fontWeight: 700, color: "#6D5EF7" }}>{points} pts</span>
           </div>
-          <button onClick={() => setWallet(null)} style={{ marginTop: 10, fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
+          <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} style={{ marginTop: 10, fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
         </div>
         <div style={{ padding: "0.5rem 1.25rem", display: "flex", flexDirection: "column", gap: 4 }}>
           {[
@@ -531,7 +531,7 @@ function AppInner() {
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
             {shortAddr}
           </a>
-          <button onClick={() => setWallet(null)} title="Disconnect wallet"
+          <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} title="Disconnect wallet"
             style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
             <Power size={15} />
           </button>
