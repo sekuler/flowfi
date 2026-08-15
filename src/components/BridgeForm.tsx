@@ -166,6 +166,7 @@ export default function BridgeForm({ provider, address }: Props) {
       const fallback = (Object.keys(CHAINS) as ChainKey[]).find((k) => k !== key);
       if (fallback) setDestKey(fallback);
     }
+    if (step === "done" || step === "error") { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setErrorMsg(null); }
   }
   function changeDest(key: ChainKey) {
     setDestKey(key);
@@ -174,11 +175,13 @@ export default function BridgeForm({ provider, address }: Props) {
       const fallback = (Object.keys(CHAINS) as ChainKey[]).find((k) => k !== key);
       if (fallback) setSourceKey(fallback);
     }
+    if (step === "done" || step === "error") { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setErrorMsg(null); }
   }
   function flipChains() {
     const s = sourceKey, d = destKey;
     setSourceKey(d);
     setDestKey(s);
+    if (step === "done" || step === "error") { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setErrorMsg(null); }
   }
 
   async function pollAttestation(burnHash: string, domain: number) {

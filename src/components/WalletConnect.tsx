@@ -1,8 +1,8 @@
-﻿import { useState } from "react";
+﻿import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 
 // Get a free project ID from https://cloud.reown.com and paste it below.
-const WALLETCONNECT_PROJECT_ID: string = "4084fea887972a480fbc1b78b5599990";
+const WALLETCONNECT_PROJECT_ID = "PASTE_YOUR_PROJECT_ID_HERE";
 
 type EIP6963ProviderInfo = { uuid: string; name: string; icon: string; rdns: string; };
 type EIP6963ProviderDetail = { info: EIP6963ProviderInfo; provider: EIP1193Provider; };
@@ -56,6 +56,26 @@ export default function WalletConnect({ onConnected }: Props) {
   const [connectingUuid, setConnectingUuid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // On page load, silently check whether the wallet we connected with last
+  // time is still authorized — no popup, just a background eth_accounts
+  // check. Restores the session across refreshes instead of always dropping
+  // back to the connect screen.
+  useEffect(() => {
+    const lastRdns = localStorage.getItem("flowfi-last-wallet-rdns");
+    if (!lastRdns) return;
+    (async () => {
+      const found = await discoverWallets();
+      const match = found.find((w) => w.info.rdns === lastRdns);
+      if (!match) return;
+      try {
+        const accounts = (await match.provider.request({ method: "eth_accounts", params: undefined })) as string[];
+        if (accounts[0]) onConnected(match.provider, accounts[0], match.info.name);
+      } catch {
+        // Silent check failed — just show the normal connect screen.
+      }
+    })();
+  }, []);
+
   async function startConnect() {
     setError(null);
     setStatus("detecting");
@@ -70,6 +90,7 @@ export default function WalletConnect({ onConnected }: Props) {
       await wallet.provider.request({ method: "eth_requestAccounts", params: undefined });
       const accounts = (await wallet.provider.request({ method: "eth_accounts", params: undefined })) as string[];
       if (!accounts[0]) throw new Error("No account found.");
+      localStorage.setItem("flowfi-last-wallet-rdns", wallet.info.rdns);
       onConnected(wallet.provider, accounts[0], wallet.info.name);
     } catch (e: unknown) {
       const err = e as { message?: string; code?: number };
