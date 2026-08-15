@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowFi — AI-powered Stablecoin Operating System on Arc</title>
+<style>
+  :root {
+    --ink: #111827;
+    --ink-soft: #4B5563;
+    --ink-faint: #9CA3AF;
+    --violet: #6D5EF7;
+    --violet-deep: #5B4FE0;
+    --violet-pale: #F5F3FF;
+    --violet-line: #E5E0FA;
+    --green: #16A34A;
+    --paper: #FCFBFF;
+    --white: #FFFFFF;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(252,251,255,0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--violet-line);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 17px; letter-spacing: -0.02em; }
+  .brand-mark { width: 26px; height: 26px; border-radius: 8px; background: var(--violet); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .nav-links { display: flex; gap: 28px; font-size: 14px; font-weight: 600; color: var(--ink-soft); }
+  .nav-links a:hover { color: var(--violet); }
+  .nav-cta { background: var(--violet); color: #fff; padding: 8px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+
+  @media (max-width: 720px) { .nav-links { display: none; } }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 88px 0 40px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    color: var(--violet-deep); background: var(--violet-pale);
+    border: 1px solid var(--violet-line); border-radius: 999px;
+    padding: 6px 14px; margin-bottom: 22px;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+  h1 {
+    font-size: clamp(38px, 6vw, 68px);
+    font-weight: 800; letter-spacing: -0.03em; line-height: 1.04;
+    max-width: 820px;
+  }
+  h1 .accent { color: var(--violet); }
+
+  .lede {
+    font-size: 19px; color: var(--ink-soft); max-width: 620px;
+    margin: 22px 0 34px; line-height: 1.6;
+  }
+
+  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 56px; }
+  .btn-primary {
+    background: var(--violet); color: #fff; padding: 14px 26px; border-radius: 12px;
+    font-weight: 700; font-size: 15px; text-decoration: none;
+    box-shadow: 0 10px 30px rgba(109,94,247,0.35);
+  }
+  .btn-secondary {
+    background: var(--white); color: var(--ink); padding: 14px 26px; border-radius: 12px;
+    font-weight: 700; font-size: 15px; text-decoration: none; border: 1px solid var(--violet-line);
+  }
+
+  /* ---------- Signature: verification ledger strip ---------- */
+  .ledger {
+    background: var(--ink); border-radius: 18px; overflow: hidden;
+    border: 1px solid #1F2430;
+  }
+  .ledger-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid #262B3A;
+    font-family: var(--mono); font-size: 12px; color: #8892A6;
+  }
+  .ledger-head .live { color: var(--green); display: flex; align-items: center; gap: 6px; }
+  .ledger-head .live .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .ledger-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 20px; font-family: var(--mono); font-size: 13px;
+    border-bottom: 1px solid #1B1F2B; color: #C7CCDA;
+  }
+  .ledger-row:last-child { border-bottom: none; }
+  .ledger-row .name { color: #ffffff; font-weight: 600; }
+  .ledger-row .addr { color: #6B7280; }
+  .ledger-row .status { color: var(--green); display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .ledger-row .status svg { width: 13px; height: 13px; }
+
+  @media (max-width: 640px) {
+    .ledger-row .addr { display: none; }
+  }
+
+  /* ---------- Stats ---------- */
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--violet-line); border: 1px solid var(--violet-line);
+    border-radius: 16px; overflow: hidden; margin: 64px 0;
+  }
+  .stat { background: var(--white); padding: 26px 20px; text-align: center; }
+  .stat .num { font-family: var(--mono); font-size: 30px; font-weight: 700; color: var(--violet); }
+  .stat .label { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
+  @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ---------- Section shell ---------- */
+  section { padding: 64px 0; }
+  .section-head { max-width: 560px; margin-bottom: 40px; }
+  .kicker { font-family: var(--mono); font-size: 12.5px; color: var(--violet-deep); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 10px; }
+  h2 { font-size: clamp(26px, 3.4vw, 36px); font-weight: 800; letter-spacing: -0.02em; }
+  .section-sub { color: var(--ink-soft); font-size: 15.5px; margin-top: 10px; }
+
+  /* ---------- Why different ---------- */
+  .why-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .why-card { background: var(--white); border: 1px solid var(--violet-line); border-radius: 16px; padding: 24px; }
+  .why-card .check { width: 30px; height: 30px; border-radius: 9px; background: var(--violet-pale); color: var(--violet); display: flex; align-items: center; justify-content: center; font-size: 15px; margin-bottom: 14px; }
+  .why-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .why-card p { font-size: 14px; color: var(--ink-soft); line-height: 1.55; }
+  @media (max-width: 860px) { .why-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- Features ---------- */
+  .feature-list { display: flex; flex-direction: column; border-top: 1px solid var(--violet-line); }
+  .feature-row {
+    display: grid; grid-template-columns: 220px 1fr;
+    gap: 24px; padding: 22px 0; border-bottom: 1px solid var(--violet-line);
+    align-items: baseline;
+  }
+  .feature-row .fname { font-weight: 700; font-size: 15.5px; display: flex; align-items: center; gap: 8px; }
+  .tag-exp {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600; color: #B45309;
+    background: #FEF3C7; border-radius: 5px; padding: 2px 7px;
+  }
+  .feature-row .fdesc { font-size: 14.5px; color: var(--ink-soft); line-height: 1.6; }
+  @media (max-width: 700px) { .feature-row { grid-template-columns: 1fr; gap: 6px; } }
+
+  /* ---------- Screenshots ---------- */
+  .shot-scroll {
+    display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
+  }
+  .shot {
+    flex: 0 0 auto; width: 280px; scroll-snap-align: start;
+    border-radius: 14px; overflow: hidden; border: 1px solid var(--violet-line);
+    background: var(--white);
+  }
+  .shot img { width: 100%; height: 190px; object-fit: cover; background: var(--violet-pale); }
+  .shot .cap { padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+
+  /* ---------- Data sources ---------- */
+  .source-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .source-table th { text-align: left; font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); padding: 10px 0; border-bottom: 1px solid var(--violet-line); }
+  .source-table td { padding: 14px 0; border-bottom: 1px solid var(--violet-line); vertical-align: top; }
+  .source-table td.data { font-weight: 700; }
+  .source-table td.note { color: var(--ink-soft); }
+
+  /* ---------- CTA band ---------- */
+  .cta-band {
+    background: linear-gradient(135deg, var(--violet), var(--violet-deep));
+    border-radius: 22px; padding: 56px 40px; text-align: center; color: #fff;
+    margin: 64px 0;
+  }
+  .cta-band h2 { color: #fff; }
+  .cta-band p { color: rgba(255,255,255,0.85); margin: 12px 0 28px; font-size: 15.5px; }
+  .cta-band .btn-primary { background: #fff; color: var(--violet-deep); box-shadow: none; }
+
+  /* ---------- Footer ---------- */
+  footer { border-top: 1px solid var(--violet-line); padding: 40px 0; }
+  footer .wrap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+  footer .fine { font-size: 13px; color: var(--ink-faint); }
+  footer .flinks { display: flex; gap: 22px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); }
+  footer .flinks a:hover { color: var(--violet); }
+
+  code.pill { font-family: var(--mono); background: var(--violet-pale); color: var(--violet-deep); padding: 2px 7px; border-radius: 6px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="brand-mark">✦</span> FlowFi</div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#contracts">Contracts</a>
+      <a href="#sources">Data</a>
+      <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://flowfi.finance" target="_blank" rel="noopener">Launch App</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span> Built natively for Arc — Circle's stablecoin Layer-1</div>
+    <h1>The <span class="accent">stablecoin operating system</span> for the internet.</h1>
+    <p class="lede">Payments, bridging, swaps, lending, and AI-powered market analysis — one address, native USDC, zero wrapped assets. FlowFi runs entirely on real Arc Testnet infrastructure, not a demo shell.</p>
+    <div class="cta-row">
+      <a class="btn-primary" href="https://flowfi.finance" target="_blank" rel="noopener">Launch FlowFi →</a>
+      <a class="btn-secondary" href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener">View source on GitHub</a>
+    </div>
+
+    <!-- Signature element: live verification ledger -->
+    <div class="ledger">
+      <div class="ledger-head">
+        <span>ARC TESTNET · VERIFIED CONTRACTS</span>
+        <span class="live"><span class="dot"></span>LIVE</span>
+      </div>
+      <div class="ledger-row">
+        <span class="name">Swap</span>
+        <span class="addr">0x6eA72BC3...E3e1</span>
+        <span class="status">✓ Verified</span>
+      </div>
+      <div class="ledger-row">
+        <span class="name">Lending</span>
+        <span class="addr">0xD3e0171C...d225ab</span>
+        <span class="status">✓ Verified</span>
+      </div>
+      <div class="ledger-row">
+        <span class="name">Pool Factory</span>
+        <span class="addr">0xE610D2f7...eCDf8</span>
+        <span class="status">✓ Verified</span>
+      </div>
+      <div class="ledger-row">
+        <span class="name">Token Factory</span>
+        <span class="addr">0x481E8919...c85A1</span>
+        <span class="status">✓ Verified</span>
+      </div>
+      <div class="ledger-row">
+        <span class="name">Perpetuals</span>
+        <span class="addr">0x3B4cE173...E4B20</span>
+        <span class="status">✓ Verified <span style="color:#B45309">(Experimental)</span></span>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="num">7</div><div class="label">Verified contracts</div></div>
+      <div class="stat"><div class="num">4</div><div class="label">Supported chains</div></div>
+      <div class="stat"><div class="num">100%</div><div class="label">On-chain execution</div></div>
+      <div class="stat"><div class="num">1</div><div class="label">Address, every chain</div></div>
+    </div>
+  </div>
+</header>
+
+<section id="why">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Why FlowFi</div>
+      <h2>Native stablecoin infrastructure, not a bridge stitched onto it.</h2>
+    </div>
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="check">✓</div>
+        <h3>No wrapped USDC</h3>
+        <p>Every balance is native, on the chain it actually lives on. No synthetic representations, no discount risk.</p>
+      </div>
+      <div class="why-card">
+        <div class="check">✓</div>
+        <h3>Real CCTP V2</h3>
+        <p>Circle's actual burn/attest/mint protocol moves your USDC — not a wrapped bridge token pretending to be one.</p>
+      </div>
+      <div class="why-card">
+        <div class="check">✓</div>
+        <h3>AI that executes, not just chats</h3>
+        <p>Type "swap 10 USDC to EURC" and Copilot parses it into a real, signed on-chain transaction.</p>
+      </div>
+      <div class="why-card">
+        <div class="check">✓</div>
+        <h3>Real market analysis</h3>
+        <p>RSI, EMA, MACD, and support/resistance computed server-side from live data. The AI writes the summary — never the numbers.</p>
+      </div>
+      <div class="why-card">
+        <div class="check">✓</div>
+        <h3>Seedless wallets</h3>
+        <p>Circle Developer-Controlled Wallets — no seed phrase, no browser extension, one address across four chains.</p>
+      </div>
+      <div class="why-card">
+        <div class="check">✓</div>
+        <h3>Built for Arc, not bolted on</h3>
+        <p>USDC is the base layer here, not an afterthought retrofitted onto a general-purpose chain.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">What's inside</div>
+      <h2>Every primitive, one application.</h2>
+    </div>
+    <div class="feature-list">
+      <div class="feature-row">
+        <div class="fname">AI Copilot</div>
+        <div class="fdesc">Type what you want — "swap 10 USDC to EURC", "open a 5x BTC long" — Copilot parses it and executes the on-chain transaction.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">AI Market Analysis</div>
+        <div class="fdesc">Ask "analyze BTC" or "analyze Morpho" for real technical analysis — RSI, EMA, MACD, pivot support/resistance across five timeframes — plus tokenomics and unlock data, all computed from live sources, never invented.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">Smart Swap</div>
+        <div class="fdesc">USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">Bridge (CCTP V2)</div>
+        <div class="fdesc">Genuine cross-chain USDC transfer via Circle's official protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">Perpetuals <span class="tag-exp">EXPERIMENTAL</span></div>
+        <div class="fdesc">Long/short BTC and ETH up to 20x leverage, live PnL and liquidation tracking. Pricing is client-submitted, not oracle-backed — testnet exploration only, not on the mainnet roadmap.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">Lending &amp; Borrowing</div>
+        <div class="fdesc">Supply USDC to earn interest, or post EURC as collateral to borrow — 75% max LTV, liquidation at 85%.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">Liquidity Pools</div>
+        <div class="fdesc">Permissionless AMM — create a pool for any token pair, add or remove liquidity, swap directly against it.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">Token Launch</div>
+        <div class="fdesc">Deploy your own ERC-20 on Arc and pair it with liquidity in one flow.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">Circle Wallet</div>
+        <div class="fdesc">Create a wallet with no seed phrase and no browser extension — one address, works across all four supported chains.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="screenshots">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">See it running</div>
+      <h2>A real interface, not mockups.</h2>
+    </div>
+    <div class="shot-scroll">
+      <div class="shot"><img src="./screenshots/2%20-%20Home.png" alt="FlowFi Home"><div class="cap">Home</div></div>
+      <div class="shot"><img src="./screenshots/5%20-%20Swap.png" alt="FlowFi Swap"><div class="cap">Swap</div></div>
+      <div class="shot"><img src="./screenshots/6%20-%20Bridge.png" alt="FlowFi Bridge"><div class="cap">Bridge</div></div>
+      <div class="shot"><img src="./screenshots/8%20-%20Lending.png" alt="FlowFi Lending"><div class="cap">Lending</div></div>
+      <div class="shot"><img src="./screenshots/3%20-%20Dashboard.png" alt="FlowFi Dashboard"><div class="cap">Dashboard</div></div>
+      <div class="shot"><img src="./screenshots/12%20-%20Circle%20wallet.png" alt="FlowFi Circle Wallet"><div class="cap">Circle Wallet</div></div>
+    </div>
+    <!-- Demo video: replace the src below with the real video link once recorded -->
+    <!--
+    <div style="margin-top:32px; border-radius:16px; overflow:hidden; border:1px solid var(--violet-line);">
+      <iframe width="100%" height="480" src="REPLACE_WITH_VIDEO_URL" frameborder="0" allowfullscreen></iframe>
+    </div>
+    -->
+  </div>
+</section>
+
+<section id="contracts">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Smart contracts</div>
+      <h2>Verified on Arcscan, checkable by anyone.</h2>
+    </div>
+    <table class="source-table">
+      <tr><th>Contract</th><th>Address</th></tr>
+      <tr><td class="data">Swap (fixed-rate USDC/EURC)</td><td><code class="pill">0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1</code></td></tr>
+      <tr><td class="data">Lending</td><td><code class="pill">0xD3e0171CaCd799E49155eE48981841E9a9d225ab</code></td></tr>
+      <tr><td class="data">Perpetuals (Experimental)</td><td><code class="pill">0x3B4cE1734087e1c67474Ff42982063febE3E4B20</code></td></tr>
+      <tr><td class="data">Pool Factory</td><td><code class="pill">0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8</code></td></tr>
+      <tr><td class="data">Token Factory</td><td><code class="pill">0x481E8919f79A4DA6446EA78cEa70037acB9c85A1</code></td></tr>
+      <tr><td class="data">USDC (Arc native)</td><td><code class="pill">0x3600000000000000000000000000000000000000</code></td></tr>
+      <tr><td class="data">EURC</td><td><code class="pill">0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a</code></td></tr>
+    </table>
+    <p style="margin-top:18px; font-size:14px; color:var(--ink-soft);">All contracts verified and viewable on <a href="https://testnet.arcscan.app" target="_blank" rel="noopener" style="color:var(--violet); font-weight:600;">Arcscan →</a></p>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Data sources</div>
+      <h2>Every number comes from somewhere real.</h2>
+      <p class="section-sub">FlowFi's market analysis never uses AI-generated figures. If a data point isn't available from a real source, FlowFi says so rather than guessing.</p>
+    </div>
+    <table class="source-table">
+      <tr><th>Data</th><th>Source</th><th>Notes</th></tr>
+      <tr><td class="data">Price, market cap, volume, supply</td><td>CoinGecko</td><td class="note">Free tier</td></tr>
+      <tr><td class="data">RSI, EMA, MACD, support/resistance</td><td>Computed server-side</td><td class="note">Standard formulas on real historical OHLCV</td></tr>
+      <tr><td class="data">Token unlock / vesting schedules</td><td>DeFiLlama, cross-checked against official docs</td><td class="note">~30 tokens covered, expanding</td></tr>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cta-band">
+      <h2>Built on Arc. Running today.</h2>
+      <p>No mainnet funds, no risk — explore the full stack on Arc Testnet.</p>
+      <a class="btn-primary" href="https://flowfi.finance" target="_blank" rel="noopener">Launch FlowFi →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="fine">FlowFi runs entirely on Arc Testnet. All tokens are test assets with no monetary value.</div>
+    <div class="flinks">
+      <a href="https://flowfi.finance" target="_blank" rel="noopener">App</a>
+      <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://testnet.arcscan.app" target="_blank" rel="noopener">Arcscan</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
