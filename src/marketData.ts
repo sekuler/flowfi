@@ -15,25 +15,36 @@ async function fetchLiveUnlockInfo(coinId: string): Promise<TokenUnlockInfo["unl
     if (!res.ok) return null;
     const data = await res.json();
 
-    // DropsTab's response shape varies by endpoint version — handle the
-    // known variants defensively rather than assuming one exact shape.
-    if (data.date && data.amount) {
+    // Real confirmed shape (2026-08-17): data.allocations[] each optionally
+    // has a tokenUnlockProgress object with nextTokenUnlockDate. Find the
+    // soonest upcoming one across all allocation categories.
+    const allocations: any[] = Array.isArray(data.allocations) ? data.allocations : [];
+    const upcoming = allocations
+      .filter((a) => a.tokenUnlockProgress?.nextTokenUnlockDate)
+      .sort((a, b) => new Date(a.tokenUnlockProgress.nextTokenUnlockDate).getTime() - new Date(b.tokenUnlockProgress.nextTokenUnlockDate).getTime());
+
+    if (upcoming.length > 0) {
+      const next = upcoming[0];
+      const progress = next.tokenUnlockProgress;
+      const lockedAmount = progress.lockedTokensAmount != null ? `${Number(progress.lockedTokensAmount).toLocaleString()} tokens still locked` : "amount unknown";
+      const lockedPct = progress.lockedTokensPercent != null ? `${progress.lockedTokensPercent}% of this allocation still locked` : "";
       return {
         type: "scheduled",
-        date: data.date,
-        amount: `${Number(data.amount).toLocaleString()} tokens${data.coin ? ` (${data.coin})` : ""}`,
-        percentOfCirculating: data.percentage ? `${data.percentage}% of supply` : "unknown",
+        date: progress.nextTokenUnlockDate,
+        amount: `${next.name ?? "allocation"} — ${lockedAmount}`,
+        percentOfCirculating: lockedPct || "unknown",
       };
     }
-    if (Array.isArray(data.unlockSchedule) && data.unlockSchedule.length > 0) {
-      const next = data.unlockSchedule[0];
+
+    // No allocation has a future date tracked — describe overall progress
+    // honestly instead of inventing a schedule.
+    if (typeof data.totalTokensUnlockedPercent === "number") {
       return {
-        type: "scheduled",
-        date: next.date,
-        amount: `${Number(next.amount).toLocaleString()} tokens`,
-        percentOfCirculating: "see DropsTab for full schedule",
+        type: "no_fixed_schedule",
+        note: `${data.totalTokensUnlockedPercent}% of allocated tokens are already unlocked (DropsTab live data). No specific future unlock date is currently tracked for any allocation.`,
       };
     }
+
     return null;
   } catch {
     return null;
