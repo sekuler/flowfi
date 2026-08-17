@@ -9,6 +9,7 @@ import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
 import WalletConnect from "./components/WalletConnect";
 import FeedbackWidget from "./components/FeedbackWidget";
+import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
 import BridgeForm from "./components/BridgeForm";
 import SwapForm from "./components/SwapForm";
 import SendForm from "./components/SendForm";
@@ -169,6 +170,7 @@ function AppInner() {
   useFlowFiFonts();
 
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [tab, setTab] = useState<Tab>("home");
   const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, native: null });
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -223,6 +225,7 @@ function AppInner() {
   setWallet({ provider, address, walletName });
   setTab("home");
   showToast("Wallet connected", "success");
+  if (!hasSeenOnboarding()) setShowOnboarding(true);
 }
 
   async function loadBalances(address: string) {
@@ -680,6 +683,7 @@ function AppInner() {
 
       <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
       <FeedbackWidget />
+      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
     </div>
   );
 }
