@@ -14,6 +14,7 @@ import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
 import { addPoints } from "../gamification";
 import EthBridge from "./EthBridge";
+import ConfirmModal from "./ConfirmModal";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
 import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, BookOpen } from "lucide-react";
 
@@ -249,7 +250,9 @@ export default function BridgeForm({ provider, address }: Props) {
     addPoints(15);
   }
 
-  async function doBridge() {
+  const [showBridgeConfirm, setShowBridgeConfirm] = useState(false);
+
+  function doBridge() {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       setErrorMsg("Enter a valid amount."); return;
     }
@@ -257,6 +260,11 @@ export default function BridgeForm({ provider, address }: Props) {
       setErrorMsg("Source and destination must be different."); return;
     }
     setErrorMsg(null);
+    setShowBridgeConfirm(true);
+  }
+
+  async function executeBridge() {
+    setShowBridgeConfirm(false);
     setBurnTxHash(null);
     setMintTxHash(null);
 
@@ -520,6 +528,20 @@ export default function BridgeForm({ provider, address }: Props) {
               {step === "done" && "Done!"}
               {step === "error" && "Try Again"}
             </button>
+
+            {showBridgeConfirm && (
+              <ConfirmModal
+                title="Confirm Bridge"
+                rows={[
+                  { label: "Amount", value: `${amount} USDC`, highlight: true },
+                  { label: "From", value: sourceKey },
+                  { label: "To", value: destKey },
+                ]}
+                confirmLabel="Confirm Bridge"
+                onConfirm={executeBridge}
+                onCancel={() => setShowBridgeConfirm(false)}
+              />
+            )}
 
             {step === "done" && (
               <button onClick={() => { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setAmount(""); }}

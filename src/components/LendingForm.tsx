@@ -3,6 +3,20 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
+import ConfirmModal from "./ConfirmModal";
+
+// Turns raw viem/wallet errors into a short, human message instead of dumping
+// the full technical error (calldata, docs links, etc.) in front of the user.
+function friendlyError(e: unknown): string {
+  const err = e as { message?: string; code?: number; shortMessage?: string };
+  if (err.code === 4001 || err.message?.includes("User rejected")) {
+    return "You rejected the request in your wallet. No funds were moved — try again when you're ready.";
+  }
+  if (err.message?.includes("insufficient funds") || err.message?.includes("exceeds balance")) {
+    return "Insufficient balance to cover this amount plus gas.";
+  }
+  return err.shortMessage ?? err.message ?? "Transaction failed. Please try again.";
+}
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
@@ -93,7 +107,45 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  async function doSupply() {
+  const [pendingAction, setPendingAction] = useState<"supply" | "withdraw" | "deposit" | "borrow" | "repay" | null>(null);
+
+  function doSupply() {
+    if (!supplyAmount || Number(supplyAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
+    setErrorMsg(null);
+    setPendingAction("supply");
+  }
+  function doWithdraw() {
+    if (!withdrawAmount || Number(withdrawAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
+    setErrorMsg(null);
+    setPendingAction("withdraw");
+  }
+  function doDepositCollateral() {
+    if (!collateralAmount || Number(collateralAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
+    setErrorMsg(null);
+    setPendingAction("deposit");
+  }
+  function doBorrow() {
+    if (!borrowAmount || Number(borrowAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
+    setErrorMsg(null);
+    setPendingAction("borrow");
+  }
+  function doRepay() {
+    if (!repayAmount || Number(repayAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
+    setErrorMsg(null);
+    setPendingAction("repay");
+  }
+
+  async function confirmPendingAction() {
+    const action = pendingAction;
+    setPendingAction(null);
+    if (action === "supply") await executeSupply();
+    else if (action === "withdraw") await executeWithdraw();
+    else if (action === "deposit") await executeDepositCollateral();
+    else if (action === "borrow") await executeBorrow();
+    else if (action === "repay") await executeRepay();
+  }
+
+  async function executeSupply() {
     if (!supplyAmount || Number(supplyAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
     setErrorMsg(null);
     try {
@@ -114,12 +166,11 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
       showToast("Supplied to lending pool", "success");
       await loadData(); onRefresh();
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setErrorMsg(err.message ?? "Failed to supply."); setState("error");
+      setErrorMsg(friendlyError(e)); setState("error");
     }
   }
 
-  async function doWithdraw() {
+  async function executeWithdraw() {
     if (!withdrawAmount || Number(withdrawAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
     setErrorMsg(null);
     try {
@@ -140,12 +191,11 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
       showToast("Withdrawn from lending pool", "success");
       await loadData(); onRefresh();
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setErrorMsg(err.message ?? "Failed to withdraw."); setState("error");
+      setErrorMsg(friendlyError(e)); setState("error");
     }
   }
 
-  async function doDepositCollateral() {
+  async function executeDepositCollateral() {
     if (!collateralAmount || Number(collateralAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
     setErrorMsg(null);
     try {
@@ -166,12 +216,11 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
       showToast("Collateral deposited", "success");
       await loadData(); onRefresh();
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setErrorMsg(err.message ?? "Failed to deposit collateral."); setState("error");
+      setErrorMsg(friendlyError(e)); setState("error");
     }
   }
 
-  async function doBorrow() {
+  async function executeBorrow() {
     if (!borrowAmount || Number(borrowAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
     setErrorMsg(null);
     try {
@@ -188,12 +237,11 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
       showToast("Borrowed successfully", "success");
       await loadData(); onRefresh();
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setErrorMsg(err.message ?? "Failed to borrow."); setState("error");
+      setErrorMsg(friendlyError(e)); setState("error");
     }
   }
 
-  async function doRepay() {
+  async function executeRepay() {
     if (!repayAmount || Number(repayAmount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
     setErrorMsg(null);
     try {
@@ -214,8 +262,7 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
       showToast("Repaid successfully", "success");
       await loadData(); onRefresh();
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setErrorMsg(err.message ?? "Failed to repay."); setState("error");
+      setErrorMsg(friendlyError(e)); setState("error");
     }
   }
 
@@ -365,6 +412,36 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
       )}
 
       {errorMsg && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
+
+      {pendingAction && (
+        <ConfirmModal
+          title={
+            pendingAction === "supply" ? "Confirm Supply" :
+            pendingAction === "withdraw" ? "Confirm Withdraw" :
+            pendingAction === "deposit" ? "Confirm Deposit Collateral" :
+            pendingAction === "borrow" ? "Confirm Borrow" : "Confirm Repay"
+          }
+          rows={[
+            {
+              label: "Amount",
+              value:
+                pendingAction === "supply" ? `${supplyAmount} USDC` :
+                pendingAction === "withdraw" ? `${withdrawAmount} USDC` :
+                pendingAction === "deposit" ? `${collateralAmount} EURC` :
+                pendingAction === "borrow" ? `${borrowAmount} USDC` : `${repayAmount} USDC`,
+              highlight: true,
+            },
+          ]}
+          confirmLabel={
+            pendingAction === "supply" ? "Confirm Supply" :
+            pendingAction === "withdraw" ? "Confirm Withdraw" :
+            pendingAction === "deposit" ? "Confirm Deposit" :
+            pendingAction === "borrow" ? "Confirm Borrow" : "Confirm Repay"
+          }
+          onConfirm={confirmPendingAction}
+          onCancel={() => setPendingAction(null)}
+        />
+      )}
     </div>
   );
 }

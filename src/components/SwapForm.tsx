@@ -1,5 +1,6 @@
 ﻿import SwapAdvisor from "./SwapAdvisor";
 import AdminRate from "./AdminRate";
+import ConfirmModal from "./ConfirmModal";
 import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
@@ -263,9 +264,16 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
     setAmount("");
     setEstimatedOut("0.00");
   }
+  const [showSwapConfirm, setShowSwapConfirm] = useState(false);
 
-  async function doSwap() {
+  function doSwap() {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setErrorMsg("Enter a valid amount."); return; }
+    setErrorMsg(null);
+    setShowSwapConfirm(true);
+  }
+
+  async function executeSwap() {
+    setShowSwapConfirm(false);
     setErrorMsg(null); setTxHash(null);
     const amountIn = parseUnits(amount, 6);
     const tokenAddress = tokenIn === "USDC" ? USDC_ADDRESS : EURC_ADDRESS;
@@ -567,6 +575,20 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               {swapState === "done" && "Done!"}
               {swapState === "error" && "Try again"}
             </button>
+
+            {showSwapConfirm && (
+              <ConfirmModal
+                title="Confirm Swap"
+                rows={[
+                  { label: "You pay", value: `${amount} ${tokenIn}`, highlight: true },
+                  { label: "You receive (est.)", value: `${useLegacyRoute && legacyOut ? legacyOut : estimatedOut} ${tokenIn === "USDC" ? "EURC" : "USDC"}` },
+                  { label: "Route", value: useLegacyRoute ? "Pool V2" : "Fixed-Rate Pool" },
+                ]}
+                confirmLabel="Confirm Swap"
+                onConfirm={executeSwap}
+                onCancel={() => setShowSwapConfirm(false)}
+              />
+            )}
 
             {swapState === "done" && (
               <button onClick={() => { setSwapState("idle"); setTxHash(null); }}
