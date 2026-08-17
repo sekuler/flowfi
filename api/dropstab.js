@@ -32,14 +32,12 @@ async function getOverviewList(apiKey) {
   if (overviewCache && Date.now() - overviewCache.timestamp < CACHE_TTL_MS) {
     return overviewCache.data;
   }
-  // The response shape ({content, ...}) matches a typical paginated API —
-  // request a large page size explicitly rather than relying on a default
-  // that turned out to be only 10 items.
-  const response = await fetch("https://public-api.dropstab.com/api/v1/tokenUnlocks?size=500", {
+  const response = await fetch("https://public-api.dropstab.com/api/v1/tokenUnlocks", {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
   if (!response.ok) {
-    throw new Error(`DropsTab overview returned ${response.status}`);
+    const bodyText = await response.text().catch(() => "(could not read body)");
+    throw new Error(`DropsTab overview returned ${response.status}: ${bodyText}`);
   }
   const data = await response.json();
   overviewCache = { data, timestamp: Date.now() };
