@@ -194,15 +194,9 @@ export default function AiCopilot({ provider, address, balances, onRefresh, onNa
   }, [address]);
 
   async function parseCommand(text: string): Promise<ParsedAction> {
-    const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/claude", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 400,
@@ -255,15 +249,9 @@ Respond with ONLY the JSON object.`,
     const marketAnswer = await getFormattedMarketAnalysis(text);
     if (marketAnswer) return marketAnswer;
 
-    const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/claude", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 250,
