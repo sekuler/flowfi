@@ -5,6 +5,7 @@ export default function FeedbackWidget() {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [lastError, setLastError] = useState("");
 
   async function submit() {
     if (!message.trim() || sending) return;
@@ -15,12 +16,18 @@ export default function FeedbackWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, page: window.location.pathname }),
       });
-      if (!res.ok) throw new Error("Failed to send");
+      if (!res.ok) {
+        const body = await res.text().catch(() => "(no body)");
+        throw new Error(`HTTP ${res.status}: ${body}`);
+      }
       showToast("Thanks! Your feedback was sent.", "success");
       setMessage("");
+      setLastError("");
       setOpen(false);
-    } catch {
-      showToast("Couldn't send feedback — please try again.", "error");
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      setLastError(detail);
+      showToast(`Feedback failed: ${detail}`, "error");
     } finally {
       setSending(false);
     }
@@ -41,6 +48,11 @@ export default function FeedbackWidget() {
             rows={4}
             style={{ resize: "none", border: "1px solid #E5E0FA", borderRadius: 10, padding: "0.6rem", fontSize: 12.5, color: "#111827", outline: "none", fontFamily: "inherit" }}
           />
+          {lastError && (
+            <div style={{ fontSize: 10.5, color: "#DC2626", background: "rgba(239,68,68,0.08)", borderRadius: 8, padding: "0.5rem", wordBreak: "break-word" }}>
+              {lastError}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={submit} disabled={sending || !message.trim()}
               style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: sending || !message.trim() ? "not-allowed" : "pointer", opacity: sending || !message.trim() ? 0.5 : 1 }}>
