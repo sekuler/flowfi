@@ -4,7 +4,41 @@
 // for a short interpretive paragraph — it must not restate numbers that are
 // already shown deterministically above it.
 
-import { getTokenUnlockInfo } from "./tokenUnlocks";
+import { getTokenUnlockInfo, type TokenUnlockInfo } from "./tokenUnlocks";
+
+// Tries DropsTab's real, live unlock API first (any token they track, not
+// just our curated list). Falls back to null on any failure — 404 (token
+// not tracked by DropsTab) is expected and normal, not an error to surface.
+async function fetchLiveUnlockInfo(coinId: string): Promise<TokenUnlockInfo["unlockStatus"] | null> {
+  try {
+    const res = await fetch(`/api/dropstab?coinSlug=${encodeURIComponent(coinId)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    // DropsTab's response shape varies by endpoint version — handle the
+    // known variants defensively rather than assuming one exact shape.
+    if (data.date && data.amount) {
+      return {
+        type: "scheduled",
+        date: data.date,
+        amount: `${Number(data.amount).toLocaleString()} tokens${data.coin ? ` (${data.coin})` : ""}`,
+        percentOfCirculating: data.percentage ? `${data.percentage}% of supply` : "unknown",
+      };
+    }
+    if (Array.isArray(data.unlockSchedule) && data.unlockSchedule.length > 0) {
+      const next = data.unlockSchedule[0];
+      return {
+        type: "scheduled",
+        date: next.date,
+        amount: `${Number(next.amount).toLocaleString()} tokens`,
+        percentOfCirculating: "see DropsTab for full schedule",
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 function fmt(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
@@ -178,12 +212,15 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
 
   out += `\nTokenomics\n${fmt(data.supply?.circulating)} circulating · ${data.supply?.max ? fmt(data.supply.max) + " max supply" : "uncapped supply"}\n`;
 
+  const liveUnlock = await fetchLiveUnlockInfo(coinId);
   const curated = getTokenUnlockInfo(coinId);
-  if (curated) {
-    if (curated.unlockStatus.type === "scheduled") {
-      out += `\nToken Vesting & Unlocks\nUpcoming: ${curated.unlockStatus.date}\n${curated.unlockStatus.amount} · ${curated.unlockStatus.percentOfCirculating}\n`;
-    } else if (curated.unlockStatus.type === "no_fixed_schedule") {
-      out += `\nToken Vesting & Unlocks\nOngoing linear vesting (no single cliff date) — ${curated.unlockStatus.note}\n`;
+  const unlockStatus = liveUnlock ?? curated?.unlockStatus;
+  if (unlockStatus) {
+    const sourceNote = liveUnlock ? "live via DropsTab" : "manually curated";
+    if (unlockStatus.type === "scheduled") {
+      out += `\nToken Vesting & Unlocks (${sourceNote})\nUpcoming: ${unlockStatus.date}\n${unlockStatus.amount} · ${unlockStatus.percentOfCirculating}\n`;
+    } else if (unlockStatus.type === "no_fixed_schedule") {
+      out += `\nToken Vesting & Unlocks (${sourceNote})\nOngoing linear vesting (no single cliff date) — ${unlockStatus.note}\n`;
     }
   }
 
@@ -247,12 +284,15 @@ async function formatStablecoinAnalysis(data: any, question: string): Promise<st
 
   out += `\nSupply\n${fmt(data.supply?.circulating)} circulating · ${data.supply?.max ? fmt(data.supply.max) + " max supply" : "uncapped supply"}\n`;
 
+  const liveUnlock2 = await fetchLiveUnlockInfo(data.coinId);
   const curated = getTokenUnlockInfo(data.coinId);
-  if (curated) {
-    if (curated.unlockStatus.type === "scheduled") {
-      out += `\nToken Vesting & Unlocks\nUpcoming: ${curated.unlockStatus.date}\n${curated.unlockStatus.amount} · ${curated.unlockStatus.percentOfCirculating}\n`;
-    } else if (curated.unlockStatus.type === "no_fixed_schedule") {
-      out += `\nToken Vesting & Unlocks\nOngoing linear vesting (no single cliff date) — ${curated.unlockStatus.note}\n`;
+  const unlockStatus2 = liveUnlock2 ?? curated?.unlockStatus;
+  if (unlockStatus2) {
+    const sourceNote = liveUnlock2 ? "live via DropsTab" : "manually curated";
+    if (unlockStatus2.type === "scheduled") {
+      out += `\nToken Vesting & Unlocks (${sourceNote})\nUpcoming: ${unlockStatus2.date}\n${unlockStatus2.amount} · ${unlockStatus2.percentOfCirculating}\n`;
+    } else if (unlockStatus2.type === "no_fixed_schedule") {
+      out += `\nToken Vesting & Unlocks (${sourceNote})\nOngoing linear vesting (no single cliff date) — ${unlockStatus2.note}\n`;
     }
   }
 
