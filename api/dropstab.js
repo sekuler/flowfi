@@ -6,28 +6,26 @@
 // Confirmed facts (2026-08-17, via direct testing):
 // - Our Builders Program "Advanced" access does NOT include the per-token
 //   endpoint (/tokenUnlocks/{coinSlug} → 403).
-// - The general overview endpoint (/tokenUnlocks) DOES work, but is
-//   paginated at exactly 10 items per page, with up to ~101 pages total.
-//   A ?size= override was tried and rejected (400) — page size is fixed.
-// - Real shape: { status, failure, failureDetails, data: { content: [...] } }
-//   Each item: { coinSlug, coinSymbol, allocations: [{ name,
+// - The general overview endpoint (/tokenUnlocks) works, paginated at 10
+//   items/page, up to ~101 pages total. ?size= override is rejected (400).
+// - Real shape: { status, failure, failureDetails, data: { content: [...],
+//   totalPages } }. Each item: { coinSlug, coinSymbol, allocations: [{ name,
 //   tokenUnlockProgress: { nextTokenUnlockDate, lockedTokensAmount,
 //   lockedTokensPercent, ... } | null }], totalTokensUnlockedPercent, ... }
+// - Vercel serverless functions do NOT reliably share in-memory state
+//   between invocations (different requests can land on different warm
+//   instances) — a "search one page at a time, remember where we left off"
+//   approach silently resets and fails intermittently. Confirmed by a
+//   direct test succeeding, then the same coin failing from within the app
+//   moments later (fresh instance, cache empty, only got through page 24
+//   before hitting the per-request page cap).
 //
-// Strategy: keep a single accumulating in-memory cache of every page we've
-// ever fetched (across all requests, while this instance stays warm). When
-// a coin isn't in the cache yet, fetch pages one at a time (page=0,1,2...)
-// adding each to the cache, until we find a match or exhaust all pages.
-// This means the FIRST lookup of an unseen coin may need several calls,
-// but every subsequent lookup — of that coin or any coin already seen —
-// is instant from cache. Capped at 25 pages per single request so one
-// unlucky lookup can't hang forever; the coin simply isn't found this time
-// and a later request continues past where this one stopped.
+// Fix: fetch pages in PARALLEL batches within a single request instead of
+// one at a time. This covers all ~101 pages in a few seconds instead of
+// timing out — no reliance on state surviving between invocations.
 
-const MAX_PAGES_PER_REQUEST = 25;
-const coinCache = new Map(); // coinSlug|coinSymbol (lowercase) -> item
-let highestPageFetched = -1;
-let totalPagesKnown = null;
+const BATCH_SIZE = 20; // concurrent requests per batch
+const MAX_PAGES = 101; // covers the full known range
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
@@ -42,39 +40,51 @@ function isRateLimited(ip) {
 }
 
 async function fetchPage(apiKey, page) {
-  const response = await fetch(`https://public-api.dropstab.com/api/v1/tokenUnlocks?page=${page}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (!response.ok) {
-    const bodyText = await response.text().catch(() => "(could not read body)");
-    throw new Error(`DropsTab page ${page} returned ${response.status}: ${bodyText}`);
+  try {
+    const response = await fetch(`https://public-api.dropstab.com/api/v1/tokenUnlocks?page=${page}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!response.ok) return { items: [], totalPages: null };
+    const raw = await response.json();
+    const content = raw?.data?.content;
+    return {
+      items: Array.isArray(content) ? content : [],
+      totalPages: typeof raw?.data?.totalPages === "number" ? raw.data.totalPages : null,
+    };
+  } catch {
+    return { items: [], totalPages: null };
   }
-  const raw = await response.json();
-  const content = raw?.data?.content;
-  const items = Array.isArray(content) ? content : [];
-  if (typeof raw?.data?.totalPages === "number") totalPagesKnown = raw.data.totalPages;
-  for (const item of items) {
-    if (item.coinSlug) coinCache.set(String(item.coinSlug).toLowerCase(), item);
-    if (item.coinSymbol) coinCache.set(String(item.coinSymbol).toLowerCase(), item);
-  }
-  return items;
 }
 
-async function findCoin(apiKey, coinSlug) {
-  const needle = coinSlug.toLowerCase();
-  if (coinCache.has(needle)) return coinCache.get(needle);
+function findInItems(items, needle) {
+  return items.find((item) => {
+    const slug = item.coinSlug ? String(item.coinSlug).toLowerCase() : null;
+    const symbol = item.coinSymbol ? String(item.coinSymbol).toLowerCase() : null;
+    return slug === needle || symbol === needle;
+  });
+}
 
-  let pagesFetchedThisRequest = 0;
-  let page = highestPageFetched + 1;
-  while (pagesFetchedThisRequest < MAX_PAGES_PER_REQUEST) {
-    if (totalPagesKnown !== null && page >= totalPagesKnown) break;
-    await fetchPage(apiKey, page);
-    highestPageFetched = Math.max(highestPageFetched, page);
-    pagesFetchedThisRequest++;
-    if (coinCache.has(needle)) return coinCache.get(needle);
-    page++;
+async function findCoinAcrossAllPages(apiKey, coinSlug) {
+  const needle = coinSlug.toLowerCase();
+
+  // First page tells us the real totalPages so we don't over-fetch.
+  const first = await fetchPage(apiKey, 0);
+  const match0 = findInItems(first.items, needle);
+  if (match0) return match0;
+
+  const totalPages = Math.min(first.totalPages ?? MAX_PAGES, MAX_PAGES);
+  if (totalPages <= 1) return null;
+
+  for (let start = 1; start < totalPages; start += BATCH_SIZE) {
+    const batchPages = [];
+    for (let p = start; p < Math.min(start + BATCH_SIZE, totalPages); p++) batchPages.push(p);
+    const results = await Promise.all(batchPages.map((p) => fetchPage(apiKey, p)));
+    for (const r of results) {
+      const found = findInItems(r.items, needle);
+      if (found) return found;
+    }
   }
-  return null; // Not found within pages fetched so far — try again shortly, more pages will be cached.
+  return null;
 }
 
 module.exports = async function handler(req, res) {
@@ -98,15 +108,12 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const match = await findCoin(apiKey, coinSlug);
+    const match = await findCoinAcrossAllPages(apiKey, coinSlug);
     if (!match) {
-      return res.status(404).json({
-        error: `${coinSlug} not found in DropsTab's tracked unlock list (checked pages 0-${highestPageFetched} of ${totalPagesKnown ?? "?"})`,
-      });
+      return res.status(404).json({ error: `${coinSlug} not found in DropsTab's tracked unlock list` });
     }
     return res.status(200).json(match);
   } catch (err) {
     return res.status(500).json({ error: err.message || "Internal error" });
   }
 };
-

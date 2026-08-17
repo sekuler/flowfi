@@ -231,7 +231,6 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
   out += `\nTokenomics\n${fmt(data.supply?.circulating)} circulating · ${data.supply?.max ? fmt(data.supply.max) + " max supply" : "uncapped supply"}\n`;
 
   const liveUnlock = await fetchLiveUnlockInfo(coinId);
-  out += `\n[DEBUG: resolved coinId="${coinId}", liveUnlock found=${liveUnlock !== null}, detail=${lastUnlockDebugInfo}]\n`;
   const curated = getTokenUnlockInfo(coinId);
   const unlockStatus = liveUnlock ?? curated?.unlockStatus;
   if (unlockStatus) {
