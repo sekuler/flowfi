@@ -8,6 +8,7 @@ import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
 import WalletConnect from "./components/WalletConnect";
+import FeedbackWidget from "./components/FeedbackWidget";
 import BridgeForm from "./components/BridgeForm";
 import SwapForm from "./components/SwapForm";
 import SendForm from "./components/SendForm";
@@ -678,6 +679,7 @@ function AppInner() {
       </main>
 
       <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
+      <FeedbackWidget />
     </div>
   );
 }
