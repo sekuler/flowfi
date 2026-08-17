@@ -43,25 +43,20 @@ async function getOverviewList(apiKey) {
   return data;
 }
 
-// The overview endpoint's exact shape isn't fully documented — handle a
-// few plausible array locations rather than assuming one.
+// Confirmed real shape (2026-08-17): the array lives at data.content, and
+// each item uses coinSlug / coinSymbol as its identifiers.
 function extractList(raw) {
+  if (Array.isArray(raw?.data?.content)) return raw.data.content;
   if (Array.isArray(raw)) return raw;
   if (Array.isArray(raw?.data)) return raw.data;
-  if (Array.isArray(raw?.tokens)) return raw.tokens;
-  if (Array.isArray(raw?.results)) return raw.results;
   return [];
 }
 
-// Matches loosely on coin name, symbol, or slug — we don't know DropsTab's
-// exact field names for certain, so we check several plausible ones.
 function findMatch(list, coinSlug) {
   const needle = coinSlug.toLowerCase();
   return list.find((item) => {
-    const candidates = [item.coin, item.slug, item.symbol, item.name, item.token]
-      .filter(Boolean)
-      .map((s) => String(s).toLowerCase());
-    return candidates.some((c) => c === needle || c.replace(/\s+/g, "-") === needle);
+    const candidates = [item.coinSlug, item.coinSymbol].filter(Boolean).map((s) => String(s).toLowerCase());
+    return candidates.includes(needle);
   });
 }
 
@@ -82,27 +77,6 @@ module.exports = async function handler(req, res) {
 
   const coinSlug = req.query.coinSlug;
 
-  // Temporary debug mode — returns DropsTab's raw response shape unmodified
-  // so we can see exactly what field names it uses, instead of guessing.
-  // Remove this once the real shape is confirmed and matching works.
-  if (req.query.debug === "raw") {
-    try {
-      const raw = await getOverviewList(apiKey);
-      const list = extractList(raw);
-      return res.status(200).json({
-        status: raw?.status,
-        failure: raw?.failure,
-        failureDetails: raw?.failureDetails,
-        dataType: Array.isArray(raw?.data) ? "array" : typeof raw?.data,
-        dataValue: raw?.data,
-        rawTopLevelKeys: raw && typeof raw === "object" ? Object.keys(raw) : typeof raw,
-        extractedListLength: list.length,
-        firstThreeItems: list.slice(0, 3),
-      });
-    } catch (err) {
-      return res.status(500).json({ error: err.message || "Internal error" });
-    }
-  }
   if (!coinSlug) {
     return res.status(400).json({ error: "Missing coinSlug query parameter" });
   }
