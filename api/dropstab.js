@@ -90,6 +90,11 @@ module.exports = async function handler(req, res) {
       const raw = await getOverviewList(apiKey);
       const list = extractList(raw);
       return res.status(200).json({
+        status: raw?.status,
+        failure: raw?.failure,
+        failureDetails: raw?.failureDetails,
+        dataType: Array.isArray(raw?.data) ? "array" : typeof raw?.data,
+        dataValue: raw?.data,
         rawTopLevelKeys: raw && typeof raw === "object" ? Object.keys(raw) : typeof raw,
         extractedListLength: list.length,
         firstThreeItems: list.slice(0, 3),
