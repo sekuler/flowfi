@@ -81,6 +81,23 @@ module.exports = async function handler(req, res) {
   }
 
   const coinSlug = req.query.coinSlug;
+
+  // Temporary debug mode — returns DropsTab's raw response shape unmodified
+  // so we can see exactly what field names it uses, instead of guessing.
+  // Remove this once the real shape is confirmed and matching works.
+  if (req.query.debug === "raw") {
+    try {
+      const raw = await getOverviewList(apiKey);
+      const list = extractList(raw);
+      return res.status(200).json({
+        rawTopLevelKeys: raw && typeof raw === "object" ? Object.keys(raw) : typeof raw,
+        extractedListLength: list.length,
+        firstThreeItems: list.slice(0, 3),
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message || "Internal error" });
+    }
+  }
   if (!coinSlug) {
     return res.status(400).json({ error: "Missing coinSlug query parameter" });
   }
