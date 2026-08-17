@@ -77,6 +77,23 @@ module.exports = async function handler(req, res) {
 
   const coinSlug = req.query.coinSlug;
 
+  // Temporary search mode — finds entries whose slug/symbol CONTAINS the
+  // query, to discover DropsTab's real slug when it doesn't match
+  // CoinGecko's id exactly. Remove once we've mapped the tokens we need.
+  if (req.query.debug === "search") {
+    try {
+      const raw = await getOverviewList(apiKey);
+      const list = extractList(raw);
+      const needle = coinSlug.toLowerCase();
+      const matches = list
+        .filter((item) => (item.coinSlug ?? "").toLowerCase().includes(needle) || (item.coinSymbol ?? "").toLowerCase().includes(needle))
+        .map((item) => ({ coinSlug: item.coinSlug, coinSymbol: item.coinSymbol }));
+      return res.status(200).json({ listLength: list.length, matches });
+    } catch (err) {
+      return res.status(500).json({ error: err.message || "Internal error" });
+    }
+  }
+
   if (!coinSlug) {
     return res.status(400).json({ error: "Missing coinSlug query parameter" });
   }
