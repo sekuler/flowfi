@@ -9,11 +9,18 @@ import { getTokenUnlockInfo, type TokenUnlockInfo } from "./tokenUnlocks";
 // Tries DropsTab's real, live unlock API first (any token they track, not
 // just our curated list). Falls back to null on any failure — 404 (token
 // not tracked by DropsTab) is expected and normal, not an error to surface.
+let lastUnlockDebugInfo = "";
+
 async function fetchLiveUnlockInfo(coinId: string): Promise<TokenUnlockInfo["unlockStatus"] | null> {
   try {
     const res = await fetch(`/api/dropstab?coinSlug=${encodeURIComponent(coinId)}`);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      lastUnlockDebugInfo = `HTTP ${res.status} — ${errBody}`;
+      return null;
+    }
     const data = await res.json();
+    lastUnlockDebugInfo = `HTTP 200, allocations count=${Array.isArray(data.allocations) ? data.allocations.length : "N/A"}`;
 
     // Real confirmed shape (2026-08-17): data.allocations[] each optionally
     // has a tokenUnlockProgress object with nextTokenUnlockDate. Find the
@@ -224,6 +231,7 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
   out += `\nTokenomics\n${fmt(data.supply?.circulating)} circulating · ${data.supply?.max ? fmt(data.supply.max) + " max supply" : "uncapped supply"}\n`;
 
   const liveUnlock = await fetchLiveUnlockInfo(coinId);
+  out += `\n[DEBUG: resolved coinId="${coinId}", liveUnlock found=${liveUnlock !== null}, detail=${lastUnlockDebugInfo}]\n`;
   const curated = getTokenUnlockInfo(coinId);
   const unlockStatus = liveUnlock ?? curated?.unlockStatus;
   if (unlockStatus) {
