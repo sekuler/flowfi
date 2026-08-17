@@ -162,15 +162,9 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
     setAiError(null);
     setAiFilled(false);
     try {
-      const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 200,

@@ -38,15 +38,9 @@ function trendDot(structure: string | undefined): string {
 
 async function extractCoinQuery(question: string): Promise<string | null> {
   try {
-    const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/claude", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 20,
@@ -79,15 +73,9 @@ async function resolveCoinId(question: string): Promise<string | null> {
 // numbers (those are already shown above it, so repeating them is banned).
 async function getAiInsight(data: any, question: string): Promise<string> {
   try {
-    const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/claude", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 150,
@@ -214,15 +202,9 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
 // showing them without real data would mean fabricating.
 async function getStablecoinInsight(data: any, question: string): Promise<string> {
   try {
-    const apiKey = (import.meta as any).env.VITE_ANTHROPIC_KEY;
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/claude", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 150,
