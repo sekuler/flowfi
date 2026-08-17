@@ -1,18 +1,20 @@
 // api/dropstab.js
 //
 // Proxy for DropsTab's token unlock API. The real key lives ONLY here as a
-// server-side env var (DROPSTAB_API_KEY, no VITE_ prefix). Frontend calls
-// GET /api/dropstab?coinSlug=aptos and gets DropsTab's real unlock schedule
-// back — replacing the manually-curated tokenUnlocks.ts list with live data
-// for any token DropsTab tracks.
+// server-side env var (DROPSTAB_API_KEY, no VITE_ prefix).
 //
-// Cached 10 minutes per coin (unlock schedules change slowly) to conserve
-// the free-tier Builders Program quota — this key is time-limited (3
-// months) and shared across all FlowFi users, so we're deliberately
-// conservative with call volume.
+// Our Builders Program access is the "Advanced" plan, which does NOT
+// include the per-token detail endpoint (/tokenUnlocks/{coinSlug} returns
+// 403). What IS included is the general overview endpoint (/tokenUnlocks),
+// which returns unlock data for many tracked tokens in one call. So instead
+// of querying per-coin, we fetch that full list ONCE, cache it, and search
+// within it for whatever coin the frontend asks about.
+//
+// The full list is cached for 30 minutes (unlock schedules move slowly, and
+// this keeps us well within the free-tier Builders Program quota).
 
-const CACHE_TTL_MS = 10 * 60 * 1000;
-const cache = new Map(); // coinSlug -> { data, timestamp }
+const CACHE_TTL_MS = 30 * 60 * 1000;
+let overviewCache = null; // { data, timestamp }
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
@@ -24,6 +26,43 @@ function isRateLimited(ip) {
   timestamps.push(now);
   requestLog.set(ip, timestamps);
   return timestamps.length > RATE_LIMIT_MAX_REQUESTS;
+}
+
+async function getOverviewList(apiKey) {
+  if (overviewCache && Date.now() - overviewCache.timestamp < CACHE_TTL_MS) {
+    return overviewCache.data;
+  }
+  const response = await fetch("https://public-api.dropstab.com/api/v1/tokenUnlocks", {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!response.ok) {
+    throw new Error(`DropsTab overview returned ${response.status}`);
+  }
+  const data = await response.json();
+  overviewCache = { data, timestamp: Date.now() };
+  return data;
+}
+
+// The overview endpoint's exact shape isn't fully documented — handle a
+// few plausible array locations rather than assuming one.
+function extractList(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.data)) return raw.data;
+  if (Array.isArray(raw?.tokens)) return raw.tokens;
+  if (Array.isArray(raw?.results)) return raw.results;
+  return [];
+}
+
+// Matches loosely on coin name, symbol, or slug — we don't know DropsTab's
+// exact field names for certain, so we check several plausible ones.
+function findMatch(list, coinSlug) {
+  const needle = coinSlug.toLowerCase();
+  return list.find((item) => {
+    const candidates = [item.coin, item.slug, item.symbol, item.name, item.token]
+      .filter(Boolean)
+      .map((s) => String(s).toLowerCase());
+    return candidates.some((c) => c === needle || c.replace(/\s+/g, "-") === needle);
+  });
 }
 
 module.exports = async function handler(req, res) {
@@ -46,25 +85,14 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: "Missing coinSlug query parameter" });
   }
 
-  const cached = cache.get(coinSlug);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return res.status(200).json({ ...cached.data, cached: true });
-  }
-
   try {
-    const response = await fetch(`https://public-api.dropstab.com/api/v1/tokenUnlocks/${coinSlug}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-
-    if (!response.ok) {
-      // Not every token is tracked by DropsTab — a 404 here is expected and
-      // normal, not a real error. Let the caller fall back gracefully.
-      return res.status(response.status).json({ error: `DropsTab returned ${response.status} for ${coinSlug}` });
+    const raw = await getOverviewList(apiKey);
+    const list = extractList(raw);
+    const match = findMatch(list, coinSlug);
+    if (!match) {
+      return res.status(404).json({ error: `${coinSlug} not found in DropsTab's tracked unlock list` });
     }
-
-    const data = await response.json();
-    cache.set(coinSlug, { data, timestamp: Date.now() });
-    return res.status(200).json({ ...data, cached: false });
+    return res.status(200).json(match);
   } catch (err) {
     return res.status(500).json({ error: err.message || "Internal error" });
   }
