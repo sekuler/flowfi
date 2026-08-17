@@ -32,7 +32,10 @@ async function getOverviewList(apiKey) {
   if (overviewCache && Date.now() - overviewCache.timestamp < CACHE_TTL_MS) {
     return overviewCache.data;
   }
-  const response = await fetch("https://public-api.dropstab.com/api/v1/tokenUnlocks", {
+  // The response shape ({content, ...}) matches a typical paginated API —
+  // request a large page size explicitly rather than relying on a default
+  // that turned out to be only 10 items.
+  const response = await fetch("https://public-api.dropstab.com/api/v1/tokenUnlocks?size=500", {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
   if (!response.ok) {
@@ -88,7 +91,12 @@ module.exports = async function handler(req, res) {
       const matches = list
         .filter((item) => (item.coinSlug ?? "").toLowerCase().includes(needle) || (item.coinSymbol ?? "").toLowerCase().includes(needle))
         .map((item) => ({ coinSlug: item.coinSlug, coinSymbol: item.coinSymbol }));
-      return res.status(200).json({ listLength: list.length, matches });
+      return res.status(200).json({
+        listLength: list.length,
+        totalElementsField: raw?.data?.totalElements ?? raw?.totalElements ?? "not found",
+        totalPagesField: raw?.data?.totalPages ?? raw?.totalPages ?? "not found",
+        matches,
+      });
     } catch (err) {
       return res.status(500).json({ error: err.message || "Internal error" });
     }
