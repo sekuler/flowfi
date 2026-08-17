@@ -1,18 +1,20 @@
 // api/feedback.js
 //
-// Sends in-app feedback straight to a Discord channel via webhook. The
-// webhook URL lives ONLY here as a server-side env var (DISCORD_WEBHOOK_URL,
-// no VITE_ prefix) — a webhook URL is effectively a secret (anyone with it
-// could post to the channel), so it must never reach the browser.
+// Sends in-app feedback straight to a Telegram chat via the Bot API. Both
+// the bot token and chat id live ONLY here as server-side env vars
+// (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, no VITE_ prefix) — the bot token
+// is a secret (anyone with it could send messages as the bot), so it must
+// never reach the browser.
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-  if (!webhookUrl) {
-    return res.status(500).json({ error: "Server misconfigured: DISCORD_WEBHOOK_URL not set" });
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!botToken || !chatId) {
+    return res.status(500).json({ error: "Server misconfigured: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set" });
   }
 
   const { message, page } = req.body ?? {};
@@ -21,15 +23,15 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(webhookUrl, {
+    const text = `📝 New FlowFi Feedback${page ? ` (from: ${page})` : ""}\n${message.trim().slice(0, 3800)}`;
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: `📝 **New FlowFi Feedback**${page ? ` (from: ${page})` : ""}\n${message.trim().slice(0, 1800)}`,
-      }),
+      body: JSON.stringify({ chat_id: chatId, text }),
     });
     if (!response.ok) {
-      return res.status(502).json({ error: `Discord webhook returned ${response.status}` });
+      const body = await response.text().catch(() => "");
+      return res.status(502).json({ error: `Telegram returned ${response.status}: ${body}` });
     }
     return res.status(200).json({ ok: true });
   } catch (err) {
