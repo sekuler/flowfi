@@ -9,18 +9,12 @@ import { getTokenUnlockInfo, type TokenUnlockInfo } from "./tokenUnlocks";
 // Tries DropsTab's real, live unlock API first (any token they track, not
 // just our curated list). Falls back to null on any failure — 404 (token
 // not tracked by DropsTab) is expected and normal, not an error to surface.
-let lastUnlockDebugInfo = "";
 
 async function fetchLiveUnlockInfo(coinId: string): Promise<TokenUnlockInfo["unlockStatus"] | null> {
   try {
     const res = await fetch(`/api/dropstab?coinSlug=${encodeURIComponent(coinId)}`);
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "(no body)");
-      lastUnlockDebugInfo = `HTTP ${res.status} — ${errBody}`;
-      return null;
-    }
+    if (!res.ok) return null;
     const data = await res.json();
-    lastUnlockDebugInfo = `HTTP 200, allocations count=${Array.isArray(data.allocations) ? data.allocations.length : "N/A"}`;
 
     // Real confirmed shape (2026-08-17): data.allocations[] each optionally
     // has a tokenUnlockProgress object with nextTokenUnlockDate. Find the
