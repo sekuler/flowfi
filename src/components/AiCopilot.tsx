@@ -460,6 +460,7 @@ Respond with ONLY the JSON object.`,
                         ))}
                       </div>
                     )}
+                    {m.action.summary && <p style={{ fontSize: 12.5, fontWeight: 700, color: "#111827", margin: "0 0 6px 0" }}>{m.action.summary}</p>}
                     {m.action.reasoning && <p style={{ fontSize: 11, color: "#4B5563", margin: "0 0 8px 0" }}>{m.action.reasoning}</p>}
                     <button onClick={() => executeAction(m.action!, i)} disabled={executing}
                       style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: executing ? "not-allowed" : "pointer", opacity: executing ? 0.6 : 1 }}>
