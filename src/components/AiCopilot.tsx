@@ -290,8 +290,9 @@ Respond with ONLY the JSON object.`,
         const summary = action.summary && action.summary.trim() ? action.summary : fallbackSummary;
         setMessages((prev) => [...prev, { role: "assistant", content: summary, action }]);
       }
-    } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "I couldn't understand that. Try something like \"swap 10 USDC to EURC\" or \"open a 5x BTC long with 20 USDC\"." }]);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      setMessages((prev) => [...prev, { role: "assistant", content: `DEBUG ERROR: ${detail}` }]);
     } finally {
       setLoading(false);
     }
