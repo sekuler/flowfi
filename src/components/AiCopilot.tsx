@@ -233,6 +233,9 @@ Respond with ONLY the JSON object.`,
       }),
     });
     const data = await response.json();
+    if (!data.content) {
+      throw new Error(data.error || "No response from AI — you may be rate limited, try again in a moment.");
+    }
     const raw = data.content?.[0]?.text ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
     return JSON.parse(cleaned);
