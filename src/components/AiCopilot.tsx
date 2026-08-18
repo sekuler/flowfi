@@ -275,16 +275,17 @@ Respond with ONLY the JSON object.`,
         const answer = await answerGeneralQuestion(text);
         setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
       } else {
+        const normalizedType = (action.action ?? "").toString().trim().toLowerCase();
         const fallbackSummary =
-          action.action === "swap" ? `Swap ${action.amount ?? "?"} ${action.fromToken ?? ""} to ${action.toToken ?? ""}` :
-          action.action === "send" ? `Send ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.recipient ?? "recipient"}` :
-          action.action === "bridge" ? `Bridge ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.destinationChain ?? "destination"}` :
-          action.action === "perp_open" ? `Open a ${action.leverage ?? ""}x ${action.isLong ? "long" : "short"} on ${action.market ?? "market"} with ${action.amount ?? "?"} USDC` :
-          action.action === "create_pool" ? `Create a pool for ${action.tokenA ?? "?"} / ${action.tokenB ?? "?"}` :
-          action.action === "strategy" ? "Suggested allocation strategy" :
-          "Confirm this action";
+          normalizedType === "swap" ? `Swap ${action.amount ?? "?"} ${action.fromToken ?? ""} to ${action.toToken ?? ""}` :
+          normalizedType === "send" ? `Send ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.recipient ?? "recipient"}` :
+          normalizedType === "bridge" ? `Bridge ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.destinationChain ?? "destination"}` :
+          normalizedType === "perp_open" ? `Open a ${action.leverage ?? ""}x ${action.isLong ? "long" : "short"} on ${action.market ?? "market"} with ${action.amount ?? "?"} USDC` :
+          normalizedType === "create_pool" ? `Create a pool for ${action.tokenA ?? "?"} / ${action.tokenB ?? "?"}` :
+          normalizedType === "strategy" ? "Suggested allocation strategy" :
+          `Confirm this action (type: "${action.action}")`;
         const summary = action.summary && action.summary.trim() ? action.summary : fallbackSummary;
-        setMessages((prev) => [...prev, { role: "assistant", content: summary, action: { ...action, summary } }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: summary, action }]);
       }
     } catch {
       setMessages((prev) => [...prev, { role: "assistant", content: "I couldn't understand that. Try something like \"swap 10 USDC to EURC\" or \"open a 5x BTC long with 20 USDC\"." }]);
@@ -469,7 +470,6 @@ Respond with ONLY the JSON object.`,
                         ))}
                       </div>
                     )}
-                    {m.action.summary && <p style={{ fontSize: 12.5, fontWeight: 700, color: "#111827", margin: "0 0 6px 0" }}>{m.action.summary}</p>}
                     {m.action.reasoning && <p style={{ fontSize: 11, color: "#4B5563", margin: "0 0 8px 0" }}>{m.action.reasoning}</p>}                    <button onClick={() => executeAction(m.action!, i)} disabled={executing}
                       style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: executing ? "not-allowed" : "pointer", opacity: executing ? 0.6 : 1 }}>
                       {executing ? "Executing..." : m.action.action === "strategy" ? "Execute Strategy" : "Confirm"}
