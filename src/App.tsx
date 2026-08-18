@@ -171,6 +171,14 @@ function AppInner() {
 
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 860);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    function onResize() { setIsMobile(window.innerWidth <= 860); }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const [tab, setTab] = useState<Tab>("home");
   const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, native: null });
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -347,6 +355,12 @@ function AppInner() {
         -moz-appearance: textfield;
       }
       input::placeholder { color: #9CA3AF; }
+      @media (max-width: 1400px) {
+        body { zoom: 0.85; }
+      }
+      @media (max-width: 1024px) {
+        body { zoom: 1; }
+      }
       @keyframes flowfi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
       @keyframes flowfi-skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
@@ -444,7 +458,16 @@ function AppInner() {
       {sharedStyle}
       <PastelBackground />
       <ToastContainer />
-      <aside style={{ width: 220, minHeight: "100vh", background: "rgba(255,255,255,0.75)", backdropFilter: "blur(24px)", boxShadow: "1px 0 0 rgba(109,94,247,0.08)", display: "flex", flexDirection: "column", padding: "1.5rem 0", position: "fixed", top: 0, left: 0, zIndex: 2 }}>
+      {isMobile && mobileMenuOpen && (
+        <div onClick={() => setMobileMenuOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.4)", zIndex: 3 }} />
+      )}
+      <aside style={{
+        width: 220, minHeight: "100vh", background: "rgba(255,255,255,0.98)", backdropFilter: "blur(24px)",
+        boxShadow: isMobile ? "0 0 32px rgba(17,24,39,0.2)" : "1px 0 0 rgba(109,94,247,0.08)",
+        display: "flex", flexDirection: "column", padding: "1.5rem 0",
+        position: "fixed", top: 0, left: isMobile && !mobileMenuOpen ? -240 : 0, zIndex: 4,
+        transition: "left 0.2s ease",
+      }}>
         <div style={{ padding: "0 1.25rem 1rem", marginBottom: "0.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 11, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(109,94,247,0.35)" }}>◈</div>
@@ -461,7 +484,7 @@ function AppInner() {
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 return (
-                  <button key={id} onClick={() => setTab(id)}
+                  <button key={id} onClick={() => { setTab(id); if (isMobile) setMobileMenuOpen(false); }}
                     style={{
                       width: "100%", padding: "0.45rem 1rem", borderRadius: 999, border: "none",
                       background: active ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
@@ -516,9 +539,21 @@ function AppInner() {
         </div>
       </aside>
 
-      <main style={{ marginLeft: 220, flex: 1, minHeight: "100vh", position: "relative", zIndex: 1 }}>
+      <main style={{ marginLeft: isMobile ? 0 : 220, flex: 1, minHeight: "100vh", position: "relative", zIndex: 1 }}>
+        {isMobile && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1rem", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 3, boxShadow: "0 1px 0 rgba(109,94,247,0.08)" }}>
+            <button onClick={() => setMobileMenuOpen(true)} style={{ background: "none", border: "none", fontSize: 20, color: "#6D5EF7", cursor: "pointer", padding: "4px 8px" }}>
+              ☰
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 26, height: 26, borderRadius: 8, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff" }}>◈</div>
+              <span className="flowfi-display" style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>FlowFi</span>
+            </div>
+            <div style={{ width: 32 }} />
+          </div>
+        )}
         <MarketTicker />
-        <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: "1.25rem 2.5rem" }}>
+        <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: isMobile ? "0.85rem 1rem" : "1.25rem 2.5rem" }}>
           <NotificationCenter />
           <button disabled title="Coming soon"
             style={{ position: "relative", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#6D5EF7" }}>
@@ -541,7 +576,7 @@ function AppInner() {
           </button>
         </header>
 
-        <div style={{ padding: "2.5rem" }}>
+        <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
           <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "home" || tab === "bridge" ? 1200 : tab === "perps" || tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
