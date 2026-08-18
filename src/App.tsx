@@ -358,8 +358,6 @@ function AppInner() {
             html, body { overflow-x: hidden; max-width: 100vw; }
       #root { overflow-x: hidden; max-width: 100vw; }
 
-      @keyframes flowfi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-      .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
       @keyframes flowfi-skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
       .flowfi-skeleton { display: inline-block; background: rgba(139,92,246,0.1); border-radius: 4px; animation: flowfi-skeleton-pulse 1.4s ease-in-out infinite; }
       @keyframes flowfi-drift-a { 0% { transform: translate(0%, 0%) scale(1); } 50% { transform: translate(6%, 8%) scale(1.1); } 100% { transform: translate(0%, 0%) scale(1); } }
@@ -577,7 +575,6 @@ function AppInner() {
         </header>
 
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
-          <div style={{ background: "red", color: "white", padding: 20, fontWeight: 800 }}>TEST — bunu görüyorsan içerik render oluyor demektir</div>
           <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "home" || tab === "bridge" ? 1200 : tab === "perps" || tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
