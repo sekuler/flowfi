@@ -355,6 +355,8 @@ function AppInner() {
         -moz-appearance: textfield;
       }
       input::placeholder { color: #9CA3AF; }
+            html, body { overflow-x: hidden; max-width: 100vw; }
+      #root { overflow-x: hidden; max-width: 100vw; }
       @media (max-width: 1400px) {
         body { zoom: 0.85; }
       }
