@@ -15,6 +15,7 @@ import { showToast } from "../toast";
 import { addPoints } from "../gamification";
 import EthBridge from "./EthBridge";
 import ConfirmModal from "./ConfirmModal";
+import { useIsMobile } from "../useIsMobile";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
 import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, BookOpen } from "lucide-react";
 
@@ -119,6 +120,7 @@ const HOW_IT_WORKS = [
 ];
 
 export default function BridgeForm({ provider, address }: Props) {
+  const isMobile = useIsMobile();
   const [bridgeType, setBridgeType] = useState<"usdc" | "eth">("usdc");
   const [sourceKey, setSourceKey] = useState<ChainKey>("Ethereum Sepolia");
   const [destKey, setDestKey] = useState<ChainKey>("Arc Testnet");
@@ -463,7 +465,7 @@ export default function BridgeForm({ provider, address }: Props) {
               <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>Estimated — native USDC, no wrapped tokens</div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8 }}>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 2 }}>Est. time</div>
                 <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>~20 sec</div>
@@ -593,7 +595,7 @@ export default function BridgeForm({ provider, address }: Props) {
 
             <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Supported assets</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 10 }}>
                 {[
                   { symbol: "USDC", name: "USD Coin", logo: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
                   { symbol: "EURC", name: "Euro Coin", logo: "https://assets.coingecko.com/coins/images/26045/small/euro.png" },
@@ -618,7 +620,7 @@ export default function BridgeForm({ provider, address }: Props) {
       )}
 
       {bridgeType === "usdc" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "1rem", background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <ShieldCheck size={18} color="#6D5EF7" />

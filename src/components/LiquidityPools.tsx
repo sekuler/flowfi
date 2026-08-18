@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits, parseAbiItem } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
+import { useIsMobile } from "../useIsMobile";
 
 const FACTORY_CONTRACT = "0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8" as `0x${string}`;
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
@@ -103,6 +104,7 @@ async function resolveTokenSymbol(addr: string, client: ReturnType<typeof create
 }
 
 export default function LiquidityPools({ provider, address, onRefresh }: Props) {
+  const isMobile = useIsMobile();
   const [pools, setPools] = useState<PoolInfo[]>([]);
   const [loadingPools, setLoadingPools] = useState(true);
   const [expandedPool, setExpandedPool] = useState<string | null>(null);
@@ -584,7 +586,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
 
       {expanded && (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", paddingLeft: 4 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 6 }}>
             <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.6rem 0.5rem", textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#334155", fontWeight: 700, marginBottom: 3 }}>TVL</div>
               <div style={{ fontSize: 12, color: "#111827", fontWeight: 700 }}>{loading ? "..." : metrics.tvl !== null ? `$${metrics.tvl.toFixed(2)}` : "—"}</div>

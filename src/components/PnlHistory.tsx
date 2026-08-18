@@ -1,3 +1,5 @@
+import { useIsMobile } from "../useIsMobile";
+
 interface ClosedTrade {
   id: number;
   market: string;
@@ -11,6 +13,7 @@ interface Props {
 }
 
 export default function PnlHistory({ trades }: Props) {
+  const isMobile = useIsMobile();
   if (trades.length === 0) {
     return (
       <div style={{ fontSize: 12, color: "#6B7280", textAlign: "center", padding: "1.5rem" }}>
@@ -45,24 +48,24 @@ export default function PnlHistory({ trades }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 12, padding: "0.7rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 12, padding: "0.7rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 10, color: "#6B7280", marginBottom: 3 }}>CUMULATIVE PNL</div>
           <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 800, color: finalPnl >= 0 ? "#16A34A" : "#DC2626" }}>
             {finalPnl >= 0 ? "+" : ""}${finalPnl.toFixed(2)}
           </div>
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 12, padding: "0.7rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 12, padding: "0.7rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 10, color: "#6B7280", marginBottom: 3 }}>WIN RATE</div>
           <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{winRate}%</div>
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 12, padding: "0.7rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 12, padding: "0.7rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 10, color: "#6B7280", marginBottom: 3 }}>CLOSED TRADES</div>
           <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{trades.length}</div>
         </div>
       </div>
 
-      <div style={{ background: "#ffffff", border: "1px solid #E8E3FF", borderRadius: 16, padding: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 8 }}>PNL OVER TIME</div>
         <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: 100, overflow: "visible" }} preserveAspectRatio="none">
           <line x1="0" y1={height - ((0 - min) / range) * height} x2={width} y2={height - ((0 - min) / range) * height}

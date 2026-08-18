@@ -4,6 +4,7 @@ import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUn
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
 import ConfirmModal from "./ConfirmModal";
+import { useIsMobile } from "../useIsMobile";
 
 // Turns raw viem/wallet errors into a short, human message instead of dumping
 // the full technical error (calldata, docs links, etc.) in front of the user.
@@ -58,6 +59,7 @@ async function switchToArc(provider: EIP1193Provider) {
 }
 
 export default function LendingForm({ provider, address, balances, onRefresh }: Props) {
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState<"supply" | "borrow">("supply");
   const [supplyAmount, setSupplyAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -276,7 +278,7 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8 }}>
         <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.8rem" }}>
           <div style={{ fontSize: 9, color: "#4B5563", fontWeight: 700, marginBottom: 4 }}>TOTAL SUPPLIED</div>
           <div style={{ fontSize: 15, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>${marketInfo?.supplied ?? "..."}</div>

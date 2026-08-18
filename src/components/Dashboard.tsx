@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import EmptyState from "./EmptyState";
+import { useIsMobile } from "../useIsMobile";
 
 interface Props {
   address: string;
@@ -73,6 +74,7 @@ function loadWeekSnapshot(address: string): { weekStart: string; value: number }
 }
 
 export default function Dashboard({ address, balances, onNavigate }: Props) {
+  const isMobile = useIsMobile();
   const [txCount, setTxCount] = useState<number | null>(null);
   const [incomingCount, setIncomingCount] = useState(0);
   const [outgoingCount, setOutgoingCount] = useState(0);
@@ -259,7 +261,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       </div>
 
       {/* Quick actions */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 10 }}>
         {quickActions.map((a) => (
           <button key={a.key} onClick={() => onNavigate(a.key)}
             style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1.1rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
@@ -321,7 +323,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
       )}
 
       {/* Activity stats row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "0.75rem" }}>
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#16A34A" }}>{loading ? "..." : incomingCount}</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>Incoming (recent)</div>

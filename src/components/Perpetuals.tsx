@@ -7,6 +7,7 @@ import PnlHistory from "./PnlHistory";
 import { getLimitOrders, addLimitOrder, removeLimitOrder, isOrderTriggered, type LimitOrder } from "../limitOrders";
 import { showToast } from "../toast";
 import { addPoints } from "../gamification";
+import { useIsMobile } from "../useIsMobile";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
@@ -84,6 +85,7 @@ function liquidationPrice(p: Position): number {
 
 
 export default function Perpetuals({ provider, address }: Props) {
+  const isMobile = useIsMobile();
   const [market, setMarket] = useState<"BTC" | "ETH">("BTC");
   const [prices, setPrices] = useState<{ BTC: number | null; ETH: number | null }>({ BTC: null, ETH: null });
   const [priceChange, setPriceChange] = useState<{ BTC: number | null; ETH: number | null }>({ BTC: null, ETH: null });
@@ -283,7 +285,7 @@ export default function Perpetuals({ provider, address }: Props) {
           Testnet demo only — prices are submitted client-side, not from a decentralized oracle (Stork/Pyth not yet integrated). Not accurate, not for real funds, and not part of the current mainnet roadmap.
         </p>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: "0.75rem" }}>
         <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.9rem 1rem" }}>
           <div style={{ fontSize: 10, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>{market} PRICE</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{currentPrice ? `$${fmtPrice(currentPrice)}` : "..."}</div>
@@ -304,7 +306,7 @@ export default function Perpetuals({ provider, address }: Props) {
           <div style={{ fontSize: 11, color: "#374151", marginTop: 2 }}>Your active trades</div>
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)", gap: "1rem", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.4fr) minmax(0, 1fr)", gap: "1rem", alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <div style={{ display: "flex", gap: 8 }}>
             {(["BTC", "ETH"] as const).map((m) => (

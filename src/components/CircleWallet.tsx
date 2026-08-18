@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 import { getCircleWallet, saveCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "../circleWalletHelpers";
+import { useIsMobile } from "../useIsMobile";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF" as `0x${string}`;
 
 export default function CircleWallet() {
+  const isMobile = useIsMobile();
   const [wallet, setWallet] = useState<CircleWalletInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +152,7 @@ export default function CircleWallet() {
             </p>
             {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
             <button onClick={createWallet} disabled={loading}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
               {loading ? "Creating wallet..." : "Create Circle Wallet"}
             </button>
             <button onClick={loadPastWallets} disabled={loadingPast}
@@ -209,7 +211,7 @@ export default function CircleWallet() {
               <p style={{ fontSize: 12, color: "#4B5563", margin: 0, textAlign: "center" }}>Saved in this browser — same address on every supported chain.</p>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8 }}>
               <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem", textAlign: "center" }}>
                 <div style={{ fontSize: 10, color: "#5B21B6", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 4 }}>USDC</div>
                 <div style={{ fontSize: 16, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
