@@ -238,9 +238,46 @@ module.exports = async function handler(req, res) {
       cached: false,
     };
 
+    // Generate the AI insight ONCE here, server-side, so it gets cached
+    // alongside the raw numbers — repeat requests for this coin within the
+    // cache window reuse it instead of triggering a new Claude call each
+    // time. Tradeoff: the insight's language matches whichever request
+    // first triggered this cache miss, not each individual asker.
+    result.insight = await generateInsight(result);
+
     cache.set(coinId, { data: result, timestamp: Date.now() });
     return res.status(200).json(result);
   } catch (err) {
     return res.status(500).json({ error: err.message || "Internal error" });
   }
 };
+
+async function generateInsight(data) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return "";
+  try {
+    const isStablecoin = data.assetType === "stablecoin";
+    const system = isStablecoin
+      ? `You write ONLY a MAXIMUM 300-character, maximum-2-sentence note about a stablecoin-like asset's price stability. This is NOT a volatile crypto asset — do not use bullish/bearish trading language, do not discuss support/resistance breakouts, do not discuss "momentum" the way you would for BTC. Preserve timeframe labels EXACTLY as given (1H, 4H, 1D, 1W) — never translate them. Base everything strictly on the supplied data — if all timeframes show similar stability, say so plainly. Do not claim to know yield/APY, redemption mechanism, or backing assets — you don't have that data. Never recommend buying, selling, or holding. Output ONLY the sentence(s), no headers, no markdown.\n\nData:\n${JSON.stringify(data)}`
+      : `You write ONLY a "multi-timeframe insight" for a crypto analysis card.\n\nTHREE NON-NEGOTIABLE RULES: (1) Never contradict a given trend/structure value — if it says "uptrend", don't call it weak. (2) Never conflate RSI level with trend/structure — independent numbers. (3) Only use a technical term when its exact numeric condition is genuinely met.\n\nHard limits: maximum 300 characters, maximum 2 sentences. Never end mid-sentence. Do NOT restate price, percentage changes, or specific EMA/MACD values (shown elsewhere). Preserve timeframe labels EXACTLY (1H, 4H, 1D, 1W, 1M) — never translate. If ALL timeframes share the same structure, say so explicitly rather than inventing contrast. Never infer weakness from neutral RSI (40-60). Do NOT use "divergence"/"uyumsuzluk" unless literally describing an RSI-vs-price divergence pattern. Never recommend buying, selling, or holding, never predict what will happen next. Output ONLY the sentence(s), no headers, no markdown.\n\nData:\n${JSON.stringify(data)}`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 150,
+        system,
+        messages: [{ role: "user", content: `Analyze ${data.name}` }],
+      }),
+    });
+    const json = await response.json();
+    const raw = json.content?.[0]?.text?.trim() ?? "";
+    if (raw.length <= 320) return raw;
+    const truncated = raw.slice(0, 320);
+    const cut = Math.max(truncated.lastIndexOf(". "), truncated.lastIndexOf(".\n"));
+    return cut > 50 ? truncated.slice(0, cut + 1) : truncated;
+  } catch {
+    return "";
+  }
+}
