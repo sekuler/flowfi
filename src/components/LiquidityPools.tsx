@@ -104,7 +104,6 @@ async function resolveTokenSymbol(addr: string, client: ReturnType<typeof create
 }
 
 export default function LiquidityPools({ provider, address, onRefresh }: Props) {
-  const isMobile = useIsMobile();
   const [pools, setPools] = useState<PoolInfo[]>([]);
   const [loadingPools, setLoadingPools] = useState(true);
   const [expandedPool, setExpandedPool] = useState<string | null>(null);
@@ -368,6 +367,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
   pool: PoolInfo; provider: EIP1193Provider; address: string;
   expanded: boolean; onToggle: () => void; onRefresh: () => void;
 }) {
+  const isMobile = useIsMobile();
   const [mode, setMode] = useState<"swap" | "add" | "remove">("swap");
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");

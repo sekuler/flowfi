@@ -9,18 +9,13 @@ import { getTokenUnlockInfo, type TokenUnlockInfo } from "./tokenUnlocks";
 // Tries DropsTab's real, live unlock API first (any token they track, not
 // just our curated list). Falls back to null on any failure — 404 (token
 // not tracked by DropsTab) is expected and normal, not an error to surface.
-let lastUnlockDebugInfo = "";
-
 async function fetchLiveUnlockInfo(coinId: string): Promise<TokenUnlockInfo["unlockStatus"] | null> {
   try {
     const res = await fetch(`/api/dropstab?coinSlug=${encodeURIComponent(coinId)}`);
     if (!res.ok) {
-      const errBody = await res.text().catch(() => "(no body)");
-      lastUnlockDebugInfo = `HTTP ${res.status} — ${errBody}`;
       return null;
     }
     const data = await res.json();
-    lastUnlockDebugInfo = `HTTP 200, allocations count=${Array.isArray(data.allocations) ? data.allocations.length : "N/A"}`;
 
     // Real confirmed shape (2026-08-17): data.allocations[] each optionally
     // has a tokenUnlockProgress object with nextTokenUnlockDate. Find the
@@ -137,7 +132,7 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
   }
 
   if (data.assetType === "stablecoin") {
-    return formatStablecoinAnalysis(data, question);
+    return formatStablecoinAnalysis(data);
   }
 
   let out = `${data.name} · ${data.symbol}\n`;
@@ -205,7 +200,7 @@ export async function getFormattedMarketAnalysis(question: string): Promise<stri
 // We deliberately do NOT claim to know APY, yield source, or redemption
 // mechanics — we have no reliable data source for those per-token, and
 // showing them without real data would mean fabricating.
-async function formatStablecoinAnalysis(data: any, question: string): Promise<string> {
+async function formatStablecoinAnalysis(data: any): Promise<string> {
   let out = `${data.name} · ${data.symbol} (stable-value asset)\n`;
   out += `$${fmt(data.price)}\n`;
   out += `${pct(data.change?.h24)} 24H · ${pct(data.change?.d7)} 7D · ${pct(data.change?.d30)} 30D\n\n`;
