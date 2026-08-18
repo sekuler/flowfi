@@ -458,6 +458,9 @@ function AppInner() {
       {sharedStyle}
       <PastelBackground />
       <ToastContainer />
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, background: "#facc15", color: "#000", fontSize: 11, fontWeight: 800, textAlign: "center", padding: "4px", zIndex: 9999 }}>
+        DEBUG: isMobile={String(isMobile)} · mobileMenuOpen={String(mobileMenuOpen)} · innerWidth={typeof window !== "undefined" ? window.innerWidth : "?"}
+      </div>
       {isMobile && mobileMenuOpen && (
         <div onClick={() => setMobileMenuOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.4)", zIndex: 3 }} />
       )}
