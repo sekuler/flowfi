@@ -344,7 +344,15 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
   const isLoading = swapState === "approving" || swapState === "swapping";
 
+  const [showDCAConfirm, setShowDCAConfirm] = useState(false);
+
+  function doDCANow() {
+    if (!dcaPlan || runningDCA) return;
+    setShowDCAConfirm(true);
+  }
+
   async function executeDCANow() {
+    setShowDCAConfirm(false);
     if (!dcaPlan || runningDCA) return;
     setRunningDCA(true);
     try {
@@ -590,6 +598,19 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               />
             )}
 
+            {showDCAConfirm && dcaPlan && (
+              <ConfirmModal
+                title="Confirm DCA Buy"
+                rows={[
+                  { label: "Amount", value: `${dcaPlan.amount} USDC`, highlight: true },
+                  { label: "Buying", value: "EURC" },
+                ]}
+                confirmLabel="Confirm Buy"
+                onConfirm={executeDCANow}
+                onCancel={() => setShowDCAConfirm(false)}
+              />
+            )}
+
             {swapState === "done" && (
               <button onClick={() => { setSwapState("idle"); setTxHash(null); }}
                 style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#4B5563", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
@@ -641,7 +662,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                   {dcaPlan.lastExecuted && ` · last: ${new Date(dcaPlan.lastExecuted).toLocaleDateString()}`}
                 </div>
                 {isDCADue(dcaPlan) && (
-                  <button onClick={executeDCANow} disabled={runningDCA}
+                  <button onClick={doDCANow} disabled={runningDCA}
                     style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: runningDCA ? "not-allowed" : "pointer", opacity: runningDCA ? 0.6 : 1 }}>
                     {runningDCA ? "Buying..." : "Run DCA Now"}
                   </button>
