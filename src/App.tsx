@@ -357,12 +357,7 @@ function AppInner() {
       input::placeholder { color: #9CA3AF; }
             html, body { overflow-x: hidden; max-width: 100vw; }
       #root { overflow-x: hidden; max-width: 100vw; }
-      @media (max-width: 1400px) {
-        body { zoom: 0.85; }
-      }
-      @media (max-width: 1024px) {
-        body { zoom: 1; }
-      }
+
       @keyframes flowfi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
       @keyframes flowfi-skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
