@@ -232,10 +232,11 @@ Respond with ONLY the JSON object.`,
         messages: [{ role: "user", content: text }],
       }),
     });
-    const data = await response.json();
+        const data = await response.json();
     if (!data.content) {
-      throw new Error(data.error || "No response from AI — you may be rate limited, try again in a moment.");
+      throw new Error(`RAW RESPONSE: ${JSON.stringify(data)}`);
     }
+    
     const raw = data.content?.[0]?.text ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
     return JSON.parse(cleaned);
@@ -291,7 +292,7 @@ Respond with ONLY the JSON object.`,
         setMessages((prev) => [...prev, { role: "assistant", content: summary, action }]);
       }
     } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
+      const detail = err instanceof Error ? err.message : JSON.stringify(err, null, 2);
       setMessages((prev) => [...prev, { role: "assistant", content: `DEBUG ERROR: ${detail}` }]);
     } finally {
       setLoading(false);
