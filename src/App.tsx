@@ -576,6 +576,7 @@ function AppInner() {
 
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
           <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "home" || tab === "bridge" ? 1200 : tab === "perps" || tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
+                        <div style={{ background: "blue", color: "white", padding: 20, fontWeight: 800 }}>TEST2 — div'in içindeyim</div>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
                 {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
