@@ -257,7 +257,7 @@ Respond with ONLY the JSON object.`,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+                model: "claude-haiku-4-5",
         max_tokens: 250,
         system: `You are FlowFi Copilot. The user's message isn't a transaction command and isn't about a specific coin — answer briefly and factually. Never recommend buying, selling, or holding anything. Always respond in the same language the user wrote in.`,
         messages: [{ role: "user", content: text }],

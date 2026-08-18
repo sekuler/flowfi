@@ -88,7 +88,7 @@ async function extractCoinQuery(question: string): Promise<string | null> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+                model: "claude-haiku-4-5",
         max_tokens: 20,
         system: "The user's message may be in any language and may mention a cryptocurrency (by name or ticker, e.g. 'BTC', 'dogecoin', 'ETH'). Respond with ONLY the coin's common English name or ticker, nothing else, no punctuation, no explanation. If no specific coin is mentioned, respond with exactly: NONE",
         messages: [{ role: "user", content: question }],
@@ -123,7 +123,7 @@ async function getAiInsight(data: any, question: string): Promise<string> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+              model: "claude-haiku-4-5",
         max_tokens: 150,
         system: `You write ONLY a "multi-timeframe insight" for a crypto analysis card.
 
@@ -255,7 +255,7 @@ async function getStablecoinInsight(data: any, question: string): Promise<string
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+                model: "claude-haiku-4-5",
         max_tokens: 150,
         system: `You write ONLY a MAXIMUM 300-character, maximum-2-sentence note about a stablecoin-like asset's price stability.
 
