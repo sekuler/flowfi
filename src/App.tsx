@@ -355,12 +355,7 @@ function AppInner() {
         -moz-appearance: textfield;
       }
       input::placeholder { color: #9CA3AF; }
-      @media (max-width: 1400px) {
-        body { zoom: 0.85; }
-      }
-      @media (max-width: 1024px) {
-        body { zoom: 1; }
-      }
+      html, body, #root { overflow-x: hidden; max-width: 100vw; }
       @keyframes flowfi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
       @keyframes flowfi-skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
@@ -458,9 +453,6 @@ function AppInner() {
       {sharedStyle}
       <PastelBackground />
       <ToastContainer />
-      <div style={{ position: "fixed", top: 0, left: 0, right: 0, background: "#facc15", color: "#000", fontSize: 11, fontWeight: 800, textAlign: "center", padding: "4px", zIndex: 9999 }}>
-        DEBUG: isMobile={String(isMobile)} · mobileMenuOpen={String(mobileMenuOpen)} · innerWidth={typeof window !== "undefined" ? window.innerWidth : "?"}
-      </div>
       {isMobile && mobileMenuOpen && (
         <div onClick={() => setMobileMenuOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.4)", zIndex: 3 }} />
       )}
@@ -580,7 +572,7 @@ function AppInner() {
         </header>
 
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
-          <div key={tab} className="flowfi-page" style={{ position: "relative", zIndex: 1, maxWidth: tab === "home" || tab === "bridge" ? 1200 : tab === "perps" || tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520, margin: "0 auto" }}>
+          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "perps" || tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
                 {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "perps" ? "Perpetuals" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
