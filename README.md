@@ -172,6 +172,18 @@ The app runs on Arc Testnet by default — no mainnet funds are ever involved. G
 
 ---
 
+## Known Limitations
+
+FlowFi's contracts have been through a manual security review (not a professional third-party audit) — several deliberate design trade-offs came out of that review, documented here rather than hidden:
+
+- **ArcSwap and ArcLending price the USDC/EURC pair without an oracle.** ArcSwap's exchange rate is owner-set; ArcLending assumes both tokens hold their ~$1 peg. Neither reads a live price feed. This is a known simplification for the testnet stage — a real oracle (Chainlink/Pyth) is a prerequisite before either contract should touch real funds.
+- **ArcFactoryV2 pools have no TWAP.** Spot-price swaps on thin/low-liquidity pools carry real sandwich and price-impact risk, same as any constant-product AMM without time-weighted pricing. Use `minAmountOut` and be mindful of pool depth.
+- **ArcFactoryV2 has no admin kill-switch, by design.** The factory and its pools are fully permissionless — no owner, no pause. That's a deliberate trade-off in favor of trustlessness, not an oversight: adding a pause here would undercut the "no one can freeze your pool" guarantee that makes a permissionless AMM meaningful in the first place. If you'd rather have a pausable, guarded pool, use the ArcAMM (legacy, fixed USDC/EURC pair) contract instead.
+
+Full audit notes (all 8 contracts, category-by-category) are in `kontrat-denetim-raporu.md` in this repo.
+
+---
+
 ## Roadmap
 
 - [ ] Mainnet deployment
