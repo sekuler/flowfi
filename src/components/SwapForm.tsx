@@ -33,8 +33,8 @@ function swapStepIndex(state: string) {
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
-const POOL_FACTORY_V2 = "0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8" as `0x${string}`;
+const SWAP_CONTRACT = "0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521" as `0x${string}`; // ArcSwap v2 — adds minAmountOut, pause(), fixes withdraw event
+const POOL_FACTORY_V2 = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
 
 const POOL_FACTORY_ABI = [
   { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
@@ -46,8 +46,8 @@ const POOL_V2_ABI = [
 ] as const;
 
 const SWAP_ABI = [
-  { type: "function", name: "swapUsdcToEurc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }], outputs: [] },
-  { type: "function", name: "swapEurcToUsdc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }], outputs: [] },
+  { type: "function", name: "swapUsdcToEurc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
+  { type: "function", name: "swapEurcToUsdc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
   { type: "function", name: "getEurcOut", stateMutability: "view", inputs: [{ name: "usdcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "getUsdcOut", stateMutability: "view", inputs: [{ name: "eurcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "usdcToEurcRate", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
@@ -291,11 +291,12 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         });
 
         setSwapState("swapping");
+        const minOutForCircle = (parseUnits(estimatedOut, 6) * 99n) / 100n; // 1% slippage tolerance
         const hash = await circleContractCallAndWait({
           walletId: arcWalletId,
           contractAddress: SWAP_CONTRACT,
-          abiFunctionSignature: tokenIn === "USDC" ? "swapUsdcToEurc(uint256)" : "swapEurcToUsdc(uint256)",
-          abiParameters: [amountIn.toString()],
+          abiFunctionSignature: tokenIn === "USDC" ? "swapUsdcToEurc(uint256,uint256)" : "swapEurcToUsdc(uint256,uint256)",
+          abiParameters: [amountIn.toString(), minOutForCircle.toString()],
         });
 
         setTxHash(hash); setSwapState("done"); setAmount(""); setEstimatedOut("0.00");
@@ -321,6 +322,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
       setSwapState("swapping");
+      const minOut = (parseUnits(estimatedOut, 6) * 99n) / 100n; // 1% slippage tolerance
       const hash = useLegacyRoute && legacyPoolAddress
         ? await wc.writeContract({
             address: legacyPoolAddress, abi: POOL_V2_ABI, functionName: "swap",
@@ -329,7 +331,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         : await wc.writeContract({
             address: SWAP_CONTRACT, abi: SWAP_ABI,
             functionName: tokenIn === "USDC" ? "swapUsdcToEurc" : "swapEurcToUsdc",
-            args: [amountIn], account: address as `0x${string}`,
+            args: [amountIn, minOut], account: address as `0x${string}`,
           });
       await publicClient.waitForTransactionReceipt({ hash });
 
@@ -364,7 +366,9 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountIn], account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
-      const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountIn], account: address as `0x${string}` });
+      const freshQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getEurcOut", args: [amountIn] }) as bigint;
+      const minOutForDCA = (freshQuote * 99n) / 100n; // 1% slippage tolerance
+      const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountIn, minOutForDCA], account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash });
 
       markDCAExecuted();
