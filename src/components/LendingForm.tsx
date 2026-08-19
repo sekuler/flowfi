@@ -21,7 +21,7 @@ function friendlyError(e: unknown): string {
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-const LENDING_CONTRACT = "0xD3e0171CaCd799E49155eE48981841E9a9d225ab" as `0x${string}`;
+const LENDING_CONTRACT = "0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a" as `0x${string}`; // ArcLending v2 — adds borrowingPaused guardian, reentrancy guard, CEI fixes
 
 const LENDING_ABI = [
   { type: "function", name: "supply", stateMutability: "nonpayable", inputs: [{ name: "amount", type: "uint256" }], outputs: [] },

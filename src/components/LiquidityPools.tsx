@@ -4,7 +4,7 @@ import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUn
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 
-const FACTORY_CONTRACT = "0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8" as `0x${string}`;
+const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
 const TOKEN_LAUNCH_FACTORY = "0x481E8919f79A4DA6446EA78cEa70037acB9c85A1" as `0x${string}`;
 const STABLE_SYMBOLS = new Set(["USDC", "EURC", "USYC"]);

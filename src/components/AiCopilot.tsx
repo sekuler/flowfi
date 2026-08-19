@@ -12,7 +12,7 @@ const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string
 const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
 const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
 const FACTORY_CONTRACT = "0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9" as `0x${string}`;
-const LENDING_CONTRACT = "0xD3e0171CaCd799E49155eE48981841E9a9d225ab" as `0x${string}`;
+const LENDING_CONTRACT = "0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a" as `0x${string}`; // ArcLending v2
 
 const LENDING_ABI = [
   { type: "function", name: "supply", stateMutability: "nonpayable", inputs: [{ name: "amount", type: "uint256" }], outputs: [] },
@@ -50,8 +50,8 @@ const ANALYSIS_SECTION_HEADERS = new Set([
   "Tokenomics", "Token Vesting & Unlocks", "PRICE STABILITY", "STABILITY NOTE", "Supply",
 ]);
 
-function renderMessageContent(content: string | undefined, expanded: boolean) {
-  const lines = (content ?? "").split("\n");
+function renderMessageContent(content: string, expanded: boolean) {
+  const lines = content.split("\n");
   const nodes: JSX.Element[] = [];
   let i = 0;
 
@@ -232,11 +232,7 @@ Respond with ONLY the JSON object.`,
         messages: [{ role: "user", content: text }],
       }),
     });
-        const data = await response.json();
-    if (!data.content) {
-      throw new Error(`RAW RESPONSE: ${JSON.stringify(data)}`);
-    }
-    
+    const data = await response.json();
     const raw = data.content?.[0]?.text ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
     return JSON.parse(cleaned);
@@ -257,7 +253,7 @@ Respond with ONLY the JSON object.`,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-                model: "claude-haiku-4-5",
+        model: "claude-sonnet-4-6",
         max_tokens: 250,
         system: `You are FlowFi Copilot. The user's message isn't a transaction command and isn't about a specific coin — answer briefly and factually. Never recommend buying, selling, or holding anything. Always respond in the same language the user wrote in.`,
         messages: [{ role: "user", content: text }],
@@ -279,21 +275,10 @@ Respond with ONLY the JSON object.`,
         const answer = await answerGeneralQuestion(text);
         setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
       } else {
-        const normalizedType = (action.action ?? "").toString().trim().toLowerCase();
-        const fallbackSummary =
-          normalizedType === "swap" ? `Swap ${action.amount ?? "?"} ${action.fromToken ?? ""} to ${action.toToken ?? ""}` :
-          normalizedType === "send" ? `Send ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.recipient ?? "recipient"}` :
-          normalizedType === "bridge" ? `Bridge ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.destinationChain ?? "destination"}` :
-          normalizedType === "perp_open" ? `Open a ${action.leverage ?? ""}x ${action.isLong ? "long" : "short"} on ${action.market ?? "market"} with ${action.amount ?? "?"} USDC` :
-          normalizedType === "create_pool" ? `Create a pool for ${action.tokenA ?? "?"} / ${action.tokenB ?? "?"}` :
-          normalizedType === "strategy" ? "Suggested allocation strategy" :
-          `Confirm this action (type: "${action.action}")`;
-        const summary = action.summary && action.summary.trim() ? action.summary : fallbackSummary;
-        setMessages((prev) => [...prev, { role: "assistant", content: summary, action }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: action.summary, action }]);
       }
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : JSON.stringify(err, null, 2);
-      setMessages((prev) => [...prev, { role: "assistant", content: `DEBUG ERROR: ${detail}` }]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "I couldn't understand that. Try something like \"swap 10 USDC to EURC\" or \"open a 5x BTC long with 20 USDC\"." }]);
     } finally {
       setLoading(false);
     }
@@ -475,7 +460,8 @@ Respond with ONLY the JSON object.`,
                         ))}
                       </div>
                     )}
-                    {m.action.reasoning && <p style={{ fontSize: 11, color: "#4B5563", margin: "0 0 8px 0" }}>{m.action.reasoning}</p>}                    <button onClick={() => executeAction(m.action!, i)} disabled={executing}
+                    {m.action.reasoning && <p style={{ fontSize: 11, color: "#4B5563", margin: "0 0 8px 0" }}>{m.action.reasoning}</p>}
+                    <button onClick={() => executeAction(m.action!, i)} disabled={executing}
                       style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: executing ? "not-allowed" : "pointer", opacity: executing ? 0.6 : 1 }}>
                       {executing ? "Executing..." : m.action.action === "strategy" ? "Execute Strategy" : "Confirm"}
                     </button>

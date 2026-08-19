@@ -537,7 +537,7 @@ function AppInner() {
       <main style={{ marginLeft: isMobile ? 0 : 220, flex: 1, minHeight: "100vh", position: "relative", zIndex: 1 }}>
         {isMobile && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1rem", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 3, boxShadow: "0 1px 0 rgba(109,94,247,0.08)" }}>
-              {String(isMobile)}-{typeof window !== "undefined" ? window.innerWidth : "?"}
+              ☰
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 26, height: 26, borderRadius: 8, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff" }}>◈</div>
               <span className="flowfi-display" style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>FlowFi</span>

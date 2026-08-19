@@ -6,7 +6,7 @@ import { showToast } from "../toast";
 
 const TOKEN_FACTORY = "0x481E8919f79A4DA6446EA78cEa70037acB9c85A1" as `0x${string}`;
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
-const POOL_FACTORY = "0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8" as `0x${string}`;
+const POOL_FACTORY = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
 
 const TOKEN_FACTORY_ABI = [
   { type: "function", name: "launchToken", stateMutability: "nonpayable", inputs: [{ name: "name", type: "string" }, { name: "symbol", type: "string" }], outputs: [{ name: "token", type: "address" }] },
