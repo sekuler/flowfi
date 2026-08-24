@@ -10,7 +10,6 @@ import { computeMemoryInsight } from "../memory";
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
-const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
 const FACTORY_CONTRACT = "0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9" as `0x${string}`;
 const LENDING_CONTRACT = "0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a" as `0x${string}`; // ArcLending v2
 
@@ -120,10 +119,6 @@ const SWAP_ABI = [
   { type: "function", name: "swapEurcToUsdc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }], outputs: [] },
 ] as const;
 
-const PERPS_ABI = [
-  { type: "function", name: "openPosition", stateMutability: "nonpayable", inputs: [{ name: "isLong", type: "bool" }, { name: "margin", type: "uint256" }, { name: "leverage", type: "uint256" }, { name: "entryPrice", type: "uint256" }, { name: "market", type: "string" }], outputs: [{ name: "", type: "uint256" }] },
-] as const;
-
 const FACTORY_ABI = [
   { type: "function", name: "createPool", stateMutability: "nonpayable", inputs: [{ name: "tokenA", type: "address" }, { name: "tokenB", type: "address" }], outputs: [{ name: "pool", type: "address" }] },
   { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
@@ -145,7 +140,7 @@ interface Allocation {
 }
 
 interface ParsedAction {
-  action: "swap" | "send" | "perp_open" | "create_pool" | "bridge" | "strategy" | "unknown";
+  action: "swap" | "send" | "create_pool" | "bridge" | "strategy" | "unknown";
   fromToken?: string;
   toToken?: string;
   amount?: number;
@@ -204,16 +199,13 @@ export default function AiCopilot({ provider, address, balances, onRefresh, onNa
 
 Schema:
 {
-  "action": "swap" | "send" | "perp_open" | "create_pool" | "bridge" | "strategy" | "unknown",
+  "action": "swap" | "send" | "create_pool" | "bridge" | "strategy" | "unknown",
   "fromToken": "USDC" | "EURC" | "USYC" | "ARCC" | "CIRBTC" (for swap),
   "toToken": "USDC" | "EURC" | "USYC" | "ARCC" | "CIRBTC" (for swap),
   "amount": number (omit if useAllBalance is true),
   "useAllBalance": boolean (true if user says "all my X"),
   "recipient": string (address or .arc name, for send),
   "destinationChain": "Arc Testnet" | "Ethereum Sepolia" | "Base Sepolia" | "Arbitrum Sepolia" (ONLY for send, ONLY if the user names a specific chain the recipient should receive funds on, e.g. "send 50 USDC to 0xABC on Base" — omit entirely if no chain is mentioned, defaulting to a normal same-chain transfer on Arc),
-  "isLong": boolean (for perp_open),
-  "leverage": number (for perp_open, 1-20),
-  "market": "BTC" | "ETH" (for perp_open),
   "tokenA": string, "tokenB": string (for create_pool),
   "allocations": [{ "category": "lending" | "swap_to_eurc" | "idle", "amount": number, "percent": number, "note": "short reason for this allocation" }] (ONLY for action "strategy"),
   "summary": "short one-line plain-English summary of what will happen",
@@ -224,7 +216,7 @@ Use "strategy" when the user describes a total amount and asks for a plan, alloc
 
 Only USDC and EURC are swappable on the fixed-rate pool. If the request is ambiguous, ill-formed, or not one of the supported actions, set action to "unknown" and explain in summary.
 
-Interpret goal-oriented requests, not just literal commands. If the user states an outcome they want rather than a specific mechanism (e.g. "Get me 100 EURC on Arc", "I need 50 USDC", "top up my EURC"), figure out which single supported action gets them there and use that — you do not need the user to say the word "swap" or "bridge" explicitly. As a rule of thumb: wanting a different token they don't currently hold enough of, while already having USDC on Arc, means "swap"; wanting funds moved to a specific external address means "send" (with destinationChain if a chain is named); wanting USDC specifically on a different chain than Arc, with no recipient mentioned, means "bridge". Only fall back to "unknown" if the goal genuinely can't be reached with swap, send, bridge, perp_open, create_pool, or strategy.
+Interpret goal-oriented requests, not just literal commands. If the user states an outcome they want rather than a specific mechanism (e.g. "Get me 100 EURC on Arc", "I need 50 USDC", "top up my EURC"), figure out which single supported action gets them there and use that — you do not need the user to say the word "swap" or "bridge" explicitly. As a rule of thumb: wanting a different token they don't currently hold enough of, while already having USDC on Arc, means "swap"; wanting funds moved to a specific external address means "send" (with destinationChain if a chain is named); wanting USDC specifically on a different chain than Arc, with no recipient mentioned, means "bridge". Only fall back to "unknown" if the goal genuinely can't be reached with swap, send, bridge, create_pool, or strategy.
 Available user balances: USDC ${balances.usdc}, EURC ${balances.eurc}.
 ${memoryText ? `What you know about this user's real recent behavior, from their actual transaction history: ${memoryText} Use this naturally when relevant — for example, weight a "strategy" allocation toward what they already do, or mention it briefly in your reasoning if it's genuinely relevant. Never state this as a fact if it isn't directly implied by the note above, and never fabricate additional behavioral claims beyond it.` : ""}
 The "summary" field must be written in the same language the user's message is written in — if they write in Turkish, write the summary in Turkish; if in English, write it in English.
@@ -335,24 +327,6 @@ Respond with ONLY the JSON object.`,
           await publicClient.waitForTransactionReceipt({ hash });
           showToast("Send completed", "success");
         }
-      } else if (action.action === "perp_open") {
-        if (!action.amount || !action.leverage || !action.market) throw new Error("Missing position details.");
-        const priceRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd");
-        const priceData = await priceRes.json();
-        const price = action.market === "BTC" ? priceData.bitcoin?.usd : priceData.ethereum?.usd;
-        if (!price) throw new Error("Could not fetch market price.");
-        const marginUnits = parseUnits(String(action.amount), 6);
-        const priceUnits = BigInt(Math.round(price * 1e6));
-
-        const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [PERPS_CONTRACT, marginUnits], account: address as `0x${string}` });
-        await publicClient.waitForTransactionReceipt({ hash: approveHash });
-
-        const hash = await wc.writeContract({
-          address: PERPS_CONTRACT, abi: PERPS_ABI, functionName: "openPosition",
-          args: [action.isLong ?? true, marginUnits, BigInt(action.leverage), priceUnits, action.market], account: address as `0x${string}`,
-        });
-        await publicClient.waitForTransactionReceipt({ hash });
-        showToast("Position opened", "success");
       } else if (action.action === "create_pool") {
         if (!action.tokenA || !action.tokenB) throw new Error("Missing tokens for pool.");
         const tokenA = KNOWN_TOKENS[action.tokenA.toUpperCase()];
