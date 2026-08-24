@@ -75,7 +75,6 @@ const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[]
   tabs: [
     { id: "swap",      label: "Swap",      Icon: Repeat },
     { id: "bridge",    label: "Bridge",    Icon: Hexagon },
-    { id: "perps",     label: "Perpetuals", Icon: TrendingUp },
     { id: "pools",     label: "Liquidity Pools", Icon: Droplet },
     { id: "lending",   label: "Lending",   Icon: Landmark },
     { id: "launch",    label: "Launch Token", Icon: Rocket },
@@ -419,7 +418,7 @@ function AppInner() {
         <p style={{ fontSize: 12, color: "#6B7280", marginBottom: 28 }}>Real wallet signatures. No seed phrase ever requested. Arc Testnet only.</p>
 
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px 20px" }}>
-          {["Native USDC", "CCTP V2", "AI Copilot", "Lending", "Perpetuals", "Token Launch"].map((f) => (
+          {["Native USDC", "CCTP V2", "AI Copilot", "Lending", "Token Launch"].map((f) => (
             <div key={f} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4B5563" }}>
               <span style={{ color: "#22C55E", fontWeight: 800 }}>✓</span>
               {f}
@@ -537,7 +536,9 @@ function AppInner() {
       <main style={{ marginLeft: isMobile ? 0 : 220, flex: 1, minHeight: "100vh", position: "relative", zIndex: 1 }}>
         {isMobile && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1rem", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 3, boxShadow: "0 1px 0 rgba(109,94,247,0.08)" }}>
+            <button onClick={() => setMobileMenuOpen(true)} style={{ background: "none", border: "none", fontSize: 20, color: "#6D5EF7", cursor: "pointer", padding: "4px 8px" }}>
               ☰
+            </button>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 26, height: 26, borderRadius: 8, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff" }}>◈</div>
               <span className="flowfi-display" style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>FlowFi</span>
