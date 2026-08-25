@@ -375,7 +375,7 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
               <input type="number" min="0" placeholder="0.00" value={collateralAmount} onChange={(e) => setCollateralAmount(e.target.value)} disabled={isLoading}
                 style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#111827", outline: "none" }} />
               <button onClick={doDepositCollateral} disabled={isLoading}
-                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+                style={{ width: 120, padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 {state === "approving" ? "Approving..." : state === "processing" ? "Depositing..." : "Deposit"}
               </button>
             </div>
@@ -390,7 +390,7 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
               <input type="number" min="0" placeholder="0.00" value={borrowAmount} onChange={(e) => setBorrowAmount(e.target.value)} disabled={isLoading}
                 style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#111827", outline: "none" }} />
               <button onClick={doBorrow} disabled={isLoading}
-                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#ef4444", color: "#fff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+                style={{ width: 120, padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#ef4444", color: "#fff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 {state === "processing" ? "Borrowing..." : "Borrow"}
               </button>
             </div>
@@ -405,7 +405,7 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
               <input type="number" min="0" placeholder="0.00" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} disabled={isLoading}
                 style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#111827", outline: "none" }} />
               <button onClick={doRepay} disabled={isLoading}
-                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+                style={{ width: 120, padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 {state === "approving" ? "Approving..." : state === "processing" ? "Repaying..." : "Repay"}
               </button>
             </div>
