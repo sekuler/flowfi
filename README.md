@@ -1,9 +1,8 @@
 # FlowFi
 
-**AI-powered Stablecoin Operating System**
+**Turning Arc's programmable money into one settlement flow**
 
-Payments. Bridge. Swaps. Perpetuals. Lending. Token Launch.
-All inside one application — built natively for [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
+Real CCTP V2 burn-and-mint bridging, plus Circle Developer-Controlled Wallets signing directly on Arc — the specific piece that couldn't be done the same way on any other EVM chain. Swap, lending, and token tools are built around that same rail, not bolted onto it — all inside one application on [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
 
 **Live:** [flowfi.finance](https://flowfi.finance) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
@@ -49,7 +48,7 @@ Building on Arc means FlowFi never has to explain away a bridge risk, a wrapped-
 | **AI Market Analysis** | Ask "analyze BTC" or "analyze Morpho" and get real technical analysis (RSI, EMA, MACD, pivot support/resistance across 1H/4H/1D/1W/1M) and tokenomics/unlock data — all numbers computed server-side from live data, with the AI only writing the interpretive summary, never the figures |
 | **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
 | **Bridge (CCTP V2)** | Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia |
-| **Perpetuals** *(Experimental)* | Long/short BTC and ETH up to 20x leverage, live PnL and liquidation tracking. Marked experimental and not on the mainnet roadmap — pricing is submitted client-side, not from a decentralized oracle |
+| **Perpetuals** *(disabled, code retained)* | Long/short BTC and ETH up to 20x leverage. Removed from navigation after a security review found no oracle backs the pricing — the contract and code remain in the repo, but the feature isn't reachable in the app or via Copilot |
 | **Lending & Borrowing** | Supply USDC to earn interest, or post EURC as collateral to borrow — 75% max LTV, liquidation at 85% |
 | **Liquidity Pools** | Permissionless AMM — create a pool for any token pair, add/remove liquidity, swap directly against it |
 | **Token Launch** | Deploy your own ERC-20 on Arc and pair it with liquidity in one flow |
