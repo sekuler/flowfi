@@ -3,7 +3,7 @@ import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 
-const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
+const SWAP_CONTRACT = "0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521" as `0x${string}`; // ArcSwap v2
 const LEGACY_AMM = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
 const LENDING_CONTRACT = "0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a" as `0x${string}`; // ArcLending v2
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;

@@ -44,16 +44,16 @@ Building on Arc means FlowFi never has to explain away a bridge risk, a wrapped-
 
 | Feature | What it does |
 |---|---|
-| **AI Copilot** | Type what you want — "swap 10 USDC to EURC", "open a 5x BTC long" — Copilot parses it and executes the on-chain transaction |
-| **AI Market Analysis** | Ask "analyze BTC" or "analyze Morpho" and get real technical analysis (RSI, EMA, MACD, pivot support/resistance across 1H/4H/1D/1W/1M) and tokenomics/unlock data — all numbers computed server-side from live data, with the AI only writing the interpretive summary, never the figures |
-| **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
 | **Bridge (CCTP V2)** | Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia |
-| **Perpetuals** *(disabled, code retained)* | Long/short BTC and ETH up to 20x leverage. Removed from navigation after a security review found no oracle backs the pricing — the contract and code remain in the repo, but the feature isn't reachable in the app or via Copilot |
+| **Circle Wallet** | Create a wallet with no seed phrase and no browser extension — one address, works across all four supported chains |
+| **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
 | **Lending & Borrowing** | Supply USDC to earn interest, or post EURC as collateral to borrow — 75% max LTV, liquidation at 85% |
 | **Liquidity Pools** | Permissionless AMM — create a pool for any token pair, add/remove liquidity, swap directly against it |
 | **Token Launch** | Deploy your own ERC-20 on Arc and pair it with liquidity in one flow |
-| **Circle Wallet** | Create a wallet with no seed phrase and no browser extension — one address, works across all four supported chains |
 | **Stablecoin Analytics** | Live, on-chain TVL and distribution across every FlowFi contract |
+| **AI Copilot** | Type what you want — "swap 10 USDC to EURC", "send 20 USDC to 0x..." — Copilot parses it and executes the on-chain transaction. An interface over the settlement rail above, not the product itself |
+| **AI Market Analysis** | Ask "analyze BTC" or "analyze Morpho" and get real technical analysis (RSI, EMA, MACD, pivot support/resistance across 1H/4H/1D/1W/1M) and tokenomics/unlock data — all numbers computed server-side from live data, with the AI only writing the interpretive summary, never the figures |
+| **Perpetuals** *(disabled, code retained)* | Long/short BTC and ETH up to 20x leverage. Removed from navigation after a security review found no oracle backs the pricing — the contract and code remain in the repo, but the feature isn't reachable in the app or via Copilot |
 
 ---
 
