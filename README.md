@@ -2,7 +2,7 @@
 
 **Turning Arc's programmable money into one settlement flow**
 
-Real CCTP V2 burn-and-mint bridging, plus Circle Developer-Controlled Wallets signing directly on Arc — the specific piece that couldn't be done the same way on any other EVM chain. Swap, lending, and token tools are built around that same rail, not bolted onto it — all inside one application on [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
+FlowFi combines Arc's stablecoin-native settlement environment with Circle's Developer-Controlled Wallets and real CCTP V2 flows into one cross-chain USDC experience. Swap, lending, and token tools are built around that same rail, not bolted onto it — all inside one application on [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
 
 **Live:** [flowfi.finance](https://flowfi.finance) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
@@ -24,8 +24,8 @@ Real CCTP V2 burn-and-mint bridging, plus Circle Developer-Controlled Wallets si
 
 | | |
 |---|---|
-| **7** verified smart contracts | **5** financial primitives |
-| **4** supported chains | **20x** max leverage |
+| **6** verified smart contracts | **5** financial primitives |
+| **4** supported chains | **8** contracts security-reviewed |
 | **100%** on-chain execution | **1** address across all 4 chains |
 
 ---
@@ -34,7 +34,7 @@ Real CCTP V2 burn-and-mint bridging, plus Circle Developer-Controlled Wallets si
 
 FlowFi is designed around stablecoins, not speculation.
 
-Arc provides native stablecoin infrastructure, first-party Circle integrations (CCTP, Developer-Controlled Wallets, USDC as gas), and a clean developer experience that lets financial primitives — swaps, lending, perpetuals, escrow — live in a single coherent ecosystem instead of being stitched together across incompatible chains.
+FlowFi combines Arc's stablecoin-native settlement environment with Circle's Developer-Controlled Wallets and real CCTP V2 flows into a single cross-chain USDC experience — bridging, swaps, lending, and token tools all settle through that same rail instead of being stitched together across incompatible chains and bridge providers.
 
 Building on Arc means FlowFi never has to explain away a bridge risk, a wrapped-asset discount, or a "why is gas paid in a random token" question. USDC is the base layer, not an afterthought.
 
@@ -101,7 +101,6 @@ Building on Arc means FlowFi never has to explain away a bridge risk, a wrapped-
 | **Bridge** | ![Bridge](./screenshots/6%20-%20Bridge.png) |
 | **Send** | ![Send](./screenshots/7%20-%20Send.png) |
 | **Lending** | ![Lending](./screenshots/8%20-%20Lending.png) |
-| **Perpetuals** | ![Perpetuals](./screenshots/9%20-%20Perpetuals.png) |
 | **Token Launch** | ![Token Launch](./screenshots/10%20-%20TokenLaunch.png) |
 | **Liquidity Pools** | ![Liquidity Pools](./screenshots/11%20-%20Liquidity%20pools.png) |
 | **Circle Wallet** | ![Circle Wallet](./screenshots/12%20-%20Circle%20wallet.png) |
@@ -113,15 +112,16 @@ Building on Arc means FlowFi never has to explain away a bridge risk, a wrapped-
 
 | Contract | Address |
 |---|---|
-| Swap (fixed-rate USDC/EURC) | `0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1` |
-| Lending | `0xD3e0171CaCd799E49155eE48981841E9a9d225ab` |
-| Perpetuals *(Experimental)* | `0x3B4cE1734087e1c67474Ff42982063febE3E4B20` |
-| Pool Factory (permissionless AMM) | `0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8` |
+| Swap v2 (fixed-rate USDC/EURC) | `0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521` |
+| Lending v2 | `0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a` |
+| Pool Factory v2 (permissionless AMM) | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
+| Escrow v3 *(deployed and verified, not yet wired to the app)* | `0xCe6c2B0EAbC86974c653020467c05Ce5e1eB418C` |
 | Token Factory | `0x481E8919f79A4DA6446EA78cEa70037acB9c85A1` |
+| Perpetuals *(disabled, code retained — see Known Limitations)* | `0x3B4cE1734087e1c67474Ff42982063febE3E4B20` |
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
 | EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 
-All contracts are verified and viewable on [Arcscan](https://testnet.arcscan.app).
+6 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see `kontrat-denetim-raporu.md` for the complete 8-contract audit.
 
 ---
 
@@ -133,7 +133,7 @@ FlowFi's market analysis never uses AI-generated numbers — every figure comes 
 |---|---|---|
 | Price, market cap, volume, supply | [CoinGecko](https://coingecko.com) | Free tier |
 | RSI, EMA, MACD, support/resistance | Computed server-side | Standard formulas, real historical OHLCV — not AI-generated |
-| Token unlock/vesting schedules | Manually curated from [DeFiLlama](https://defillama.com), cross-checked against official project docs | ~30 tokens currently covered; expanding |
+| Token unlock/vesting schedules | 57 tokens manually curated from [DeFiLlama](https://defillama.com), cross-checked against official project docs — plus live data from the DropsTab API for any token they track | Manual list is the fallback; DropsTab is checked first |
 
 If a data point isn't available from a real source, FlowFi says so rather than guessing.
 
@@ -191,7 +191,7 @@ Full audit notes (all 8 contracts, category-by-category) are in `kontrat-denetim
 - [ ] Wallet abstraction / account abstraction support
 - [ ] Expanded permissionless pool tooling (concentrated liquidity)
 - [ ] Native yield routing across lending and liquidity positions
-- [ ] Expanded token unlock/tokenomics coverage beyond ~30 tokens
+- [x] Live token unlock data via DropsTab API, on top of the 57-token manual fallback list
 
 **Not on the mainnet roadmap:** Perpetuals is frozen in an experimental state — no decentralized oracle (Stork/Pyth) is integrated, so pricing isn't independently verified. It stays available on testnet for exploration but won't ship to mainnet without a real oracle integration.
 
