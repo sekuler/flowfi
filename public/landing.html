@@ -306,28 +306,20 @@
   <div class="wrap">
     <div class="section-head">
       <div class="kicker">What's inside</div>
-      <h2>Every primitive, one application.</h2>
+      <h2>One settlement rail, several destinations for it.</h2>
     </div>
     <div class="feature-list">
-      <div class="feature-row">
-        <div class="fname">AI Copilot</div>
-        <div class="fdesc">Type what you want — "swap 10 USDC to EURC", "open a 5x BTC long" — Copilot parses it and executes the on-chain transaction.</div>
-      </div>
-      <div class="feature-row">
-        <div class="fname">AI Market Analysis</div>
-        <div class="fdesc">Ask "analyze BTC" or "analyze Morpho" for real technical analysis — RSI, EMA, MACD, pivot support/resistance across five timeframes — plus tokenomics and unlock data, all computed from live sources, never invented.</div>
-      </div>
-      <div class="feature-row">
-        <div class="fname">Smart Swap</div>
-        <div class="fdesc">USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much.</div>
-      </div>
       <div class="feature-row">
         <div class="fname">Bridge (CCTP V2)</div>
         <div class="fdesc">Genuine cross-chain USDC transfer via Circle's official protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia.</div>
       </div>
       <div class="feature-row">
-        <div class="fname">Perpetuals <span class="tag-exp">EXPERIMENTAL</span></div>
-        <div class="fdesc">Long/short BTC and ETH up to 20x leverage, live PnL and liquidation tracking. Pricing is client-submitted, not oracle-backed — testnet exploration only, not on the mainnet roadmap.</div>
+        <div class="fname">Circle Wallet</div>
+        <div class="fdesc">Create a wallet with no seed phrase and no browser extension — one address, works across all four supported chains.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">Smart Swap</div>
+        <div class="fdesc">USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much.</div>
       </div>
       <div class="feature-row">
         <div class="fname">Lending &amp; Borrowing</div>
@@ -342,8 +334,12 @@
         <div class="fdesc">Deploy your own ERC-20 on Arc and pair it with liquidity in one flow.</div>
       </div>
       <div class="feature-row">
-        <div class="fname">Circle Wallet</div>
-        <div class="fdesc">Create a wallet with no seed phrase and no browser extension — one address, works across all four supported chains.</div>
+        <div class="fname">AI Copilot</div>
+        <div class="fdesc">Type what you want — "swap 10 USDC to EURC", "send 20 USDC to 0x..." — Copilot parses it and executes the on-chain transaction. An interface over the settlement rail above, not the product itself.</div>
+      </div>
+      <div class="feature-row">
+        <div class="fname">AI Market Analysis</div>
+        <div class="fdesc">Ask "analyze BTC" or "analyze Morpho" for real technical analysis — RSI, EMA, MACD, pivot support/resistance across five timeframes — plus tokenomics and unlock data, all computed from live sources, never invented.</div>
       </div>
     </div>
   </div>
@@ -377,11 +373,12 @@
     </div>
     <table class="source-table">
       <tr><th>Contract</th><th>Address</th></tr>
-      <tr><td class="data">Swap (fixed-rate USDC/EURC)</td><td><code class="pill">0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1</code></td></tr>
-      <tr><td class="data">Lending</td><td><code class="pill">0xD3e0171CaCd799E49155eE48981841E9a9d225ab</code></td></tr>
-      <tr><td class="data">Perpetuals (Experimental)</td><td><code class="pill">0x3B4cE1734087e1c67474Ff42982063febE3E4B20</code></td></tr>
-      <tr><td class="data">Pool Factory</td><td><code class="pill">0xE610D2f76547c2a3073e1273E7BFA80d395eCDf8</code></td></tr>
+      <tr><td class="data">Swap v2 (fixed-rate USDC/EURC)</td><td><code class="pill">0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521</code></td></tr>
+      <tr><td class="data">Lending v2</td><td><code class="pill">0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a</code></td></tr>
+      <tr><td class="data">Pool Factory v2</td><td><code class="pill">0x23782643650D73b2Bb145B9145D62D743bF25CB0</code></td></tr>
+      <tr><td class="data">Escrow v3 (deployed, not yet wired to app)</td><td><code class="pill">0xCe6c2B0EAbC86974c653020467c05Ce5e1eB418C</code></td></tr>
       <tr><td class="data">Token Factory</td><td><code class="pill">0x481E8919f79A4DA6446EA78cEa70037acB9c85A1</code></td></tr>
+      <tr><td class="data">Perpetuals (disabled, code retained)</td><td><code class="pill">0x3B4cE1734087e1c67474Ff42982063febE3E4B20</code></td></tr>
       <tr><td class="data">USDC (Arc native)</td><td><code class="pill">0x3600000000000000000000000000000000000000</code></td></tr>
       <tr><td class="data">EURC</td><td><code class="pill">0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a</code></td></tr>
     </table>

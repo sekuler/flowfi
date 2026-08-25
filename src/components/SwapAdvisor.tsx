@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 
-const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
+const SWAP_CONTRACT = "0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521" as `0x${string}`; // ArcSwap v2
 
 const SWAP_ABI = [
   { type: "function", name: "getLiquidity", stateMutability: "view", inputs: [], outputs: [{ name: "usdcBalance", type: "uint256" }, { name: "eurcBalance", type: "uint256" }] },
