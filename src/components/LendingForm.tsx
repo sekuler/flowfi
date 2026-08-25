@@ -335,7 +335,7 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
               <input type="number" min="0" placeholder="0.00" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} disabled={isLoading}
                 style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#111827", outline: "none" }} />
               <button onClick={doWithdraw} disabled={isLoading}
-                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#ede9fe", color: "#111827", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 {state === "processing" ? "Withdrawing..." : "Withdraw"}
               </button>
             </div>
@@ -405,7 +405,7 @@ export default function LendingForm({ provider, address, balances, onRefresh }: 
               <input type="number" min="0" placeholder="0.00" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} disabled={isLoading}
                 style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", fontSize: 15, color: "#111827", outline: "none" }} />
               <button onClick={doRepay} disabled={isLoading}
-                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#ede9fe", color: "#111827", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
+                style={{ padding: "0.6rem 1.2rem", borderRadius: 10, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 13, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
                 {state === "approving" ? "Approving..." : state === "processing" ? "Repaying..." : "Repay"}
               </button>
             </div>
