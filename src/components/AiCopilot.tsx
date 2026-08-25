@@ -227,6 +227,9 @@ Respond with ONLY the JSON object.`,
       }),
     });
     const data = await response.json();
+    if (!data.content) {
+      throw new Error(`RAW RESPONSE: ${JSON.stringify(data)}`);
+    }
     const raw = data.content?.[0]?.text ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
     return JSON.parse(cleaned);
@@ -254,6 +257,9 @@ Respond with ONLY the JSON object.`,
       }),
     });
     const data = await response.json();
+    if (!data.content) {
+      return `(Error: ${data.error?.message || JSON.stringify(data)})`;
+    }
     return data.content?.[0]?.text ?? "I couldn't find an answer to that.";
   }
 
@@ -269,10 +275,20 @@ Respond with ONLY the JSON object.`,
         const answer = await answerGeneralQuestion(text);
         setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
       } else {
-        setMessages((prev) => [...prev, { role: "assistant", content: action.summary, action }]);
+        const normalizedType = (action.action ?? "").toString().trim().toLowerCase();
+        const fallbackSummary =
+          normalizedType === "swap" ? `Swap ${action.amount ?? "?"} ${action.fromToken ?? ""} to ${action.toToken ?? ""}` :
+          normalizedType === "send" ? `Send ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.recipient ?? "recipient"}` :
+          normalizedType === "bridge" ? `Bridge ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.destinationChain ?? "destination"}` :
+          normalizedType === "create_pool" ? `Create a pool for ${action.tokenA ?? "?"} / ${action.tokenB ?? "?"}` :
+          normalizedType === "strategy" ? "Suggested allocation strategy" :
+          `Confirm this action (type: "${action.action}")`;
+        const summary = action.summary && action.summary.trim() ? action.summary : fallbackSummary;
+        setMessages((prev) => [...prev, { role: "assistant", content: summary, action }]);
       }
-    } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "I couldn't understand that. Try something like \"swap 10 USDC to EURC\" or \"send 20 USDC to 0x...\"." }]);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : JSON.stringify(err);
+      setMessages((prev) => [...prev, { role: "assistant", content: `I couldn't complete that: ${detail}` }]);
     } finally {
       setLoading(false);
     }
