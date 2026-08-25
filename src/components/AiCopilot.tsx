@@ -9,7 +9,8 @@ import { computeMemoryInsight } from "../memory";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-const SWAP_CONTRACT = "0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1" as `0x${string}`;
+const SWAP_CONTRACT = "0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521" as `0x${string}`; // ArcSwap v2 — adds minAmountOut, pause()
+const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
 const FACTORY_CONTRACT = "0x7B68AbA7C610aC8Edd46846c6Aa663b86f1165d9" as `0x${string}`;
 const LENDING_CONTRACT = "0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a" as `0x${string}`; // ArcLending v2
 
@@ -115,8 +116,14 @@ const KNOWN_TOKENS: Record<string, `0x${string}`> = {
 };
 
 const SWAP_ABI = [
-  { type: "function", name: "swapUsdcToEurc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }], outputs: [] },
-  { type: "function", name: "swapEurcToUsdc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }], outputs: [] },
+  { type: "function", name: "swapUsdcToEurc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
+  { type: "function", name: "swapEurcToUsdc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
+  { type: "function", name: "getEurcOut", stateMutability: "view", inputs: [{ name: "usdcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "getUsdcOut", stateMutability: "view", inputs: [{ name: "eurcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
+] as const;
+
+const PERPS_ABI = [
+  { type: "function", name: "openPosition", stateMutability: "nonpayable", inputs: [{ name: "isLong", type: "bool" }, { name: "margin", type: "uint256" }, { name: "leverage", type: "uint256" }, { name: "entryPrice", type: "uint256" }, { name: "market", type: "string" }], outputs: [{ name: "", type: "uint256" }] },
 ] as const;
 
 const FACTORY_ABI = [
@@ -270,7 +277,7 @@ Respond with ONLY the JSON object.`,
         setMessages((prev) => [...prev, { role: "assistant", content: action.summary, action }]);
       }
     } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "I couldn't understand that. Try something like \"swap 10 USDC to EURC\" or \"open a 5x BTC long with 20 USDC\"." }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "I couldn't understand that. Try something like \"swap 10 USDC to EURC\" or \"send 20 USDC to 0x...\"." }]);
     } finally {
       setLoading(false);
     }
@@ -294,10 +301,14 @@ Respond with ONLY the JSON object.`,
         const approveHash = await wc.writeContract({ address: tokenAddress, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountIn], account: address as `0x${string}` });
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
+        const readFn = action.fromToken === "USDC" ? "getEurcOut" : "getUsdcOut";
+        const freshQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: readFn, args: [amountIn] }) as bigint;
+        const minOut = (freshQuote * 99n) / 100n; // 1% slippage tolerance
+
         const hash = await wc.writeContract({
           address: SWAP_CONTRACT, abi: SWAP_ABI,
           functionName: action.fromToken === "USDC" ? "swapUsdcToEurc" : "swapEurcToUsdc",
-          args: [amountIn], account: address as `0x${string}`,
+          args: [amountIn, minOut], account: address as `0x${string}`,
         });
         await publicClient.waitForTransactionReceipt({ hash });
         showToast("Swap completed", "success");
@@ -356,7 +367,9 @@ Respond with ONLY the JSON object.`,
           } else if (alloc.category === "swap_to_eurc") {
             const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountUnits], account: address as `0x${string}` });
             await publicClient.waitForTransactionReceipt({ hash: approveHash });
-            const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountUnits], account: address as `0x${string}` });
+            const stratQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getEurcOut", args: [amountUnits] }) as bigint;
+            const stratMinOut = (stratQuote * 99n) / 100n;
+            const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountUnits, stratMinOut], account: address as `0x${string}` });
             await publicClient.waitForTransactionReceipt({ hash });
           }
         }
@@ -403,7 +416,7 @@ Respond with ONLY the JSON object.`,
           <div style={{ flex: 1, overflowY: "auto", padding: expanded ? "1.4rem" : "1rem", display: "flex", flexDirection: "column", gap: expanded ? 14 : 10, minHeight: expanded ? undefined : 200, maxHeight: expanded ? undefined : 320 }}>
             {messages.length === 0 && (
               <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6 }}>
-                Try: "Get me 100 EURC on Arc", "I have 500 USDC, give me the safest strategy", "send 20 USDC to 0x... on Base", or "open a 5x BTC long with 20 USDC".
+                Try: "Get me 100 EURC on Arc", "I have 500 USDC, give me the safest strategy", or "send 20 USDC to 0x... on Base".
                 {memoryText && (
                   <div style={{ marginTop: 10, background: "#f5f3ff", borderRadius: 10, padding: "0.6rem 0.75rem", color: "#5B21B6", fontSize: 11.5 }}>
                     ✦ {memoryText}
