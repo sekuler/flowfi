@@ -45,7 +45,7 @@ Building on Arc means FlowFi never has to explain away a bridge risk, a wrapped-
 | Feature | What it does |
 |---|---|
 | **Bridge (CCTP V2)** | Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia |
-| **Circle Wallet** | Create a wallet with no seed phrase and no browser extension — one address, works across all four supported chains |
+| **Circle Wallet** | FlowFi provisions a Developer-Controlled Wallet and tracks its per-chain wallet IDs — no seed phrase, no browser extension, one consistent address surfaced across all four supported chains |
 | **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
 | **Lending & Borrowing** | Supply USDC to earn interest, or post EURC as collateral to borrow — 75% max LTV, liquidation at 85% |
 | **Liquidity Pools** | Permissionless AMM — create a pool for any token pair, add/remove liquidity, swap directly against it |
@@ -185,13 +185,9 @@ Full audit notes (all 8 contracts, category-by-category) are in `kontrat-denetim
 
 ## Roadmap
 
-- [ ] Mainnet deployment
-- [ ] Mobile app
-- [ ] Cross-chain intent engine
-- [ ] Wallet abstraction / account abstraction support
-- [ ] Expanded permissionless pool tooling (concentrated liquidity)
-- [ ] Native yield routing across lending and liquidity positions
-- [x] Live token unlock data via DropsTab API, on top of the 57-token manual fallback list
+- [ ] Mainnet deployment (pending a professional third-party security audit)
+- [ ] Cross-chain intent engine — extend the CCTP V2 settlement flow to route multi-step actions automatically
+- [ ] Native yield routing across lending and liquidity positions, built on the same settlement rail
 
 **Not on the mainnet roadmap:** Perpetuals is frozen in an experimental state — no decentralized oracle (Stork/Pyth) is integrated, so pricing isn't independently verified. It stays available on testnet for exploration but won't ship to mainnet without a real oracle integration.
 
