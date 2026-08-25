@@ -49,8 +49,8 @@ const ANALYSIS_SECTION_HEADERS = new Set([
   "Tokenomics", "Token Vesting & Unlocks", "PRICE STABILITY", "STABILITY NOTE", "Supply",
 ]);
 
-function renderMessageContent(content: string, expanded: boolean) {
-  const lines = content.split("\n");
+function renderMessageContent(content: string | undefined, expanded: boolean) {
+  const lines = (content ?? "").split("\n");
   const nodes: JSX.Element[] = [];
   let i = 0;
 
