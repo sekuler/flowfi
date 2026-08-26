@@ -24,9 +24,9 @@ FlowFi treats Arc as the destination, not just another chain to bridge into. USD
 
 | | |
 |---|---|
-| **6** verified smart contracts | **5** financial primitives |
-| **4** supported chains | **8** contracts security-reviewed |
-| **100%** on-chain execution | **1** address across all 4 chains |
+| **1** settlement flow | **4** connected chains |
+| Native USDC — no wrapped assets | **8** contracts security-reviewed |
+| **100%** on-chain execution | Circle-signed, seedless |
 
 ---
 
