@@ -35,6 +35,7 @@ interface Props {
   provider: EIP1193Provider;
   address: string;
   walletName: string;
+  onNavigate?: (tab: "swap" | "lending") => void;
 }
 
 const DEPOSIT_FOR_BURN_ABI = [{
@@ -119,7 +120,7 @@ const HOW_IT_WORKS = [
   { title: "Receive on destination", desc: "Native USDC is minted directly to your wallet" },
 ];
 
-export default function BridgeForm({ provider, address }: Props) {
+export default function BridgeForm({ provider, address, onNavigate }: Props) {
   const isMobile = useIsMobile();
   const [bridgeType, setBridgeType] = useState<"usdc" | "eth">("usdc");
   const [sourceKey, setSourceKey] = useState<ChainKey>("Ethereum Sepolia");
@@ -546,10 +547,25 @@ export default function BridgeForm({ provider, address }: Props) {
             )}
 
             {step === "done" && (
-              <button onClick={() => { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setAmount(""); }}
-                style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#4B5563", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-                New Bridge
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "1rem", textAlign: "center" }}>
+                  <div style={{ fontSize: 12.5, color: "#4B5563", marginBottom: 8 }}>Your USDC just landed on Arc, as native gas — ready to use.</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => onNavigate?.("swap")}
+                      style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                      Swap it
+                    </button>
+                    <button onClick={() => onNavigate?.("lending")}
+                      style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "1px solid #D4C9FA", background: "#ffffff", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                      Supply to Lending
+                    </button>
+                  </div>
+                </div>
+                <button onClick={() => { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setAmount(""); }}
+                  style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#4B5563", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                  New Bridge
+                </button>
+              </div>
             )}
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: "#6B7280" }}>
