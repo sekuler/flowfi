@@ -123,6 +123,41 @@ FlowFi is built around that arrival point — bridging, swaps, lending, and toke
 
 6 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see `kontrat-denetim-raporu.md` for the complete 8-contract audit.
 
+### Circle CCTP V2 infrastructure (Arc Testnet, official — not FlowFi-deployed)
+
+FlowFi's bridge calls Circle's real, official CCTP V2 contracts directly — not a custom or wrapped bridge:
+
+| Contract | Address |
+|---|---|
+| TokenMessengerV2 | `0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA` |
+| MessageTransmitterV2 | `0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275` |
+
+Source: [Arc's official contract addresses page](https://docs.arc.io/arc/references/contract-addresses).
+
+---
+
+## Verified receipts — real transaction hashes
+
+Every claim above is checkable on-chain. Rather than asking anyone to take our word for it, here are real transaction hashes from live demo runs — click through to Arcscan to see them settle.
+
+**Demo 1 — Cross-chain bridge (Ethereum Sepolia → Arc)**
+| Step | Tx hash |
+|---|---|
+| Source burn (Ethereum Sepolia) | [`0x2920de716bea703082e373d6b711354f6ce4d5076a1783fdb73e0094adfecc51`](https://sepolia.etherscan.io/tx/0x2920de716bea703082e373d6b711354f6ce4d5076a1783fdb73e0094adfecc51) |
+| Destination mint (Arc) | [`0x77a9b887dadd47dd6a80d029d8aedee659f730e529ab4a624dd8518226d61695`](https://testnet.arcscan.app/tx/0x77a9b887dadd47dd6a80d029d8aedee659f730e529ab4a624dd8518226d61695) |
+
+**Demo 2 — Circle Developer-Controlled Wallet executing a swap on Arc**
+| Step | Tx hash |
+|---|---|
+| On-chain execution | [`0x0226fc2c8b4cd4000bd25c6aea358f553aed9e69cc69b36582c0b2c7568146c0`](https://testnet.arcscan.app/tx/0x0226fc2c8b4cd4000bd25c6aea358f553aed9e69cc69b36582c0b2c7568146c0) |
+
+**Demo 3 — Financial action on Arc (Lending supply, 25 USDC)**
+| Step | Tx hash |
+|---|---|
+| Contract execution | [`0x970457d689c4507a8e9085b095ede0b374adf7b1dadabd254edcf25aebeb0374`](https://testnet.arcscan.app/tx/0x970457d689c4507a8e9085b095ede0b374adf7b1dadabd254edcf25aebeb0374) |
+
+All four transactions were confirmed successful on their respective explorers as of this writing.
+
 ---
 
 ## Data sources
