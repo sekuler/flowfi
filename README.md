@@ -38,6 +38,8 @@ Being honest about it: CCTP V2 and Circle Developer-Controlled Wallets aren't Ar
 
 FlowFi is built around that arrival point — bridging, swaps, lending, and token tools all settle through the same native-USDC rail, instead of being stitched together across incompatible chains and bridge providers.
 
+There's a second, independent reason Arc specifically: it runs on Malachite, a consensus engine built for sub-second deterministic finality — once a transaction confirms, it's final, no reorg risk. That's not a Circle-product claim that applies elsewhere; it's Arc's own chain-level property, and it's why FlowFi doesn't need to hedge language like "should be confirmed" around settlement.
+
 ---
 
 ## What's inside
