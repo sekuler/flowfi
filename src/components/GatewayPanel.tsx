@@ -57,6 +57,7 @@ export default function GatewayPanel({ provider, address }: Props) {
   const [depositAmount, setDepositAmount] = useState("");
   const [depositChain, setDepositChain] = useState<GatewayChainKey>("Arc Testnet");
   const [depositing, setDepositing] = useState(false);
+  const [waitingForBalance, setWaitingForBalance] = useState(false);
 
   // The address whose Gateway balance we show/deposit against — the browser
   // wallet's own address, or the Circle Developer-Controlled Wallet's
@@ -85,6 +86,30 @@ export default function GatewayPanel({ provider, address }: Props) {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAddress]);
+
+  // After a deposit, the on-chain tx confirms quickly but Gateway's own
+  // backend needs additional time (source-chain finality + its own
+  // processing) before /v1/balances reflects it. A single delayed refresh
+  // is often too early — this checks every 4s, up to 60s, and stops as
+  // soon as the total genuinely increases.
+  async function pollForBalanceIncrease(previousTotal: number) {
+    setWaitingForBalance(true);
+    for (let attempt = 0; attempt < 15; attempt++) {
+      await new Promise((r) => setTimeout(r, 4000));
+      const target = walletMode === "circle" ? circleWallet?.address ?? null : address;
+      if (!target) break;
+      const result = await getUnifiedGatewayBalance(target);
+      if (result.total > previousTotal) {
+        setTotal(result.total);
+        setByChain(result.byChain);
+        setWaitingForBalance(false);
+        return;
+      }
+    }
+    setWaitingForBalance(false);
+    // Final refresh regardless, so the UI at least shows the latest known state.
+    refresh();
+  }
 
   async function doDeposit() {
     if (!depositAmount || Number(depositAmount) <= 0) {
@@ -142,9 +167,9 @@ export default function GatewayPanel({ provider, address }: Props) {
         await publicClient.waitForTransactionReceipt({ hash: depositHash });
       }
 
-      showToast("Deposited to unified balance. It may take a minute to reflect after finality.", "success");
+      showToast("Deposited — waiting for Gateway to process it...", "success");
       setDepositAmount("");
-      setTimeout(refresh, 5000);
+      pollForBalanceIncrease(total ?? 0);
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Deposit failed", "error");
     } finally {
@@ -189,6 +214,12 @@ export default function GatewayPanel({ provider, address }: Props) {
         <div style={{ fontSize: 32, fontWeight: 800, fontFamily: "ui-monospace, monospace" }}>
           {loading ? "..." : `${total?.toFixed(2) ?? "0.00"} USDC`}
         </div>
+        {waitingForBalance && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 11.5, opacity: 0.9 }}>
+            <RefreshCw size={11} className="spin" />
+            Processing deposit — Gateway is confirming it...
+          </div>
+        )}
         <button onClick={refresh} disabled={loading}
           style={{ marginTop: 10, background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "0.4rem 0.8rem", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
           <RefreshCw size={12} className={loading ? "spin" : ""} /> Refresh
