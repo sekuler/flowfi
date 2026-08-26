@@ -11,6 +11,7 @@ import WalletConnect from "./components/WalletConnect";
 import FeedbackWidget from "./components/FeedbackWidget";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
 import BridgeForm from "./components/BridgeForm";
+import GatewayPanel from "./components/GatewayPanel";
 import SwapForm from "./components/SwapForm";
 import SendForm from "./components/SendForm";
 import TxHistory from "./components/TxHistory";
@@ -32,7 +33,7 @@ import { showToast } from "./toast";
 import {
   Home, LayoutGrid, ArrowUpRight, ArrowDownLeft, Repeat, TrendingUp, Droplet,
   Landmark, Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
-  Sparkles, Moon, Power, Copy, Check, RefreshCw,
+  Sparkles, Moon, Power, Copy, Check, RefreshCw, Zap,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -54,7 +55,7 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "home" | "portfolio" | "send" | "receive" | "swap" | "perps" | "pools" | "lending" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet";
+type Tab = "home" | "portfolio" | "send" | "receive" | "swap" | "perps" | "pools" | "lending" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "gateway";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
@@ -74,6 +75,7 @@ const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[]
   group: "SETTLEMENT",
   tabs: [
     { id: "bridge",       label: "Bridge",        Icon: Hexagon },
+    { id: "gateway",      label: "Gateway",       Icon: Zap },
     { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
   ],
 },
@@ -704,6 +706,7 @@ function AppInner() {
             {tab === "history" && <TxHistory address={wallet.address} />}
             {tab === "receive" && <ReceiveQR address={wallet.address} />}
             {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} onNavigate={(t) => setTab(t)} />}
+            {tab === "gateway" && <GatewayPanel provider={wallet.provider} address={wallet.address} />}
             {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
             {tab === "send" && <SendForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
             {tab === "circlewallet" && <CircleWallet />}
