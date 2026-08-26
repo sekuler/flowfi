@@ -479,7 +479,7 @@ function AppInner() {
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           {TAB_GROUPS.map(({ group, tabs }) => (
             <div key={group} style={{ marginBottom: 4 }}>
-              <div style={{ fontSize: 9, color: "#3B82F6", fontWeight: 800, letterSpacing: "1.5px", padding: "0.35rem 1rem 0.2rem" }}>{group}</div>
+              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: "#3B82F6", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem" }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 return (
