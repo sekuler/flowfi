@@ -71,21 +71,26 @@ const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[]
   ],
 },
 {
-  group: "TRADING",
+  group: "SETTLEMENT",
+  tabs: [
+    { id: "bridge",       label: "Bridge",        Icon: Hexagon },
+    { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
+  ],
+},
+{
+  group: "ON ARC",
   tabs: [
     { id: "swap",      label: "Swap",      Icon: Repeat },
-    { id: "bridge",    label: "Bridge",    Icon: Hexagon },
-    { id: "pools",     label: "Liquidity Pools", Icon: Droplet },
     { id: "lending",   label: "Lending",   Icon: Landmark },
+  ],
+},
+{
+  group: "TOOLS",
+  tabs: [
+    { id: "pools",     label: "Liquidity Pools", Icon: Droplet },
     { id: "launch",    label: "Launch Token", Icon: Rocket },
   ],
 },
-  {
-    group: "INFRASTRUCTURE",
-    tabs: [
-      { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
-    ],
-  },
  {
   group: "ANALYTICS",
   tabs: [
