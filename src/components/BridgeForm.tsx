@@ -12,6 +12,7 @@ const baseSepoliaReliable = { ...baseSepolia, rpcUrls: { default: { http: ["http
 const arbitrumSepoliaReliable = { ...arbitrumSepolia, rpcUrls: { default: { http: ["https://arbitrum-sepolia-rpc.publicnode.com"] } } };
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
+import { getPendingFollowUp, clearPendingFollowUp, type PendingFollowUp } from "../pendingFollowUp";
 import { addPoints } from "../gamification";
 import EthBridge from "./EthBridge";
 import ConfirmModal from "./ConfirmModal";
@@ -122,6 +123,7 @@ const HOW_IT_WORKS = [
 
 export default function BridgeForm({ provider, address, onNavigate }: Props) {
   const isMobile = useIsMobile();
+  const [followUp, setFollowUp] = useState<PendingFollowUp | null>(null);
   const [bridgeType, setBridgeType] = useState<"usdc" | "eth">("usdc");
   const [sourceKey, setSourceKey] = useState<ChainKey>("Ethereum Sepolia");
   const [destKey, setDestKey] = useState<ChainKey>("Arc Testnet");
@@ -129,6 +131,16 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
   const [destOpen, setDestOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"idle" | "approving" | "burning" | "attesting" | "minting" | "done" | "error">("idle");
+
+  useEffect(() => {
+    if (step === "done") {
+      const pending = getPendingFollowUp();
+      if (pending) {
+        setFollowUp(pending);
+        clearPendingFollowUp();
+      }
+    }
+  }, [step]);
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -548,20 +560,32 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
 
             {step === "done" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "1rem", textAlign: "center" }}>
-                  <div style={{ fontSize: 12.5, color: "#4B5563", marginBottom: 8 }}>Your USDC just landed on Arc, as native gas — ready to use.</div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => onNavigate?.("swap")}
-                      style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-                      Swap it
-                    </button>
-                    <button onClick={() => onNavigate?.("lending")}
-                      style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "1px solid #D4C9FA", background: "#ffffff", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-                      Supply to Lending
+                {followUp ? (
+                  <div style={{ background: "linear-gradient(135deg, #6D5EF7, #4F6BFF)", borderRadius: 14, padding: "1rem", textAlign: "center" }}>
+                    <div style={{ fontSize: 12.5, color: "#ffffff", marginBottom: 8, opacity: 0.95 }}>
+                      Bridge complete. Continuing to {followUp.action === "swap" ? `swap it to ${followUp.toToken}` : "Lending"}, as requested.
+                    </div>
+                    <button onClick={() => onNavigate?.(followUp.action === "swap" ? "swap" : "lending")}
+                      style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                      Continue →
                     </button>
                   </div>
-                </div>
-                <button onClick={() => { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setAmount(""); }}
+                ) : (
+                  <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "1rem", textAlign: "center" }}>
+                    <div style={{ fontSize: 12.5, color: "#4B5563", marginBottom: 8 }}>Your USDC just landed on Arc, as native gas — ready to use.</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => onNavigate?.("swap")}
+                        style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                        Swap it
+                      </button>
+                      <button onClick={() => onNavigate?.("lending")}
+                        style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "1px solid #D4C9FA", background: "#ffffff", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                        Supply to Lending
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <button onClick={() => { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setAmount(""); setFollowUp(null); }}
                   style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#4B5563", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
                   New Bridge
                 </button>

@@ -5,6 +5,7 @@ import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
 import { getFormattedMarketAnalysis } from "../marketData";
 import { addPoints } from "../gamification";
+import { setPendingFollowUp } from "../pendingFollowUp";
 import { computeMemoryInsight } from "../memory";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
@@ -155,6 +156,7 @@ interface ParsedAction {
   tokenA?: string;
   tokenB?: string;
   allocations?: Allocation[];
+  followUp?: { action: "swap"; toToken: string } | { action: "lending" }; // for chained requests like "bridge X then swap to Y"
   summary: string;
   reasoning?: string;
 }
@@ -210,6 +212,7 @@ Schema:
   "destinationChain": "Arc Testnet" | "Ethereum Sepolia" | "Base Sepolia" | "Arbitrum Sepolia" (ONLY for send, ONLY if the user names a specific chain the recipient should receive funds on, e.g. "send 50 USDC to 0xABC on Base" — omit entirely if no chain is mentioned, defaulting to a normal same-chain transfer on Arc),
   "tokenA": string, "tokenB": string (for create_pool),
   "allocations": [{ "category": "lending" | "swap_to_eurc" | "idle", "amount": number, "percent": number, "note": "short reason for this allocation" }] (ONLY for action "strategy"),
+  "followUp": { "action": "swap", "toToken": "EURC" } | { "action": "lending" } (ONLY for action "bridge", ONLY if the user's request has a clear second step after the bridge, e.g. "bridge 50 USDC to Arc and swap it to EURC" → followUp: {"action":"swap","toToken":"EURC"}; "move 100 USDC from Base to Arc and supply it to lending" → followUp: {"action":"lending"}. Omit entirely if the user only asked to bridge, with no stated next step.),
   "summary": "short one-line plain-English summary of what will happen",
   "reasoning": "one short sentence on any relevant risk or note"
 }
@@ -360,8 +363,14 @@ Respond with ONLY the JSON object.`,
         await publicClient.waitForTransactionReceipt({ hash });
         showToast("Pool created", "success");
       } else if (action.action === "bridge") {
+        if (action.followUp) setPendingFollowUp(action.followUp);
         onNavigate("bridge");
-        setMessages((prev) => [...prev, { role: "assistant", content: "Bridging needs a network switch, so I've taken you to the Bridge tab — pick your source chain and confirm there." }]);
+        const followUpMsg = action.followUp
+          ? action.followUp.action === "swap"
+            ? ` Once it lands, I'll bring you straight to swap it to ${action.followUp.toToken}.`
+            : " Once it lands, I'll bring you straight to Lending."
+          : "";
+        setMessages((prev) => [...prev, { role: "assistant", content: `Bridging needs a network switch, so I've taken you to the Bridge tab — pick your source chain and confirm there.${followUpMsg}` }]);
         setExecuting(false);
         return;
       } else if (action.action === "strategy") {
