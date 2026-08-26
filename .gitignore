@@ -3,6 +3,7 @@ node_modules
 dist
 activity-script.cjs
 register-entity.cjs
+register-entity-secret.cjs
 test-circle.cjs
 recovery_file*.dat
 temp_swap.txt
