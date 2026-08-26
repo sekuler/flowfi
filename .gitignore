@@ -1,4 +1,8 @@
-node_modules 
-.env 
-dist 
-activity-script.cjs 
+node_modules
+.env
+dist
+activity-script.cjs
+register-entity.cjs
+test-circle.cjs
+recovery_file*.dat
+temp_swap.txt
