@@ -94,8 +94,8 @@ export default function GatewayPanel({ provider, address }: Props) {
   // soon as the total genuinely increases.
   async function pollForBalanceIncrease(previousTotal: number) {
     setWaitingForBalance(true);
-    for (let attempt = 0; attempt < 15; attempt++) {
-      await new Promise((r) => setTimeout(r, 4000));
+    for (let attempt = 0; attempt < 120; attempt++) {
+      await new Promise((r) => setTimeout(r, 5000));
       const target = walletMode === "circle" ? circleWallet?.address ?? null : address;
       if (!target) break;
       const result = await getUnifiedGatewayBalance(target);

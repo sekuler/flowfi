@@ -51,6 +51,7 @@ export async function getGatewayBalance(address: string, domain: number): Promis
     const res = await fetch(`${GATEWAY_API_BASE}/v1/balances`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      cache: "no-store",
       body: JSON.stringify({
         token: "USDC",
         sources: [{ domain, depositor: address }],
