@@ -698,7 +698,7 @@ function AppInner() {
             {tab === "analytics" && <StablecoinAnalytics />}
             {tab === "history" && <TxHistory address={wallet.address} />}
             {tab === "receive" && <ReceiveQR address={wallet.address} />}
-            {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} />}
+            {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} onNavigate={(t) => setTab(t)} />}
             {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
             {tab === "send" && <SendForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
             {tab === "circlewallet" && <CircleWallet />}
