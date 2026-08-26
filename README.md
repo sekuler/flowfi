@@ -48,6 +48,7 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 |---|---|
 | **Bridge (CCTP V2)** | Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia |
 | **Circle Wallet** | FlowFi provisions a Developer-Controlled Wallet and tracks its per-chain wallet IDs — no seed phrase, no browser extension, one consistent address surfaced across all four supported chains |
+| **Gateway** | A genuinely unified USDC balance via Circle's Gateway protocol — deposit once from any supported chain, held as one pooled balance instead of four separate on-chain balances. Works from either a browser wallet or the Circle Wallet |
 | **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
 | **Lending & Borrowing** | Supply USDC to earn interest, or post EURC as collateral to borrow — 75% max LTV, liquidation at 85% |
 | **Liquidity Pools** | Permissionless AMM — create a pool for any token pair, add/remove liquidity, swap directly against it |
@@ -135,6 +136,17 @@ FlowFi's bridge calls Circle's real, official CCTP V2 contracts directly — not
 | MessageTransmitterV2 | `0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275` |
 
 Source: [Arc's official contract addresses page](https://docs.arc.io/arc/references/contract-addresses).
+
+### Circle Gateway infrastructure (official — not FlowFi-deployed)
+
+FlowFi's Gateway panel calls Circle's real Gateway Wallet contract directly. The same address is deployed identically across every supported EVM testnet (Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia, and others) — confirmed live via `GET /v1/info` on Circle's Gateway API:
+
+| Contract | Address |
+|---|---|
+| Gateway Wallet | `0x0077777d7EBA4688BDeF3E311b846F25870A19B9` |
+| Gateway Minter | `0x0022222ABE238Cc2C7Bb1f21003F0a260052475B` |
+
+Source: [Circle Gateway docs](https://developers.circle.com/gateway) and live `gateway-api-testnet.circle.com/v1/info`.
 
 ---
 
