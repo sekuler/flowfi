@@ -6,6 +6,7 @@ import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import type { EIP1193Provider } from "viem";
 import { Zap, RefreshCw } from "lucide-react";
 import { showToast } from "../toast";
+import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
 import {
   GATEWAY_WALLET_ADDRESS,
   GATEWAY_WALLET_ABI,
@@ -13,6 +14,13 @@ import {
   getUnifiedGatewayBalance,
   type GatewayChainKey,
 } from "../gatewayHelpers";
+
+const CIRCLE_CHAIN_FOR: Record<GatewayChainKey, CircleChain> = {
+  "Arc Testnet": "ARC-TESTNET",
+  "Ethereum Sepolia": "ETH-SEPOLIA",
+  "Base Sepolia": "BASE-SEPOLIA",
+  "Arbitrum Sepolia": "ARB-SEPOLIA",
+};
 
 const CHAIN_USDC: Record<GatewayChainKey, `0x${string}`> = {
   "Arc Testnet": "0x3600000000000000000000000000000000000000",
@@ -41,6 +49,8 @@ interface Props {
 }
 
 export default function GatewayPanel({ provider, address }: Props) {
+  const [walletMode, setWalletMode] = useState<"browser" | "circle">("browser");
+  const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [byChain, setByChain] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -48,9 +58,24 @@ export default function GatewayPanel({ provider, address }: Props) {
   const [depositChain, setDepositChain] = useState<GatewayChainKey>("Arc Testnet");
   const [depositing, setDepositing] = useState(false);
 
+  // The address whose Gateway balance we show/deposit against — the browser
+  // wallet's own address, or the Circle Developer-Controlled Wallet's
+  // address, depending on which mode is selected. Gateway tracks balances
+  // per-address with no concept of "the FlowFi user", so these two modes
+  // genuinely show different, separate balances.
+  const activeAddress = walletMode === "circle" ? circleWallet?.address ?? null : address;
+
+  useEffect(() => {
+    setCircleWallet(getCircleWallet());
+    const onChange = () => setCircleWallet(getCircleWallet());
+    window.addEventListener("circle-wallet-changed", onChange);
+    return () => window.removeEventListener("circle-wallet-changed", onChange);
+  }, []);
+
   async function refresh() {
+    if (!activeAddress) { setTotal(0); setByChain({}); setLoading(false); return; }
     setLoading(true);
-    const result = await getUnifiedGatewayBalance(address);
+    const result = await getUnifiedGatewayBalance(activeAddress);
     setTotal(result.total);
     setByChain(result.byChain);
     setLoading(false);
@@ -59,39 +84,63 @@ export default function GatewayPanel({ provider, address }: Props) {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]);
+  }, [activeAddress]);
 
   async function doDeposit() {
     if (!depositAmount || Number(depositAmount) <= 0) {
       showToast("Enter a valid amount", "error");
       return;
     }
+    if (walletMode === "circle" && !circleWallet) {
+      showToast("No Circle Wallet found — create one on the Circle Wallet tab first", "error");
+      return;
+    }
     setDepositing(true);
     try {
-      const chainObj = CHAIN_OBJECT[depositChain];
-      try {
-        await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX[depositChain] }] });
-      } catch {
-        showToast(`Please switch your wallet to ${depositChain} and try again`, "error");
-        setDepositing(false);
-        return;
-      }
-      const walletClient = createWalletClient({ chain: chainObj, transport: custom(provider) });
-      const publicClient = createPublicClient({ chain: chainObj, transport: http() });
       const usdcAddress = CHAIN_USDC[depositChain];
       const amountUnits = parseUnits(depositAmount, 6);
 
-      const approveHash = await walletClient.writeContract({
-        address: usdcAddress, abi: erc20Abi, functionName: "approve",
-        args: [GATEWAY_WALLET_ADDRESS, amountUnits], account: address as `0x${string}`,
-      });
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      if (walletMode === "circle") {
+        const walletId = getWalletIdForChain(circleWallet, CIRCLE_CHAIN_FOR[depositChain]);
+        if (!walletId) {
+          showToast(`Your Circle Wallet doesn't have a ${depositChain} address yet`, "error");
+          setDepositing(false);
+          return;
+        }
+        await circleContractCallAndWait({
+          walletId, contractAddress: usdcAddress,
+          abiFunctionSignature: "approve(address,uint256)",
+          abiParameters: [GATEWAY_WALLET_ADDRESS, amountUnits.toString()],
+        });
+        await circleContractCallAndWait({
+          walletId, contractAddress: GATEWAY_WALLET_ADDRESS,
+          abiFunctionSignature: "deposit(address,uint256)",
+          abiParameters: [usdcAddress, amountUnits.toString()],
+        });
+      } else {
+        const chainObj = CHAIN_OBJECT[depositChain];
+        try {
+          await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX[depositChain] }] });
+        } catch {
+          showToast(`Please switch your wallet to ${depositChain} and try again`, "error");
+          setDepositing(false);
+          return;
+        }
+        const walletClient = createWalletClient({ chain: chainObj, transport: custom(provider) });
+        const publicClient = createPublicClient({ chain: chainObj, transport: http() });
 
-      const depositHash = await walletClient.writeContract({
-        address: GATEWAY_WALLET_ADDRESS, abi: GATEWAY_WALLET_ABI, functionName: "deposit",
-        args: [usdcAddress, amountUnits], account: address as `0x${string}`,
-      });
-      await publicClient.waitForTransactionReceipt({ hash: depositHash });
+        const approveHash = await walletClient.writeContract({
+          address: usdcAddress, abi: erc20Abi, functionName: "approve",
+          args: [GATEWAY_WALLET_ADDRESS, amountUnits], account: address as `0x${string}`,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+        const depositHash = await walletClient.writeContract({
+          address: GATEWAY_WALLET_ADDRESS, abi: GATEWAY_WALLET_ABI, functionName: "deposit",
+          args: [usdcAddress, amountUnits], account: address as `0x${string}`,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: depositHash });
+      }
 
       showToast("Deposited to unified balance. It may take a minute to reflect after finality.", "success");
       setDepositAmount("");
@@ -109,9 +158,31 @@ export default function GatewayPanel({ provider, address }: Props) {
         <Zap size={20} color="#3B82F6" />
         <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Unified Balance</h2>
       </div>
-      <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 20 }}>
+      <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 14 }}>
         Powered by Circle Gateway — deposit once, access instantly across every supported chain.
       </p>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "#F3F4F6", borderRadius: 10, padding: 4 }}>
+        <button onClick={() => setWalletMode("browser")}
+          style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "browser" ? "#fff" : "transparent", boxShadow: walletMode === "browser" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "browser" ? "#111827" : "#6B7280", cursor: "pointer" }}>
+          Browser Wallet
+        </button>
+        <button onClick={() => setWalletMode("circle")}
+          style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "circle" ? "#fff" : "transparent", boxShadow: walletMode === "circle" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "circle" ? "#111827" : "#6B7280", cursor: "pointer" }}>
+          Circle Wallet
+        </button>
+      </div>
+
+      {walletMode === "circle" && !circleWallet && (
+        <div style={{ background: "#FEF3C7", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 12.5, color: "#92400E", marginBottom: 16 }}>
+          No Circle Wallet found. Create one on the Circle Wallet tab first.
+        </div>
+      )}
+      {walletMode === "circle" && circleWallet && (
+        <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 16, fontFamily: "ui-monospace, monospace" }}>
+          {circleWallet.address.slice(0, 8)}...{circleWallet.address.slice(-6)}
+        </div>
+      )}
 
       <div style={{ background: "linear-gradient(135deg, #3B82F6, #6D5EF7)", borderRadius: 16, padding: "1.5rem", marginBottom: 20, color: "#fff" }}>
         <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 4 }}>Total unified balance</div>
@@ -144,8 +215,8 @@ export default function GatewayPanel({ provider, address }: Props) {
         </select>
         <input type="number" placeholder="Amount (USDC)" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)}
           style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 10, fontSize: 13, boxSizing: "border-box" }} />
-        <button onClick={doDeposit} disabled={depositing}
-          style={{ width: "100%", padding: "0.7rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing ? "not-allowed" : "pointer", opacity: depositing ? 0.6 : 1 }}>
+        <button onClick={doDeposit} disabled={depositing || (walletMode === "circle" && !circleWallet)}
+          style={{ width: "100%", padding: "0.7rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing || (walletMode === "circle" && !circleWallet) ? "not-allowed" : "pointer", opacity: depositing || (walletMode === "circle" && !circleWallet) ? 0.6 : 1 }}>
           {depositing ? "Depositing..." : "Deposit"}
         </button>
         <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8, marginBottom: 0 }}>
