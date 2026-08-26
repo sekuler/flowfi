@@ -1,8 +1,8 @@
 # FlowFi
 
-**Turning Arc's programmable money into one settlement flow**
+**Where cross-chain USDC becomes productive**
 
-FlowFi combines Arc's stablecoin-native settlement environment with Circle's Developer-Controlled Wallets and real CCTP V2 flows into one cross-chain USDC experience. Swap, lending, and token tools are built around that same rail, not bolted onto it — all inside one application on [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
+FlowFi treats Arc as the destination, not just another chain to bridge into. USDC is Arc's native gas asset, not a wrapped placeholder — so funds arriving via CCTP V2 through a Circle Developer-Controlled Wallet are immediately usable for swaps, lending, and payments, with no synthetic-asset risk in between. Swap, lending, and token tools are built around that arrival point, not bolted onto it — all inside one application on [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
 
 **Live:** [flowfi.finance](https://flowfi.finance) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
@@ -34,9 +34,9 @@ FlowFi combines Arc's stablecoin-native settlement environment with Circle's Dev
 
 FlowFi is designed around stablecoins, not speculation.
 
-FlowFi combines Arc's stablecoin-native settlement environment with Circle's Developer-Controlled Wallets and real CCTP V2 flows into a single cross-chain USDC experience — bridging, swaps, lending, and token tools all settle through that same rail instead of being stitched together across incompatible chains and bridge providers.
+Being honest about it: CCTP V2 and Circle Developer-Controlled Wallets aren't Arc-exclusive — they work on other supported EVM chains too. What's actually Arc-specific is what happens after funds arrive. USDC is Arc's native gas asset, not a wrapped placeholder bolted onto a general-purpose chain — so cross-chain USDC becomes immediately productive the moment it lands, with no synthetic-asset discount and no "why is gas a random token" friction to explain away.
 
-Building on Arc means FlowFi never has to explain away a bridge risk, a wrapped-asset discount, or a "why is gas paid in a random token" question. USDC is the base layer, not an afterthought.
+FlowFi is built around that arrival point — bridging, swaps, lending, and token tools all settle through the same native-USDC rail, instead of being stitched together across incompatible chains and bridge providers.
 
 ---
 
