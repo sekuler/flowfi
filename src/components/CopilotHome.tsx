@@ -65,7 +65,7 @@ const POOL_FACTORY_ABI = [
 interface Props {
   address: string;
   balances: { usdc: string | null; eurc: string | null; usyc: string | null; native: string | null };
-  onNavigate: (tab: "swap" | "bridge" | "send" | "perps" | "lending" | "pools" | "launch") => void;
+  onNavigate: (tab: "swap" | "bridge" | "send" | "lending" | "pools" | "launch") => void;
 }
 
 interface RecentTx {

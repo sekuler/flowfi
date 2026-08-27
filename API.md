@@ -72,7 +72,7 @@ Proxy for all Claude API calls. The Anthropic key lives only here (`ANTHROPIC_AP
 
 **Body:** `{ model, max_tokens, system, messages }` — same shape as calling Anthropic's `/v1/messages` directly.
 
-**Rate limit:** 8 requests/minute per IP (in-memory, best-effort) — protects the shared API credit balance from abuse, since every user's AI usage draws from the same key.
+**Rate limit:** 20 requests/minute per IP (in-memory, best-effort) — protects the shared API credit balance from abuse, since every user's AI usage draws from the same key.
 
 **Response:** Anthropic's raw response, passed through unmodified.
 

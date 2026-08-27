@@ -5,7 +5,7 @@ import { useIsMobile } from "../useIsMobile";
 interface Props {
   address: string;
   balances: { usdc: string | null; eurc: string | null; usyc: string | null; native: string | null };
-  onNavigate: (tab: "swap" | "bridge" | "send" | "perps") => void;
+  onNavigate: (tab: "swap" | "bridge" | "send") => void;
 }
 
 interface ActivityItem {
@@ -199,7 +199,6 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
     { key: "swap" as const, label: "Swap", emoji: "⇄", color: "#6D5EF7" },
     { key: "bridge" as const, label: "Bridge", emoji: "⬡", color: "#3B82F6" },
     { key: "send" as const, label: "Send", emoji: "↗", color: "#22C55E" },
-    { key: "perps" as const, label: "Trade", emoji: "▲", color: "#F43F5E" },
   ];
 
   const CATEGORY_META: Record<string, { label: string; color: string; bg: string }> = {
