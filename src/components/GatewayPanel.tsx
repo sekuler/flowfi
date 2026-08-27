@@ -5,6 +5,7 @@ import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import type { EIP1193Provider } from "viem";
 import { Zap, RefreshCw, ArrowRight } from "lucide-react";
+import { useIsMobile } from "../useIsMobile";
 import { showToast } from "../toast";
 import { getCircleWallet, circleContractCall, circleContractCallAndWait, getWalletIdForChain, signTypedDataWithCircleWallet, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
 import { buildBurnIntentTypedData, requestTransferAttestation, toCircleTypedDataJSON, GATEWAY_MINTER_ADDRESS, GATEWAY_MINTER_ABI, GATEWAY_WALLET_READ_ABI } from "../gatewayTransfer";
@@ -50,6 +51,7 @@ interface Props {
 }
 
 export default function GatewayPanel({ provider, address }: Props) {
+  const isMobile = useIsMobile();
   const [walletMode, setWalletMode] = useState<"browser" | "circle">("browser");
   const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
   const [total, setTotal] = useState<number | null>(null);
@@ -324,108 +326,139 @@ export default function GatewayPanel({ provider, address }: Props) {
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: "1.5rem" }}>
+    <div style={{ maxWidth: isMobile ? 480 : 1150, margin: "0 auto", padding: isMobile ? "1.5rem" : "2rem" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <Zap size={20} color="#3B82F6" />
         <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Unified Balance</h2>
       </div>
-      <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 14 }}>
+      <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 24 }}>
         Powered by Circle Gateway — deposit once, access instantly across every supported chain.
       </p>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "#F3F4F6", borderRadius: 10, padding: 4 }}>
-        <button onClick={() => setWalletMode("browser")}
-          style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "browser" ? "#fff" : "transparent", boxShadow: walletMode === "browser" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "browser" ? "#111827" : "#6B7280", cursor: "pointer" }}>
-          Browser Wallet
-        </button>
-        <button onClick={() => setWalletMode("circle")}
-          style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "circle" ? "#fff" : "transparent", boxShadow: walletMode === "circle" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "circle" ? "#111827" : "#6B7280", cursor: "pointer" }}>
-          Circle Wallet
-        </button>
-      </div>
-
-      {walletMode === "circle" && !circleWallet && (
-        <div style={{ background: "#FEF3C7", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 12.5, color: "#92400E", marginBottom: 16 }}>
-          No Circle Wallet found. Create one on the Circle Wallet tab first.
-        </div>
-      )}
-      {walletMode === "circle" && circleWallet && (
-        <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 16, fontFamily: "ui-monospace, monospace" }}>
-          {circleWallet.address.slice(0, 8)}...{circleWallet.address.slice(-6)}
-        </div>
-      )}
-
-      <div style={{ background: "linear-gradient(135deg, #3B82F6, #6D5EF7)", borderRadius: 16, padding: "1.5rem", marginBottom: 20, color: "#fff" }}>
-        <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 4 }}>Total unified balance</div>
-        <div style={{ fontSize: 32, fontWeight: 800, fontFamily: "ui-monospace, monospace" }}>
-          {loading ? "..." : `${total?.toFixed(2) ?? "0.00"} USDC`}
-        </div>
-        {waitingForBalance && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 11.5, opacity: 0.9 }}>
-            <RefreshCw size={11} className="spin" />
-            Processing deposit — Gateway is confirming it...
+      {/* Top section: balance overview (left) + Gateway status (right) */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.6fr 1fr", gap: 20, marginBottom: 20, alignItems: "start" }}>
+        <div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "#F3F4F6", borderRadius: 10, padding: 4 }}>
+            <button onClick={() => setWalletMode("browser")}
+              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "browser" ? "#fff" : "transparent", boxShadow: walletMode === "browser" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "browser" ? "#111827" : "#6B7280", cursor: "pointer" }}>
+              Browser Wallet
+            </button>
+            <button onClick={() => setWalletMode("circle")}
+              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "circle" ? "#fff" : "transparent", boxShadow: walletMode === "circle" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "circle" ? "#111827" : "#6B7280", cursor: "pointer" }}>
+              Circle Wallet
+            </button>
           </div>
-        )}
-        <button onClick={refresh} disabled={loading}
-          style={{ marginTop: 10, background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "0.4rem 0.8rem", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-          <RefreshCw size={12} className={loading ? "spin" : ""} /> Refresh
-        </button>
-      </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", marginBottom: 8, textTransform: "uppercase" }}>By chain</div>
-        {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((chain) => (
-          <div key={chain} style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0", borderBottom: "1px solid #F3F4F6", fontSize: 13 }}>
-            <span style={{ color: "#374151" }}>{chain}</span>
-            <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>{(byChain[chain] ?? 0).toFixed(2)} USDC</span>
+          {walletMode === "circle" && !circleWallet && (
+            <div style={{ background: "#FEF3C7", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 12.5, color: "#92400E", marginBottom: 16 }}>
+              No Circle Wallet found. Create one on the Circle Wallet tab first.
+            </div>
+          )}
+          {walletMode === "circle" && circleWallet && (
+            <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 16, fontFamily: "ui-monospace, monospace" }}>
+              {circleWallet.address.slice(0, 8)}...{circleWallet.address.slice(-6)}
+            </div>
+          )}
+
+          <div style={{ background: "linear-gradient(135deg, #3B82F6, #6D5EF7)", borderRadius: 16, padding: "1.5rem", marginBottom: 20, color: "#fff" }}>
+            <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 4 }}>Total unified balance</div>
+            <div style={{ fontSize: 32, fontWeight: 800, fontFamily: "ui-monospace, monospace" }}>
+              {loading ? "..." : `${total?.toFixed(2) ?? "0.00"} USDC`}
+            </div>
+            {waitingForBalance && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 11.5, opacity: 0.9 }}>
+                <RefreshCw size={11} className="spin" />
+                Processing — Gateway is confirming it...
+              </div>
+            )}
+            <button onClick={refresh} disabled={loading}
+              style={{ marginTop: 10, background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "0.4rem 0.8rem", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+              <RefreshCw size={12} className={loading ? "spin" : ""} /> Refresh
+            </button>
           </div>
-        ))}
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", marginBottom: 8, textTransform: "uppercase" }}>By chain</div>
+            {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((chain) => (
+              <div key={chain} style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0", borderBottom: "1px solid #F3F4F6", fontSize: 13 }}>
+                <span style={{ color: "#374151" }}>{chain}</span>
+                <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>{(byChain[chain] ?? 0).toFixed(2)} USDC</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Gateway status / supported chains */}
+        <div style={{ background: "#F9FAFB", borderRadius: 14, padding: "1.25rem" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", marginBottom: 12 }}>Gateway status</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22C55E" }} />
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#111827" }}>Live on testnet</span>
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", marginBottom: 8 }}>Supported chains</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
+              <div key={c} style={{ fontSize: 12.5, color: "#374151", display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#3B82F6" }} />
+                {c}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div style={{ background: "#F9FAFB", borderRadius: 14, padding: "1rem" }}>
-        <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 10 }}>Deposit into unified balance</div>
-        <select value={depositChain} onChange={(e) => setDepositChain(e.target.value as GatewayChainKey)}
-          style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 8, fontSize: 13 }}>
-          {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-        <input type="number" placeholder="Amount (USDC)" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)}
-          style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 10, fontSize: 13, boxSizing: "border-box" }} />
-        <button onClick={doDeposit} disabled={depositing || (walletMode === "circle" && !circleWallet)}
-          style={{ width: "100%", padding: "0.7rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing || (walletMode === "circle" && !circleWallet) ? "not-allowed" : "pointer", opacity: depositing || (walletMode === "circle" && !circleWallet) ? 0.6 : 1 }}>
-          {depositing ? "Depositing..." : "Deposit"}
-        </button>
+      {/* Deposit */}
+      <div style={{ background: "#F9FAFB", borderRadius: 14, padding: isMobile ? "1rem" : "1.5rem", marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Deposit into unified balance</div>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
+          <select value={depositChain} onChange={(e) => setDepositChain(e.target.value as GatewayChainKey)}
+            style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13 }}>
+            {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <input type="number" placeholder="Amount (USDC)" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)}
+            style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
+          <button onClick={doDeposit} disabled={depositing || (walletMode === "circle" && !circleWallet)}
+            style={{ flex: isMobile ? undefined : "0 0 160px", padding: "0.6rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing || (walletMode === "circle" && !circleWallet) ? "not-allowed" : "pointer", opacity: depositing || (walletMode === "circle" && !circleWallet) ? 0.6 : 1 }}>
+            {depositing ? "Depositing..." : "Deposit"}
+          </button>
+        </div>
         <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8, marginBottom: 0 }}>
           Requires two confirmations: approve, then deposit. Balance updates after the source chain finalizes.
         </p>
       </div>
 
-      {(
-        <div style={{ background: "#F9FAFB", borderRadius: 14, padding: "1rem", marginTop: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-            <Zap size={13} color="#3B82F6" />
-            <div style={{ fontSize: 12.5, fontWeight: 700 }}>Instant transfer (&lt;500ms)</div>
+      {/* Instant transfer — full-width, prominent */}
+      <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: isMobile ? "1.25rem" : "1.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Zap size={16} color="#3B82F6" />
           </div>
-          <p style={{ fontSize: 11.5, color: "#9CA3AF", marginTop: 0, marginBottom: 10 }}>
-            Move part of your deposited balance to another chain instantly, without a new deposit.
-          </p>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>Instant transfer <span style={{ color: "#3B82F6" }}>&lt;500ms</span></div>
+        </div>
+        <p style={{ fontSize: 12.5, color: "#9CA3AF", marginTop: 0, marginBottom: 18 }}>
+          Move part of your deposited balance to another chain instantly, without a new deposit.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
           <select value={transferSource} onChange={(e) => setTransferSource(e.target.value as GatewayChainKey)}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 8, fontSize: 13 }}>
+            style={{ padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13 }}>
             {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
               <option key={c} value={c}>From: {c}</option>
             ))}
           </select>
           <select value={transferDest} onChange={(e) => setTransferDest(e.target.value as GatewayChainKey)}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 8, fontSize: 13 }}>
+            style={{ padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13 }}>
             {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
               <option key={c} value={c}>To: {c}</option>
             ))}
           </select>
           <input type="number" placeholder="Amount (USDC)" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 8, fontSize: 13, boxSizing: "border-box" }} />
+            style={{ padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
           <input type="text" placeholder="Recipient address (optional — defaults to you)" value={transferRecipient} onChange={(e) => setTransferRecipient(e.target.value)}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 10, fontSize: 13, boxSizing: "border-box" }} />
+            style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
           <button
             onClick={() => {
               if (!transferAmount || Number(transferAmount) <= 0) { showToast("Enter a valid amount", "error"); return; }
@@ -433,11 +466,11 @@ export default function GatewayPanel({ provider, address }: Props) {
               setShowTransferConfirm(true);
             }}
             disabled={transferring}
-            style={{ width: "100%", padding: "0.7rem", borderRadius: 10, border: "none", background: "#111827", color: "#fff", fontSize: 13, fontWeight: 700, cursor: transferring ? "not-allowed" : "pointer", opacity: transferring ? 0.6 : 1 }}>
+            style={{ flex: isMobile ? undefined : "0 0 200px", padding: "0.7rem", borderRadius: 10, border: "none", background: "#111827", color: "#fff", fontSize: 13, fontWeight: 700, cursor: transferring ? "not-allowed" : "pointer", opacity: transferring ? 0.6 : 1 }}>
             Review Transfer
           </button>
         </div>
-      )}
+      </div>
 
       {showTransferConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
