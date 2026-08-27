@@ -102,6 +102,28 @@ export function buildBurnIntentTypedData(params: BuildBurnIntentParams) {
   };
 }
 
+/**
+ * Circle's signTypedData API validates against the full EIP-712 JSON
+ * spec, which expects an explicit "EIP712Domain" entry in `types` — unlike
+ * viem's signTypedData, which derives that itself and rejects a manually
+ * supplied one. Keep this transformation separate from the object passed to
+ * viem (browser wallet path) so neither path breaks the other.
+ */
+export function toCircleTypedDataJSON(typedData: ReturnType<typeof buildBurnIntentTypedData>) {
+  return {
+    domain: typedData.domain,
+    types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+      ],
+      ...typedData.types,
+    },
+    primaryType: typedData.primaryType,
+    message: typedData.message,
+  };
+}
+
 export interface TransferAttestationResult {
   attestation: `0x${string}`;
   signature: `0x${string}`;
