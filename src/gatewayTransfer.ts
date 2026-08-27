@@ -43,7 +43,7 @@ const EIP712_TYPES = {
   ],
 } as const;
 
-const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
+const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
 
 function addressToBytes32(addr: Address): `0x${string}` {
   return pad(addr, { size: 32 });
