@@ -130,7 +130,7 @@ export async function signTypedDataWithCircleWallet(
   const res = await fetch("/api/circle-wallet", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "signTypedData", walletId, data }),
+    body: JSON.stringify({ action: "signTypedData", walletId, data }, (_key, value) => (typeof value === "bigint" ? value.toString() : value)),
   });
   const result = await res.json();
   if (!res.ok || !result.success || !result.signature) {
