@@ -247,4 +247,4 @@ Security notes (self-review, not an audit): [`./SECURITY.md`](./SECURITY.md)
 
 ## Disclaimer
 
-FlowFi runs entirely on Arc Testnet. All tokens are test assets with no monetary value. Perpetuals pricing is submitted client-side for demo purposes and is **not** sourced from a decentralized oracle — do not use this for anything beyond testnet exploration.
+FlowFi runs entirely on Arc Testnet. All tokens are test assets with no monetary value. The Perpetuals contract specifically — disabled in the app itself, as noted above — is not reachable through the product; if you interact with its verified bytecode directly on Arcscan, be aware its pricing is client-submitted with no decentralized oracle behind it.
