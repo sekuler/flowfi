@@ -1,4 +1,4 @@
-﻿import Skeleton from "./components/Skeleton";
+import Skeleton from "./components/Skeleton";
 import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHome from "./components/CopilotHome";
 import TokenLaunch from "./components/TokenLaunch";
