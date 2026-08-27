@@ -7,7 +7,7 @@ import type { EIP1193Provider } from "viem";
 import { Zap, RefreshCw, ArrowRight } from "lucide-react";
 import { showToast } from "../toast";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, signTypedDataWithCircleWallet, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
-import { buildBurnIntentTypedData, requestTransferAttestation, GATEWAY_MINTER_ADDRESS, GATEWAY_MINTER_ABI, GATEWAY_WALLET_READ_ABI } from "../gatewayTransfer";
+import { buildBurnIntentTypedData, requestTransferAttestation, toCircleTypedDataJSON, GATEWAY_MINTER_ADDRESS, GATEWAY_MINTER_ABI, GATEWAY_WALLET_READ_ABI } from "../gatewayTransfer";
 import {
   GATEWAY_WALLET_ADDRESS,
   GATEWAY_WALLET_ABI,
@@ -228,7 +228,7 @@ export default function GatewayPanel({ provider, address }: Props) {
       if (walletMode === "circle") {
         const walletId = getWalletIdForChain(circleWallet, CIRCLE_CHAIN_FOR[transferSource]);
         if (!walletId) throw new Error(`Your Circle Wallet doesn't have a ${transferSource} address yet`);
-        signature = await signTypedDataWithCircleWallet(walletId, { domain, types, primaryType, message });
+        signature = await signTypedDataWithCircleWallet(walletId, toCircleTypedDataJSON({ domain, types, primaryType, message }));
       } else {
         await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX[transferSource] }] });
         const walletClient = createWalletClient({ chain: CHAIN_OBJECT[transferSource], transport: custom(provider) });
