@@ -408,20 +408,20 @@ export default function GatewayPanel({ provider, address }: Props) {
       </div>
 
       {/* Deposit (left) + Instant transfer (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.2fr", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.2fr", gap: 20, alignItems: "start" }}>
         <div style={{ background: "#F9FAFB", borderRadius: 14, padding: isMobile ? "1rem" : "1.5rem" }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Deposit into unified balance</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
             <select value={depositChain} onChange={(e) => setDepositChain(e.target.value as GatewayChainKey)}
-              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }}>
+              style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }}>
               {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
             <input type="number" placeholder="Amount (USDC)" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)}
-              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
+              style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
             <button onClick={doDeposit} disabled={depositing || (walletMode === "circle" && !circleWallet)}
-              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing || (walletMode === "circle" && !circleWallet) ? "not-allowed" : "pointer", opacity: depositing || (walletMode === "circle" && !circleWallet) ? 0.6 : 1 }}>
+              style={{ flex: isMobile ? undefined : "0 0 140px", padding: "0.6rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing || (walletMode === "circle" && !circleWallet) ? "not-allowed" : "pointer", opacity: depositing || (walletMode === "circle" && !circleWallet) ? 0.6 : 1 }}>
               {depositing ? "Depositing..." : "Deposit"}
             </button>
           </div>
