@@ -32,21 +32,16 @@ import { showToast } from "../toast";
 import { getRules, addRule, removeRule, type AutomationRule } from "../automation";
 import { computeMemoryInsight, type MemoryInsight } from "../memory";
 import {
-  Droplet, Sparkles, TrendingUp,
+  Droplet, Sparkles,
   ArrowUpRight, ExternalLink, ShieldCheck, Brain,
 } from "lucide-react";
 
-const PERPS_CONTRACT = "0x3B4cE1734087e1c67474Ff42982063febE3E4B20" as `0x${string}`;
 const LENDING_CONTRACT = "0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a" as `0x${string}`; // ArcLending v2
 const SWAP_CONTRACT = "0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521" as `0x${string}`; // ArcSwap v2
 const LEGACY_AMM = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
 const POOL_FACTORY = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-
-const PERPS_ABI = [
-  { type: "function", name: "getUserPositions", stateMutability: "view", inputs: [{ name: "trader", type: "address" }], outputs: [{ name: "", type: "uint256[]" }] },
-] as const;
 
 const LENDING_ABI = [
   { type: "function", name: "currentAPR", stateMutability: "view", inputs: [], outputs: [{ name: "bps", type: "uint256" }] },
@@ -101,7 +96,6 @@ function Sparkline({ color, seed }: { color: string; seed: number }) {
 }
 
 export default function CopilotHome({ address, balances, onNavigate }: Props) {
-  const [openPositionCount, setOpenPositionCount] = useState<number | null>(null);
   const [memoryInsight, setMemoryInsight] = useState<MemoryInsight | null>(null);
   const [lendingAPR, setLendingAPR] = useState<string | null>(null);
   const [healthFactor, setHealthFactor] = useState<number | null>(null); // null = no debt / not applicable
@@ -116,8 +110,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-        const [ids, apr, poolsLen, usdcSwap, eurcSwap, usdcAmm, eurcAmm, usdcLend, eurcLend, debt] = await Promise.all([
-          client.readContract({ address: PERPS_CONTRACT, abi: PERPS_ABI, functionName: "getUserPositions", args: [address as `0x${string}`] }).catch(() => []),
+        const [apr, poolsLen, usdcSwap, eurcSwap, usdcAmm, eurcAmm, usdcLend, eurcLend, debt] = await Promise.all([
           client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "currentAPR" }).catch(() => 0n),
           client.readContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "allPoolsLength" }).catch(() => 0n),
           client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [SWAP_CONTRACT] }).catch(() => 0n),
@@ -143,7 +136,6 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
           setHealthFactor(null);
         }
 
-        setOpenPositionCount((ids as bigint[]).length);
         setLendingAPR((Number(apr) / 100).toFixed(2));
         setPoolCount(Number(poolsLen) + 1);
         setTvl(
@@ -251,11 +243,6 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
                 Tracking your portfolio from today — check back tomorrow for a real overnight comparison.
               </p>
             )}
-            {openPositionCount !== null && openPositionCount > 0 && (
-              <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.9)", margin: 0 }}>
-                You have {openPositionCount} open position{openPositionCount > 1 ? "s" : ""} on Perpetuals.
-              </p>
-            )}
             {hasIdleFunds && (
               <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.9)", margin: 0 }}>
                 Idle funds: {usdcVal.toFixed(0)} USDC. {lendingAPR ? `Lending is currently offering ${lendingAPR}% APY.` : ""}
@@ -290,17 +277,6 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
           </div>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "flex-end" }}>
             <Droplet size={18} color="#6D5EF7" />
-          </div>
-        </div>
-        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-          <div>
-            <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Open Positions</div>
-            <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>
-              {loading || openPositionCount === null ? "..." : openPositionCount}
-            </div>
-          </div>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "flex-end" }}>
-            <TrendingUp size={18} color="#6D5EF7" />
           </div>
         </div>
       </div>

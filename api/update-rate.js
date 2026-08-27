@@ -1,6 +1,6 @@
 const { initiateDeveloperControlledWalletsClient } = require('@circle-fin/developer-controlled-wallets');
 
-const SWAP_CONTRACT = '0x6eA72BC31Ed6a6700306aFc92a5165c17230E3e1';
+const SWAP_CONTRACT = '0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521'; // ArcSwap v2
 const ADMIN_WALLET_ADDRESS = '0x5e434b565c737ddf2a7a9392b29a329e08692241';
 
 module.exports = async function handler(req, res) {

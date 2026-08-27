@@ -17,7 +17,7 @@ Live transaction proof for these flows (bridge, Circle Wallet execution, lending
 
 ## Not fixed, by design
 
-**ArcPerps** — `entryPrice`/`exitPrice` are submitted directly by the caller with no oracle validating them; a position can be opened and closed at self-declared prices. Rather than a partial fix, this was removed from the app's navigation and from the AI Copilot's action set entirely (verified: no `"perps"` reference remains in `App.tsx`, no `perp_open` action in Copilot's schema). The contract and its source stay in the repo for reference, but nothing in the product can reach it.
+**ArcPerps** — `entryPrice`/`exitPrice` are submitted directly by the caller with no oracle validating them; a position can be opened and closed at self-declared prices. Rather than a partial fix, this was removed from the app's navigation and from the AI Copilot's action set entirely (verified: no `"perps"` reference remains in `App.tsx`, no `perp_open` action in Copilot's schema). The deployed contract is still live and verified on Arcscan at `0x3B4cE1734087e1c67474Ff42982063febE3E4B20`, but nothing in the product can reach it. The `Perpetuals.tsx` React component and its own Solidity source aren't included in `contracts/` — they were audited in place, not kept as separate files.
 
 **ArcLending's peg assumption** — the contract assumes USDC and EURC hold their ~$1 peg; there's no live price oracle. A real depeg event would break the liquidation math. This is a design limitation, not something patched — a real oracle is a prerequisite before this contract should hold real funds.
 
