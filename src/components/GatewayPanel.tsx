@@ -288,17 +288,23 @@ export default function GatewayPanel({ provider, address }: Props) {
         await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX[transferDest] }] });
         const destWalletClient = createWalletClient({ chain: CHAIN_OBJECT[transferDest], transport: custom(provider) });
         const destPublicClient = createPublicClient({ chain: CHAIN_OBJECT[transferDest], transport: http() });
+        const previousDestBalance = byChain[transferDest] ?? 0;
         const mintHash = await destWalletClient.writeContract({
           address: GATEWAY_MINTER_ADDRESS, abi: GATEWAY_MINTER_ABI, functionName: "gatewayMint",
           args: [attestation, attestationSignature], account: transferAddress,
         });
         await destPublicClient.waitForTransactionReceipt({ hash: mintHash });
-      }
 
-      showToast(`Transferred ${transferAmount} USDC to ${transferDest} — under 500ms Gateway settlement.`, "success");
-      setTransferAmount("");
-      setShowTransferConfirm(false);
-      setTimeout(refresh, 5000); // transfers shift the byChain breakdown, not the total — a plain refresh is the right check here
+        // The on-chain mint is confirmed here, but Gateway's own balance
+        // ledger can take longer to catch up (same lag we saw on deposits) —
+        // so watch the balance directly rather than trusting a short delay.
+        setTransferAmount("");
+        setShowTransferConfirm(false);
+        setTransferring(false);
+        setTransferStatus("");
+        pollForChainBalanceIncrease(transferDest, previousDestBalance);
+        return;
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Transfer failed";
       if (message.toLowerCase().includes("timed out")) {
