@@ -2,6 +2,29 @@ const { initiateDeveloperControlledWalletsClient } = require('@circle-fin/develo
 
 const BRIDGE_CHAINS = ['ARC-TESTNET', 'ETH-SEPOLIA', 'BASE-SEPOLIA', 'ARB-SEPOLIA'];
 
+// Every contract FlowFi's Circle Wallet integration is ever meant to call —
+// checked before any contractCall is forwarded to Circle. This closes an
+// open gap where a client could otherwise ask the backend to execute an
+// arbitrary contract/function using a known walletId. Addresses are the
+// same case-insensitively; compare in lowercase.
+const ALLOWED_CONTRACTS = new Set([
+  // USDC, per chain
+  '0x3600000000000000000000000000000000000000', // Arc Testnet
+  '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238', // Ethereum Sepolia
+  '0x036cbd53842c5426634e7929541ec2318f3dcf7e', // Base Sepolia
+  '0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d', // Arbitrum Sepolia
+  // EURC (Arc)
+  '0x89b50855aa3be2f677cd6303cec089b5f319d72a',
+  // FlowFi's own contracts (Arc)
+  '0x13bd5d32509bc5d03811b3e5f86952a8c2bd0521', // ArcSwap v2
+  // Circle CCTP V2 (same address on every supported chain)
+  '0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa', // TokenMessengerV2
+  '0xe737e5cebeeba77efe34d4aa090756590b1ce275', // MessageTransmitterV2
+  // Circle Gateway (same address on every supported chain)
+  '0x0077777d7eba4688bdef3e311b846f25870a19b9', // Gateway Wallet
+  '0x0022222abe238cc2c7bb1f21003f0a260052475b', // Gateway Minter
+].map((a) => a.toLowerCase()));
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -51,6 +74,10 @@ module.exports = async function handler(req, res) {
 
       if (!walletId || !contractAddress || !abiFunctionSignature) {
         return res.status(400).json({ error: 'walletId, contractAddress, and abiFunctionSignature are required.' });
+      }
+
+      if (!ALLOWED_CONTRACTS.has(String(contractAddress).toLowerCase())) {
+        return res.status(403).json({ error: 'This contract is not on FlowFi\'s allowlist for Circle Wallet execution.' });
       }
 
       const response = await client.createContractExecutionTransaction({

@@ -124,7 +124,7 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
 | EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 
-6 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see `kontrat-denetim-raporu.md` for the complete 8-contract audit.
+6 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see [`SECURITY.md`](./SECURITY.md) for the complete review.
 
 ### Circle CCTP V2 infrastructure (Arc Testnet, official — not FlowFi-deployed)
 
@@ -209,9 +209,12 @@ npm install
 
 cp .env.example .env
 # then fill in:
-# VITE_ANTHROPIC_KEY=
+# ANTHROPIC_API_KEY=       (server-side only — no VITE_ prefix, or it gets bundled into client-side JS)
 # CIRCLE_API_KEY=
 # CIRCLE_ENTITY_SECRET=
+# DROPSTAB_API_KEY=        (optional — live token unlock data; falls back to the manual list without it)
+# TELEGRAM_BOT_TOKEN=      (optional — feedback widget)
+# TELEGRAM_CHAT_ID=        (optional — feedback widget)
 
 npm run dev
 ```
@@ -228,7 +231,7 @@ FlowFi's contracts have been through a manual security review (not a professiona
 - **ArcFactoryV2 pools have no TWAP.** Spot-price swaps on thin/low-liquidity pools carry real sandwich and price-impact risk, same as any constant-product AMM without time-weighted pricing. Use `minAmountOut` and be mindful of pool depth.
 - **ArcFactoryV2 has no admin kill-switch, by design.** The factory and its pools are fully permissionless — no owner, no pause. That's a deliberate trade-off in favor of trustlessness, not an oversight: adding a pause here would undercut the "no one can freeze your pool" guarantee that makes a permissionless AMM meaningful in the first place. If you'd rather have a pausable, guarded pool, use the ArcAMM (legacy, fixed USDC/EURC pair) contract instead.
 
-Full audit notes (all 8 contracts, category-by-category) are in `kontrat-denetim-raporu.md` in this repo.
+Security notes (self-review, not an audit): [`./SECURITY.md`](./SECURITY.md)
 
 ---
 
