@@ -6,7 +6,7 @@ import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import type { EIP1193Provider } from "viem";
 import { Zap, RefreshCw, ArrowRight } from "lucide-react";
 import { showToast } from "../toast";
-import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, signTypedDataWithCircleWallet, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
+import { getCircleWallet, circleContractCall, circleContractCallAndWait, getWalletIdForChain, signTypedDataWithCircleWallet, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
 import { buildBurnIntentTypedData, requestTransferAttestation, toCircleTypedDataJSON, GATEWAY_MINTER_ADDRESS, GATEWAY_MINTER_ABI, GATEWAY_WALLET_READ_ABI } from "../gatewayTransfer";
 import {
   GATEWAY_WALLET_ADDRESS,
@@ -120,6 +120,29 @@ export default function GatewayPanel({ provider, address }: Props) {
     }
     setWaitingForBalance(false);
     // Final refresh regardless, so the UI at least shows the latest known state.
+    refresh();
+  }
+
+  // Transfers don't raise the total (they only shift the byChain split), so
+  // this watches the DESTINATION chain's own balance specifically — a more
+  // accurate, faster signal than Circle's own transaction-status polling,
+  // which can lag behind the real on-chain/Gateway-ledger result.
+  async function pollForChainBalanceIncrease(chain: GatewayChainKey, previousChainBalance: number) {
+    setWaitingForBalance(true);
+    for (let attempt = 0; attempt < 60; attempt++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const target = walletMode === "circle" ? circleWallet?.address ?? null : address;
+      if (!target) break;
+      const result = await getUnifiedGatewayBalance(target);
+      if ((result.byChain[chain] ?? 0) > previousChainBalance) {
+        setTotal(result.total);
+        setByChain(result.byChain);
+        setWaitingForBalance(false);
+        showToast(`Transferred ${transferAmount} USDC to ${chain} — confirmed.`, "success");
+        return;
+      }
+    }
+    setWaitingForBalance(false);
     refresh();
   }
 
@@ -242,14 +265,25 @@ export default function GatewayPanel({ provider, address }: Props) {
       const { attestation, signature: attestationSignature } = await requestTransferAttestation(message, signature);
 
       if (walletMode === "circle") {
-        setTransferStatus("Minting on destination chain — this can take a few minutes via Circle Wallet...");
+        setTransferStatus("Minting on destination chain...");
         const destWalletId = getWalletIdForChain(circleWallet, CIRCLE_CHAIN_FOR[transferDest]);
         if (!destWalletId) throw new Error(`Your Circle Wallet doesn't have a ${transferDest} address yet`);
-        await circleContractCallAndWait({
+        const previousDestBalance = byChain[transferDest] ?? 0;
+        // Submit and move on — Circle's own transaction-status tracking can
+        // lag behind the real on-chain result, but Gateway's balance ledger
+        // updates as soon as the mint is actually mined. Watching the balance
+        // directly is the accurate signal here, not Circle's "COMPLETE" state.
+        await circleContractCall({
           walletId: destWalletId, contractAddress: GATEWAY_MINTER_ADDRESS,
           abiFunctionSignature: "gatewayMint(bytes,bytes)",
           abiParameters: [attestation, attestationSignature],
-        }, 300000); // 5 min — Gateway mint via Circle Wallet can take longer than typical contract calls
+        });
+        setTransferAmount("");
+        setShowTransferConfirm(false);
+        setTransferring(false);
+        setTransferStatus("");
+        pollForChainBalanceIncrease(transferDest, previousDestBalance);
+        return;
       } else {
         await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX[transferDest] }] });
         const destWalletClient = createWalletClient({ chain: CHAIN_OBJECT[transferDest], transport: custom(provider) });
@@ -264,9 +298,19 @@ export default function GatewayPanel({ provider, address }: Props) {
       showToast(`Transferred ${transferAmount} USDC to ${transferDest} — under 500ms Gateway settlement.`, "success");
       setTransferAmount("");
       setShowTransferConfirm(false);
-      pollForBalanceIncrease(total ?? 0);
+      setTimeout(refresh, 5000); // transfers shift the byChain breakdown, not the total — a plain refresh is the right check here
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Transfer failed", "error");
+      const message = err instanceof Error ? err.message : "Transfer failed";
+      if (message.toLowerCase().includes("timed out")) {
+        // The frontend gave up watching, but Circle's backend may still complete
+        // the transaction — don't tell the user it failed when funds may have
+        // actually moved. Keep checking the balance in the background.
+        showToast("Still processing on Circle's side — we stopped watching, but it may still complete. Checking your balance...", "error");
+        setShowTransferConfirm(false);
+        setTimeout(refresh, 15000);
+      } else {
+        showToast(message, "error");
+      }
     } finally {
       setTransferring(false);
       setTransferStatus("");
