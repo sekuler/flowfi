@@ -241,7 +241,7 @@ Security notes (self-review, not an audit): [`./SECURITY.md`](./SECURITY.md)
 - [ ] Cross-chain intent engine — extend the CCTP V2 settlement flow to route multi-step actions automatically
 - [ ] Native yield routing across lending and liquidity positions, built on the same settlement rail
 
-**Not on the mainnet roadmap:** Perpetuals is frozen in an experimental state — no decentralized oracle (Stork/Pyth) is integrated, so pricing isn't independently verified. It stays available on testnet for exploration but won't ship to mainnet without a real oracle integration.
+**Not on the mainnet roadmap:** Perpetuals is disabled in the app — no decentralized oracle (Stork/Pyth) is integrated, so pricing isn't independently verified. The deployed contract stays on testnet, verified on Arcscan, for reference only; it won't ship to mainnet without a real oracle integration, and there's no plan to re-enable it in the app without one either.
 
 ---
 
