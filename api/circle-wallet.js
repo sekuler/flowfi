@@ -103,6 +103,29 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // ---- Sign EIP-712 typed data (e.g. a Circle Gateway burn intent) ----
+    // Body: { action: "signTypedData", walletId, data }
+    // `data` must be the full { domain, types, primaryType, message } object —
+    // it's JSON.stringify'd here since Circle's API expects a JSON string, not
+    // a raw object. entitySecretCiphertext is generated fresh by the SDK
+    // internally, same as every other authenticated call on this client.
+    if (action === 'signTypedData') {
+      const { walletId, data } = req.body;
+      if (!walletId || !data) {
+        return res.status(400).json({ error: 'walletId and data are required.' });
+      }
+
+      const response = await client.signTypedData({
+        walletId,
+        data: JSON.stringify(data, (_key, value) => (typeof value === 'bigint' ? value.toString() : value)),
+      });
+
+      return res.status(200).json({
+        success: true,
+        signature: response.data?.signature,
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (error) {
     console.error('Circle wallet error:', error.message);

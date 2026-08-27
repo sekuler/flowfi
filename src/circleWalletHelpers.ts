@@ -116,3 +116,25 @@ export async function circleContractCallAndWait(params: ContractCallParams): Pro
   const { transactionId } = await circleContractCall(params);
   return waitForCircleTransaction(transactionId);
 }
+
+/**
+ * Signs EIP-712 typed data (e.g. a Circle Gateway burn intent) with a
+ * developer-controlled wallet. Unlike contractCall, this doesn't submit a
+ * transaction — it returns a raw signature the caller submits elsewhere
+ * (e.g. to Gateway's /v1/transfer API).
+ */
+export async function signTypedDataWithCircleWallet(
+  walletId: string,
+  data: { domain: unknown; types: unknown; primaryType: string; message: unknown }
+): Promise<`0x${string}`> {
+  const res = await fetch("/api/circle-wallet", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "signTypedData", walletId, data }),
+  });
+  const result = await res.json();
+  if (!res.ok || !result.success || !result.signature) {
+    throw new Error(result.error ?? "Circle typed-data signing failed.");
+  }
+  return result.signature as `0x${string}`;
+}
