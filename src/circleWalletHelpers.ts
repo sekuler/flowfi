@@ -112,9 +112,9 @@ export async function waitForCircleTransaction(transactionId: string, timeoutMs 
 }
 
 // Convenience: run a contract call and wait for it to confirm, returning the tx hash.
-export async function circleContractCallAndWait(params: ContractCallParams): Promise<string> {
+export async function circleContractCallAndWait(params: ContractCallParams, timeoutMs?: number): Promise<string> {
   const { transactionId } = await circleContractCall(params);
-  return waitForCircleTransaction(transactionId);
+  return waitForCircleTransaction(transactionId, timeoutMs);
 }
 
 /**

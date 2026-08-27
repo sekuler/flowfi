@@ -68,6 +68,7 @@ export default function GatewayPanel({ provider, address }: Props) {
   const [transferDest, setTransferDest] = useState<GatewayChainKey>("Ethereum Sepolia");
   const [transferRecipient, setTransferRecipient] = useState("");
   const [transferring, setTransferring] = useState(false);
+  const [transferStatus, setTransferStatus] = useState("");
   const [showTransferConfirm, setShowTransferConfirm] = useState(false);
 
   // The address whose Gateway balance we show/deposit against — the browser
@@ -197,6 +198,7 @@ export default function GatewayPanel({ provider, address }: Props) {
       return;
     }
     setTransferring(true);
+    setTransferStatus("Signing burn intent...");
     try {
       const sourceUsdc = CHAIN_USDC[transferSource];
       const destUsdc = CHAIN_USDC[transferDest];
@@ -236,16 +238,18 @@ export default function GatewayPanel({ provider, address }: Props) {
       }
 
       showToast("Signed — requesting attestation from Gateway...", "success");
+      setTransferStatus("Requesting attestation from Gateway...");
       const { attestation, signature: attestationSignature } = await requestTransferAttestation(message, signature);
 
       if (walletMode === "circle") {
+        setTransferStatus("Minting on destination chain — this can take a few minutes via Circle Wallet...");
         const destWalletId = getWalletIdForChain(circleWallet, CIRCLE_CHAIN_FOR[transferDest]);
         if (!destWalletId) throw new Error(`Your Circle Wallet doesn't have a ${transferDest} address yet`);
         await circleContractCallAndWait({
           walletId: destWalletId, contractAddress: GATEWAY_MINTER_ADDRESS,
           abiFunctionSignature: "gatewayMint(bytes,bytes)",
           abiParameters: [attestation, attestationSignature],
-        });
+        }, 300000); // 5 min — Gateway mint via Circle Wallet can take longer than typical contract calls
       } else {
         await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX[transferDest] }] });
         const destWalletClient = createWalletClient({ chain: CHAIN_OBJECT[transferDest], transport: custom(provider) });
@@ -265,6 +269,7 @@ export default function GatewayPanel({ provider, address }: Props) {
       showToast(err instanceof Error ? err.message : "Transfer failed", "error");
     } finally {
       setTransferring(false);
+      setTransferStatus("");
     }
   }
 
@@ -403,7 +408,7 @@ export default function GatewayPanel({ provider, address }: Props) {
               </button>
               <button onClick={doTransfer} disabled={transferring}
                 style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: "none", background: "#111827", color: "#fff", fontSize: 13, fontWeight: 700, cursor: transferring ? "not-allowed" : "pointer", opacity: transferring ? 0.6 : 1 }}>
-                {transferring ? "Signing..." : "Confirm & Sign"}
+                {transferring ? (transferStatus || "Signing...") : "Confirm & Sign"}
               </button>
             </div>
           </div>
