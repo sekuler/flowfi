@@ -7,7 +7,7 @@ import type { EIP1193Provider } from "viem";
 import { Zap, RefreshCw, ArrowRight } from "lucide-react";
 import { showToast } from "../toast";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
-import { buildBurnIntentTypedData, requestTransferAttestation, GATEWAY_MINTER_ADDRESS, GATEWAY_MINTER_ABI } from "../gatewayTransfer";
+import { buildBurnIntentTypedData, requestTransferAttestation, GATEWAY_MINTER_ADDRESS, GATEWAY_MINTER_ABI, GATEWAY_WALLET_READ_ABI } from "../gatewayTransfer";
 import {
   GATEWAY_WALLET_ADDRESS,
   GATEWAY_WALLET_ABI,
@@ -63,7 +63,7 @@ export default function GatewayPanel({ provider, address }: Props) {
   // Instant transfer (burn on source, mint on destination, <500ms) — browser
   // wallet only for now. Circle Wallet typed-data signing for transfers needs
   // its own verified reference before being added here.
-    const [transferAmount, setTransferAmount] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
   const [transferSource, setTransferSource] = useState<GatewayChainKey>("Arc Testnet");
   const [transferDest, setTransferDest] = useState<GatewayChainKey>("Ethereum Sepolia");
   const [transferRecipient, setTransferRecipient] = useState("");
@@ -203,6 +203,9 @@ export default function GatewayPanel({ provider, address }: Props) {
       await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX[transferSource] }] });
       const sourcePublicClient = createPublicClient({ chain: CHAIN_OBJECT[transferSource], transport: http() });
       const currentBlock = await sourcePublicClient.getBlockNumber();
+      const withdrawalDelay = await sourcePublicClient.readContract({
+        address: GATEWAY_WALLET_ADDRESS, abi: GATEWAY_WALLET_READ_ABI, functionName: "withdrawalDelay",
+      });
 
       const { domain, types, primaryType, message } = buildBurnIntentTypedData({
         sourceDomain: GATEWAY_DOMAINS[transferSource],
@@ -212,7 +215,7 @@ export default function GatewayPanel({ provider, address }: Props) {
         depositorAddress: address as `0x${string}`,
         recipientAddress: recipient,
         amountUnits,
-        maxBlockHeight: currentBlock + 500n, // comfortable window on the source chain
+        maxBlockHeight: currentBlock + withdrawalDelay + 1000n, // must clear the wallet's own withdrawalDelay, plus a safety margin
         maxFeeUnits: amountUnits / 100n > 10000n ? amountUnits / 100n : 10000n, // ~1%, floor 0.01 USDC
       });
 
