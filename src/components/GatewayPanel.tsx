@@ -336,7 +336,7 @@ export default function GatewayPanel({ provider, address }: Props) {
       </p>
 
       {/* Row 1: Balance overview (left) + Instant transfer (right), top-aligned */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, marginBottom: 56, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, marginBottom: 120, alignItems: "start" }}>
         <div>
           <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "#F3F4F6", borderRadius: 10, padding: 4 }}>
             <button onClick={() => setWalletMode("browser")}
