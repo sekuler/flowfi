@@ -407,68 +407,67 @@ export default function GatewayPanel({ provider, address }: Props) {
         </div>
       </div>
 
-      {/* Deposit */}
-      <div style={{ background: "#F9FAFB", borderRadius: 14, padding: isMobile ? "1rem" : "1.5rem", marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Deposit into unified balance</div>
-        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
-          <select value={depositChain} onChange={(e) => setDepositChain(e.target.value as GatewayChainKey)}
-            style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13 }}>
-            {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <input type="number" placeholder="Amount (USDC)" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)}
-            style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
-          <button onClick={doDeposit} disabled={depositing || (walletMode === "circle" && !circleWallet)}
-            style={{ flex: isMobile ? undefined : "0 0 160px", padding: "0.6rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing || (walletMode === "circle" && !circleWallet) ? "not-allowed" : "pointer", opacity: depositing || (walletMode === "circle" && !circleWallet) ? 0.6 : 1 }}>
-            {depositing ? "Depositing..." : "Deposit"}
-          </button>
-        </div>
-        <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8, marginBottom: 0 }}>
-          Requires two confirmations: approve, then deposit. Balance updates after the source chain finalizes.
-        </p>
-      </div>
-
-      {/* Instant transfer — full-width, prominent */}
-      <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: isMobile ? "1.25rem" : "1.75rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Zap size={16} color="#3B82F6" />
+      {/* Deposit (left) + Instant transfer (right) */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.2fr", gap: 20 }}>
+        <div style={{ background: "#F9FAFB", borderRadius: 14, padding: isMobile ? "1rem" : "1.5rem" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Deposit into unified balance</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <select value={depositChain} onChange={(e) => setDepositChain(e.target.value as GatewayChainKey)}
+              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }}>
+              {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <input type="number" placeholder="Amount (USDC)" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)}
+              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
+            <button onClick={doDeposit} disabled={depositing || (walletMode === "circle" && !circleWallet)}
+              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing || (walletMode === "circle" && !circleWallet) ? "not-allowed" : "pointer", opacity: depositing || (walletMode === "circle" && !circleWallet) ? 0.6 : 1 }}>
+              {depositing ? "Depositing..." : "Deposit"}
+            </button>
           </div>
-          <div style={{ fontSize: 16, fontWeight: 800 }}>Instant transfer <span style={{ color: "#3B82F6" }}>&lt;500ms</span></div>
+          <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8, marginBottom: 0 }}>
+            Requires two confirmations: approve, then deposit. Balance updates after the source chain finalizes.
+          </p>
         </div>
-        <p style={{ fontSize: 12.5, color: "#9CA3AF", marginTop: 0, marginBottom: 18 }}>
-          Move part of your deposited balance to another chain instantly, without a new deposit.
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-          <select value={transferSource} onChange={(e) => setTransferSource(e.target.value as GatewayChainKey)}
-            style={{ padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13 }}>
-            {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
-              <option key={c} value={c}>From: {c}</option>
-            ))}
-          </select>
-          <select value={transferDest} onChange={(e) => setTransferDest(e.target.value as GatewayChainKey)}
-            style={{ padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13 }}>
-            {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
-              <option key={c} value={c}>To: {c}</option>
-            ))}
-          </select>
-          <input type="number" placeholder="Amount (USDC)" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)}
-            style={{ padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
-        </div>
-        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
-          <input type="text" placeholder="Recipient address (optional — defaults to you)" value={transferRecipient} onChange={(e) => setTransferRecipient(e.target.value)}
-            style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
-          <button
-            onClick={() => {
-              if (!transferAmount || Number(transferAmount) <= 0) { showToast("Enter a valid amount", "error"); return; }
-              if (transferSource === transferDest) { showToast("Source and destination must be different", "error"); return; }
-              setShowTransferConfirm(true);
-            }}
-            disabled={transferring}
-            style={{ flex: isMobile ? undefined : "0 0 200px", padding: "0.7rem", borderRadius: 10, border: "none", background: "#111827", color: "#fff", fontSize: 13, fontWeight: 700, cursor: transferring ? "not-allowed" : "pointer", opacity: transferring ? 0.6 : 1 }}>
-            Review Transfer
-          </button>
+
+        <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: isMobile ? "1.25rem" : "1.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Zap size={16} color="#3B82F6" />
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 800 }}>Instant transfer <span style={{ color: "#3B82F6" }}>&lt;500ms</span></div>
+          </div>
+          <p style={{ fontSize: 12.5, color: "#9CA3AF", marginTop: 0, marginBottom: 14 }}>
+            Move part of your deposited balance to another chain instantly, without a new deposit.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <select value={transferSource} onChange={(e) => setTransferSource(e.target.value as GatewayChainKey)}
+              style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }}>
+              {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
+                <option key={c} value={c}>From: {c}</option>
+              ))}
+            </select>
+            <select value={transferDest} onChange={(e) => setTransferDest(e.target.value as GatewayChainKey)}
+              style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }}>
+              {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
+                <option key={c} value={c}>To: {c}</option>
+              ))}
+            </select>
+            <input type="number" placeholder="Amount (USDC)" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)}
+              style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
+            <input type="text" placeholder="Recipient address (optional — defaults to you)" value={transferRecipient} onChange={(e) => setTransferRecipient(e.target.value)}
+              style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
+            <button
+              onClick={() => {
+                if (!transferAmount || Number(transferAmount) <= 0) { showToast("Enter a valid amount", "error"); return; }
+                if (transferSource === transferDest) { showToast("Source and destination must be different", "error"); return; }
+                setShowTransferConfirm(true);
+              }}
+              disabled={transferring}
+              style={{ width: "100%", padding: "0.7rem", borderRadius: 10, border: "none", background: "#111827", color: "#fff", fontSize: 13, fontWeight: 700, cursor: transferring ? "not-allowed" : "pointer", opacity: transferring ? 0.6 : 1 }}>
+              Review Transfer
+            </button>
+          </div>
         </div>
       </div>
 
