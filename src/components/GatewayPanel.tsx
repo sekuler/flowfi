@@ -63,8 +63,7 @@ export default function GatewayPanel({ provider, address }: Props) {
   // Instant transfer (burn on source, mint on destination, <500ms) — browser
   // wallet only for now. Circle Wallet typed-data signing for transfers needs
   // its own verified reference before being added here.
-  const [showTransfer, setShowTransfer] = useState(false);
-  const [transferAmount, setTransferAmount] = useState("");
+    const [transferAmount, setTransferAmount] = useState("");
   const [transferSource, setTransferSource] = useState<GatewayChainKey>("Arc Testnet");
   const [transferDest, setTransferDest] = useState<GatewayChainKey>("Ethereum Sepolia");
   const [transferRecipient, setTransferRecipient] = useState("");
