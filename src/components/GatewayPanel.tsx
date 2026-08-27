@@ -4,9 +4,10 @@ import { createWalletClient, createPublicClient, custom, http } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import type { EIP1193Provider } from "viem";
-import { Zap, RefreshCw } from "lucide-react";
+import { Zap, RefreshCw, ArrowRight } from "lucide-react";
 import { showToast } from "../toast";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
+import { buildBurnIntentTypedData, requestTransferAttestation, GATEWAY_MINTER_ADDRESS, GATEWAY_MINTER_ABI } from "../gatewayTransfer";
 import {
   GATEWAY_WALLET_ADDRESS,
   GATEWAY_WALLET_ABI,
@@ -58,6 +59,17 @@ export default function GatewayPanel({ provider, address }: Props) {
   const [depositChain, setDepositChain] = useState<GatewayChainKey>("Arc Testnet");
   const [depositing, setDepositing] = useState(false);
   const [waitingForBalance, setWaitingForBalance] = useState(false);
+
+  // Instant transfer (burn on source, mint on destination, <500ms) — browser
+  // wallet only for now. Circle Wallet typed-data signing for transfers needs
+  // its own verified reference before being added here.
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferSource, setTransferSource] = useState<GatewayChainKey>("Arc Testnet");
+  const [transferDest, setTransferDest] = useState<GatewayChainKey>("Ethereum Sepolia");
+  const [transferRecipient, setTransferRecipient] = useState("");
+  const [transferring, setTransferring] = useState(false);
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
 
   // The address whose Gateway balance we show/deposit against — the browser
   // wallet's own address, or the Circle Developer-Controlled Wallet's
@@ -177,6 +189,65 @@ export default function GatewayPanel({ provider, address }: Props) {
     }
   }
 
+  // Instant transfer: burn on transferSource, mint on transferDest. Requires
+  // an existing deposited balance on the source chain (from the Deposit flow
+  // above) — this does not deposit anything itself.
+  async function doTransfer() {
+    setTransferring(true);
+    try {
+      const sourceUsdc = CHAIN_USDC[transferSource];
+      const destUsdc = CHAIN_USDC[transferDest];
+      const recipient = (transferRecipient.trim() || address) as `0x${string}`;
+      const amountUnits = parseUnits(transferAmount, 6);
+
+      // Switch to the source chain to read its current block height and sign.
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX[transferSource] }] });
+      const sourcePublicClient = createPublicClient({ chain: CHAIN_OBJECT[transferSource], transport: http() });
+      const currentBlock = await sourcePublicClient.getBlockNumber();
+
+      const { domain, types, primaryType, message } = buildBurnIntentTypedData({
+        sourceDomain: GATEWAY_DOMAINS[transferSource],
+        destinationDomain: GATEWAY_DOMAINS[transferDest],
+        sourceTokenAddress: sourceUsdc,
+        destinationTokenAddress: destUsdc,
+        depositorAddress: address as `0x${string}`,
+        recipientAddress: recipient,
+        amountUnits,
+        maxBlockHeight: currentBlock + 500n, // comfortable window on the source chain
+        maxFeeUnits: amountUnits / 100n > 10000n ? amountUnits / 100n : 10000n, // ~1%, floor 0.01 USDC
+      });
+
+      const walletClient = createWalletClient({ chain: CHAIN_OBJECT[transferSource], transport: custom(provider) });
+      const signature = await walletClient.signTypedData({
+        account: address as `0x${string}`,
+        domain, types, primaryType, message,
+      });
+
+      showToast("Signed — requesting attestation from Gateway...", "success");
+      const { attestation, signature: attestationSignature } = await requestTransferAttestation(message, signature);
+
+      // Switch to the destination chain to submit the mint.
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX[transferDest] }] });
+      const destWalletClient = createWalletClient({ chain: CHAIN_OBJECT[transferDest], transport: custom(provider) });
+      const destPublicClient = createPublicClient({ chain: CHAIN_OBJECT[transferDest], transport: http() });
+
+      const mintHash = await destWalletClient.writeContract({
+        address: GATEWAY_MINTER_ADDRESS, abi: GATEWAY_MINTER_ABI, functionName: "gatewayMint",
+        args: [attestation, attestationSignature], account: address as `0x${string}`,
+      });
+      await destPublicClient.waitForTransactionReceipt({ hash: mintHash });
+
+      showToast(`Transferred ${transferAmount} USDC to ${transferDest} — under 500ms Gateway settlement.`, "success");
+      setTransferAmount("");
+      setShowTransferConfirm(false);
+      pollForBalanceIncrease(total ?? 0);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Transfer failed", "error");
+    } finally {
+      setTransferring(false);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "1.5rem" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -254,6 +325,70 @@ export default function GatewayPanel({ provider, address }: Props) {
           Requires two confirmations: approve, then deposit. Balance updates after the source chain finalizes.
         </p>
       </div>
+
+      {walletMode === "browser" && (
+        <div style={{ background: "#F9FAFB", borderRadius: 14, padding: "1rem", marginTop: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <Zap size={13} color="#3B82F6" />
+            <div style={{ fontSize: 12.5, fontWeight: 700 }}>Instant transfer (&lt;500ms)</div>
+          </div>
+          <p style={{ fontSize: 11.5, color: "#9CA3AF", marginTop: 0, marginBottom: 10 }}>
+            Move part of your deposited balance to another chain instantly, without a new deposit. Browser wallet only for now.
+          </p>
+          <select value={transferSource} onChange={(e) => setTransferSource(e.target.value as GatewayChainKey)}
+            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 8, fontSize: 13 }}>
+            {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
+              <option key={c} value={c}>From: {c}</option>
+            ))}
+          </select>
+          <select value={transferDest} onChange={(e) => setTransferDest(e.target.value as GatewayChainKey)}
+            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 8, fontSize: 13 }}>
+            {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
+              <option key={c} value={c}>To: {c}</option>
+            ))}
+          </select>
+          <input type="number" placeholder="Amount (USDC)" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)}
+            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 8, fontSize: 13, boxSizing: "border-box" }} />
+          <input type="text" placeholder="Recipient address (optional — defaults to you)" value={transferRecipient} onChange={(e) => setTransferRecipient(e.target.value)}
+            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", marginBottom: 10, fontSize: 13, boxSizing: "border-box" }} />
+          <button
+            onClick={() => {
+              if (!transferAmount || Number(transferAmount) <= 0) { showToast("Enter a valid amount", "error"); return; }
+              if (transferSource === transferDest) { showToast("Source and destination must be different", "error"); return; }
+              setShowTransferConfirm(true);
+            }}
+            disabled={transferring}
+            style={{ width: "100%", padding: "0.7rem", borderRadius: 10, border: "none", background: "#111827", color: "#fff", fontSize: 13, fontWeight: 700, cursor: transferring ? "not-allowed" : "pointer", opacity: transferring ? 0.6 : 1 }}>
+            Review Transfer
+          </button>
+        </div>
+      )}
+
+      {showTransferConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
+          <div style={{ background: "#fff", borderRadius: 18, padding: "1.5rem", maxWidth: 380, width: "100%" }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginTop: 0, marginBottom: 12 }}>Confirm transfer</h3>
+            <div style={{ fontSize: 13, color: "#374151", display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Amount</span><b>{transferAmount} USDC</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Route</span>
+                <b style={{ display: "flex", alignItems: "center", gap: 4 }}>{transferSource} <ArrowRight size={12} /> {transferDest}</b>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Recipient</span><b style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>{(transferRecipient.trim() || address).slice(0, 10)}...</b></div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowTransferConfirm(false)} disabled={transferring}
+                style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: "1px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                Cancel
+              </button>
+              <button onClick={doTransfer} disabled={transferring}
+                style={{ flex: 1, padding: "0.7rem", borderRadius: 10, border: "none", background: "#111827", color: "#fff", fontSize: 13, fontWeight: 700, cursor: transferring ? "not-allowed" : "pointer", opacity: transferring ? 0.6 : 1 }}>
+                {transferring ? "Signing..." : "Confirm & Sign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
