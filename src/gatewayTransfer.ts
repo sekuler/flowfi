@@ -151,3 +151,13 @@ export const GATEWAY_MINTER_ABI = [
     stateMutability: "nonpayable",
   },
 ] as const;
+
+export const GATEWAY_WALLET_READ_ABI = [
+  {
+    type: "function",
+    name: "withdrawalDelay",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+  },
+] as const;
