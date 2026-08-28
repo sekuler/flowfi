@@ -570,18 +570,26 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <button onClick={onToggle}
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "#ffffff", borderRadius: 14, padding: "1rem 1.25rem", cursor: "pointer", textAlign: "left" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: `linear-gradient(160deg, ${pool.colorA}0F, #ffffff)`, border: `1px solid ${pool.colorA}30`, borderRadius: 14, padding: "1rem 1.25rem", cursor: "pointer", textAlign: "left", boxShadow: `0 2px 8px ${pool.colorA}12` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex" }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorA, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #ffffff" }}>{resolvedSymbolA.slice(0, 2)}</div>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: pool.colorB, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #ffffff", marginLeft: -8 }}>{resolvedSymbolB.slice(0, 2)}</div>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: `linear-gradient(135deg, ${pool.colorA}, ${pool.colorA}AA)`, color: "#fff", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #ffffff", boxShadow: `0 3px 8px ${pool.colorA}40` }}>{resolvedSymbolA.slice(0, 2)}</div>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: `linear-gradient(135deg, ${pool.colorB}, ${pool.colorB}AA)`, color: "#fff", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #ffffff", marginLeft: -10, boxShadow: `0 3px 8px ${pool.colorB}40` }}>{resolvedSymbolB.slice(0, 2)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{resolvedSymbolA}-{resolvedSymbolB}</div>
-            <div style={{ fontSize: 10, color: "#374151" }}>0.3% fee</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA}-{resolvedSymbolB}</div>
+            <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>0.3% fee</div>
           </div>
         </div>
-        <span style={{ color: "#4B5563", fontSize: 13, transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {!loading && metrics.tvl !== null && (
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>TVL</div>
+              <div style={{ fontSize: 13, color: "#111827", fontWeight: 800 }}>${metrics.tvl.toFixed(0)}</div>
+            </div>
+          )}
+          <span style={{ color: "#4B5563", fontSize: 13, transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
+        </div>
       </button>
 
       {expanded && (
