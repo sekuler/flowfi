@@ -202,6 +202,30 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   }
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [totalTvl, setTotalTvl] = useState<number | null>(null);
+  const [loadingTvl, setLoadingTvl] = useState(true);
+
+  useEffect(() => {
+    if (pools.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingTvl(true);
+      const client = createPublicClient({ chain: arcTestnet, transport: http() });
+      let sum = 0;
+      for (const pool of pools) {
+        if (!STABLE_SYMBOLS.has(pool.symbolA) || !STABLE_SYMBOLS.has(pool.symbolB)) continue;
+        try {
+          const abi = pool.isLegacy ? LEGACY_ABI : POOL_ABI;
+          const [resA, resB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getReserves" });
+          sum += Number(formatUnits(resA, 6)) + Number(formatUnits(resB, 6));
+        } catch {
+          // pool may not support this read shape — skip it from the total rather than fail the whole sum
+        }
+      }
+      if (!cancelled) { setTotalTvl(sum); setLoadingTvl(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [pools]);
 
   const loadPools = useCallback(async () => {
     setLoadingPools(true);
@@ -280,6 +304,23 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 460 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div style={{ background: "linear-gradient(160deg, #6D5EF712, #ffffff)", border: "1px solid #6D5EF730", borderRadius: 14, padding: "0.9rem 1rem" }}>
+          <div style={{ fontSize: 10, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.5px" }}>TOTAL TVL</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace" }}>
+            {loadingTvl ? "..." : totalTvl !== null ? `$${totalTvl.toFixed(2)}` : "—"}
+          </div>
+          <div style={{ fontSize: 10, color: "#9CA3AF" }}>{pools.length} pool{pools.length !== 1 ? "s" : ""}</div>
+        </div>
+        <div style={{ background: "linear-gradient(160deg, #3B82F612, #ffffff)", border: "1px solid #3B82F630", borderRadius: 14, padding: "0.9rem 1rem" }}>
+          <div style={{ fontSize: 10, color: "#3B82F6", fontWeight: 700, letterSpacing: "0.5px" }}>POOLS</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace" }}>
+            {pools.length}
+          </div>
+          <div style={{ fontSize: 10, color: "#9CA3AF" }}>open, permissionless</div>
+        </div>
+      </div>
+
       <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
         <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>
           Permissionless AMM factory — anyone can create a pool for any token pair, add liquidity, and swap.
