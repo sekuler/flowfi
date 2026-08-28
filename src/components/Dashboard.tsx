@@ -220,7 +220,13 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Hero: net worth */}
-      <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.75rem" }}>
+      <div style={{ position: "relative", overflow: "hidden", background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.75rem" }}>
+        <svg width="280" height="180" viewBox="0 0 280 180" style={{ position: "absolute", top: -20, right: -30, opacity: 0.5, pointerEvents: "none" }}>
+          <path d="M -20 130 Q 60 80, 140 110 T 300 60" stroke="#6D5EF7" strokeWidth="2" fill="none" opacity="0.35" />
+          <path d="M -20 160 Q 70 100, 150 140 T 300 90" stroke="#8B7CF9" strokeWidth="2" fill="none" opacity="0.25" />
+          <path d="M -20 100 Q 50 60, 130 85 T 300 40" stroke="#3B82F6" strokeWidth="1.5" fill="none" opacity="0.2" />
+        </svg>
+        <div style={{ position: "relative" }}>
         <div style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 8 }}>NET WORTH</div>
         <div className="flowfi-mono" style={{ fontSize: 42, fontWeight: 800, color: "#111827", marginBottom: 8 }}>${total.toFixed(2)}</div>
 
@@ -257,14 +263,17 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
             <div className="flowfi-mono" style={{ fontSize: 18, color: "#111827", fontWeight: 800 }}>{balances.eurc ?? "..."}</div>
           </div>
         </div>
+        </div>
       </div>
 
       {/* Quick actions */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 10 }}>
         {quickActions.map((a) => (
           <button key={a.key} onClick={() => onNavigate(a.key)}
-            style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1.1rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-            <div style={{ width: 38, height: 38, borderRadius: 12, background: `${a.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, color: a.color }}>{a.emoji}</div>
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 6px 16px ${a.color}30`; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(109,94,247,0.06)"; }}
+            style={{ background: "#ffffff", border: `1px solid ${a.color}30`, borderRadius: 16, padding: "1.1rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", transition: "transform 0.15s ease, box-shadow 0.15s ease" }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${a.color}, ${a.color}CC)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, color: "#fff", boxShadow: `0 4px 10px ${a.color}40` }}>{a.emoji}</div>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>{a.label}</span>
           </button>
         ))}
