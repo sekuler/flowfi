@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
+import { useIsMobile } from "../useIsMobile";
 import { showToast } from "../toast";
 
 const TOKEN_FACTORY = "0x481E8919f79A4DA6446EA78cEa70037acB9c85A1" as `0x${string}`;
@@ -66,6 +67,7 @@ async function switchToArc(provider: EIP1193Provider) {
 }
 
 export default function TokenLaunch({ provider, address, onNavigateToPools }: Props) {
+  const isMobile = useIsMobile();
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [state, setState] = useState<"idle" | "processing" | "error">("idle");
@@ -450,22 +452,28 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
         <div style={{ fontSize: 11, color: "#111827", fontWeight: 700, letterSpacing: "1px", marginBottom: 10 }}>RECENTLY LAUNCHED</div>
         {loadingTokens && <div style={{ fontSize: 12, color: "#334155" }}>Loading...</div>}
         {!loadingTokens && allTokens.length === 0 && <div style={{ fontSize: 12, color: "#334155" }}>No tokens launched yet. Be the first!</div>}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {allTokens.map((t) => (
-            <a key={t.address} href={`https://testnet.arcscan.app/address/${t.address}`} target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "#f5f3ff", border: "1px solid rgba(109,94,247,0.08)", textDecoration: "none" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(t.symbol), display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
-                  {t.symbol[0]}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12 }}>
+          {allTokens.map((t) => {
+            const color = avatarColor(t.symbol);
+            return (
+              <a key={t.address} href={`https://testnet.arcscan.app/address/${t.address}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "block", padding: "1rem", borderRadius: 16, background: `linear-gradient(160deg, ${color}10, #ffffff)`, border: `1px solid ${color}30`, textDecoration: "none", boxShadow: `0 2px 8px ${color}15` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 14, background: `linear-gradient(135deg, ${color}, ${color}AA)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 800, flexShrink: 0, boxShadow: `0 4px 10px ${color}40` }}>
+                    {t.symbol[0]}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 14, color: "#111827", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
+                    <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>${t.symbol}</div>
+                  </div>
                 </div>
-                <div>
-                  <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{t.name}</span>
-                  <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{t.symbol}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}18`, padding: "3px 8px", borderRadius: 6 }}>LAUNCHED</span>
+                  <span style={{ fontSize: 11, color: "#4B5563", fontWeight: 600 }}>{t.supply} supply</span>
                 </div>
-              </div>
-              <span style={{ fontSize: 11, color: "#334155" }}>{t.supply} supply</span>
-            </a>
-          ))}
+              </a>
+            );
+          })}
         </div>
       </div>
     </div>
