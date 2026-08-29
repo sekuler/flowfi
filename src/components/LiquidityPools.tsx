@@ -335,11 +335,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: isMobile ? 460 : 1100, margin: isMobile ? undefined : "0 auto" }}>
-      <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", gap: 10 }}>
-        <div>
-          <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: "#111827" }}>Liquidity</div>
-          <div style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>Every pool on the exchange. Open one, or add to one you already hold.</div>
-        </div>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <button onClick={() => setShowCreate(!showCreate)}
           style={{ padding: "0.65rem 1.2rem", borderRadius: 999, border: "none", background: "linear-gradient(135deg, #6D5EF7, #5B21B6)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(109,94,247,0.35)" }}>
           {showCreate ? "Cancel" : "+ New Pool"}
@@ -372,12 +368,6 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
             <option value="volume">Volume</option>
           </select>
         </div>
-      </div>
-
-      <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
-        <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>
-          Permissionless AMM factory — anyone can create a pool for any token pair, add liquidity, and swap.
-        </p>
       </div>
 
       {showCreate && (
@@ -718,14 +708,26 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
             {reserves && <div style={{ fontSize: 10, color: "#9CA3AF" }}>{reserves.a} {resolvedSymbolA} · {reserves.b} {resolvedSymbolB}</div>}
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 13, color: "#111827", fontWeight: 800 }}>{!loading && metrics.volume7d !== null ? formatCompact(metrics.volume7d) : loading ? "..." : `${metrics.swapCount7d} swaps`}</div>
-            <div style={{ fontSize: 10, color: "#9CA3AF" }}>{metrics.swapCount7d} swaps</div>
+            {loading ? (
+              <div style={{ fontSize: 13, color: "#9CA3AF" }}>...</div>
+            ) : metrics.swapCount7d === 0 ? (
+              <div style={{ fontSize: 11, color: "#9CA3AF" }}>Not traded yet</div>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, color: "#111827", fontWeight: 800 }}>{metrics.volume7d !== null ? formatCompact(metrics.volume7d) : `${metrics.swapCount7d} swaps`}</div>
+                <div style={{ fontSize: 10, color: "#9CA3AF" }}>{metrics.swapCount7d} swap{metrics.swapCount7d !== 1 ? "s" : ""}</div>
+              </>
+            )}
           </div>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <Sparkline points={metrics.shape} color={pool.colorA} />
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-            <span style={{ fontSize: 13, color: "#16A34A", fontWeight: 800 }}>{metrics.apr !== null ? `${metrics.apr.toFixed(2)}%` : "—"}</span>
+            {metrics.swapCount7d === 0 ? (
+              <span style={{ fontSize: 11, color: "#9CA3AF", background: "#F3F4F6", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>New</span>
+            ) : (
+              <span style={{ fontSize: 13, color: "#16A34A", fontWeight: 800 }}>{metrics.apr !== null ? `${metrics.apr.toFixed(2)}%` : "—"}</span>
+            )}
             <button onClick={onToggle}
               style={{ padding: "0.4rem 0.9rem", borderRadius: 999, border: "1px solid rgba(124,58,237,0.25)", background: expanded ? "#5B21B6" : "#ffffff", color: expanded ? "#ffffff" : "#5B21B6", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               {expanded ? "Close" : "Add"}
@@ -742,7 +744,9 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA}/{resolvedSymbolB}</div>
-              <div style={{ fontSize: 10, color: "#6B7280" }}>{!loading && metrics.tvl !== null ? formatCompact(metrics.tvl) : "—"} · {metrics.apr !== null ? `${metrics.apr.toFixed(1)}% APR` : "—"}</div>
+              <div style={{ fontSize: 10, color: "#6B7280" }}>
+                {!loading && metrics.tvl !== null ? formatCompact(metrics.tvl) : "—"} · {metrics.swapCount7d === 0 ? "Not traded yet" : metrics.apr !== null ? `${metrics.apr.toFixed(1)}% APR` : "—"}
+              </div>
             </div>
           </div>
           <span style={{ color: "#5B21B6", fontSize: 12, fontWeight: 700 }}>{expanded ? "Close" : "Add ▾"}</span>
