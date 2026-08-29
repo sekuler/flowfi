@@ -360,7 +360,9 @@ function AppInner() {
         -moz-appearance: textfield;
       }
       input::placeholder { color: #9CA3AF; }
-      html, body, #root { overflow-x: hidden; max-width: 100vw; }
+      @media (max-width: 860px) {
+        html, body, #root { overflow-x: hidden; max-width: 100vw; }
+      }
       @keyframes flowfi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       .flowfi-page { animation: flowfi-fade-in 0.25s ease-out; }
       @keyframes flowfi-skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
@@ -412,7 +414,7 @@ function AppInner() {
           Tell FlowFi what you want.<br />It handles the rest.
         </h1>
         <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 560, margin: "0 auto 32px" }}>
-          Swap, bridge, lend, launch tokens, and manage your stablecoins — all through one intelligent Copilot on Arc.
+          Swap, bridge, lend, launch tokens, trade perpetuals, and manage your stablecoins — all through one intelligent Copilot on Arc.
         </p>
      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
   <WalletConnect onConnected={handleConnected} />
