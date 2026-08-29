@@ -131,6 +131,24 @@ async function resolveTokenDecimals(addr: string, client: ReturnType<typeof crea
   }
 }
 
+async function fetchSwapLogsWithFallback(
+  client: ReturnType<typeof createPublicClient>,
+  poolAddress: `0x${string}`,
+  currentBlock: bigint
+) {
+  const windows = [50000n, 20000n, 5000n, 1000n, 200n];
+  for (const w of windows) {
+    const fromBlock = currentBlock > w ? currentBlock - w : 0n;
+    try {
+      const logs = await client.getLogs({ address: poolAddress, event: SWAP_EVENT, fromBlock, toBlock: "latest" });
+      return { logs, ok: true as const };
+    } catch {
+      continue;
+    }
+  }
+  return { logs: [] as Awaited<ReturnType<typeof client.getLogs>>, ok: false as const };
+}
+
 function formatCompact(n: number): string {
   if (n >= 1000) return `$${(n / 1000).toFixed(1)}K`;
   return `$${n.toFixed(2)}`;
@@ -237,6 +255,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [poolMetrics, setPoolMetrics] = useState<Record<string, PoolMetrics>>({});
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const [filterTab, setFilterTab] = useState<"all" | "stable" | "volatile">("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"apr" | "tvl" | "volume">("apr");
@@ -354,7 +373,11 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: isMobile ? 460 : 1100, margin: isMobile ? undefined : "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button onClick={() => { setPoolMetrics({}); setRefreshNonce(n => n + 1); }} title="Refetch on-chain data for every pool"
+          style={{ padding: "0.65rem 1rem", borderRadius: 999, border: "1px solid rgba(124,58,237,0.25)", background: "#ffffff", color: "#5B21B6", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          ↻ Refresh
+        </button>
         <button onClick={() => setShowCreate(!showCreate)}
           style={{ padding: "0.65rem 1.2rem", borderRadius: 999, border: "none", background: "linear-gradient(135deg, #6D5EF7, #5B21B6)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(109,94,247,0.35)" }}>
           {showCreate ? "Cancel" : "+ New Pool"}
@@ -467,7 +490,8 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
               expanded={expandedPool === pool.poolAddress}
               onToggle={() => setExpandedPool(expandedPool === pool.poolAddress ? null : pool.poolAddress)}
               onRefresh={onRefresh}
-              onMetrics={handlePoolMetrics} />
+              onMetrics={handlePoolMetrics}
+              refreshNonce={refreshNonce} />
           </div>
         ))}
       </div>
@@ -499,10 +523,11 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
   );
 }
 
-function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMetrics }: {
+function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMetrics, refreshNonce }: {
   pool: PoolInfo; provider: EIP1193Provider; address: string;
   expanded: boolean; onToggle: () => void; onRefresh: () => void;
   onMetrics: (poolAddress: string, m: PoolMetrics) => void;
+  refreshNonce: number;
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<"swap" | "add" | "remove">("swap");
@@ -573,8 +598,8 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       let logsUnavailable = false;
       try {
         const currentBlock = await client.getBlockNumber();
-        const fromBlock = currentBlock > 5000n ? currentBlock - 5000n : 0n;
-        const logs = await client.getLogs({ address: pool.poolAddress, event: SWAP_EVENT, fromBlock, toBlock: "latest" });
+        const { logs, ok } = await fetchSwapLogsWithFallback(client, pool.poolAddress, currentBlock);
+        if (!ok) throw new Error("log fetch failed at every window size");
         swapCount = logs.length;
         shape = logs.slice(-12).map(log => Number(formatUnits(log.args.amountIn ?? 0n, log.args.aToB ? decimalsA : decimalsB)));
         if (stableA || stableB) {
@@ -604,7 +629,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
     } finally {
       setLoading(false);
     }
-  }, [pool.poolAddress, address, abi, resolvedSymbolA, resolvedSymbolB, decimalsA, decimalsB, onMetrics]);
+  }, [pool.poolAddress, address, abi, resolvedSymbolA, resolvedSymbolB, decimalsA, decimalsB, onMetrics, refreshNonce]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
