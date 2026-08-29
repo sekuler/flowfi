@@ -83,6 +83,7 @@ interface PoolMetrics {
   fees7d: number | null;
   apr: number | null;
   shape: number[];
+  logsUnavailable: boolean;
 }
 
 async function switchToArc(provider: EIP1193Provider) {
@@ -109,6 +110,24 @@ async function resolveTokenSymbol(addr: string, client: ReturnType<typeof create
     return await client.readContract({ address: addr as `0x${string}`, abi: erc20Abi, functionName: "symbol" });
   } catch {
     return addr.slice(0, 6);
+  }
+}
+
+function tokenDecimalsSync(addr: string): number {
+  const known = KNOWN_TOKENS.find(t => t.address.toLowerCase() === addr.toLowerCase());
+  // Circle-issued assets on Arc (USDC/EURC/USYC/ARCC/cirBTC) use 6 decimals; tokens minted
+  // by the in-app Token Launch factory use the ERC20 default of 18 — never assume one or the other.
+  return known ? 6 : 18;
+}
+
+async function resolveTokenDecimals(addr: string, client: ReturnType<typeof createPublicClient>): Promise<number> {
+  const known = KNOWN_TOKENS.find(t => t.address.toLowerCase() === addr.toLowerCase());
+  if (known) return 6;
+  try {
+    const d = await client.readContract({ address: addr as `0x${string}`, abi: erc20Abi, functionName: "decimals" });
+    return Number(d);
+  } catch {
+    return 18;
   }
 }
 
@@ -495,7 +514,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   const [reserves, setReserves] = useState<{ a: string; b: string } | null>(null);
   const [myShare, setMyShare] = useState<{ a: string; b: string; pct: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState<PoolMetrics>({ tvl: null, swapCount7d: 0, volume7d: null, fees7d: null, apr: null, shape: [] });
+  const [metrics, setMetrics] = useState<PoolMetrics>({ tvl: null, swapCount7d: 0, volume7d: null, fees7d: null, apr: null, shape: [], logsUnavailable: false });
 
   const [swapDirAtoB, setSwapDirAtoB] = useState(true);
   const [swapAmountIn, setSwapAmountIn] = useState("");
@@ -506,11 +525,15 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
 
   const [resolvedSymbolA, setResolvedSymbolA] = useState(pool.symbolA);
   const [resolvedSymbolB, setResolvedSymbolB] = useState(pool.symbolB);
+  const [decimalsA, setDecimalsA] = useState(tokenDecimalsSync(pool.addressA));
+  const [decimalsB, setDecimalsB] = useState(tokenDecimalsSync(pool.addressB));
 
   const tokenAInfo = { symbol: resolvedSymbolA, address: pool.addressA, color: pool.colorA };
   const tokenBInfo = { symbol: resolvedSymbolB, address: pool.addressB, color: pool.colorB };
   const abi = pool.isLegacy ? LEGACY_ABI : POOL_ABI;
-  const isStablePair = STABLE_SYMBOLS.has(resolvedSymbolA) && STABLE_SYMBOLS.has(resolvedSymbolB);
+  const stableA = STABLE_SYMBOLS.has(resolvedSymbolA);
+  const stableB = STABLE_SYMBOLS.has(resolvedSymbolB);
+  const isStablePair = stableA && stableB;
   const swapSupported = !pool.isLegacy;
 
   useEffect(() => {
@@ -518,9 +541,11 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
     const client = createPublicClient({ chain: arcTestnet, transport: http() });
     if (pool.symbolA.startsWith("0x")) {
       resolveTokenSymbol(pool.addressA, client).then(s => { if (!cancelled) setResolvedSymbolA(s); });
+      resolveTokenDecimals(pool.addressA, client).then(d => { if (!cancelled) setDecimalsA(d); });
     }
     if (pool.symbolB.startsWith("0x")) {
       resolveTokenSymbol(pool.addressB, client).then(s => { if (!cancelled) setResolvedSymbolB(s); });
+      resolveTokenDecimals(pool.addressB, client).then(d => { if (!cancelled) setDecimalsB(d); });
     }
     return () => { cancelled = true; };
   }, [pool.addressA, pool.addressB, pool.symbolA, pool.symbolB]);
@@ -530,38 +555,47 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const [resA, resB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getReserves" });
-      const rA = Number(formatUnits(resA, 6));
-      const rB = Number(formatUnits(resB, 6));
+      const rA = Number(formatUnits(resA, decimalsA));
+      const rB = Number(formatUnits(resB, decimalsB));
       setReserves({ a: rA.toFixed(4), b: rB.toFixed(4) });
 
       const [myA, myB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getShareValue", args: [address as `0x${string}`] });
       const myShares = await client.readContract({ address: pool.poolAddress, abi, functionName: "shares", args: [address as `0x${string}`] });
       const total = await client.readContract({ address: pool.poolAddress, abi, functionName: "totalShares" });
       const pct = total > 0n ? (Number(myShares) / Number(total)) * 100 : 0;
-      setMyShare({ a: Number(formatUnits(myA, 6)).toFixed(4), b: Number(formatUnits(myB, 6)).toFixed(4), pct: pct.toFixed(3) });
+      setMyShare({ a: Number(formatUnits(myA, decimalsA)).toFixed(4), b: Number(formatUnits(myB, decimalsB)).toFixed(4), pct: pct.toFixed(3) });
 
-      const tvl = isStablePair ? rA + rB : null;
+      const tvl = stableA && stableB ? rA + rB : stableA ? rA * 2 : stableB ? rB * 2 : null;
 
       let swapCount = 0;
       let volume7d: number | null = null;
       let shape: number[] = [];
+      let logsUnavailable = false;
       try {
         const currentBlock = await client.getBlockNumber();
-        const fromBlock = currentBlock > 100000n ? currentBlock - 100000n : 0n;
+        const fromBlock = currentBlock > 5000n ? currentBlock - 5000n : 0n;
         const logs = await client.getLogs({ address: pool.poolAddress, event: SWAP_EVENT, fromBlock, toBlock: "latest" });
         swapCount = logs.length;
-        shape = logs.slice(-12).map(log => Number(formatUnits(log.args.amountIn ?? 0n, 6)));
-        if (isStablePair) {
-          volume7d = logs.reduce((sum, log) => sum + Number(formatUnits(log.args.amountIn ?? 0n, 6)), 0);
+        shape = logs.slice(-12).map(log => Number(formatUnits(log.args.amountIn ?? 0n, log.args.aToB ? decimalsA : decimalsB)));
+        if (stableA || stableB) {
+          // Only the swaps where the *input* token is the known stablecoin can be priced directly.
+          volume7d = logs.reduce((sum, log) => {
+            const inputIsStable = log.args.aToB ? stableA : stableB;
+            if (!inputIsStable) return sum;
+            const inDecimals = log.args.aToB ? decimalsA : decimalsB;
+            return sum + Number(formatUnits(log.args.amountIn ?? 0n, inDecimals));
+          }, 0);
         }
       } catch {
-        /* leave swapCount at 0 if log fetch fails */
+        // Most public RPCs cap eth_getLogs to a limited block range — surface this
+        // explicitly rather than silently reporting "0 swaps" (which looks like no activity).
+        logsUnavailable = true;
       }
 
       const fees7d = volume7d !== null ? volume7d * 0.003 : null;
       const apr = fees7d !== null && tvl && tvl > 0 ? (fees7d / tvl) * (365 / 7) * 100 : null;
 
-      const next: PoolMetrics = { tvl, swapCount7d: swapCount, volume7d, fees7d, apr, shape };
+      const next: PoolMetrics = { tvl, swapCount7d: swapCount, volume7d, fees7d, apr, shape, logsUnavailable };
       setMetrics(next);
       onMetrics(pool.poolAddress, next);
     } catch {
@@ -570,7 +604,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
     } finally {
       setLoading(false);
     }
-  }, [pool.poolAddress, address, abi, isStablePair, onMetrics]);
+  }, [pool.poolAddress, address, abi, resolvedSymbolA, resolvedSymbolB, decimalsA, decimalsB, onMetrics]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -582,15 +616,15 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       }
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
-        const amountIn = parseUnits(swapAmountIn, 6);
+        const amountIn = parseUnits(swapAmountIn, swapDirAtoB ? decimalsA : decimalsB);
         const out = await client.readContract({ address: pool.poolAddress, abi: POOL_ABI, functionName: "getAmountOut", args: [swapDirAtoB, amountIn] });
-        setSwapEstOut(Number(formatUnits(out as bigint, 6)).toFixed(4));
+        setSwapEstOut(Number(formatUnits(out as bigint, swapDirAtoB ? decimalsB : decimalsA)).toFixed(4));
       } catch {
         setSwapEstOut("0.00");
       }
     }
     estimate();
-  }, [swapAmountIn, swapDirAtoB, pool.poolAddress, swapSupported]);
+  }, [swapAmountIn, swapDirAtoB, pool.poolAddress, swapSupported, decimalsA, decimalsB]);
 
   const hasPosition = myShare && Number(myShare.pct) > 0;
   const swapTokenIn = swapDirAtoB ? tokenAInfo : tokenBInfo;
@@ -603,7 +637,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       await switchToArc(provider);
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-      const amountIn = parseUnits(swapAmountIn, 6);
+      const amountIn = parseUnits(swapAmountIn, swapDirAtoB ? decimalsA : decimalsB);
 
       setSwapState("approving");
       const approveHash = await wc.writeContract({
@@ -638,8 +672,8 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       await switchToArc(provider);
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-      const unitsA = parseUnits(amountA, 6);
-      const unitsB = parseUnits(amountB, 6);
+      const unitsA = parseUnits(amountA, decimalsA);
+      const unitsB = parseUnits(amountB, decimalsB);
 
       setState("approving1");
       const a1 = await wc.writeContract({ address: tokenAInfo.address, abi: erc20Abi, functionName: "approve", args: [pool.poolAddress, unitsA], account: address as `0x${string}` });
@@ -710,6 +744,8 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
           <div style={{ textAlign: "right" }}>
             {loading ? (
               <div style={{ fontSize: 13, color: "#9CA3AF" }}>...</div>
+            ) : metrics.logsUnavailable ? (
+              <div style={{ fontSize: 11, color: "#D97706" }}>Activity unavailable</div>
             ) : metrics.swapCount7d === 0 ? (
               <div style={{ fontSize: 11, color: "#9CA3AF" }}>Not traded yet</div>
             ) : (
@@ -723,7 +759,9 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
             <Sparkline points={metrics.shape} color={pool.colorA} />
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-            {metrics.swapCount7d === 0 ? (
+            {metrics.logsUnavailable ? (
+              <span style={{ fontSize: 11, color: "#D97706" }}>—</span>
+            ) : metrics.swapCount7d === 0 ? (
               <span style={{ fontSize: 11, color: "#9CA3AF", background: "#F3F4F6", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>New</span>
             ) : (
               <span style={{ fontSize: 13, color: "#16A34A", fontWeight: 800 }}>{metrics.apr !== null ? `${metrics.apr.toFixed(2)}%` : "—"}</span>
@@ -745,7 +783,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA}/{resolvedSymbolB}</div>
               <div style={{ fontSize: 10, color: "#6B7280" }}>
-                {!loading && metrics.tvl !== null ? formatCompact(metrics.tvl) : "—"} · {metrics.swapCount7d === 0 ? "Not traded yet" : metrics.apr !== null ? `${metrics.apr.toFixed(1)}% APR` : "—"}
+                {!loading && metrics.tvl !== null ? formatCompact(metrics.tvl) : "—"} · {metrics.logsUnavailable ? "Activity unavailable" : metrics.swapCount7d === 0 ? "Not traded yet" : metrics.apr !== null ? `${metrics.apr.toFixed(1)}% APR` : "—"}
               </div>
             </div>
           </div>
@@ -776,8 +814,14 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
               <div style={{ fontSize: 12, color: "#fbbf24", fontWeight: 700 }}>{loading ? "..." : metrics.fees7d !== null ? `$${metrics.fees7d.toFixed(3)}` : "—"}</div>
             </div>
           </div>
-          {!isStablePair && (
-            <p style={{ fontSize: 10, color: "#374151", margin: 0 }}>TVL, volume ($), and APR require a stablecoin pair to price accurately — showing raw swap count instead.</p>
+          {metrics.logsUnavailable && (
+            <p style={{ fontSize: 10, color: "#D97706", margin: 0 }}>Couldn't load recent swap activity from the RPC — TVL is still accurate, but volume/APR may be understated. Try again shortly.</p>
+          )}
+          {!metrics.logsUnavailable && !stableA && !stableB && (
+            <p style={{ fontSize: 10, color: "#374151", margin: 0 }}>Neither side of this pool is a known stablecoin, so TVL and volume can't be priced in $ — showing raw swap count instead.</p>
+          )}
+          {!metrics.logsUnavailable && (stableA || stableB) && !isStablePair && (
+            <p style={{ fontSize: 10, color: "#374151", margin: 0 }}>Only one side is a known stablecoin — TVL and volume are approximated from that side.</p>
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
@@ -812,20 +856,26 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
 
           {mode === "swap" && swapSupported && (
             <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 10, color: "#4B5563" }}>You pay</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input type="number" min="0" placeholder="0.00" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} disabled={isSwapLoading}
-                  style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#111827", outline: "none" }} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 50, textAlign: "center" }}>{swapTokenIn?.symbol}</span>
-              </div>
-              <button onClick={() => setSwapDirAtoB(!swapDirAtoB)} disabled={isSwapLoading}
-                style={{ alignSelf: "center", background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 8, padding: "4px 12px", color: "#5B21B6", fontSize: 14, cursor: "pointer" }}>
-                ⇅
-              </button>
-              <div style={{ fontSize: 10, color: "#4B5563" }}>You receive (estimated)</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, background: "#f5f3ff", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#111827" }}>{swapEstOut}</div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 50, textAlign: "center" }}>{swapTokenOut?.symbol}</span>
+              <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ background: "#ffffff", borderRadius: 10, padding: "0.7rem 0.8rem" }}>
+                  <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 4 }}>You pay</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input type="number" min="0" placeholder="0.00" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} disabled={isSwapLoading}
+                      style={{ flex: 1, background: "transparent", border: "none", padding: 0, fontSize: 14, color: "#111827", outline: "none" }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 50, textAlign: "center" }}>{swapTokenIn?.symbol}</span>
+                  </div>
+                </div>
+                <div style={{ background: "#ffffff", borderRadius: 10, padding: "0.7rem 0.8rem" }}>
+                  <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 4 }}>You receive (estimated)</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ flex: 1, fontSize: 14, color: "#111827" }}>{swapEstOut}</div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 50, textAlign: "center" }}>{swapTokenOut?.symbol}</span>
+                  </div>
+                </div>
+                <button onClick={() => setSwapDirAtoB(!swapDirAtoB)} disabled={isSwapLoading}
+                  style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "#f5f3ff", border: "3px solid #ffffff", borderRadius: 10, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", color: "#5B21B6", fontSize: 14, cursor: "pointer", boxShadow: "0 2px 6px rgba(124,58,237,0.2)" }}>
+                  ⇅
+                </button>
               </div>
               {swapError && <div style={{ fontSize: 11, color: "#DC2626" }}>{swapError}</div>}
               {swapTxHash && swapState === "done" && (
