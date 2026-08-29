@@ -60,14 +60,16 @@ const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
 
+const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
+
 const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
   group: "WALLET",
   tabs: [
-    { id: "home",      label: "Home",      Icon: Home },
-    { id: "portfolio", label: "Portfolio", Icon: LayoutGrid },
-    { id: "send",      label: "Send",      Icon: ArrowUpRight },
-    { id: "receive",   label: "Receive",   Icon: ArrowDownLeft },
+    { id: "portfolio",    label: "Portfolio",     Icon: LayoutGrid },
+    { id: "send",         label: "Send",          Icon: ArrowUpRight },
+    { id: "receive",      label: "Receive",       Icon: ArrowDownLeft },
+    { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
   ],
 },
 {
@@ -75,7 +77,6 @@ const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[]
   tabs: [
     { id: "bridge",       label: "Bridge",        Icon: Hexagon },
     { id: "gateway",      label: "Gateway",       Icon: Zap },
-    { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
   ],
 },
 {
@@ -480,6 +481,20 @@ function AppInner() {
           </div>
         </div>
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
+          <div style={{ marginBottom: 4 }}>
+            <button onClick={() => { setTab(HOME_TAB.id); if (isMobile) setMobileMenuOpen(false); }}
+              style={{
+                width: "100%", padding: "0.45rem 1rem", borderRadius: 999, border: "none",
+                background: tab === HOME_TAB.id ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
+                color: tab === HOME_TAB.id ? "#6D5EF7" : "#4B5563",
+                fontSize: 12.5, fontWeight: tab === HOME_TAB.id ? 700 : 500, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 9, textAlign: "left",
+                marginBottom: 1,
+              }}>
+              <HOME_TAB.Icon size={15} strokeWidth={2} />
+              <span>{HOME_TAB.label}</span>
+            </button>
+          </div>
           {TAB_GROUPS.map(({ group, tabs }) => (
             <div key={group} style={{ marginBottom: 4 }}>
               <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: "#3B82F6", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem" }}>{group}</div>
