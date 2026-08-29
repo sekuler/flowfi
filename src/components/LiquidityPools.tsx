@@ -259,9 +259,14 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   const [filterTab, setFilterTab] = useState<"all" | "stable" | "volatile">("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"apr" | "tvl" | "volume">("apr");
+  const [resolvedSymbols, setResolvedSymbols] = useState<Record<string, { a?: string; b?: string }>>({});
 
   const handlePoolMetrics = useCallback((poolAddress: string, m: PoolMetrics) => {
     setPoolMetrics(prev => ({ ...prev, [poolAddress]: m }));
+  }, []);
+
+  const handleSymbolResolved = useCallback((poolAddress: string, side: "a" | "b", symbol: string) => {
+    setResolvedSymbols(prev => ({ ...prev, [poolAddress]: { ...prev[poolAddress], [side]: symbol } }));
   }, []);
 
   const metricsValues = Object.values(poolMetrics);
@@ -354,12 +359,14 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
   const visiblePools = pools
     .filter(p => {
-      const stable = STABLE_SYMBOLS.has(p.symbolA) && STABLE_SYMBOLS.has(p.symbolB);
+      const symA = resolvedSymbols[p.poolAddress]?.a ?? p.symbolA;
+      const symB = resolvedSymbols[p.poolAddress]?.b ?? p.symbolB;
+      const stable = STABLE_SYMBOLS.has(symA) && STABLE_SYMBOLS.has(symB);
       if (filterTab === "stable" && !stable) return false;
       if (filterTab === "volatile" && stable) return false;
       if (search.trim()) {
         const needle = search.trim().toLowerCase();
-        if (!`${p.symbolA}${p.symbolB}`.toLowerCase().includes(needle) && !p.poolAddress.toLowerCase().includes(needle)) return false;
+        if (!`${symA}${symB}`.toLowerCase().includes(needle) && !p.poolAddress.toLowerCase().includes(needle)) return false;
       }
       return true;
     })
@@ -491,6 +498,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
               onToggle={() => setExpandedPool(expandedPool === pool.poolAddress ? null : pool.poolAddress)}
               onRefresh={onRefresh}
               onMetrics={handlePoolMetrics}
+              onSymbolResolved={handleSymbolResolved}
               refreshNonce={refreshNonce} />
           </div>
         ))}
@@ -523,10 +531,11 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
   );
 }
 
-function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMetrics, refreshNonce }: {
+function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMetrics, onSymbolResolved, refreshNonce }: {
   pool: PoolInfo; provider: EIP1193Provider; address: string;
   expanded: boolean; onToggle: () => void; onRefresh: () => void;
   onMetrics: (poolAddress: string, m: PoolMetrics) => void;
+  onSymbolResolved: (poolAddress: string, side: "a" | "b", symbol: string) => void;
   refreshNonce: number;
 }) {
   const isMobile = useIsMobile();
@@ -565,15 +574,15 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
     let cancelled = false;
     const client = createPublicClient({ chain: arcTestnet, transport: http() });
     if (pool.symbolA.startsWith("0x")) {
-      resolveTokenSymbol(pool.addressA, client).then(s => { if (!cancelled) setResolvedSymbolA(s); });
+      resolveTokenSymbol(pool.addressA, client).then(s => { if (!cancelled) { setResolvedSymbolA(s); onSymbolResolved(pool.poolAddress, "a", s); } });
       resolveTokenDecimals(pool.addressA, client).then(d => { if (!cancelled) setDecimalsA(d); });
     }
     if (pool.symbolB.startsWith("0x")) {
-      resolveTokenSymbol(pool.addressB, client).then(s => { if (!cancelled) setResolvedSymbolB(s); });
+      resolveTokenSymbol(pool.addressB, client).then(s => { if (!cancelled) { setResolvedSymbolB(s); onSymbolResolved(pool.poolAddress, "b", s); } });
       resolveTokenDecimals(pool.addressB, client).then(d => { if (!cancelled) setDecimalsB(d); });
     }
     return () => { cancelled = true; };
-  }, [pool.addressA, pool.addressB, pool.symbolA, pool.symbolB]);
+  }, [pool.addressA, pool.addressB, pool.symbolA, pool.symbolB, pool.poolAddress, onSymbolResolved]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
