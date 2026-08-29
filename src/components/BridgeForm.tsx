@@ -561,12 +561,16 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
             {step === "done" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {followUp ? (
-                  <div style={{ background: "linear-gradient(135deg, #6D5EF7, #4F6BFF)", borderRadius: 14, padding: "1rem", textAlign: "center" }}>
-                    <div style={{ fontSize: 12.5, color: "#ffffff", marginBottom: 8, opacity: 0.95 }}>
+                  <div style={{ background: "linear-gradient(135deg, #6D5EF7, #4F6BFF)", borderRadius: 14, padding: "1rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                    <svg style={{ position: "absolute", top: 0, right: 0, width: 140, height: "100%", pointerEvents: "none", opacity: 0.35 }} viewBox="0 0 140 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M0 100 C 40 90, 60 50, 140 30" stroke="#fff" strokeWidth="1.5" opacity="0.5"/>
+                      <path d="M20 100 C 60 95, 80 60, 140 55" stroke="#fff" strokeWidth="1.5" opacity="0.3"/>
+                    </svg>
+                    <div style={{ position: "relative", fontSize: 12.5, color: "#ffffff", marginBottom: 8, opacity: 0.95 }}>
                       Bridge complete. Continuing to {followUp.action === "swap" ? `swap it to ${followUp.toToken}` : "Lending"}, as requested.
                     </div>
                     <button onClick={() => onNavigate?.(followUp.action === "swap" ? "swap" : "lending")}
-                      style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                      style={{ position: "relative", width: "100%", padding: "0.65rem", borderRadius: 10, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
                       Continue →
                     </button>
                   </div>
