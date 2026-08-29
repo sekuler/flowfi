@@ -104,6 +104,7 @@ async function resolveTokenSymbol(addr: string, client: ReturnType<typeof create
 }
 
 export default function LiquidityPools({ provider, address, onRefresh }: Props) {
+  const isMobile = useIsMobile();
   const [pools, setPools] = useState<PoolInfo[]>([]);
   const [loadingPools, setLoadingPools] = useState(true);
   const [expandedPool, setExpandedPool] = useState<string | null>(null);
@@ -303,21 +304,21 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 460 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div style={{ background: "linear-gradient(160deg, #6D5EF712, #ffffff)", border: "1px solid #6D5EF730", borderRadius: 14, padding: "0.9rem 1rem" }}>
-          <div style={{ fontSize: 10, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.5px" }}>TOTAL TVL</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: isMobile ? 460 : 1100, margin: isMobile ? undefined : "0 auto" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr", gap: isMobile ? 10 : 20, maxWidth: isMobile ? undefined : 480 }}>
+        <div style={{ background: "linear-gradient(160deg, #6D5EF712, #ffffff)", border: "1px solid #6D5EF730", borderRadius: 14, padding: isMobile ? "0.9rem 1rem" : "1.25rem 1.5rem" }}>
+          <div style={{ fontSize: isMobile ? 10 : 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.5px" }}>TOTAL TVL</div>
+          <div style={{ fontSize: isMobile ? 20 : 28, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace" }}>
             {loadingTvl ? "..." : totalTvl !== null ? `$${totalTvl.toFixed(2)}` : "—"}
           </div>
-          <div style={{ fontSize: 10, color: "#9CA3AF" }}>{pools.length} pool{pools.length !== 1 ? "s" : ""}</div>
+          <div style={{ fontSize: isMobile ? 10 : 11, color: "#9CA3AF" }}>{pools.length} pool{pools.length !== 1 ? "s" : ""}</div>
         </div>
-        <div style={{ background: "linear-gradient(160deg, #3B82F612, #ffffff)", border: "1px solid #3B82F630", borderRadius: 14, padding: "0.9rem 1rem" }}>
-          <div style={{ fontSize: 10, color: "#3B82F6", fontWeight: 700, letterSpacing: "0.5px" }}>POOLS</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace" }}>
+        <div style={{ background: "linear-gradient(160deg, #3B82F612, #ffffff)", border: "1px solid #3B82F630", borderRadius: 14, padding: isMobile ? "0.9rem 1rem" : "1.25rem 1.5rem" }}>
+          <div style={{ fontSize: isMobile ? 10 : 11, color: "#3B82F6", fontWeight: 700, letterSpacing: "0.5px" }}>POOLS</div>
+          <div style={{ fontSize: isMobile ? 20 : 28, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace" }}>
             {pools.length}
           </div>
-          <div style={{ fontSize: 10, color: "#9CA3AF" }}>open, permissionless</div>
+          <div style={{ fontSize: isMobile ? 10 : 11, color: "#9CA3AF" }}>open, permissionless</div>
         </div>
       </div>
 
@@ -394,12 +395,16 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
       {loadingPools && <div style={{ fontSize: 12, color: "#334155" }}>Loading pools...</div>}
 
-      {!loadingPools && pools.map((pool) => (
-        <PoolRow key={pool.poolAddress} pool={pool} provider={provider} address={address}
-          expanded={expandedPool === pool.poolAddress}
-          onToggle={() => setExpandedPool(expandedPool === pool.poolAddress ? null : pool.poolAddress)}
-          onRefresh={onRefresh} />
-      ))}
+      <div style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "1fr 1fr", gap: isMobile ? "1rem" : "0.9rem" }}>
+        {!loadingPools && pools.map((pool) => (
+          <div key={pool.poolAddress} style={{ gridColumn: !isMobile && expandedPool === pool.poolAddress ? "1 / -1" : undefined }}>
+            <PoolRow pool={pool} provider={provider} address={address}
+              expanded={expandedPool === pool.poolAddress}
+              onToggle={() => setExpandedPool(expandedPool === pool.poolAddress ? null : pool.poolAddress)}
+              onRefresh={onRefresh} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -622,8 +627,24 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
             <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>0.3% fee</div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {!loading && metrics.tvl !== null && (
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 20 }}>
+          {!loading && metrics.tvl !== null && !isMobile && (
+            <>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>TVL</div>
+                <div style={{ fontSize: 13, color: "#111827", fontWeight: 800 }}>${metrics.tvl.toFixed(0)}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>APR</div>
+                <div style={{ fontSize: 13, color: "#16A34A", fontWeight: 800 }}>{metrics.apr !== null ? `${metrics.apr.toFixed(1)}%` : "—"}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>VOLUME</div>
+                <div style={{ fontSize: 13, color: "#111827", fontWeight: 800 }}>{metrics.volume7d !== null ? `$${metrics.volume7d.toFixed(0)}` : `${metrics.swapCount7d}x`}</div>
+              </div>
+            </>
+          )}
+          {!loading && metrics.tvl !== null && isMobile && (
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700 }}>TVL</div>
               <div style={{ fontSize: 13, color: "#111827", fontWeight: 800 }}>${metrics.tvl.toFixed(0)}</div>
@@ -632,6 +653,9 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh }: {
           <span style={{ color: "#4B5563", fontSize: 13, transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
         </div>
       </button>
+      <div style={{ height: 3, borderRadius: 2, background: `${pool.colorA}15`, overflow: "hidden", marginTop: -4 }}>
+        <div style={{ height: "100%", width: metrics.apr !== null ? `${Math.min(metrics.apr, 100)}%` : "0%", background: `linear-gradient(90deg, ${pool.colorA}, ${pool.colorB})`, borderRadius: 2, transition: "width 0.3s" }} />
+      </div>
 
       {expanded && (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", paddingLeft: 4 }}>
