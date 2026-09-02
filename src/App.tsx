@@ -415,7 +415,7 @@ function AppInner() {
           Tell FlowFi what you want.<br />It handles the rest.
         </h1>
         <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 560, margin: "0 auto 32px" }}>
-          Swap, bridge, lend, launch tokens, trade perpetuals, and manage your stablecoins — all through one intelligent Copilot on Arc.
+          Swap, bridge, lend, launch tokens, and manage your stablecoins — all through one intelligent Copilot on Arc.
         </p>
      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
   <WalletConnect onConnected={handleConnected} />
