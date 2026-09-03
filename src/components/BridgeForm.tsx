@@ -58,11 +58,23 @@ const CROSS_CHAIN_TRANSFER_ABI = [{
   outputs: [],
 }] as const;
 
+function parseIrisResponse(text: string): unknown {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("<")) {
+    throw new Error(
+      "Circle's sandbox API is temporarily blocking requests (looks like a rate-limit / lockout page, not a JSON response). " +
+      "This isn't a bug on our end — wait a few minutes before trying again."
+    );
+  }
+  return JSON.parse(text);
+}
+
 async function irisProxyGet(path: string) {
   const res = await fetch(`/api/iris-proxy?path=${encodeURIComponent(path)}`);
   const text = await res.text();
-  if (!res.ok) throw new Error(text);
-  return JSON.parse(text);
+  const data = parseIrisResponse(text);
+  if (!res.ok) throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+  return data;
 }
 
 async function irisProxyPost(path: string, body: unknown) {
@@ -72,8 +84,9 @@ async function irisProxyPost(path: string, body: unknown) {
     body: JSON.stringify({ path, body }),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(text);
-  return JSON.parse(text);
+  const data = parseIrisResponse(text);
+  if (!res.ok) throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+  return data;
 }
 
 async function fetchCctpxQuote(tokenId: `0x${string}`, sourceDomain: number, destDomain: number, amount: bigint) {
@@ -325,15 +338,17 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     // which EURC uses here, see finalityParams — waits for hard finality on the source chain
     // and can take considerably longer, so this window is sized for that worst case rather
     // than timing out while a legitimate Standard Transfer is still in flight.
-    for (let i = 0; i < 240; i++) {
+    for (let i = 0; i < 120; i++) {
       try {
-        const data = await irisProxyGet(`/v2/messages/${domain}?transactionHash=${burnHash}`);
+        const data = (await irisProxyGet(`/v2/messages/${domain}?transactionHash=${burnHash}`)) as { messages?: { status: string; message: string; attestation: string }[] };
         const msg = data?.messages?.[0];
         if (msg?.status === "complete") return msg as { message: string; attestation: string };
-      } catch {
-        // Not indexed yet (or a transient error) — keep polling.
+      } catch (e: unknown) {
+        const msg = (e as { message?: string })?.message ?? "";
+        if (msg.includes("rate-limit") || msg.includes("lockout")) throw e; // don't keep hammering a block
+        // Otherwise: not indexed yet, or a transient error — keep polling.
       }
-      await new Promise(r => setTimeout(r, 5000));
+      await new Promise(r => setTimeout(r, 10000));
     }
     throw new Error("Attestation is taking longer than expected. Your funds are safe — the burn is confirmed on-chain. You can mint later using the burn tx hash once Circle finishes attesting.");
   }
