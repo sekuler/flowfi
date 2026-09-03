@@ -364,26 +364,46 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
         args: [TOKEN_MESSENGER, amountUnits],
         account: address as `0x${string}`,
       });
-      await sourcePublic.waitForTransactionReceipt({ hash: approveHash });
+      const approveReceipt = await sourcePublic.waitForTransactionReceipt({ hash: approveHash });
+      if (approveReceipt.status !== "success") {
+        throw new Error(`Approve transaction reverted on-chain (${approveHash}). No funds were moved.`);
+      }
 
       setStep("burning");
       const { maxFee, minFinalityThreshold } = finalityParams(asset);
+      const burnArgs = [
+        amountUnits,
+        dest.domain,
+        bytes32Address(address),
+        tokenAddr,
+        bytes32Address("0x0000000000000000000000000000000000000000"),
+        maxFee,
+        minFinalityThreshold,
+      ] as const;
+      try {
+        await sourcePublic.simulateContract({
+          address: TOKEN_MESSENGER, abi: DEPOSIT_FOR_BURN_ABI, functionName: "depositForBurn",
+          args: burnArgs, account: address as `0x${string}`,
+        });
+      } catch (simErr: unknown) {
+        const msg = (simErr as { shortMessage?: string; message?: string })?.shortMessage ?? (simErr as { message?: string })?.message ?? "unknown reason";
+        throw new Error(`This burn would fail on-chain (${msg}). Most likely ${assetLabel} isn't registered for CCTP burning on ${sourceKey} yet, even though the token is deployed there. No transaction was sent, no gas spent.`);
+      }
       const burnHash = await sourceWallet.writeContract({
         address: TOKEN_MESSENGER,
         abi: DEPOSIT_FOR_BURN_ABI,
         functionName: "depositForBurn",
-        args: [
-          amountUnits,
-          dest.domain,
-          bytes32Address(address),
-          tokenAddr,
-          bytes32Address("0x0000000000000000000000000000000000000000"),
-          maxFee,
-          minFinalityThreshold,
-        ],
+        args: burnArgs,
         account: address as `0x${string}`,
       });
-      await sourcePublic.waitForTransactionReceipt({ hash: burnHash });
+      const burnReceipt = await sourcePublic.waitForTransactionReceipt({ hash: burnHash });
+      if (burnReceipt.status !== "success") {
+        throw new Error(
+          `The burn reverted on-chain (tx ${burnHash.slice(0, 10)}...) — most likely "burn token not supported": ` +
+          `${assetLabel} may not be registered for CCTP burning on ${sourceKey} yet, even though the token itself is deployed there. ` +
+          `Check the tx on the explorer for the exact revert reason. No funds were moved.`
+        );
+      }
       setBurnTxHash(burnHash);
 
       setStep("attesting");
@@ -400,7 +420,10 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
         args: [attestation.message as `0x${string}`, attestation.attestation as `0x${string}`],
         account: address as `0x${string}`,
       });
-      await destPublic.waitForTransactionReceipt({ hash: mintHash });
+      const mintReceipt = await destPublic.waitForTransactionReceipt({ hash: mintHash });
+      if (mintReceipt.status !== "success") {
+        throw new Error(`The mint reverted on-chain (tx ${mintHash.slice(0, 10)}...) on ${destKey}. Your burn is still valid — you can retry minting with the same attestation.`);
+      }
       setMintTxHash(mintHash);
       setStep("done");
       showToast("Bridge completed", "success");
