@@ -204,8 +204,8 @@ export default function AiCopilot({ provider, address, balances, onRefresh, onNa
 Schema:
 {
   "action": "swap" | "send" | "create_pool" | "bridge" | "strategy" | "unknown",
-  "fromToken": "USDC" | "EURC" | "USYC" | "ARCC" | "CIRBTC" (for swap),
-  "toToken": "USDC" | "EURC" | "USYC" | "ARCC" | "CIRBTC" (for swap),
+  "fromToken": "USDC" | "EURC" (for swap — this is a fixed-rate USDC/EURC swap only, no other pair is executable here),
+  "toToken": "USDC" | "EURC" (for swap — same restriction as fromToken),
   "amount": number (omit if useAllBalance is true),
   "useAllBalance": boolean (true if user says "all my X"),
   "recipient": string (address or .arc name, for send),
@@ -219,7 +219,7 @@ Schema:
 
 Use "strategy" when the user describes a total amount and asks for a plan, allocation, or strategy (e.g. "I have 500 USDC, give me the safest strategy", "how should I split my USDC"). Allocations must sum to the user's stated amount and only use the three categories above — "lending" supplies USDC to earn yield, "swap_to_eurc" diversifies into EURC, "idle" is a deliberate cash reserve. Do not invent other categories (no LP, no perps) since those require extra parameters this schema doesn't support. A "safest" strategy should favor "lending" and "idle" over "swap_to_eurc". Explain each allocation's purpose briefly in its "note".
 
-Only USDC and EURC are swappable on the fixed-rate pool. If the request is ambiguous, ill-formed, or not one of the supported actions, set action to "unknown" and explain in summary.
+Only USDC and EURC are swappable via this fixed-rate action. If the user asks to swap USYC, ARCC, cirBTC, or any other token, do NOT set fromToken/toToken to that token — set action to "unknown" and explain in summary that this pair isn't supported by the fixed-rate swap, and that they'd need an existing Liquidity Pool for that pair instead (Tools → Liquidity). If the request is otherwise ambiguous or ill-formed, also set action to "unknown" and explain in summary.
 
 Interpret goal-oriented requests, not just literal commands. If the user states an outcome they want rather than a specific mechanism (e.g. "Get me 100 EURC on Arc", "I need 50 USDC", "top up my EURC"), figure out which single supported action gets them there and use that — you do not need the user to say the word "swap" or "bridge" explicitly. As a rule of thumb: wanting a different token they don't currently hold enough of, while already having USDC on Arc, means "swap"; wanting funds moved to a specific external address means "send" (with destinationChain if a chain is named); wanting USDC specifically on a different chain than Arc, with no recipient mentioned, means "bridge". Only fall back to "unknown" if the goal genuinely can't be reached with swap, send, bridge, create_pool, or strategy.
 Available user balances: USDC ${balances.usdc}, EURC ${balances.eurc}.
@@ -305,6 +305,9 @@ Respond with ONLY the JSON object.`,
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
 
       if (action.action === "swap") {
+        if (action.fromToken !== "USDC" && action.fromToken !== "EURC") {
+          throw new Error(`${action.fromToken ?? "That token"} isn't swappable via the fixed-rate Swap — only USDC/EURC are. For other pairs, use an existing pool under Liquidity Pools.`);
+        }
         const amt = action.useAllBalance
           ? (action.fromToken === "USDC" ? balances.usdc : balances.eurc) ?? "0"
           : String(action.amount ?? 0);

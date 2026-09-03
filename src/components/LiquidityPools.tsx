@@ -113,21 +113,26 @@ async function resolveTokenSymbol(addr: string, client: ReturnType<typeof create
   }
 }
 
+const CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
+
 function tokenDecimalsSync(addr: string): number {
+  // Best-guess used only until the real on-chain decimals() resolves (see resolveTokenDecimals
+  // below, which is authoritative and always queries the chain — never trust this alone).
+  if (addr.toLowerCase() === CIRBTC_ADDRESS.toLowerCase()) return 8; // BTC convention, matches CircleWallet.tsx
   const known = KNOWN_TOKENS.find(t => t.address.toLowerCase() === addr.toLowerCase());
-  // Circle-issued assets on Arc (USDC/EURC/USYC/ARCC/cirBTC) use 6 decimals; tokens minted
-  // by the in-app Token Launch factory use the ERC20 default of 18 — never assume one or the other.
   return known ? 6 : 18;
 }
 
 async function resolveTokenDecimals(addr: string, client: ReturnType<typeof createPublicClient>): Promise<number> {
-  const known = KNOWN_TOKENS.find(t => t.address.toLowerCase() === addr.toLowerCase());
-  if (known) return 6;
+  // Always ask the contract directly — don't shortcut based on KNOWN_TOKENS membership.
+  // A wrong assumption here (e.g. cirBTC previously assumed 6 like the other Circle assets,
+  // when CircleWallet.tsx elsewhere correctly treats it as 8) silently breaks reserve display,
+  // swap amounts, and TVL for that token, the same class of bug the launched-token decimals fix addressed.
   try {
     const d = await client.readContract({ address: addr as `0x${string}`, abi: erc20Abi, functionName: "decimals" });
     return Number(d);
   } catch {
-    return 18;
+    return tokenDecimalsSync(addr);
   }
 }
 
@@ -575,12 +580,15 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
     const client = createPublicClient({ chain: arcTestnet, transport: http() });
     if (pool.symbolA.startsWith("0x")) {
       resolveTokenSymbol(pool.addressA, client).then(s => { if (!cancelled) { setResolvedSymbolA(s); onSymbolResolved(pool.poolAddress, "a", s); } });
-      resolveTokenDecimals(pool.addressA, client).then(d => { if (!cancelled) setDecimalsA(d); });
     }
     if (pool.symbolB.startsWith("0x")) {
       resolveTokenSymbol(pool.addressB, client).then(s => { if (!cancelled) { setResolvedSymbolB(s); onSymbolResolved(pool.poolAddress, "b", s); } });
-      resolveTokenDecimals(pool.addressB, client).then(d => { if (!cancelled) setDecimalsB(d); });
     }
+    // Decimals are verified on-chain for every token, known or not — a wrong hardcoded
+    // guess (e.g. assuming cirBTC is 6 decimals like the other Circle assets) silently
+    // breaks amounts, so nothing gets to skip this check.
+    resolveTokenDecimals(pool.addressA, client).then(d => { if (!cancelled) setDecimalsA(d); });
+    resolveTokenDecimals(pool.addressB, client).then(d => { if (!cancelled) setDecimalsB(d); });
     return () => { cancelled = true; };
   }, [pool.addressA, pool.addressB, pool.symbolA, pool.symbolB, pool.poolAddress, onSymbolResolved]);
 
