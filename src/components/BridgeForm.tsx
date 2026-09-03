@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
-import { createPublicClient, createWalletClient, custom, http, erc20Abi } from "viem";
+import { createPublicClient, createWalletClient, custom, http, erc20Abi, encodePacked } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 
 // The default public RPC endpoints viem ships for these testnets sometimes
@@ -22,7 +22,57 @@ import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, BookOpen } from "luc
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x${string}`;
-const IRIS_API = "https://iris-api-sandbox.circle.com/v2/messages";
+const IRIS_BASE = "https://iris-api-sandbox.circle.com";
+const IRIS_API = `${IRIS_BASE}/v2/messages`;
+
+// EURC (and other non-USDC assets) don't move through the canonical TokenMessengerV2.depositForBurn
+// path at all — that's USDC-only. They go through a separate Circle product, "CCTPx" (Expanded
+// Assets), with its own CrossChainTokenService contract, per-token TokenManager, a bytes32 tokenId,
+// and a required signed fee quote from Iris. Confirmed live only between Ethereum Sepolia and Base
+// Sepolia as of Circle's own quickstart — not confirmed for Arc Testnet.
+const CCTS_ADDRESS: Partial<Record<ChainKey, `0x${string}`>> = {
+  "Ethereum Sepolia": "0x63753E722bd2C2A5DF6EE19C5106662208B81077",
+  "Base Sepolia": "0x63753E722bd2C2A5DF6EE19C5106662208B81077",
+};
+const EURC_TOKEN_ID = "0x2587821a0ee7daa174b95436b5dab1731cfa1844775b010217d3c0dd02a4eecd" as `0x${string}`;
+
+const CCTS_ABI = [
+  { name: "resolveTokenManager", type: "function", stateMutability: "view", inputs: [{ name: "tokenId", type: "bytes32" }], outputs: [{ name: "tokenManager", type: "address" }] },
+  { name: "resolveTokenAddress", type: "function", stateMutability: "view", inputs: [{ name: "tokenId", type: "bytes32" }], outputs: [{ name: "token", type: "address" }] },
+] as const;
+
+const CROSS_CHAIN_TRANSFER_ABI = [{
+  name: "crossChainTransfer", type: "function", stateMutability: "payable",
+  inputs: [
+    { name: "tokenId", type: "bytes32" },
+    { name: "amount", type: "uint256" },
+    { name: "destinationDomain", type: "uint32" },
+    { name: "destinationAddress", type: "bytes" },
+    { name: "destinationCaller", type: "bytes32" },
+    { name: "minFinalityThreshold", type: "uint32" },
+    { name: "claim", type: "tuple", components: [
+      { name: "signedQuote", type: "bytes" },
+      { name: "refundAddress", type: "address" },
+    ] },
+    { name: "autoExecuteHookData", type: "bool" },
+    { name: "hookData", type: "bytes" },
+  ],
+  outputs: [],
+}] as const;
+
+async function fetchCctpxQuote(tokenId: `0x${string}`, sourceDomain: number, destDomain: number, amount: bigint) {
+  const res = await fetch(`${IRIS_BASE}/v1/quote/cctpx/${tokenId}/${sourceDomain}/${destDomain}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: amount.toString(),
+      feeToken: "0x0000000000000000000000000000000000000000",
+      requests: [{ type: "PRE_FINALITY" }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Fee quote request failed: ${await res.text()}`);
+  return res.json() as Promise<{ signedQuote: `0x${string}`; feeTotalAmount: string }>;
+}
 
 const CHAINS = {
   "Arc Testnet": { chain: arcTestnet, domain: 26, usdc: "0x3600000000000000000000000000000000000000" as `0x${string}`, eurc: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}` | null, chainIdHex: ARC_CHAIN_ID_HEX, isArc: true, circleChain: "ARC-TESTNET" as CircleChain, dot: "#6D5EF7" },
@@ -37,14 +87,6 @@ const ASSET_META: Record<Asset, { label: string; badge: string; color: string }>
   usdc: { label: "USDC", badge: "$", color: "#6D5EF7" },
   eurc: { label: "EURC", badge: "€", color: "#7c3aed" },
 };
-
-// EURC is deployed on Arc/Ethereum Sepolia/Base Sepolia, but CCTP's TokenMinterV2 hasn't
-// registered it as a burnable token on any of those testnets yet — every route (Arc→ETH,
-// Arc→Base, ETH→Base) reverts on-chain with "Burn token not supported". This isn't something
-// we can fix client-side; it's a Circle-side registration gap. Keep the UI honest about it
-// rather than let people burn gas on a transaction that will always fail. Flip this once
-// Circle finishes registering EURC for CCTP on testnet.
-const EURC_BRIDGE_LIVE = false;
 
 function assetAddress(c: (typeof CHAINS)[ChainKey], asset: Asset): `0x${string}` | null {
   return asset === "usdc" ? c.usdc : c.eurc;
@@ -206,16 +248,18 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     return () => { cancelled = true; };
   }, [sourceKey, address, useCircle, circleWallet, asset]);
 
-  // If EURC is selected but the current source/destination doesn't have it deployed,
-  // steer the user to a chain pair that actually supports it instead of failing silently.
+  // If EURC is selected but the current source/destination isn't on a CCTPx-supported chain,
+  // steer the user to a pair that actually works instead of failing silently. Token deployment
+  // (CHAINS[k].eurc) isn't the right check here — CCTS_ADDRESS is, since that's what CCTPx
+  // itself supports (confirmed only Ethereum Sepolia ↔ Base Sepolia as of Circle's quickstart).
   useEffect(() => {
     if (asset !== "eurc") return;
-    const eurcChains = (Object.keys(CHAINS) as ChainKey[]).filter(k => CHAINS[k].eurc !== null);
-    if (!CHAINS[sourceKey].eurc) {
+    const eurcChains = (Object.keys(CHAINS) as ChainKey[]).filter(k => CCTS_ADDRESS[k]);
+    if (!CCTS_ADDRESS[sourceKey]) {
       const fallback = eurcChains.find(k => k !== destKey) ?? eurcChains[0];
       if (fallback) setSourceKey(fallback);
     }
-    if (!CHAINS[destKey].eurc) {
+    if (!CCTS_ADDRESS[destKey]) {
       const fallback = eurcChains.find(k => k !== sourceKey) ?? eurcChains[0];
       if (fallback) setDestKey(fallback);
     }
@@ -227,7 +271,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     setSourceOpen(false);
     if (key === destKey) {
       const candidates = (Object.keys(CHAINS) as ChainKey[]).filter((k) => k !== key);
-      const fallback = asset === "eurc" ? (candidates.find(k => CHAINS[k].eurc) ?? candidates[0]) : candidates[0];
+      const fallback = asset === "eurc" ? (candidates.find(k => CCTS_ADDRESS[k]) ?? candidates[0]) : candidates[0];
       if (fallback) setDestKey(fallback);
     }
     if (step === "done" || step === "error") { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setErrorMsg(null); }
@@ -237,7 +281,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     setDestOpen(false);
     if (key === sourceKey) {
       const candidates = (Object.keys(CHAINS) as ChainKey[]).filter((k) => k !== key);
-      const fallback = asset === "eurc" ? (candidates.find(k => CHAINS[k].eurc) ?? candidates[0]) : candidates[0];
+      const fallback = asset === "eurc" ? (candidates.find(k => CCTS_ADDRESS[k]) ?? candidates[0]) : candidates[0];
       if (fallback) setSourceKey(fallback);
     }
     if (step === "done" || step === "error") { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setErrorMsg(null); }
@@ -268,6 +312,9 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
 
   async function doBridgeWithCircle() {
     if (!circleWallet) return;
+    if (asset === "eurc") {
+      throw new Error("EURC bridging via Circle Wallet isn't implemented yet — switch to Browser Wallet for EURC, or use USDC with Circle Wallet.");
+    }
     const sourceWalletId = getWalletIdForChain(circleWallet, source.circleChain);
     const destWalletId = getWalletIdForChain(circleWallet, dest.circleChain);
     if (!sourceWalletId || !destWalletId) {
@@ -334,8 +381,8 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     if (sourceKey === destKey) {
       setErrorMsg("Source and destination must be different."); return;
     }
-    if (asset === "eurc" && !EURC_BRIDGE_LIVE) {
-      setErrorMsg("EURC bridging isn't live yet — Circle hasn't registered it for CCTP burning on testnet."); return;
+    if (asset === "eurc" && (!CCTS_ADDRESS[sourceKey] || !CCTS_ADDRESS[destKey])) {
+      setErrorMsg(`EURC bridging only works between Ethereum Sepolia and Base Sepolia right now — ${!CCTS_ADDRESS[sourceKey] ? sourceKey : destKey} isn't on Circle's CCTPx yet.`); return;
     }
     if (!assetAddress(source, asset) || !assetAddress(dest, asset)) {
       setErrorMsg(`${ASSET_META[asset].label} isn't deployed on ${!assetAddress(source, asset) ? sourceKey : destKey} yet.`); return;
@@ -360,89 +407,179 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     }
 
     try {
-      const tokenAddr = assetAddress(source, asset);
-      if (!tokenAddr) throw new Error(`${ASSET_META[asset].label} isn't deployed on ${sourceKey} yet.`);
-      const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
-      await switchChain(provider, source.chainIdHex, addChainParams(sourceKey));
-      const sourceWallet = createWalletClient({ chain: source.chain, transport: custom(provider) });
-      const sourcePublic = createPublicClient({ chain: source.chain, transport: http() });
-
-      setStep("approving");
-      const approveHash = await sourceWallet.writeContract({
-        address: tokenAddr,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [TOKEN_MESSENGER, amountUnits],
-        account: address as `0x${string}`,
-      });
-      const approveReceipt = await sourcePublic.waitForTransactionReceipt({ hash: approveHash });
-      if (approveReceipt.status !== "success") {
-        throw new Error(`Approve transaction reverted on-chain (${approveHash}). No funds were moved.`);
+      if (asset === "eurc") {
+        await doBridgeEurcCctpx();
+      } else {
+        await doBridgeUsdcStandard();
       }
-
-      setStep("burning");
-      const { maxFee, minFinalityThreshold } = finalityParams(asset);
-      const burnArgs = [
-        amountUnits,
-        dest.domain,
-        bytes32Address(address),
-        tokenAddr,
-        bytes32Address("0x0000000000000000000000000000000000000000"),
-        maxFee,
-        minFinalityThreshold,
-      ] as const;
-      try {
-        await sourcePublic.simulateContract({
-          address: TOKEN_MESSENGER, abi: DEPOSIT_FOR_BURN_ABI, functionName: "depositForBurn",
-          args: burnArgs, account: address as `0x${string}`,
-        });
-      } catch (simErr: unknown) {
-        const msg = (simErr as { shortMessage?: string; message?: string })?.shortMessage ?? (simErr as { message?: string })?.message ?? "unknown reason";
-        throw new Error(`This burn would fail on-chain (${msg}). Most likely ${assetLabel} isn't registered for CCTP burning on ${sourceKey} yet, even though the token is deployed there. No transaction was sent, no gas spent.`);
-      }
-      const burnHash = await sourceWallet.writeContract({
-        address: TOKEN_MESSENGER,
-        abi: DEPOSIT_FOR_BURN_ABI,
-        functionName: "depositForBurn",
-        args: burnArgs,
-        account: address as `0x${string}`,
-      });
-      const burnReceipt = await sourcePublic.waitForTransactionReceipt({ hash: burnHash });
-      if (burnReceipt.status !== "success") {
-        throw new Error(
-          `The burn reverted on-chain (tx ${burnHash.slice(0, 10)}...) — most likely "burn token not supported": ` +
-          `${assetLabel} may not be registered for CCTP burning on ${sourceKey} yet, even though the token itself is deployed there. ` +
-          `Check the tx on the explorer for the exact revert reason. No funds were moved.`
-        );
-      }
-      setBurnTxHash(burnHash);
-
-      setStep("attesting");
-      const attestation = await pollAttestation(burnHash, source.domain);
-
-      setStep("minting");
-      await switchChain(provider, dest.chainIdHex, addChainParams(destKey));
-      const destWallet = createWalletClient({ chain: dest.chain, transport: custom(provider) });
-      const destPublic = createPublicClient({ chain: dest.chain, transport: http() });
-      const mintHash = await destWallet.writeContract({
-        address: MESSAGE_TRANSMITTER,
-        abi: RECEIVE_MESSAGE_ABI,
-        functionName: "receiveMessage",
-        args: [attestation.message as `0x${string}`, attestation.attestation as `0x${string}`],
-        account: address as `0x${string}`,
-      });
-      const mintReceipt = await destPublic.waitForTransactionReceipt({ hash: mintHash });
-      if (mintReceipt.status !== "success") {
-        throw new Error(`The mint reverted on-chain (tx ${mintHash.slice(0, 10)}...) on ${destKey}. Your burn is still valid — you can retry minting with the same attestation.`);
-      }
-      setMintTxHash(mintHash);
-      setStep("done");
       showToast("Bridge completed", "success");
-    addPoints(15);
+      addPoints(15);
     } catch (e: unknown) {
       setErrorMsg(friendlyError(e));
       setStep("error");
     }
+  }
+
+  async function doBridgeUsdcStandard() {
+    const tokenAddr = assetAddress(source, asset);
+    if (!tokenAddr) throw new Error(`${ASSET_META[asset].label} isn't deployed on ${sourceKey} yet.`);
+    const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
+    await switchChain(provider, source.chainIdHex, addChainParams(sourceKey));
+    const sourceWallet = createWalletClient({ chain: source.chain, transport: custom(provider) });
+    const sourcePublic = createPublicClient({ chain: source.chain, transport: http() });
+
+    setStep("approving");
+    const approveHash = await sourceWallet.writeContract({
+      address: tokenAddr,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [TOKEN_MESSENGER, amountUnits],
+      account: address as `0x${string}`,
+    });
+    const approveReceipt = await sourcePublic.waitForTransactionReceipt({ hash: approveHash });
+    if (approveReceipt.status !== "success") {
+      throw new Error(`Approve transaction reverted on-chain (${approveHash}). No funds were moved.`);
+    }
+
+    setStep("burning");
+    const { maxFee, minFinalityThreshold } = finalityParams(asset);
+    const burnArgs = [
+      amountUnits,
+      dest.domain,
+      bytes32Address(address),
+      tokenAddr,
+      bytes32Address("0x0000000000000000000000000000000000000000"),
+      maxFee,
+      minFinalityThreshold,
+    ] as const;
+    try {
+      await sourcePublic.simulateContract({
+        address: TOKEN_MESSENGER, abi: DEPOSIT_FOR_BURN_ABI, functionName: "depositForBurn",
+        args: burnArgs, account: address as `0x${string}`,
+      });
+    } catch (simErr: unknown) {
+      const msg = (simErr as { shortMessage?: string; message?: string })?.shortMessage ?? (simErr as { message?: string })?.message ?? "unknown reason";
+      throw new Error(`This burn would fail on-chain (${msg}). Most likely ${assetLabel} isn't registered for CCTP burning on ${sourceKey} yet, even though the token is deployed there. No transaction was sent, no gas spent.`);
+    }
+    const burnHash = await sourceWallet.writeContract({
+      address: TOKEN_MESSENGER,
+      abi: DEPOSIT_FOR_BURN_ABI,
+      functionName: "depositForBurn",
+      args: burnArgs,
+      account: address as `0x${string}`,
+    });
+    const burnReceipt = await sourcePublic.waitForTransactionReceipt({ hash: burnHash });
+    if (burnReceipt.status !== "success") {
+      throw new Error(
+        `The burn reverted on-chain (tx ${burnHash.slice(0, 10)}...) — most likely "burn token not supported": ` +
+        `${assetLabel} may not be registered for CCTP burning on ${sourceKey} yet, even though the token itself is deployed there. ` +
+        `Check the tx on the explorer for the exact revert reason. No funds were moved.`
+      );
+    }
+    setBurnTxHash(burnHash);
+
+    setStep("attesting");
+    const attestation = await pollAttestation(burnHash, source.domain);
+
+    setStep("minting");
+    await switchChain(provider, dest.chainIdHex, addChainParams(destKey));
+    const destWallet = createWalletClient({ chain: dest.chain, transport: custom(provider) });
+    const destPublic = createPublicClient({ chain: dest.chain, transport: http() });
+    const mintHash = await destWallet.writeContract({
+      address: MESSAGE_TRANSMITTER,
+      abi: RECEIVE_MESSAGE_ABI,
+      functionName: "receiveMessage",
+      args: [attestation.message as `0x${string}`, attestation.attestation as `0x${string}`],
+      account: address as `0x${string}`,
+    });
+    const mintReceipt = await destPublic.waitForTransactionReceipt({ hash: mintHash });
+    if (mintReceipt.status !== "success") {
+      throw new Error(`The mint reverted on-chain (tx ${mintHash.slice(0, 10)}...) on ${destKey}. Your burn is still valid — you can retry minting with the same attestation.`);
+    }
+    setMintTxHash(mintHash);
+    setStep("done");
+  }
+
+  // EURC moves through Circle's CCTPx (Expanded Assets) product, not canonical CCTP — a separate
+  // CrossChainTokenService contract, a per-token TokenManager for approvals, a bytes32 tokenId
+  // instead of an ERC20 address, and a required signed fee quote from Iris paid in native ETH.
+  // Confirmed only between Ethereum Sepolia and Base Sepolia; doBridge() already blocks other pairs.
+  async function doBridgeEurcCctpx() {
+    const ccts = CCTS_ADDRESS[sourceKey];
+    if (!ccts) throw new Error(`EURC (CCTPx) isn't available from ${sourceKey} yet.`);
+    const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
+    await switchChain(provider, source.chainIdHex, addChainParams(sourceKey));
+    const sourceWallet = createWalletClient({ chain: source.chain, transport: custom(provider) });
+    const sourcePublic = createPublicClient({ chain: source.chain, transport: http() });
+
+    const [tokenManager, tokenAddr] = await Promise.all([
+      sourcePublic.readContract({ address: ccts, abi: CCTS_ABI, functionName: "resolveTokenManager", args: [EURC_TOKEN_ID] }),
+      sourcePublic.readContract({ address: ccts, abi: CCTS_ABI, functionName: "resolveTokenAddress", args: [EURC_TOKEN_ID] }),
+    ]);
+
+    setStep("approving");
+    const approveHash = await sourceWallet.writeContract({
+      address: tokenAddr, abi: erc20Abi, functionName: "approve", args: [tokenManager, amountUnits], account: address as `0x${string}`,
+    });
+    const approveReceipt = await sourcePublic.waitForTransactionReceipt({ hash: approveHash });
+    if (approveReceipt.status !== "success") {
+      throw new Error(`Approve transaction reverted on-chain (${approveHash}). No funds were moved.`);
+    }
+
+    setStep("burning");
+    const quote = await fetchCctpxQuote(EURC_TOKEN_ID, source.domain, dest.domain, amountUnits);
+    const feeTotalAmount = BigInt(quote.feeTotalAmount);
+    const destinationAddressPacked = encodePacked(["address"], [address as `0x${string}`]);
+    const burnArgs = [
+      EURC_TOKEN_ID,
+      amountUnits,
+      dest.domain,
+      destinationAddressPacked,
+      bytes32Address("0x0000000000000000000000000000000000000000"),
+      1000,
+      { signedQuote: quote.signedQuote, refundAddress: address as `0x${string}` },
+      false,
+      "0x" as `0x${string}`,
+    ] as const;
+    try {
+      await sourcePublic.simulateContract({
+        address: ccts, abi: CROSS_CHAIN_TRANSFER_ABI, functionName: "crossChainTransfer",
+        args: burnArgs, account: address as `0x${string}`, value: feeTotalAmount,
+      });
+    } catch (simErr: unknown) {
+      const msg = (simErr as { shortMessage?: string; message?: string })?.shortMessage ?? (simErr as { message?: string })?.message ?? "unknown reason";
+      throw new Error(`This transfer would fail on-chain (${msg}). No transaction was sent, no gas spent.`);
+    }
+    const burnHash = await sourceWallet.writeContract({
+      address: ccts, abi: CROSS_CHAIN_TRANSFER_ABI, functionName: "crossChainTransfer",
+      args: burnArgs, account: address as `0x${string}`, value: feeTotalAmount,
+    });
+    const burnReceipt = await sourcePublic.waitForTransactionReceipt({ hash: burnHash });
+    if (burnReceipt.status !== "success") {
+      throw new Error(`The transfer reverted on-chain (tx ${burnHash.slice(0, 10)}...). Check the tx on the explorer for the exact reason. No funds were moved.`);
+    }
+    setBurnTxHash(burnHash);
+
+    setStep("attesting");
+    const attestation = await pollAttestation(burnHash, source.domain);
+
+    setStep("minting");
+    await switchChain(provider, dest.chainIdHex, addChainParams(destKey));
+    const destWallet = createWalletClient({ chain: dest.chain, transport: custom(provider) });
+    const destPublic = createPublicClient({ chain: dest.chain, transport: http() });
+    const mintHash = await destWallet.writeContract({
+      address: MESSAGE_TRANSMITTER,
+      abi: RECEIVE_MESSAGE_ABI,
+      functionName: "receiveMessage",
+      args: [attestation.message as `0x${string}`, attestation.attestation as `0x${string}`],
+      account: address as `0x${string}`,
+    });
+    const mintReceipt = await destPublic.waitForTransactionReceipt({ hash: mintHash });
+    if (mintReceipt.status !== "success") {
+      throw new Error(`The mint reverted on-chain (tx ${mintHash.slice(0, 10)}...) on ${destKey}. Your transfer is still valid — you can retry minting with the same attestation.`);
+    }
+    setMintTxHash(mintHash);
+    setStep("done");
   }
 
   const isLoading = step === "approving" || step === "burning" || step === "attesting" || step === "minting";
@@ -502,24 +639,17 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
         <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "1.25rem", alignItems: "start" }}>
           <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
             <div style={{ display: "flex", gap: 6 }}>
-              {(["usdc", "eurc"] as Asset[]).map((a) => {
-                const disabled = isLoading || (a === "eurc" && !EURC_BRIDGE_LIVE);
-                return (
-                  <button key={a} onClick={() => !disabled && setAsset(a)} disabled={disabled}
-                    title={a === "eurc" && !EURC_BRIDGE_LIVE ? "EURC isn't registered for CCTP burning on testnet yet — every route currently reverts on-chain." : undefined}
-                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.5rem", borderRadius: 10, border: "none", background: asset === a ? "#ede9fe" : "#f5f3ff", color: disabled ? "#B0AEC2" : asset === a ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.7 : 1 }}>
-                    <span style={{ width: 16, height: 16, borderRadius: "50%", background: disabled ? "#C4C4C4" : ASSET_META[a].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff" }}>{ASSET_META[a].badge}</span>
-                    {ASSET_META[a].label}
-                    {a === "eurc" && !EURC_BRIDGE_LIVE && (
-                      <span style={{ fontSize: 9, fontWeight: 800, color: "#9CA3AF", background: "#EDEDED", padding: "1px 6px", borderRadius: 999 }}>Soon</span>
-                    )}
-                  </button>
-                );
-              })}
+              {(["usdc", "eurc"] as Asset[]).map((a) => (
+                <button key={a} onClick={() => setAsset(a)} disabled={isLoading}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.5rem", borderRadius: 10, border: "none", background: asset === a ? "#ede9fe" : "#f5f3ff", color: asset === a ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: ASSET_META[a].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff" }}>{ASSET_META[a].badge}</span>
+                  {ASSET_META[a].label}
+                </button>
+              ))}
             </div>
-            {!EURC_BRIDGE_LIVE && (
+            {asset === "eurc" && (
               <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>
-                EURC bridging isn't live yet — Circle hasn't registered EURC for CCTP burning on testnet. USDC bridging works normally.
+                EURC moves through Circle's CCTPx (Expanded Assets), separate from standard USDC bridging — only Ethereum Sepolia ↔ Base Sepolia is confirmed supported right now.
               </p>
             )}
 
@@ -783,7 +913,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                   </div>
                 ))}
               </div>
-              <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 10, marginBottom: 0 }}>EURC bridging via CCTP isn't live on testnet yet — Circle hasn't registered it for burning on any route. USDC bridges across all four chains.</p>
+              <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 10, marginBottom: 0 }}>EURC bridges via Circle's separate CCTPx product, confirmed only between Ethereum Sepolia and Base Sepolia — untested against live contracts, report issues if it doesn't work. USDC bridges across all four chains via standard CCTP.</p>
             </div>
           </div>
         </div>
