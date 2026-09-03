@@ -61,13 +61,14 @@ const CROSS_CHAIN_TRANSFER_ABI = [{
 }] as const;
 
 async function fetchCctpxQuote(tokenId: `0x${string}`, sourceDomain: number, destDomain: number, amount: bigint) {
-  const res = await fetch(`${IRIS_BASE}/v1/quote/cctpx/${tokenId}/${sourceDomain}/${destDomain}`, {
+  const res = await fetch(`/api/cctpx-quote`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      tokenId,
+      sourceDomain,
+      destDomain,
       amount: amount.toString(),
-      feeToken: "0x0000000000000000000000000000000000000000",
-      requests: [{ type: "PRE_FINALITY" }],
     }),
   });
   if (!res.ok) throw new Error(`Fee quote request failed: ${await res.text()}`);
