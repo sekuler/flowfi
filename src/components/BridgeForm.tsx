@@ -38,6 +38,14 @@ const ASSET_META: Record<Asset, { label: string; badge: string; color: string }>
   eurc: { label: "EURC", badge: "€", color: "#7c3aed" },
 };
 
+// EURC is deployed on Arc/Ethereum Sepolia/Base Sepolia, but CCTP's TokenMinterV2 hasn't
+// registered it as a burnable token on any of those testnets yet — every route (Arc→ETH,
+// Arc→Base, ETH→Base) reverts on-chain with "Burn token not supported". This isn't something
+// we can fix client-side; it's a Circle-side registration gap. Keep the UI honest about it
+// rather than let people burn gas on a transaction that will always fail. Flip this once
+// Circle finishes registering EURC for CCTP on testnet.
+const EURC_BRIDGE_LIVE = false;
+
 function assetAddress(c: (typeof CHAINS)[ChainKey], asset: Asset): `0x${string}` | null {
   return asset === "usdc" ? c.usdc : c.eurc;
 }
@@ -326,6 +334,9 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     if (sourceKey === destKey) {
       setErrorMsg("Source and destination must be different."); return;
     }
+    if (asset === "eurc" && !EURC_BRIDGE_LIVE) {
+      setErrorMsg("EURC bridging isn't live yet — Circle hasn't registered it for CCTP burning on testnet."); return;
+    }
     if (!assetAddress(source, asset) || !assetAddress(dest, asset)) {
       setErrorMsg(`${ASSET_META[asset].label} isn't deployed on ${!assetAddress(source, asset) ? sourceKey : destKey} yet.`); return;
     }
@@ -491,14 +502,26 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
         <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "1.25rem", alignItems: "start" }}>
           <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
             <div style={{ display: "flex", gap: 6 }}>
-              {(["usdc", "eurc"] as Asset[]).map((a) => (
-                <button key={a} onClick={() => setAsset(a)} disabled={isLoading}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.5rem", borderRadius: 10, border: "none", background: asset === a ? "#ede9fe" : "#f5f3ff", color: asset === a ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: ASSET_META[a].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff" }}>{ASSET_META[a].badge}</span>
-                  {ASSET_META[a].label}
-                </button>
-              ))}
+              {(["usdc", "eurc"] as Asset[]).map((a) => {
+                const disabled = isLoading || (a === "eurc" && !EURC_BRIDGE_LIVE);
+                return (
+                  <button key={a} onClick={() => !disabled && setAsset(a)} disabled={disabled}
+                    title={a === "eurc" && !EURC_BRIDGE_LIVE ? "EURC isn't registered for CCTP burning on testnet yet — every route currently reverts on-chain." : undefined}
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.5rem", borderRadius: 10, border: "none", background: asset === a ? "#ede9fe" : "#f5f3ff", color: disabled ? "#B0AEC2" : asset === a ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.7 : 1 }}>
+                    <span style={{ width: 16, height: 16, borderRadius: "50%", background: disabled ? "#C4C4C4" : ASSET_META[a].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff" }}>{ASSET_META[a].badge}</span>
+                    {ASSET_META[a].label}
+                    {a === "eurc" && !EURC_BRIDGE_LIVE && (
+                      <span style={{ fontSize: 9, fontWeight: 800, color: "#9CA3AF", background: "#EDEDED", padding: "1px 6px", borderRadius: 999 }}>Soon</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
+            {!EURC_BRIDGE_LIVE && (
+              <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>
+                EURC bridging isn't live yet — Circle hasn't registered EURC for CCTP burning on testnet. USDC bridging works normally.
+              </p>
+            )}
 
             {circleWallet && (
               <div style={{ display: "flex", gap: 6 }}>
@@ -760,7 +783,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                   </div>
                 ))}
               </div>
-              <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 10, marginBottom: 0 }}>EURC bridges between Ethereum Sepolia, Base Sepolia, and Arc Testnet. Arbitrum Sepolia is USDC-only for now.</p>
+              <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 10, marginBottom: 0 }}>EURC bridging via CCTP isn't live on testnet yet — Circle hasn't registered it for burning on any route. USDC bridges across all four chains.</p>
             </div>
           </div>
         </div>
