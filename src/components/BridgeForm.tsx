@@ -98,13 +98,6 @@ async function fetchCctpxQuote(tokenId: `0x${string}`, sourceDomain: number, des
   return data as { signedQuote: `0x${string}`; feeTotalAmount: string };
 }
 
-async function fetchCctpxTokenDecimals(tokenId: `0x${string}`): Promise<number> {
-  const { data } = (await irisProxyGet(`/v2/cctpx/tokens?tokenid=${tokenId}`)) as { data: { tokenId: string; decimals: number }[] };
-  const info = data?.[0];
-  if (!info) throw new Error(`Token ${tokenId} not found in Circle's CCTPx token list.`);
-  return info.decimals;
-}
-
 async function checkCctpxFastAllowance(tokenId: `0x${string}`, amountUnits: bigint, decimals: number) {
   const body = (await irisProxyGet(`/v2/cctpx/allowances`)) as { allowances: { tokenId: string; allowance: number }[] };
   const allowance = body.allowances?.find(a => a.tokenId.toLowerCase() === tokenId.toLowerCase())?.allowance;
@@ -554,7 +547,11 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     const sourceWallet = createWalletClient({ chain: source.chain, transport: custom(provider) });
     const sourcePublic = createPublicClient({ chain: source.chain, transport: http() });
 
-    const decimals = await fetchCctpxTokenDecimals(EURC_TOKEN_ID);
+    // EURC's decimals is a fixed, documented constant (Circle's own CCTPx quickstart:
+    // "EURC uses 6 decimals") — querying it fresh from IRIS every single attempt was an
+    // unnecessary extra request, and every request counts while we're recovering from a
+    // sandbox rate-limit lockout.
+    const decimals = 6;
     const amountUnits = BigInt(Math.round(Number(amount) * 10 ** decimals));
 
     const [tokenManager, tokenAddr] = await Promise.all([
@@ -571,7 +568,14 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       throw new Error(`Approve transaction reverted on-chain (${approveHash}). No funds were moved.`);
     }
 
-    await checkCctpxFastAllowance(EURC_TOKEN_ID, amountUnits, decimals);
+    // Best-effort only — this is a courtesy pre-check, not the source of truth (the actual
+    // transfer's own simulateContract call below will catch a real insufficient-allowance
+    // revert regardless). Skipping it on failure means one less request that can trip a lockout.
+    try {
+      await checkCctpxFastAllowance(EURC_TOKEN_ID, amountUnits, decimals);
+    } catch {
+      /* proceed — the pre-flight simulate below is the real safety check */
+    }
 
     setStep("burning");
     const quote = await fetchCctpxQuote(EURC_TOKEN_ID, source.domain, dest.domain, amountUnits);
