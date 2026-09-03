@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
-import { createPublicClient, createWalletClient, custom, http, erc20Abi, encodePacked } from "viem";
+import { createPublicClient, createWalletClient, custom, http, erc20Abi, encodePacked, zeroAddress } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 
 // The default public RPC endpoints viem ships for these testnets sometimes
@@ -22,8 +22,6 @@ import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, BookOpen } from "luc
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x${string}`;
-const IRIS_BASE = "https://iris-api-sandbox.circle.com";
-const IRIS_API = `${IRIS_BASE}/v2/messages`;
 
 // EURC (and other non-USDC assets) don't move through the canonical TokenMessengerV2.depositForBurn
 // path at all — that's USDC-only. They go through a separate Circle product, "CCTPx" (Expanded
@@ -60,19 +58,47 @@ const CROSS_CHAIN_TRANSFER_ABI = [{
   outputs: [],
 }] as const;
 
-async function fetchCctpxQuote(tokenId: `0x${string}`, sourceDomain: number, destDomain: number, amount: bigint) {
-  const res = await fetch(`/api/cctpx-quote`, {
+async function irisProxyGet(path: string) {
+  const res = await fetch(`/api/iris-proxy?path=${encodeURIComponent(path)}`);
+  const text = await res.text();
+  if (!res.ok) throw new Error(text);
+  return JSON.parse(text);
+}
+
+async function irisProxyPost(path: string, body: unknown) {
+  const res = await fetch(`/api/iris-proxy`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      tokenId,
-      sourceDomain,
-      destDomain,
-      amount: amount.toString(),
-    }),
+    body: JSON.stringify({ path, body }),
   });
-  if (!res.ok) throw new Error(`Fee quote request failed: ${await res.text()}`);
-  return res.json() as Promise<{ signedQuote: `0x${string}`; feeTotalAmount: string }>;
+  const text = await res.text();
+  if (!res.ok) throw new Error(text);
+  return JSON.parse(text);
+}
+
+async function fetchCctpxQuote(tokenId: `0x${string}`, sourceDomain: number, destDomain: number, amount: bigint) {
+  const data = await irisProxyPost(`/v1/quote/cctpx/${tokenId}/${sourceDomain}/${destDomain}`, {
+    amount: amount.toString(),
+    feeToken: "0x0000000000000000000000000000000000000000",
+    requests: [{ type: "PRE_FINALITY" }],
+  });
+  return data as { signedQuote: `0x${string}`; feeTotalAmount: string };
+}
+
+async function fetchCctpxTokenDecimals(tokenId: `0x${string}`): Promise<number> {
+  const { data } = (await irisProxyGet(`/v2/cctpx/tokens?tokenid=${tokenId}`)) as { data: { tokenId: string; decimals: number }[] };
+  const info = data?.[0];
+  if (!info) throw new Error(`Token ${tokenId} not found in Circle's CCTPx token list.`);
+  return info.decimals;
+}
+
+async function checkCctpxFastAllowance(tokenId: `0x${string}`, amountUnits: bigint, decimals: number) {
+  const body = (await irisProxyGet(`/v2/cctpx/allowances`)) as { allowances: { tokenId: string; allowance: number }[] };
+  const allowance = body.allowances?.find(a => a.tokenId.toLowerCase() === tokenId.toLowerCase())?.allowance;
+  const amountInTokenUnits = Number(amountUnits) / 10 ** decimals;
+  if (allowance === undefined || allowance < amountInTokenUnits) {
+    throw new Error(`Insufficient CCTPx fast-transfer allowance right now (available: ${allowance ?? 0}, need: ${amountInTokenUnits}). Try a smaller amount, or try again in a bit once allowance replenishes.`);
+  }
 }
 
 const CHAINS = {
@@ -300,11 +326,12 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     // and can take considerably longer, so this window is sized for that worst case rather
     // than timing out while a legitimate Standard Transfer is still in flight.
     for (let i = 0; i < 240; i++) {
-      const res = await fetch(`${IRIS_API}/${domain}?transactionHash=${burnHash}`);
-      if (res.ok) {
-        const data = await res.json();
+      try {
+        const data = await irisProxyGet(`/v2/messages/${domain}?transactionHash=${burnHash}`);
         const msg = data?.messages?.[0];
         if (msg?.status === "complete") return msg as { message: string; attestation: string };
+      } catch {
+        // Not indexed yet (or a transient error) — keep polling.
       }
       await new Promise(r => setTimeout(r, 5000));
     }
@@ -508,10 +535,12 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
   async function doBridgeEurcCctpx() {
     const ccts = CCTS_ADDRESS[sourceKey];
     if (!ccts) throw new Error(`EURC (CCTPx) isn't available from ${sourceKey} yet.`);
-    const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
     await switchChain(provider, source.chainIdHex, addChainParams(sourceKey));
     const sourceWallet = createWalletClient({ chain: source.chain, transport: custom(provider) });
     const sourcePublic = createPublicClient({ chain: source.chain, transport: http() });
+
+    const decimals = await fetchCctpxTokenDecimals(EURC_TOKEN_ID);
+    const amountUnits = BigInt(Math.round(Number(amount) * 10 ** decimals));
 
     const [tokenManager, tokenAddr] = await Promise.all([
       sourcePublic.readContract({ address: ccts, abi: CCTS_ABI, functionName: "resolveTokenManager", args: [EURC_TOKEN_ID] }),
@@ -527,6 +556,8 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       throw new Error(`Approve transaction reverted on-chain (${approveHash}). No funds were moved.`);
     }
 
+    await checkCctpxFastAllowance(EURC_TOKEN_ID, amountUnits, decimals);
+
     setStep("burning");
     const quote = await fetchCctpxQuote(EURC_TOKEN_ID, source.domain, dest.domain, amountUnits);
     const feeTotalAmount = BigInt(quote.feeTotalAmount);
@@ -538,7 +569,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       destinationAddressPacked,
       bytes32Address("0x0000000000000000000000000000000000000000"),
       1000,
-      { signedQuote: quote.signedQuote, refundAddress: address as `0x${string}` },
+      { signedQuote: quote.signedQuote, refundAddress: zeroAddress },
       false,
       "0x" as `0x${string}`,
     ] as const;
