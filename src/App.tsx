@@ -61,34 +61,29 @@ const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
 
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
+const PORTFOLIO_TAB: { id: Tab; label: string; Icon: any } = { id: "portfolio", label: "Portfolio", Icon: LayoutGrid };
 
 const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
-  group: "WALLET",
-  tabs: [
-    { id: "portfolio",    label: "Portfolio",     Icon: LayoutGrid },
-    { id: "send",         label: "Send",          Icon: ArrowUpRight },
-    { id: "receive",      label: "Receive",       Icon: ArrowDownLeft },
-    { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
-  ],
-},
-{
-  group: "SETTLEMENT",
-  tabs: [
-    { id: "bridge",       label: "Bridge",        Icon: Hexagon },
-    { id: "gateway",      label: "Gateway",       Icon: Zap },
-  ],
-},
-{
-  group: "ON ARC",
+  group: "📈 TRADE",
   tabs: [
     { id: "swap",      label: "Swap",      Icon: Repeat },
   ],
 },
 {
-  group: "TOOLS",
+  group: "TRANSFER",
   tabs: [
-    { id: "pools",     label: "Liquidity Pools", Icon: Droplet },
+    { id: "bridge",       label: "Bridge",        Icon: Hexagon },
+    { id: "gateway",      label: "Gateway",       Icon: Zap },
+    { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
+    { id: "send",         label: "Send",          Icon: ArrowUpRight },
+    { id: "receive",      label: "Receive",       Icon: ArrowDownLeft },
+  ],
+},
+{
+  group: "🛠️ TOOLS",
+  tabs: [
+    { id: "pools",     label: "Liquidity", Icon: Droplet },
     { id: "launch",    label: "Launch Token", Icon: Rocket },
   ],
 },
@@ -488,18 +483,20 @@ function AppInner() {
         </div>
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           <div style={{ marginBottom: 4 }}>
-            <button onClick={() => { setTab(HOME_TAB.id); if (isMobile) setMobileMenuOpen(false); }}
-              style={{
-                width: "100%", padding: "0.45rem 1rem", borderRadius: 999, border: "none",
-                background: tab === HOME_TAB.id ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
-                color: tab === HOME_TAB.id ? "#6D5EF7" : "#4B5563",
-                fontSize: 12.5, fontWeight: tab === HOME_TAB.id ? 700 : 500, cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 9, textAlign: "left",
-                marginBottom: 1,
-              }}>
-              <HOME_TAB.Icon size={15} strokeWidth={2} />
-              <span>{HOME_TAB.label}</span>
-            </button>
+            {[HOME_TAB, PORTFOLIO_TAB].map((t) => (
+              <button key={t.id} onClick={() => { setTab(t.id); if (isMobile) setMobileMenuOpen(false); }}
+                style={{
+                  width: "100%", padding: "0.45rem 1rem", borderRadius: 999, border: "none",
+                  background: tab === t.id ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
+                  color: tab === t.id ? "#6D5EF7" : "#4B5563",
+                  fontSize: 12.5, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 9, textAlign: "left",
+                  marginBottom: 1,
+                }}>
+                <t.Icon size={15} strokeWidth={2} />
+                <span>{t.label}</span>
+              </button>
+            ))}
           </div>
           {TAB_GROUPS.map(({ group, variant, tabs }) => (
             <div key={group} style={{ marginBottom: 4 }}>
