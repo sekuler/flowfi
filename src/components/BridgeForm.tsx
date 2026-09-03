@@ -42,6 +42,16 @@ function assetAddress(c: (typeof CHAINS)[ChainKey], asset: Asset): `0x${string}`
   return asset === "usdc" ? c.usdc : c.eurc;
 }
 
+// USDC's Fast Transfer (finality threshold 1000) is well-exercised on these testnets with a
+// small maxFee. EURC's Fast Transfer support/fee schedule isn't reliably documented for testnet,
+// so if the requested maxFee is too low (or Fast isn't supported for the asset), Circle simply
+// never attests via the fast path and the burn sits waiting for hard finality instead — which
+// blows past a short poll window and looks "stuck" rather than erroring. Standard Transfer
+// (threshold 2000) has no fee and no such risk, just a longer, deterministic wait.
+function finalityParams(asset: Asset): { maxFee: bigint; minFinalityThreshold: number } {
+  return asset === "usdc" ? { maxFee: 500n, minFinalityThreshold: 1000 } : { maxFee: 0n, minFinalityThreshold: 2000 };
+}
+
 interface Props {
   provider: EIP1193Provider;
   address: string;
@@ -232,7 +242,11 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
   }
 
   async function pollAttestation(burnHash: string, domain: number) {
-    for (let i = 0; i < 60; i++) {
+    // Fast Transfer (USDC) typically completes in well under a minute. Standard Transfer —
+    // which EURC uses here, see finalityParams — waits for hard finality on the source chain
+    // and can take considerably longer, so this window is sized for that worst case rather
+    // than timing out while a legitimate Standard Transfer is still in flight.
+    for (let i = 0; i < 240; i++) {
       const res = await fetch(`${IRIS_API}/${domain}?transactionHash=${burnHash}`);
       if (res.ok) {
         const data = await res.json();
@@ -241,7 +255,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       }
       await new Promise(r => setTimeout(r, 5000));
     }
-    throw new Error("Attestation timed out. Try minting later using the burn tx hash.");
+    throw new Error("Attestation is taking longer than expected. Your funds are safe — the burn is confirmed on-chain. You can mint later using the burn tx hash once Circle finishes attesting.");
   }
 
   async function doBridgeWithCircle() {
@@ -270,6 +284,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     });
 
     setStep("burning");
+    const { maxFee, minFinalityThreshold } = finalityParams(asset);
     const burnHash = await circleContractCallAndWait({
       walletId: sourceWalletId,
       contractAddress: TOKEN_MESSENGER,
@@ -280,8 +295,8 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
         bytes32Address(circleWallet.address),
         tokenAddr,
         bytes32Address("0x0000000000000000000000000000000000000000"),
-        "500",
-        1000,
+        maxFee.toString(),
+        minFinalityThreshold,
       ],
     });
     setBurnTxHash(burnHash);
@@ -352,6 +367,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       await sourcePublic.waitForTransactionReceipt({ hash: approveHash });
 
       setStep("burning");
+      const { maxFee, minFinalityThreshold } = finalityParams(asset);
       const burnHash = await sourceWallet.writeContract({
         address: TOKEN_MESSENGER,
         abi: DEPOSIT_FOR_BURN_ABI,
@@ -362,8 +378,8 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
           bytes32Address(address),
           tokenAddr,
           bytes32Address("0x0000000000000000000000000000000000000000"),
-          500n,
-          1000,
+          maxFee,
+          minFinalityThreshold,
         ],
         account: address as `0x${string}`,
       });
@@ -400,7 +416,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
   const stepLabels: Record<string, string> = {
     approving: `Approving ${assetLabel} on ${sourceKey}...`,
     burning: `Burning ${assetLabel} on ${sourceKey}...`,
-    attesting: "Waiting for Circle attestation (can take 1-2 min)...",
+    attesting: asset === "usdc" ? "Waiting for Circle attestation (can take 1-2 min)..." : "Waiting for Circle attestation — EURC uses Standard Transfer here, this can take several minutes...",
     minting: `Minting ${assetLabel} on ${destKey}...`,
   };
   const stepIndexMap: Record<string, number> = { idle: -1, approving: 1, burning: 1, attesting: 2, minting: 3, done: 4, error: -1 };
