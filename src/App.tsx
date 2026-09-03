@@ -62,7 +62,7 @@ const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
 
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
 
-const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
+const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
   group: "WALLET",
   tabs: [
@@ -83,7 +83,6 @@ const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[]
   group: "ON ARC",
   tabs: [
     { id: "swap",      label: "Swap",      Icon: Repeat },
-    { id: "lending",   label: "Lending",   Icon: Landmark },
   ],
 },
 {
@@ -99,6 +98,13 @@ const TAB_GROUPS: { group: string; tabs: { id: Tab; label: string; Icon: any }[]
     { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
     { id: "analytics", label: "Stablecoin Analytics", Icon: BarChart3 },
     { id: "history",   label: "History",   Icon: HistoryIcon },
+  ],
+},
+{
+  group: "TESTNET ONLY",
+  variant: "testnet",
+  tabs: [
+    { id: "lending",   label: "Lending",   Icon: Landmark },
   ],
 },
 ];
@@ -415,7 +421,7 @@ function AppInner() {
           Tell FlowFi what you want.<br />It handles the rest.
         </h1>
         <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 560, margin: "0 auto 32px" }}>
-          Swap, bridge, lend, launch tokens, and manage your stablecoins — all through one intelligent Copilot on Arc.
+          Swap, bridge, lend, launch tokens, trade perpetuals, and manage your stablecoins — all through one intelligent Copilot on Arc.
         </p>
      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
   <WalletConnect onConnected={handleConnected} />
@@ -495,9 +501,9 @@ function AppInner() {
               <span>{HOME_TAB.label}</span>
             </button>
           </div>
-          {TAB_GROUPS.map(({ group, tabs }) => (
+          {TAB_GROUPS.map(({ group, variant, tabs }) => (
             <div key={group} style={{ marginBottom: 4 }}>
-              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: "#3B82F6", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem" }}>{group}</div>
+              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : "#3B82F6", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem" }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 return (
@@ -600,7 +606,7 @@ function AppInner() {
                 {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "lending" ? "Supply to earn, or borrow against collateral" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Bridge USDC to Arc via CCTP"}
+               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "lending" ? "Supply to earn, or borrow against collateral — testnet only, not planned for mainnet" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Bridge USDC to Arc via CCTP"}
               </p>
               {tab === "portfolio" && balances.usdc !== null && (
                 <div style={{ marginTop: 14 }}>

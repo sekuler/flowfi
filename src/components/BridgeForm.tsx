@@ -25,12 +25,22 @@ const MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x$
 const IRIS_API = "https://iris-api-sandbox.circle.com/v2/messages";
 
 const CHAINS = {
-  "Arc Testnet": { chain: arcTestnet, domain: 26, usdc: "0x3600000000000000000000000000000000000000" as `0x${string}`, chainIdHex: ARC_CHAIN_ID_HEX, isArc: true, circleChain: "ARC-TESTNET" as CircleChain, dot: "#6D5EF7" },
-  "Ethereum Sepolia": { chain: sepoliaReliable, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, chainIdHex: "0xaa36a7", isArc: false, circleChain: "ETH-SEPOLIA" as CircleChain, dot: "#627eea" },
-  "Base Sepolia": { chain: baseSepoliaReliable, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, chainIdHex: "0x14a34", isArc: false, circleChain: "BASE-SEPOLIA" as CircleChain, dot: "#0052ff" },
-  "Arbitrum Sepolia": { chain: arbitrumSepoliaReliable, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, chainIdHex: "0x66eee", isArc: false, circleChain: "ARB-SEPOLIA" as CircleChain, dot: "#28a0f0" },
+  "Arc Testnet": { chain: arcTestnet, domain: 26, usdc: "0x3600000000000000000000000000000000000000" as `0x${string}`, eurc: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}` | null, chainIdHex: ARC_CHAIN_ID_HEX, isArc: true, circleChain: "ARC-TESTNET" as CircleChain, dot: "#6D5EF7" },
+  "Ethereum Sepolia": { chain: sepoliaReliable, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, eurc: "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4" as `0x${string}` | null, chainIdHex: "0xaa36a7", isArc: false, circleChain: "ETH-SEPOLIA" as CircleChain, dot: "#627eea" },
+  "Base Sepolia": { chain: baseSepoliaReliable, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, eurc: "0x808456652fdb597867f38412077A9182bf77359F" as `0x${string}` | null, chainIdHex: "0x14a34", isArc: false, circleChain: "BASE-SEPOLIA" as CircleChain, dot: "#0052ff" },
+  "Arbitrum Sepolia": { chain: arbitrumSepoliaReliable, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, eurc: null as `0x${string}` | null, chainIdHex: "0x66eee", isArc: false, circleChain: "ARB-SEPOLIA" as CircleChain, dot: "#28a0f0" },
 } as const;
 type ChainKey = keyof typeof CHAINS;
+type Asset = "usdc" | "eurc";
+
+const ASSET_META: Record<Asset, { label: string; badge: string; color: string }> = {
+  usdc: { label: "USDC", badge: "$", color: "#6D5EF7" },
+  eurc: { label: "EURC", badge: "€", color: "#7c3aed" },
+};
+
+function assetAddress(c: (typeof CHAINS)[ChainKey], asset: Asset): `0x${string}` | null {
+  return asset === "usdc" ? c.usdc : c.eurc;
+}
 
 interface Props {
   provider: EIP1193Provider;
@@ -125,6 +135,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
   const isMobile = useIsMobile();
   const [followUp, setFollowUp] = useState<PendingFollowUp | null>(null);
   const [bridgeType, setBridgeType] = useState<"usdc" | "eth">("usdc");
+  const [asset, setAsset] = useState<Asset>("usdc");
   const [sourceKey, setSourceKey] = useState<ChainKey>("Ethereum Sepolia");
   const [destKey, setDestKey] = useState<ChainKey>("Arc Testnet");
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -163,23 +174,42 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     let cancelled = false;
     setSourceBalance(null);
     const effectiveAddress = useCircle && circleWallet ? circleWallet.address : address;
+    const tokenAddr = assetAddress(source, asset);
+    if (!tokenAddr) { setSourceBalance("—"); return; }
     (async () => {
       try {
         const client = createPublicClient({ chain: source.chain, transport: http() });
-        const bal = await client.readContract({ address: source.usdc, abi: erc20Abi, functionName: "balanceOf", args: [effectiveAddress as `0x${string}`] });
+        const bal = await client.readContract({ address: tokenAddr, abi: erc20Abi, functionName: "balanceOf", args: [effectiveAddress as `0x${string}`] });
         if (!cancelled) setSourceBalance(Number(bal) / 1e6 + "");
       } catch {
         if (!cancelled) setSourceBalance("—");
       }
     })();
     return () => { cancelled = true; };
-  }, [sourceKey, address, useCircle, circleWallet]);
+  }, [sourceKey, address, useCircle, circleWallet, asset]);
+
+  // If EURC is selected but the current source/destination doesn't have it deployed,
+  // steer the user to a chain pair that actually supports it instead of failing silently.
+  useEffect(() => {
+    if (asset !== "eurc") return;
+    const eurcChains = (Object.keys(CHAINS) as ChainKey[]).filter(k => CHAINS[k].eurc !== null);
+    if (!CHAINS[sourceKey].eurc) {
+      const fallback = eurcChains.find(k => k !== destKey) ?? eurcChains[0];
+      if (fallback) setSourceKey(fallback);
+    }
+    if (!CHAINS[destKey].eurc) {
+      const fallback = eurcChains.find(k => k !== sourceKey) ?? eurcChains[0];
+      if (fallback) setDestKey(fallback);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asset]);
 
   function changeSource(key: ChainKey) {
     setSourceKey(key);
     setSourceOpen(false);
     if (key === destKey) {
-      const fallback = (Object.keys(CHAINS) as ChainKey[]).find((k) => k !== key);
+      const candidates = (Object.keys(CHAINS) as ChainKey[]).filter((k) => k !== key);
+      const fallback = asset === "eurc" ? (candidates.find(k => CHAINS[k].eurc) ?? candidates[0]) : candidates[0];
       if (fallback) setDestKey(fallback);
     }
     if (step === "done" || step === "error") { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setErrorMsg(null); }
@@ -188,7 +218,8 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     setDestKey(key);
     setDestOpen(false);
     if (key === sourceKey) {
-      const fallback = (Object.keys(CHAINS) as ChainKey[]).find((k) => k !== key);
+      const candidates = (Object.keys(CHAINS) as ChainKey[]).filter((k) => k !== key);
+      const fallback = asset === "eurc" ? (candidates.find(k => CHAINS[k].eurc) ?? candidates[0]) : candidates[0];
       if (fallback) setSourceKey(fallback);
     }
     if (step === "done" || step === "error") { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setErrorMsg(null); }
@@ -222,12 +253,18 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       setStep("error");
       return;
     }
+    const tokenAddr = assetAddress(source, asset);
+    if (!tokenAddr || !assetAddress(dest, asset)) {
+      setErrorMsg(`${ASSET_META[asset].label} isn't deployed on ${!assetAddress(source, asset) ? sourceKey : destKey} yet.`);
+      setStep("error");
+      return;
+    }
     const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
 
     setStep("approving");
     await circleContractCallAndWait({
       walletId: sourceWalletId,
-      contractAddress: source.usdc,
+      contractAddress: tokenAddr,
       abiFunctionSignature: "approve(address,uint256)",
       abiParameters: [TOKEN_MESSENGER, amountUnits.toString()],
     });
@@ -241,7 +278,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
         amountUnits.toString(),
         dest.domain,
         bytes32Address(circleWallet.address),
-        source.usdc,
+        tokenAddr,
         bytes32Address("0x0000000000000000000000000000000000000000"),
         "500",
         1000,
@@ -274,6 +311,9 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     if (sourceKey === destKey) {
       setErrorMsg("Source and destination must be different."); return;
     }
+    if (!assetAddress(source, asset) || !assetAddress(dest, asset)) {
+      setErrorMsg(`${ASSET_META[asset].label} isn't deployed on ${!assetAddress(source, asset) ? sourceKey : destKey} yet.`); return;
+    }
     setErrorMsg(null);
     setShowBridgeConfirm(true);
   }
@@ -294,6 +334,8 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
     }
 
     try {
+      const tokenAddr = assetAddress(source, asset);
+      if (!tokenAddr) throw new Error(`${ASSET_META[asset].label} isn't deployed on ${sourceKey} yet.`);
       const amountUnits = BigInt(Math.round(Number(amount) * 1e6));
       await switchChain(provider, source.chainIdHex, addChainParams(sourceKey));
       const sourceWallet = createWalletClient({ chain: source.chain, transport: custom(provider) });
@@ -301,7 +343,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
 
       setStep("approving");
       const approveHash = await sourceWallet.writeContract({
-        address: source.usdc,
+        address: tokenAddr,
         abi: erc20Abi,
         functionName: "approve",
         args: [TOKEN_MESSENGER, amountUnits],
@@ -318,7 +360,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
           amountUnits,
           dest.domain,
           bytes32Address(address),
-          source.usdc,
+          tokenAddr,
           bytes32Address("0x0000000000000000000000000000000000000000"),
           500n,
           1000,
@@ -354,11 +396,12 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
   }
 
   const isLoading = step === "approving" || step === "burning" || step === "attesting" || step === "minting";
+  const assetLabel = ASSET_META[asset].label;
   const stepLabels: Record<string, string> = {
-    approving: "Approving USDC on " + sourceKey + "...",
-    burning: "Burning USDC on " + sourceKey + "...",
+    approving: `Approving ${assetLabel} on ${sourceKey}...`,
+    burning: `Burning ${assetLabel} on ${sourceKey}...`,
     attesting: "Waiting for Circle attestation (can take 1-2 min)...",
-    minting: "Minting USDC on " + destKey + "...",
+    minting: `Minting ${assetLabel} on ${destKey}...`,
   };
   const stepIndexMap: Record<string, number> = { idle: -1, approving: 1, burning: 1, attesting: 2, minting: 3, done: 4, error: -1 };
   const activeStepIndex = stepIndexMap[step] ?? -1;
@@ -395,7 +438,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={() => setBridgeType("usdc")}
           style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "usdc" ? "#ede9fe" : "#ffffff", color: bridgeType === "usdc" ? "#5B21B6" : "#4B5563", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-          USDC Bridge
+          Stablecoin Bridge
         </button>
         <button onClick={() => setBridgeType("eth")}
           style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "eth" ? "#ede9fe" : "#ffffff", color: bridgeType === "eth" ? "#5B21B6" : "#4B5563", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
@@ -408,6 +451,16 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       {bridgeType === "usdc" && (
         <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "1.25rem", alignItems: "start" }}>
           <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              {(["usdc", "eurc"] as Asset[]).map((a) => (
+                <button key={a} onClick={() => setAsset(a)} disabled={isLoading}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.5rem", borderRadius: 10, border: "none", background: asset === a ? "#ede9fe" : "#f5f3ff", color: asset === a ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: ASSET_META[a].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff" }}>{ASSET_META[a].badge}</span>
+                  {ASSET_META[a].label}
+                </button>
+              ))}
+            </div>
+
             {circleWallet && (
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={() => setUseCircle(false)} disabled={isLoading}
@@ -425,12 +478,15 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <label style={{ fontSize: 13, color: "#4B5563", fontWeight: 600 }}>From</label>
                 <span className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280" }}>
-                  Balance: <span style={{ color: "#6D5EF7", fontWeight: 700 }}>{sourceBalance ?? "..."} USDC</span>
+                  Balance: <span style={{ color: ASSET_META[asset].color, fontWeight: 700 }}>{sourceBalance ?? "..."} {assetLabel}</span>
                 </span>
               </div>
               <div style={{ marginTop: 6 }}>
                 <ChainRow chainKey={sourceKey} open={sourceOpen} setOpen={setSourceOpen} onSelect={changeSource} />
               </div>
+              {!assetAddress(source, asset) && (
+                <p style={{ fontSize: 11, color: "#B45309", marginTop: 4 }}>{assetLabel} isn't deployed on {sourceKey} yet — pick a different source.</p>
+              )}
             </div>
 
             <div style={{ borderRadius: 16, border: "1px solid #D4C9FA", padding: "1rem 1.1rem" }}>
@@ -438,12 +494,12 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                 <input type="number" min="0" step="0.01" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
                   style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", boxShadow: "none", fontSize: 32, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
                 <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#f5f3ff" }}>
-                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>$</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>USDC</span>
+                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: ASSET_META[asset].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{ASSET_META[asset].badge}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{assetLabel}</span>
                 </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                <span className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280" }}>{amount ? `$${Number(amount).toFixed(2)}` : "$0.00"}</span>
+                <span className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280" }}>{amount ? `${ASSET_META[asset].badge}${Number(amount).toFixed(2)}` : `${ASSET_META[asset].badge}0.00`}</span>
                 {sourceBalance && sourceBalance !== "—" && (
                   <button onClick={() => setAmount(sourceBalance)} disabled={isLoading}
                     style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>
@@ -465,17 +521,20 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
               <div style={{ marginTop: 6 }}>
                 <ChainRow chainKey={destKey} open={destOpen} setOpen={setDestOpen} onSelect={changeDest} />
               </div>
+              {!assetAddress(dest, asset) && (
+                <p style={{ fontSize: 11, color: "#B45309", marginTop: 4 }}>{assetLabel} isn't deployed on {destKey} yet — pick a different destination.</p>
+              )}
             </div>
 
             <div style={{ borderRadius: 16, border: "1px solid #D4C9FA", padding: "1rem 1.1rem", background: "#f5f3ff" }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <span className="flowfi-mono" style={{ fontSize: 32, fontWeight: 700, color: "#111827" }}>{amount ? Number(amount).toFixed(2) : "0"}</span>
                 <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#ffffff" }}>
-                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>$</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>USDC</span>
+                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: ASSET_META[asset].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{ASSET_META[asset].badge}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{assetLabel}</span>
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>Estimated — native USDC, no wrapped tokens</div>
+              <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>Estimated — native {assetLabel}, no wrapped tokens</div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8 }}>
@@ -485,11 +544,11 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 2 }}>Network fee</div>
-                <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>0.0005 USDC</div>
+                <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>0.0005 {assetLabel}</div>
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 2 }}>You receive</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Native USDC</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Native {assetLabel}</div>
               </div>
             </div>
 
@@ -548,7 +607,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
               <ConfirmModal
                 title="Confirm Bridge"
                 rows={[
-                  { label: "Amount", value: `${amount} USDC`, highlight: true },
+                  { label: "Amount", value: `${amount} ${assetLabel}`, highlight: true },
                   { label: "From", value: sourceKey },
                   { label: "To", value: destKey },
                 ]}
@@ -576,7 +635,11 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                   </div>
                 ) : (
                   <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "1rem", textAlign: "center" }}>
-                    <div style={{ fontSize: 12.5, color: "#4B5563", marginBottom: 8 }}>Your USDC just landed on Arc, as native gas — ready to use.</div>
+                    <div style={{ fontSize: 12.5, color: "#4B5563", marginBottom: 8 }}>
+                      {asset === "usdc" && destKey === "Arc Testnet"
+                        ? "Your USDC just landed on Arc, as native gas — ready to use."
+                        : `Your ${assetLabel} just landed on ${destKey} — ready to use.`}
+                    </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button onClick={() => onNavigate?.("swap")}
                         style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
@@ -658,6 +721,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                   </div>
                 ))}
               </div>
+              <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 10, marginBottom: 0 }}>EURC bridges between Ethereum Sepolia, Base Sepolia, and Arc Testnet. Arbitrum Sepolia is USDC-only for now.</p>
             </div>
           </div>
         </div>
