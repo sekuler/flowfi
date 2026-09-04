@@ -453,6 +453,63 @@ function AppInner() {
           })}
         </div>
       </div>
+
+      <footer style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg, #171130, #120D26)", marginTop: 40 }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
+          <div style={{ maxWidth: 320 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 10, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff" }}>◈</div>
+              <span className="flowfi-display" style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>FlowFi</span>
+            </div>
+            <p style={{ fontSize: 12.5, color: "#9CA3AF", lineHeight: 1.6, marginBottom: 16 }}>
+              An AI-powered DeFi platform built on Arc Testnet, Circle's stablecoin-native Layer-1. Swap, bridge, and provide liquidity through one intelligent Copilot.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <a href="https://x.com/flowfiarc" target="_blank" rel="noopener noreferrer"
+                style={{ width: 34, height: 34, borderRadius: 9, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="X (Twitter)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-6.9l-5.4-6.9L4.7 22H1.5l8.2-9.3L1 2h7.1l4.9 6.4L18.9 2zm-1.2 18h1.9L7.4 4H5.4l12.3 16z" /></svg>
+              </a>
+              <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener noreferrer"
+                style={{ width: 34, height: 34, borderRadius: 9, background: "#24292e", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="GitHub">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 5.02 3.26 9.28 7.78 10.78.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.16.69-3.83-1.34-3.83-1.34-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.33.95.1-.74.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.17-3.04-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.14 1.16a10.9 10.9 0 0 1 5.72 0c2.18-1.47 3.14-1.16 3.14-1.16.62 1.57.23 2.73.11 3.02.73.79 1.17 1.8 1.17 3.04 0 4.35-2.65 5.31-5.18 5.59.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.66.79.55 4.51-1.51 7.77-5.76 7.77-10.78C23.25 5.48 18.27.5 12 .5z" /></svg>
+              </a>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff", marginBottom: 14 }}>Quick Links</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                { label: "Live App", href: "#top" },
+                { label: "Faucet", href: "https://faucet.circle.com" },
+                { label: "Explorer", href: "https://testnet.arcscan.app" },
+                { label: "Watch Demo", href: "https://x.com/flowfiarc/status/2078926068485173522" },
+              ].map(({ label, href }) => (
+                <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#9CA3AF", textDecoration: "none" }}>{label}</a>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff", marginBottom: 14 }}>Resources</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                { label: "Documentation", href: "https://github.com/sekuler/flowfi#readme" },
+                { label: "Arc Docs", href: "https://docs.arc.io" },
+                { label: "Source Code", href: "https://github.com/sekuler/flowfi" },
+              ].map(({ label, href }) => (
+                <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#9CA3AF", textDecoration: "none" }}>{label}</a>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.1rem 2rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8 }}>
+            <span style={{ fontSize: 11.5, color: "#6B7280" }}>© 2026 FlowFi. All rights reserved.</span>
+            <span style={{ fontSize: 11.5, color: "#6B7280" }}>Built on Circle & Arc Testnet</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
