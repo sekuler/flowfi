@@ -18,7 +18,7 @@ export interface MemoryInsight {
 
 export async function computeMemoryInsight(address: string): Promise<MemoryInsight | null> {
   try {
-    const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${address}&limit=50`);
+    const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${address}&limit=50`);
     const data = await res.json();
     const txs: any[] = data.result ?? [];
     if (txs.length < 5) return null; // not enough history to say anything meaningful
