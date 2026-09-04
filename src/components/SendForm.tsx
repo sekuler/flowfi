@@ -216,7 +216,7 @@ export default function SendForm({ provider, address, balances, onRefresh }: Pro
     }
 
     try {
-      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${addr}&limit=1`);
+      const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${addr}&limit=1`);
       const data = await res.json();
       const hasHistory = Array.isArray(data.result) && data.result.length > 0;
       if (!hasHistory) {

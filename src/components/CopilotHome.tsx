@@ -144,7 +144,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
           Number(formatUnits(usdcLend, 6)) + Number(formatUnits(eurcLend, 6))
         );
 
-        const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${address}&limit=4`);
+        const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${address}&limit=4`);
         const data = await res.json();
         const items: RecentTx[] = (data.result ?? []).slice(0, 4).map((tx: any) => ({
           hash: tx.hash,

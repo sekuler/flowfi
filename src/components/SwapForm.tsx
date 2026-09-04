@@ -241,7 +241,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       }
 
       try {
-        const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${SWAP_CONTRACT}&limit=8`);
+        const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${SWAP_CONTRACT}&limit=8`);
         const data = await res.json();
         const items: ContractTx[] = (data.result ?? []).slice(0, 8).map((tx: any) => ({
           hash: tx.hash,
