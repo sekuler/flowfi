@@ -522,9 +522,9 @@ function AppInner() {
         <div onClick={() => setMobileMenuOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.4)", zIndex: 3 }} />
       )}
       <aside style={{
-        width: 220, minHeight: "100vh", background: "rgba(255,255,255,0.98)", backdropFilter: "blur(24px)",
+        width: 220, height: "100vh", background: "rgba(255,255,255,0.98)", backdropFilter: "blur(24px)",
         boxShadow: isMobile ? "0 0 32px rgba(17,24,39,0.2)" : "1px 0 0 rgba(109,94,247,0.08)",
-        display: "flex", flexDirection: "column", padding: "1.5rem 0",
+        display: "flex", flexDirection: "column", padding: "1.5rem 0", overflow: "hidden",
         position: "fixed", top: 0, left: isMobile && !mobileMenuOpen ? -240 : 0, zIndex: 4,
         transition: "left 0.2s ease",
       }}>
