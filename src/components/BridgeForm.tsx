@@ -73,13 +73,15 @@ const CROSS_CHAIN_TRANSFER_ABI = [{
   outputs: [],
 }] as const;
 
-function parseIrisResponse(text: string): unknown {
+function parseIrisResponse(text: string, status: number): unknown {
   const trimmed = text.trim();
   if (trimmed.startsWith("<")) {
-    throw new Error(
-      "Circle's sandbox API is temporarily blocking requests (looks like a rate-limit / lockout page, not a JSON response). " +
-      "This isn't a bug on our end — wait a few minutes before trying again."
-    );
+    // We don't actually know whether this HTML came from Circle (a real rate-limit/lockout
+    // page) or from our own /api/iris-proxy function failing to deploy or route correctly
+    // (Vercel's own 404/500 pages are also HTML). Surface the real status + a content snippet
+    // instead of guessing, so this can be diagnosed for real instead of assumed.
+    const snippet = trimmed.slice(0, 300).replace(/\s+/g, " ");
+    throw new Error(`Non-JSON (HTML) response from /api/iris-proxy — HTTP ${status}. First 300 chars: ${snippet}`);
   }
   return JSON.parse(text);
 }
@@ -87,7 +89,7 @@ function parseIrisResponse(text: string): unknown {
 async function irisProxyGet(path: string) {
   const res = await fetch(`/api/iris-proxy?path=${encodeURIComponent(path)}`);
   const text = await res.text();
-  const data = parseIrisResponse(text);
+  const data = parseIrisResponse(text, res.status);
   if (!res.ok) throw new Error(typeof data === "string" ? data : JSON.stringify(data));
   return data;
 }
@@ -99,7 +101,7 @@ async function irisProxyPost(path: string, body: unknown) {
     body: JSON.stringify({ path, body }),
   });
   const text = await res.text();
-  const data = parseIrisResponse(text);
+  const data = parseIrisResponse(text, res.status);
   if (!res.ok) throw new Error(typeof data === "string" ? data : JSON.stringify(data));
   return data;
 }
@@ -364,7 +366,9 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
         if (msg?.status === "complete") return msg as { message: string; attestation: string };
       } catch (e: unknown) {
         const msg = (e as { message?: string })?.message ?? "";
-        if (msg.includes("rate-limit") || msg.includes("lockout")) throw e; // don't keep hammering a block
+        if (msg.includes("HTTP 404") || msg.includes("HTTP 500")) {
+          throw new Error(`${msg} — this looks like our own /api/iris-proxy endpoint failing, not Circle. Check that it's actually deployed.`);
+        }
         // Otherwise: not indexed yet, or a transient error — keep polling.
       }
       await new Promise(r => setTimeout(r, 10000));
