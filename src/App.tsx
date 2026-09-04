@@ -8,7 +8,6 @@ import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
 import WalletConnect from "./components/WalletConnect";
-import FeedbackWidget from "./components/FeedbackWidget";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
 import BridgeForm from "./components/BridgeForm";
 import GatewayPanel from "./components/GatewayPanel";
@@ -454,7 +453,7 @@ function AppInner() {
         </div>
       </div>
 
-      <footer style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg, #171130, #120D26)", marginTop: 40 }}>
+      <footer style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg, #4C3A9E, #2A1B5C)", marginTop: 40 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
           <div style={{ maxWidth: 320 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -466,12 +465,12 @@ function AppInner() {
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <a href="https://x.com/flowfiarc" target="_blank" rel="noopener noreferrer"
-                style={{ width: 34, height: 34, borderRadius: 9, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="X (Twitter)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-6.9l-5.4-6.9L4.7 22H1.5l8.2-9.3L1 2h7.1l4.9 6.4L18.9 2zm-1.2 18h1.9L7.4 4H5.4l12.3 16z" /></svg>
+                style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(139,124,249,0.15)", border: "1px solid rgba(139,124,249,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="X (Twitter)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#C4B8FF"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-6.9l-5.4-6.9L4.7 22H1.5l8.2-9.3L1 2h7.1l4.9 6.4L18.9 2zm-1.2 18h1.9L7.4 4H5.4l12.3 16z" /></svg>
               </a>
               <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener noreferrer"
-                style={{ width: 34, height: 34, borderRadius: 9, background: "#24292e", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="GitHub">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 5.02 3.26 9.28 7.78 10.78.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.16.69-3.83-1.34-3.83-1.34-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.33.95.1-.74.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.17-3.04-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.14 1.16a10.9 10.9 0 0 1 5.72 0c2.18-1.47 3.14-1.16 3.14-1.16.62 1.57.23 2.73.11 3.02.73.79 1.17 1.8 1.17 3.04 0 4.35-2.65 5.31-5.18 5.59.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.66.79.55 4.51-1.51 7.77-5.76 7.77-10.78C23.25 5.48 18.27.5 12 .5z" /></svg>
+                style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(139,124,249,0.15)", border: "1px solid rgba(139,124,249,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="GitHub">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#C4B8FF"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 5.02 3.26 9.28 7.78 10.78.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.16.69-3.83-1.34-3.83-1.34-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.33.95.1-.74.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.17-3.04-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.14 1.16a10.9 10.9 0 0 1 5.72 0c2.18-1.47 3.14-1.16 3.14-1.16.62 1.57.23 2.73.11 3.02.73.79 1.17 1.8 1.17 3.04 0 4.35-2.65 5.31-5.18 5.59.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.66.79.55 4.51-1.51 7.77-5.76 7.77-10.78C23.25 5.48 18.27.5 12 .5z" /></svg>
               </a>
             </div>
           </div>
@@ -604,15 +603,6 @@ function AppInner() {
             <span className="flowfi-mono" style={{ fontSize: 11, fontWeight: 700, color: "#6D5EF7" }}>{points} pts</span>
           </div>
           <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} style={{ marginTop: 10, fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
-        </div>
-        <div style={{ padding: "0.5rem 1.25rem", display: "flex", flexDirection: "column", gap: 4 }}>
-          {[
-            { label: "arc.io", href: "https://www.arc.io" },
-            { label: "Explorer", href: "https://testnet.arcscan.app" },
-            { label: "Faucet", href: "https://faucet.circle.com" },
-          ].map(({ label, href }) => (
-            <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#6D5EF7", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>{label} ↗</a>
-          ))}
         </div>
       </aside>
 
@@ -792,7 +782,7 @@ function AppInner() {
           </div>
         </div>
 
-        <footer style={{ background: "linear-gradient(180deg, #171130, #120D26)", marginTop: 48 }}>
+        <footer style={{ background: "linear-gradient(180deg, #4C3A9E, #2A1B5C)", marginTop: 48 }}>
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
             <div style={{ maxWidth: 320 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -804,12 +794,12 @@ function AppInner() {
               </p>
               <div style={{ display: "flex", gap: 10 }}>
                 <a href="https://x.com/flowfiarc" target="_blank" rel="noopener noreferrer"
-                  style={{ width: 34, height: 34, borderRadius: 9, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="X (Twitter)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-6.9l-5.4-6.9L4.7 22H1.5l8.2-9.3L1 2h7.1l4.9 6.4L18.9 2zm-1.2 18h1.9L7.4 4H5.4l12.3 16z" /></svg>
+                  style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(139,124,249,0.15)", border: "1px solid rgba(139,124,249,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="X (Twitter)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#C4B8FF"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-6.9l-5.4-6.9L4.7 22H1.5l8.2-9.3L1 2h7.1l4.9 6.4L18.9 2zm-1.2 18h1.9L7.4 4H5.4l12.3 16z" /></svg>
                 </a>
                 <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener noreferrer"
-                  style={{ width: 34, height: 34, borderRadius: 9, background: "#24292e", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="GitHub">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 5.02 3.26 9.28 7.78 10.78.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.16.69-3.83-1.34-3.83-1.34-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.33.95.1-.74.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.17-3.04-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.14 1.16a10.9 10.9 0 0 1 5.72 0c2.18-1.47 3.14-1.16 3.14-1.16.62 1.57.23 2.73.11 3.02.73.79 1.17 1.8 1.17 3.04 0 4.35-2.65 5.31-5.18 5.59.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.66.79.55 4.51-1.51 7.77-5.76 7.77-10.78C23.25 5.48 18.27.5 12 .5z" /></svg>
+                  style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(139,124,249,0.15)", border: "1px solid rgba(139,124,249,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="GitHub">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#C4B8FF"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 5.02 3.26 9.28 7.78 10.78.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.16.69-3.83-1.34-3.83-1.34-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.33.95.1-.74.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.17-3.04-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.14 1.16a10.9 10.9 0 0 1 5.72 0c2.18-1.47 3.14-1.16 3.14-1.16.62 1.57.23 2.73.11 3.02.73.79 1.17 1.8 1.17 3.04 0 4.35-2.65 5.31-5.18 5.59.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.66.79.55 4.51-1.51 7.77-5.76 7.77-10.78C23.25 5.48 18.27.5 12 .5z" /></svg>
                 </a>
               </div>
             </div>
@@ -843,7 +833,6 @@ function AppInner() {
       </main>
 
       <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
-      <FeedbackWidget />
       {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
     </div>
   );
