@@ -88,7 +88,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${address}&limit=100`);
+        const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${address}&limit=100`);
         const data = await res.json();
         const txs = data.result ?? [];
         setTxCount(txs.length);

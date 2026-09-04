@@ -155,7 +155,7 @@ export default function TxHistory({ address }: Props) {
     if (!effectiveAddress) return;
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${effectiveAddress}&limit=30`);
+      const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${effectiveAddress}&limit=30`);
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       const items: Tx[] = (data.result ?? []).map((tx: any) => ({

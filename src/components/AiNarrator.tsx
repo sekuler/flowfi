@@ -106,7 +106,7 @@ export default function AiNarrator({ address, balances }: Props) {
         return;
       }
 
-      const res = await fetch(`https://testnet.arcscan.app/api?module=account&action=txlist&address=${address}&limit=30`);
+      const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${address}&limit=30`);
       const data = await res.json();
       const txs = (data.result ?? []).slice(0, 30).map((tx: any) => ({
         hash: tx.hash,
