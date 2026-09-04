@@ -4,7 +4,8 @@ import { createWalletClient, createPublicClient, custom, http } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import type { EIP1193Provider } from "viem";
-import { Zap, RefreshCw, ArrowRight } from "lucide-react";
+import { Zap, RefreshCw, ArrowRight, ChevronDown } from "lucide-react";
+import { ChainIcon } from "./ChainIcon";
 import { useIsMobile } from "../useIsMobile";
 import { showToast } from "../toast";
 import { getCircleWallet, circleContractCall, circleContractCallAndWait, getWalletIdForChain, signTypedDataWithCircleWallet, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
@@ -45,6 +46,45 @@ const CHAIN_ID_HEX: Record<GatewayChainKey, string> = {
   "Arbitrum Sepolia": "0x66eee",
 };
 
+function chainIdDecimal(hex: string): number {
+  return parseInt(hex, 16);
+}
+
+function GatewayChainSelect({ value, onChange, open, setOpen, label, disabled }: {
+  value: GatewayChainKey; onChange: (k: GatewayChainKey) => void;
+  open: boolean; setOpen: (v: boolean) => void; label: string; disabled?: boolean;
+}) {
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen(!open)} disabled={disabled}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.65rem 0.85rem", borderRadius: 12, border: "1px solid #E5E7EB", background: "#ffffff", cursor: disabled ? "not-allowed" : "pointer", boxSizing: "border-box" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <ChainIcon name={value} size={22} />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+            <span style={{ fontSize: 9.5, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.3px" }}>{label}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{value}</span>
+          </div>
+        </div>
+        <ChevronDown size={15} color="#9CA3AF" />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 30, background: "#ffffff", border: "1px solid #E5E7EB", borderRadius: 12, padding: 6, boxShadow: "0 12px 30px rgba(17,24,39,0.12)" }}>
+          {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((k) => (
+            <button key={k} onClick={() => { onChange(k); setOpen(false); }}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "0.55rem 0.7rem", borderRadius: 9, border: "none", background: k === value ? "#EFF6FF" : "transparent", cursor: "pointer", textAlign: "left" }}>
+              <ChainIcon name={k} size={20} />
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{k}</span>
+                <span className="flowfi-mono" style={{ fontSize: 9, color: "#9CA3AF" }}>Chain ID: {chainIdDecimal(CHAIN_ID_HEX[k])}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   provider: EIP1193Provider;
   address: string;
@@ -72,6 +112,9 @@ export default function GatewayPanel({ provider, address }: Props) {
   const [transferring, setTransferring] = useState(false);
   const [transferStatus, setTransferStatus] = useState("");
   const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [transferSourceOpen, setTransferSourceOpen] = useState(false);
+  const [transferDestOpen, setTransferDestOpen] = useState(false);
+  const [depositChainOpen, setDepositChainOpen] = useState(false);
 
   // The address whose Gateway balance we show/deposit against — the browser
   // wallet's own address, or the Circle Developer-Controlled Wallet's
@@ -380,8 +423,11 @@ export default function GatewayPanel({ provider, address }: Props) {
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", marginBottom: 8, textTransform: "uppercase" }}>By chain</div>
             {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((chain) => (
-              <div key={chain} style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0", borderBottom: "1px solid #F3F4F6", fontSize: 13 }}>
-                <span style={{ color: "#374151" }}>{chain}</span>
+              <div key={chain} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 0", borderBottom: "1px solid #F3F4F6", fontSize: 13 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#374151" }}>
+                  <ChainIcon name={chain} size={20} />
+                  {chain}
+                </span>
                 <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>{(byChain[chain] ?? 0).toFixed(2)} USDC</span>
               </div>
             ))}
@@ -389,7 +435,7 @@ export default function GatewayPanel({ provider, address }: Props) {
         </div>
 
         {/* Instant transfer */}
-        <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: isMobile ? "1.25rem" : "1.5rem" }}>
+        <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: isMobile ? "1.25rem" : "1.5rem", boxShadow: "0 1px 3px rgba(17,24,39,0.06)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <div style={{ width: 32, height: 32, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Zap size={16} color="#3B82F6" />
@@ -400,18 +446,14 @@ export default function GatewayPanel({ provider, address }: Props) {
             Move part of your deposited balance to another chain instantly, without a new deposit.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <select value={transferSource} onChange={(e) => setTransferSource(e.target.value as GatewayChainKey)}
-              style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }}>
-              {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
-                <option key={c} value={c}>From: {c}</option>
-              ))}
-            </select>
-            <select value={transferDest} onChange={(e) => setTransferDest(e.target.value as GatewayChainKey)}
-              style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }}>
-              {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
-                <option key={c} value={c}>To: {c}</option>
-              ))}
-            </select>
+            <GatewayChainSelect value={transferSource} onChange={setTransferSource} open={transferSourceOpen} setOpen={setTransferSourceOpen} label="FROM" disabled={transferring} />
+            <div style={{ display: "flex", justifyContent: "center", marginTop: -4, marginBottom: -4 }}>
+              <button onClick={() => { const s = transferSource; setTransferSource(transferDest); setTransferDest(s); }} disabled={transferring}
+                style={{ width: 28, height: 28, borderRadius: 8, background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#3B82F6", cursor: transferring ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <RefreshCw size={12} style={{ transform: "rotate(90deg)" }} />
+              </button>
+            </div>
+            <GatewayChainSelect value={transferDest} onChange={setTransferDest} open={transferDestOpen} setOpen={setTransferDestOpen} label="TO" disabled={transferring} />
             <input type="number" placeholder="Amount (USDC)" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)}
               style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
             <input type="text" placeholder="Recipient address (optional — defaults to you)" value={transferRecipient} onChange={(e) => setTransferRecipient(e.target.value)}
@@ -434,17 +476,14 @@ export default function GatewayPanel({ provider, address }: Props) {
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, alignItems: "start" }}>
         <div style={{ background: "#F9FAFB", borderRadius: 14, padding: isMobile ? "1rem" : "1.5rem" }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Deposit into unified balance</div>
-          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
-            <select value={depositChain} onChange={(e) => setDepositChain(e.target.value as GatewayChainKey)}
-              style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }}>
-              {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10, alignItems: isMobile ? "stretch" : "flex-start" }}>
+            <div style={{ flex: 1 }}>
+              <GatewayChainSelect value={depositChain} onChange={setDepositChain} open={depositChainOpen} setOpen={setDepositChainOpen} label="CHAIN" disabled={depositing} />
+            </div>
             <input type="number" placeholder="Amount (USDC)" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)}
-              style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box" }} />
+              style={{ flex: 1, padding: "0.6rem", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 13, boxSizing: "border-box", height: isMobile ? undefined : 46, alignSelf: isMobile ? undefined : "center" }} />
             <button onClick={doDeposit} disabled={depositing || (walletMode === "circle" && !circleWallet)}
-              style={{ flex: isMobile ? undefined : "0 0 140px", padding: "0.6rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing || (walletMode === "circle" && !circleWallet) ? "not-allowed" : "pointer", opacity: depositing || (walletMode === "circle" && !circleWallet) ? 0.6 : 1 }}>
+              style={{ flex: isMobile ? undefined : "0 0 140px", padding: "0.6rem", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 13, fontWeight: 700, cursor: depositing || (walletMode === "circle" && !circleWallet) ? "not-allowed" : "pointer", opacity: depositing || (walletMode === "circle" && !circleWallet) ? 0.6 : 1, height: isMobile ? undefined : 46, alignSelf: isMobile ? undefined : "center" }}>
               {depositing ? "Depositing..." : "Deposit"}
             </button>
           </div>
@@ -461,10 +500,10 @@ export default function GatewayPanel({ provider, address }: Props) {
             <span style={{ fontSize: 12.5, fontWeight: 600, color: "#111827" }}>Live on testnet</span>
           </div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", marginBottom: 8 }}>Supported chains</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {(Object.keys(GATEWAY_DOMAINS) as GatewayChainKey[]).map((c) => (
-              <div key={c} style={{ fontSize: 12.5, color: "#374151", display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#3B82F6" }} />
+              <div key={c} style={{ fontSize: 12.5, color: "#374151", display: "flex", alignItems: "center", gap: 8 }}>
+                <ChainIcon name={c} size={18} />
                 {c}
               </div>
             ))}
@@ -480,7 +519,11 @@ export default function GatewayPanel({ provider, address }: Props) {
               <div style={{ display: "flex", justifyContent: "space-between" }}><span>Amount</span><b>{transferAmount} USDC</b></div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>Route</span>
-                <b style={{ display: "flex", alignItems: "center", gap: 4 }}>{transferSource} <ArrowRight size={12} /> {transferDest}</b>
+                <b style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <ChainIcon name={transferSource} size={16} /> {transferSource}
+                  <ArrowRight size={12} />
+                  <ChainIcon name={transferDest} size={16} /> {transferDest}
+                </b>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span>Recipient</span><b style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>{(transferRecipient.trim() || (walletMode === "circle" ? circleWallet?.address : address) || "").slice(0, 10)}...</b></div>
             </div>
