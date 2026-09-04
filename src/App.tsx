@@ -525,8 +525,8 @@ function AppInner() {
         width: 220, height: "100vh", background: "rgba(255,255,255,0.98)", backdropFilter: "blur(24px)",
         boxShadow: isMobile ? "0 0 32px rgba(17,24,39,0.2)" : "1px 0 0 rgba(109,94,247,0.08)",
         display: "flex", flexDirection: "column", padding: "1.5rem 0", overflow: "hidden",
-        position: "fixed", top: 0, left: isMobile && !mobileMenuOpen ? -240 : 0, zIndex: 4,
-        transition: "left 0.2s ease",
+        position: isMobile ? "fixed" : "sticky", top: 0, left: isMobile && !mobileMenuOpen ? -240 : 0, zIndex: 4,
+        transition: "left 0.2s ease", flexShrink: 0,
       }}>
         <div style={{ padding: "0 1.25rem 1rem", marginBottom: "0.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -606,7 +606,7 @@ function AppInner() {
         </div>
       </aside>
 
-      <main style={{ marginLeft: isMobile ? 0 : 220, flex: 1, minHeight: "100vh", position: "relative", zIndex: 1, display: "flex", flexDirection: "column" }}>
+      <main style={{ flex: 1, minHeight: "100vh", position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ flex: 1 }}>
         {isMobile && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1rem", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 3, boxShadow: "0 1px 0 rgba(109,94,247,0.08)" }}>
