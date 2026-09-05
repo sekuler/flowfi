@@ -29,7 +29,7 @@ export default function ReceiveQR({ address }: Props) {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", maxWidth: 360, margin: "0 auto" }}>
       <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 13, color: "#4B5563", fontWeight: 600, textAlign: "center" }}>
-          Scan to send USDC, EURC, or ARC to this wallet
+          Scan to send USDC or EURC to this wallet
         </div>
 
         {qrDataUrl ? (

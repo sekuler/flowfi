@@ -715,10 +715,10 @@ function AppInner() {
                 )}
                 <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA" }}>
                   <div>
-                    <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>ARC</div>
-                    <div style={{ fontSize: 13, color: "#4B5563" }}>Gas Balance</div>
+                    <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>USDC · NATIVE VIEW</div>
+                    <div style={{ fontSize: 13, color: "#4B5563" }}>Same USDC balance above — this is what pays gas</div>
                   </div>
-                  <div className="flowfi-mono" style={{ fontSize: 18, fontWeight: 700, color: "#374151" }}>{balances.native === null ? "..." : `${balances.native} ARC`}</div>
+                  <div className="flowfi-mono" style={{ fontSize: 18, fontWeight: 700, color: "#374151" }}>{balances.native === null ? "..." : `${balances.native} USDC`}</div>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
