@@ -20,6 +20,12 @@ interface IERC20 {
 //   deliberately narrow: an emergency stop for "something's wrong, stop
 //   new escrows from being created" without giving the owner any power
 //   over funds already locked in existing escrows.
+// v4 changes from v3 (security review): refund() previously allowed the
+// client to refund themselves even after Status.Submitted — meaning a
+// client could let the freelancer submit completed work and then simply
+// refund themselves, taking the funds back and paying nothing. That
+// silently defeated claimAfterTimeout's entire purpose. Refund is now
+// only valid before work is submitted (Status.Funded).
 contract ArcEscrow {
     enum Status { Funded, Submitted, Completed, Refunded }
 
