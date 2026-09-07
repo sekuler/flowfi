@@ -1,6 +1,7 @@
 ﻿import SwapAdvisor from "./SwapAdvisor";
 import AdminRate from "./AdminRate";
 import ConfirmModal from "./ConfirmModal";
+import { TokenIcon } from "./TokenIcon";
 import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
@@ -417,7 +418,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                     onClick={() => setTokenInOpen(!tokenInOpen)}
                     disabled={isLoading}
                     style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px 7px 7px", borderRadius: 999, background: "#F5F3FF", border: "none", cursor: "pointer" }}>
-                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#ffffff" }}>{tokenIn[0]}</span>
+                    <TokenIcon symbol={tokenIn} size={22} />
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenIn}</span>
                     <span style={{ fontSize: 9, color: "#6B7280" }}>▾</span>
                   </button>
@@ -427,7 +428,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                         <button key={t} disabled={t === tokenIn}
                           onClick={() => { setTokenIn(t); setTokenOut(t === "USDC" ? "EURC" : "USDC"); setTokenInOpen(false); }}
                           style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: t === tokenIn ? "rgba(124,58,237,0.1)" : "transparent", border: "none", cursor: t === tokenIn ? "not-allowed" : "pointer", opacity: t === tokenIn ? 0.4 : 1 }}>
-                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#ffffff" }}>{t[0]}</span>
+                          <TokenIcon symbol={t} size={18} />
                           <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{t}</span>
                         </button>
                       ))}
@@ -454,7 +455,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                     onClick={() => setTokenOutOpen(!tokenOutOpen)}
                     disabled={isLoading}
                     style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px 7px 7px", borderRadius: 999, background: "#F5F3FF", border: "none", cursor: "pointer" }}>
-                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#ffffff" }}>{tokenOut[0]}</span>
+                    <TokenIcon symbol={tokenOut} size={22} />
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenOut}</span>
                     <span style={{ fontSize: 9, color: "#6B7280" }}>▾</span>
                   </button>
@@ -464,7 +465,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                         <button key={t} disabled={t === tokenOut}
                           onClick={() => { setTokenOut(t); setTokenIn(t === "USDC" ? "EURC" : "USDC"); setTokenOutOpen(false); }}
                           style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: t === tokenOut ? "rgba(124,58,237,0.1)" : "transparent", border: "none", cursor: t === tokenOut ? "not-allowed" : "pointer", opacity: t === tokenOut ? 0.4 : 1 }}>
-                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#ffffff" }}>{t[0]}</span>
+                          <TokenIcon symbol={t} size={18} />
                           <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{t}</span>
                         </button>
                       ))}

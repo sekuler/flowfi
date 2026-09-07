@@ -30,6 +30,7 @@ import { getPendingFollowUp, clearPendingFollowUp, type PendingFollowUp } from "
 import { addPoints } from "../gamification";
 import EthBridge from "./EthBridge";
 import { ChainIcon } from "./ChainIcon";
+import { TokenIcon } from "./TokenIcon";
 import ConfirmModal from "./ConfirmModal";
 import { useIsMobile } from "../useIsMobile";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
@@ -995,18 +996,14 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Supported assets</div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 10 }}>
                 {[
-                  { symbol: "USDC", name: "USD Coin", logo: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
-                  { symbol: "EURC", name: "Euro Coin", logo: "https://assets.coingecko.com/coins/images/26045/small/euro.png" },
-                  { symbol: "ARCC", name: "Arc Coin", logo: null },
+                  { symbol: "USDC", name: "USD Coin" },
+                  { symbol: "EURC", name: "Euro Coin" },
+                  { symbol: "ARCC", name: "Arc Coin" },
                 ].map((t) => (
                   <div key={t.symbol} style={{ textAlign: "center" }}>
-                    {t.logo ? (
-                      <img src={t.logo} alt={t.symbol} style={{ width: 34, height: 34, borderRadius: "50%", margin: "0 auto 6px", display: "block" }} />
-                    ) : (
-                      <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, margin: "0 auto 6px" }}>
-                        {t.symbol[0]}
-                      </div>
-                    )}
+                    <div style={{ margin: "0 auto 6px", width: 34 }}>
+                      <TokenIcon symbol={t.symbol} size={34} />
+                    </div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#111827" }}>{t.symbol}</div>
                     <div style={{ fontSize: 9, color: "#6B7280" }}>{t.name}</div>
                   </div>
