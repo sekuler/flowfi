@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState } from "react";
 import type { EIP1193Provider } from "viem";
 
 // Get a free project ID from https://cloud.reown.com and paste it below.
@@ -12,7 +12,7 @@ declare global {
   interface WindowEventMap { "eip6963:announceProvider": CustomEvent<EIP6963ProviderDetail>; }
 }
 
-async function discoverWallets(): Promise<EIP6963ProviderDetail[]> {
+export async function discoverWallets(): Promise<EIP6963ProviderDetail[]> {
   const providers = new Map<string, EIP6963ProviderDetail>();
   const handler = (e: CustomEvent<EIP6963ProviderDetail>) => { providers.set(e.detail.info.uuid, e.detail); };
   window.addEventListener("eip6963:announceProvider", handler);
@@ -55,26 +55,6 @@ export default function WalletConnect({ onConnected }: Props) {
   const [detected, setDetected] = useState<EIP6963ProviderDetail[]>([]);
   const [connectingUuid, setConnectingUuid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // On page load, silently check whether the wallet we connected with last
-  // time is still authorized — no popup, just a background eth_accounts
-  // check. Restores the session across refreshes instead of always dropping
-  // back to the connect screen.
-  useEffect(() => {
-    const lastRdns = localStorage.getItem("flowfi-last-wallet-rdns");
-    if (!lastRdns) return;
-    (async () => {
-      const found = await discoverWallets();
-      const match = found.find((w) => w.info.rdns === lastRdns);
-      if (!match) return;
-      try {
-        const accounts = (await match.provider.request({ method: "eth_accounts", params: undefined })) as string[];
-        if (accounts[0]) onConnected(match.provider, accounts[0], match.info.name);
-      } catch {
-        // Silent check failed — just show the normal connect screen.
-      }
-    })();
-  }, []);
 
   async function startConnect() {
     setError(null);
