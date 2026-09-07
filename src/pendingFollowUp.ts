@@ -6,8 +6,7 @@
 // a real confirm step, nothing is silently auto-signed.
 
 export type PendingFollowUp =
-  | { action: "swap"; toToken: string }
-  | { action: "lending" };
+  | { action: "swap"; toToken: string };
 
 const KEY = "flowfi-pending-followup";
 

@@ -181,7 +181,7 @@ interface Props {
   provider: EIP1193Provider;
   address: string;
   walletName: string;
-  onNavigate?: (tab: "swap" | "lending") => void;
+  onNavigate?: (tab: "swap") => void;
 }
 
 const DEPOSIT_FOR_BURN_ABI = [{
@@ -923,9 +923,9 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                       <path d="M20 100 C 60 95, 80 60, 140 55" stroke="#fff" strokeWidth="1.5" opacity="0.3"/>
                     </svg>
                     <div style={{ position: "relative", fontSize: 12.5, color: "#ffffff", marginBottom: 8, opacity: 0.95 }}>
-                      Bridge complete. Continuing to {followUp.action === "swap" ? `swap it to ${followUp.toToken}` : "Lending"}, as requested.
+                      Bridge complete. Continuing to swap it to {followUp.toToken}, as requested.
                     </div>
-                    <button onClick={() => onNavigate?.(followUp.action === "swap" ? "swap" : "lending")}
+                    <button onClick={() => onNavigate?.("swap")}
                       style={{ position: "relative", width: "100%", padding: "0.65rem", borderRadius: 10, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
                       Continue →
                     </button>
@@ -937,16 +937,10 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                         ? "Your USDC just landed on Arc, as native gas — ready to use."
                         : `Your ${assetLabel} just landed on ${destKey} — ready to use.`}
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => onNavigate?.("swap")}
-                        style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-                        Swap it
-                      </button>
-                      <button onClick={() => onNavigate?.("lending")}
-                        style={{ flex: 1, padding: "0.65rem", borderRadius: 10, border: "1px solid #D4C9FA", background: "#ffffff", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-                        Supply to Lending
-                      </button>
-                    </div>
+                    <button onClick={() => onNavigate?.("swap")}
+                      style={{ width: "100%", padding: "0.65rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                      Swap it
+                    </button>
                   </div>
                 )}
                 <button onClick={() => { setStep("idle"); setBurnTxHash(null); setMintTxHash(null); setAmount(""); setFollowUp(null); }}

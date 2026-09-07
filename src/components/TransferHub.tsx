@@ -8,7 +8,7 @@ interface Props {
   provider: EIP1193Provider;
   address: string;
   walletName: string;
-  onNavigate?: (tab: "swap" | "lending") => void;
+  onNavigate?: (tab: "swap") => void;
 }
 
 export default function TransferHub({ provider, address, walletName, onNavigate }: Props) {

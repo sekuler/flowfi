@@ -12,11 +12,6 @@ const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const SWAP_CONTRACT = "0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521" as `0x${string}`; // ArcSwap v2 — adds minAmountOut, pause()
 const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
-const LENDING_CONTRACT = "0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a" as `0x${string}`; // ArcLending v2
-
-const LENDING_ABI = [
-  { type: "function", name: "supply", stateMutability: "nonpayable", inputs: [{ name: "amount", type: "uint256" }], outputs: [] },
-] as const;
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const DOMAIN_BY_CHAIN: Record<string, number> = {
@@ -136,7 +131,7 @@ interface Props {
 }
 
 interface Allocation {
-  category: "lending" | "swap_to_eurc" | "idle";
+  category: "swap_to_eurc" | "idle";
   amount: number;
   percent: number;
   note: string;
@@ -156,7 +151,7 @@ interface ParsedAction {
   tokenA?: string;
   tokenB?: string;
   allocations?: Allocation[];
-  followUp?: { action: "swap"; toToken: string } | { action: "lending" }; // for chained requests like "bridge X then swap to Y"
+  followUp?: { action: "swap"; toToken: string }; // for chained requests like "bridge X then swap to Y"
   summary: string;
   reasoning?: string;
 }
@@ -211,13 +206,13 @@ Schema:
   "recipient": string (address or .arc name, for send),
   "destinationChain": "Arc Testnet" | "Ethereum Sepolia" | "Base Sepolia" | "Arbitrum Sepolia" (ONLY for send, ONLY if the user names a specific chain the recipient should receive funds on, e.g. "send 50 USDC to 0xABC on Base" — omit entirely if no chain is mentioned, defaulting to a normal same-chain transfer on Arc),
   "tokenA": string, "tokenB": string (for create_pool),
-  "allocations": [{ "category": "lending" | "swap_to_eurc" | "idle", "amount": number, "percent": number, "note": "short reason for this allocation" }] (ONLY for action "strategy"),
-  "followUp": { "action": "swap", "toToken": "EURC" } | { "action": "lending" } (ONLY for action "bridge", ONLY if the user's request has a clear second step after the bridge, e.g. "bridge 50 USDC to Arc and swap it to EURC" → followUp: {"action":"swap","toToken":"EURC"}; "move 100 USDC from Base to Arc and supply it to lending" → followUp: {"action":"lending"}. Omit entirely if the user only asked to bridge, with no stated next step.),
+  "allocations": [{ "category": "swap_to_eurc" | "idle", "amount": number, "percent": number, "note": "short reason for this allocation" }] (ONLY for action "strategy"),
+  "followUp": { "action": "swap", "toToken": "EURC" } (ONLY for action "bridge", ONLY if the user's request has a clear second step after the bridge, e.g. "bridge 50 USDC to Arc and swap it to EURC" → followUp: {"action":"swap","toToken":"EURC"}. Omit entirely if the user only asked to bridge, with no stated next step.),
   "summary": "short one-line plain-English summary of what will happen",
   "reasoning": "one short sentence on any relevant risk or note"
 }
 
-Use "strategy" when the user describes a total amount and asks for a plan, allocation, or strategy (e.g. "I have 500 USDC, give me the safest strategy", "how should I split my USDC"). Allocations must sum to the user's stated amount and only use the three categories above — "lending" supplies USDC to earn yield, "swap_to_eurc" diversifies into EURC, "idle" is a deliberate cash reserve. Do not invent other categories (no LP, no perps) since those require extra parameters this schema doesn't support. A "safest" strategy should favor "lending" and "idle" over "swap_to_eurc". Explain each allocation's purpose briefly in its "note".
+Use "strategy" when the user describes a total amount and asks for a plan, allocation, or strategy (e.g. "I have 500 USDC, give me the safest strategy", "how should I split my USDC"). Allocations must sum to the user's stated amount and only use the two categories above — "swap_to_eurc" diversifies into EURC, "idle" is a deliberate cash reserve. Do not invent other categories (no lending, no LP, no perps) since those require extra parameters this schema doesn't support. A "safest" strategy should favor "idle" over "swap_to_eurc". Explain each allocation's purpose briefly in its "note".
 
 Only USDC and EURC are swappable via this fixed-rate action. If the user asks to swap USYC, ARCC, cirBTC, or any other token, do NOT set fromToken/toToken to that token — set action to "unknown" and explain in summary that this pair isn't supported by the fixed-rate swap, and that they'd need an existing Liquidity Pool for that pair instead (Tools → Liquidity). If the request is otherwise ambiguous or ill-formed, also set action to "unknown" and explain in summary.
 
@@ -369,9 +364,7 @@ Respond with ONLY the JSON object.`,
         if (action.followUp) setPendingFollowUp(action.followUp);
         onNavigate("bridge");
         const followUpMsg = action.followUp
-          ? action.followUp.action === "swap"
-            ? ` Once it lands, I'll bring you straight to swap it to ${action.followUp.toToken}.`
-            : " Once it lands, I'll bring you straight to Lending."
+          ? ` Once it lands, I'll bring you straight to swap it to ${action.followUp.toToken}.`
           : "";
         setMessages((prev) => [...prev, { role: "assistant", content: `Bridging needs a network switch, so I've taken you to the Bridge tab — pick your source chain and confirm there.${followUpMsg}` }]);
         setExecuting(false);
@@ -382,12 +375,7 @@ Respond with ONLY the JSON object.`,
           if (alloc.category === "idle" || alloc.amount <= 0) continue;
           const amountUnits = parseUnits(String(alloc.amount), 6);
 
-          if (alloc.category === "lending") {
-            const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [LENDING_CONTRACT, amountUnits], account: address as `0x${string}` });
-            await publicClient.waitForTransactionReceipt({ hash: approveHash });
-            const hash = await wc.writeContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "supply", args: [amountUnits], account: address as `0x${string}` });
-            await publicClient.waitForTransactionReceipt({ hash });
-          } else if (alloc.category === "swap_to_eurc") {
+          if (alloc.category === "swap_to_eurc") {
             const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountUnits], account: address as `0x${string}` });
             await publicClient.waitForTransactionReceipt({ hash: approveHash });
             const stratQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getEurcOut", args: [amountUnits] }) as bigint;

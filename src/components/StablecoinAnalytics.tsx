@@ -5,7 +5,6 @@ import { useIsMobile } from "../useIsMobile";
 
 const SWAP_CONTRACT = "0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521" as `0x${string}`; // ArcSwap v2
 const LEGACY_AMM = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
-const LENDING_CONTRACT = "0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a" as `0x${string}`; // ArcLending v2
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 
@@ -13,17 +12,11 @@ const ERC20_BALANCE_ABI = [
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
 ] as const;
 
-const LENDING_ABI = [
-  { type: "function", name: "currentAPR", stateMutability: "view", inputs: [], outputs: [{ name: "bps", type: "uint256" }] },
-] as const;
-
 interface Metrics {
   usdcTotal: number;
   eurcTotal: number;
   swapPool: number;
   ammPool: number;
-  lendingPool: number;
-  lendingAPR: string;
 }
 
 export default function StablecoinAnalytics() {
@@ -37,7 +30,7 @@ export default function StablecoinAnalytics() {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-        const contracts = [SWAP_CONTRACT, LEGACY_AMM, LENDING_CONTRACT];
+        const contracts = [SWAP_CONTRACT, LEGACY_AMM];
         const usdcBalances = await Promise.all(
           contracts.map((c) => client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [c] }))
         );
@@ -47,15 +40,12 @@ export default function StablecoinAnalytics() {
 
         const usdcTotal = usdcBalances.reduce((sum, b) => sum + Number(formatUnits(b, 6)), 0);
         const eurcTotal = eurcBalances.reduce((sum, b) => sum + Number(formatUnits(b, 6)), 0);
-        const apr = await client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "currentAPR" });
 
         setMetrics({
           usdcTotal,
           eurcTotal,
           swapPool: Number(formatUnits(usdcBalances[0], 6)) + Number(formatUnits(eurcBalances[0], 6)),
           ammPool: Number(formatUnits(usdcBalances[1], 6)) + Number(formatUnits(eurcBalances[1], 6)),
-          lendingPool: Number(formatUnits(usdcBalances[2], 6)) + Number(formatUnits(eurcBalances[2], 6)),
-          lendingAPR: (Number(apr) / 100).toFixed(2),
         });
       } catch {
         setMetrics(null);
@@ -77,7 +67,7 @@ export default function StablecoinAnalytics() {
       <div style={{ background: "linear-gradient(135deg, #f5f3ff, #ede9fe)", borderRadius: 18, padding: "1.5rem" }}>
         <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 6 }}>PLATFORM STABLECOIN TVL</div>
         <div className="flowfi-mono" style={{ fontSize: 36, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${totalTVL.toFixed(2)}`}</div>
-        <p style={{ fontSize: 11, color: "#7c3aed", marginTop: 4 }}>Held across ArcSwap, Liquidity Pools, and ArcLending — verifiable on-chain</p>
+        <p style={{ fontSize: 11, color: "#7c3aed", marginTop: 4 }}>Held across ArcSwap and Liquidity Pools — verifiable on-chain</p>
       </div>
 
       <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
@@ -114,7 +104,6 @@ export default function StablecoinAnalytics() {
           <span></span><span>USDC</span><span>EURC</span>
         </div>
         {[
-          { label: "Lending APY", usdc: loading ? "..." : `${metrics?.lendingAPR ?? "..."}%`, eurc: "collateral only" },
           { label: "Swappable", usdc: "Yes", eurc: "Yes" },
           { label: "Bridgeable (CCTP)", usdc: "Yes · 4 chains", eurc: "Not yet" },
         ].map((row) => (
@@ -126,7 +115,7 @@ export default function StablecoinAnalytics() {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "0.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
         <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, marginBottom: 4 }}>SWAP POOL</div>
           <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.swapPool.toFixed(2)}`}</div>
@@ -134,10 +123,6 @@ export default function StablecoinAnalytics() {
         <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ fontSize: 10, color: "#5B21B6", fontWeight: 700, marginBottom: 4 }}>AMM POOL</div>
           <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.ammPool.toFixed(2)}`}</div>
-        </div>
-        <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ fontSize: 10, color: "#059669", fontWeight: 700, marginBottom: 4 }}>LENDING POOL</div>
-          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.lendingPool.toFixed(2)}`}</div>
         </div>
       </div>
 
