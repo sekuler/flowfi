@@ -9,13 +9,10 @@ import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
 import WalletConnect from "./components/WalletConnect";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
-import BridgeForm from "./components/BridgeForm";
-import GatewayPanel from "./components/GatewayPanel";
+import TransferHub from "./components/TransferHub";
 import SwapForm from "./components/SwapForm";
-import SendForm from "./components/SendForm";
 import TxHistory from "./components/TxHistory";
 import Dashboard from "./components/Dashboard";
-import ReceiveQR from "./components/ReceiveQR";
 import UnifiedBalance from "./components/UnifiedBalance";
 import CircleWallet from "./components/CircleWallet";
 import LiquidityPools from "./components/LiquidityPools";
@@ -29,9 +26,9 @@ import { getCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
 import { getRules, isRuleDue, markRuleTriggered } from "./automation";
 import { showToast } from "./toast";
 import {
-  Home, LayoutGrid, ArrowUpRight, ArrowDownLeft, Repeat, TrendingUp, Droplet,
+  Home, LayoutGrid, Repeat, TrendingUp, Droplet,
   Landmark, Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
-  Sparkles, Moon, Power, Copy, Check, RefreshCw, Zap,
+  Sparkles, Moon, Power, Copy, Check, RefreshCw, Lock,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -53,14 +50,21 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "home" | "portfolio" | "send" | "receive" | "swap" | "pools" | "lending" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "gateway";
+type Tab = "home" | "portfolio" | "swap" | "pools" | "lending" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
+// Guest mode (browsing Pools without a connected wallet) needs *something* to pass as
+// address/provider — a real zero address for read-only reserve/APR lookups, and a stub
+// provider whose request() always rejects, so if a guest somehow reaches an action button,
+// it fails cleanly with a clear message instead of crashing on a missing wallet.
+const GUEST_ADDRESS = "0x0000000000000000000000000000000000000000";
+const GUEST_PROVIDER = { request: async () => { throw new Error("Connect a wallet to do this."); } } as unknown as EIP1193Provider;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
 
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
 const PORTFOLIO_TAB: { id: Tab; label: string; Icon: any } = { id: "portfolio", label: "Portfolio", Icon: LayoutGrid };
+const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics"];
 
 const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
@@ -73,10 +77,7 @@ const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: 
   group: "TRANSFER",
   tabs: [
     { id: "bridge",       label: "Bridge",        Icon: Hexagon },
-    { id: "gateway",      label: "Gateway",       Icon: Zap },
     { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
-    { id: "send",         label: "Send",          Icon: ArrowUpRight },
-    { id: "receive",      label: "Receive",       Icon: ArrowDownLeft },
   ],
 },
 {
@@ -176,6 +177,7 @@ function AppInner() {
   useFlowFiFonts();
 
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [guestMode, setGuestMode] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 860);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -237,10 +239,20 @@ function AppInner() {
 
  function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
   setWallet({ provider, address, walletName });
+  setGuestMode(false);
   setTab("home");
   showToast("Wallet connected", "success");
   if (!hasSeenOnboarding()) setShowOnboarding(true);
 }
+
+  function goToTab(id: Tab) {
+    if (!wallet && !GUEST_SAFE_TABS.includes(id)) {
+      setGuestMode(false); // bounce back to the connect screen — this tab needs a real wallet
+      return;
+    }
+    setTab(id);
+    if (isMobile) setMobileMenuOpen(false);
+  }
 
   async function loadBalances(address: string) {
     try {
@@ -381,7 +393,7 @@ function AppInner() {
     `}</style>
   );
 
- if (!wallet) {
+ if (!wallet && !guestMode) {
   return (
     <div style={{ minHeight: "100vh", color: "#111827", position: "relative" }}>
       {sharedStyle}
@@ -419,10 +431,16 @@ function AppInner() {
         </p>
      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
   <WalletConnect onConnected={handleConnected} />
-  <a href="https://x.com/flowfiarc/status/2078926068485173522" target="_blank" rel="noopener noreferrer"
-    style={{ display: "flex", alignItems: "center", gap: 6, color: "#6D5EF7", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-    <span style={{ fontSize: 11 }}>▶</span> Watch Demo
-  </a>
+  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+    <button onClick={() => { setGuestMode(true); setTab("pools"); }}
+      style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
+      Explore without connecting →
+    </button>
+    <a href="https://x.com/flowfiarc/status/2078926068485173522" target="_blank" rel="noopener noreferrer"
+      style={{ display: "flex", alignItems: "center", gap: 6, color: "#6D5EF7", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+      <span style={{ fontSize: 11 }}>▶</span> Watch Demo
+    </a>
+  </div>
 </div>
         <p style={{ fontSize: 12, color: "#6B7280", marginBottom: 28 }}>Real wallet signatures. No seed phrase ever requested. Arc Testnet only.</p>
 
@@ -540,17 +558,18 @@ function AppInner() {
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           <div style={{ marginBottom: 4 }}>
             {[HOME_TAB, PORTFOLIO_TAB].map((t) => (
-              <button key={t.id} onClick={() => { setTab(t.id); if (isMobile) setMobileMenuOpen(false); }}
+              <button key={t.id} onClick={() => goToTab(t.id)}
                 style={{
                   width: "100%", padding: "0.45rem 1rem", borderRadius: 999, border: "none",
                   background: tab === t.id ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
-                  color: tab === t.id ? "#6D5EF7" : "#4B5563",
+                  color: tab === t.id ? "#6D5EF7" : !wallet ? "#B5B0C4" : "#4B5563",
                   fontSize: 12.5, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer",
                   display: "flex", alignItems: "center", gap: 9, textAlign: "left",
                   marginBottom: 1,
                 }}>
                 <t.Icon size={15} strokeWidth={2} />
-                <span>{t.label}</span>
+                <span style={{ flex: 1 }}>{t.label}</span>
+                {!wallet && <Lock size={11} />}
               </button>
             ))}
           </div>
@@ -559,18 +578,20 @@ function AppInner() {
               <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : "#3B82F6", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem" }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
+                const locked = !wallet && !GUEST_SAFE_TABS.includes(id);
                 return (
-                  <button key={id} onClick={() => { setTab(id); if (isMobile) setMobileMenuOpen(false); }}
+                  <button key={id} onClick={() => goToTab(id)}
                     style={{
                       width: "100%", padding: "0.45rem 1rem", borderRadius: 999, border: "none",
                       background: active ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
-                      color: active ? "#6D5EF7" : "#4B5563",
+                      color: active ? "#6D5EF7" : locked ? "#B5B0C4" : "#4B5563",
                       fontSize: 12.5, fontWeight: active ? 700 : 500, cursor: "pointer",
                       display: "flex", alignItems: "center", gap: 9, textAlign: "left",
                       marginBottom: 1,
                     }}>
                     <Icon size={15} strokeWidth={2} />
-                    <span>{label}</span>
+                    <span style={{ flex: 1 }}>{label}</span>
+                    {locked && <Lock size={11} />}
                   </button>
                 );
               })}
@@ -578,31 +599,41 @@ function AppInner() {
           ))}
         </nav>
         <div style={{ padding: "0.65rem 1.25rem", marginTop: "auto" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-            <span style={{ fontSize: 10, color: "#8B7CF9", fontWeight: 700, letterSpacing: "1px" }}>CONNECTED</span>
-            <button onClick={() => {
-              const next = window.prompt("Set a local nickname (only visible to you, this browser only):", nickname ?? "");
-              if (next === null) return;
-              if (next.trim()) { setNicknameState(next.trim()); saveNickname(next.trim()); }
-              else { setNicknameState(null); clearNickname(); }
-            }} title="Set a local nickname" style={{ background: "none", border: "none", color: "#8B7CF9", cursor: "pointer", fontSize: 10, fontWeight: 700 }}>
-              {nickname ? "Edit" : "+ Nickname"}
-            </button>
-          </div>
-          {nickname && <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", marginBottom: 2 }}>{nickname}</div>}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div className="flowfi-mono" style={{ fontSize: 13, color: "#374151" }}>{shortAddr}</div>
-            <button onClick={copyAddress} title="Copy address"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: copied ? "#22C55E" : "#6B7280", display: "flex" }}>
-              {copied ? <Check size={13} /> : <Copy size={13} />}
-            </button>
-          </div>
-          <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{wallet.walletName}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, background: "rgba(109,94,247,0.08)", borderRadius: 999, padding: "4px 10px", width: "fit-content" }}>
-            <Sparkles size={11} color="#6D5EF7" />
-            <span className="flowfi-mono" style={{ fontSize: 11, fontWeight: 700, color: "#6D5EF7" }}>{points} pts</span>
-          </div>
-          <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} style={{ marginTop: 10, fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
+          {wallet ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 10, color: "#8B7CF9", fontWeight: 700, letterSpacing: "1px" }}>CONNECTED</span>
+                <button onClick={() => {
+                  const next = window.prompt("Set a local nickname (only visible to you, this browser only):", nickname ?? "");
+                  if (next === null) return;
+                  if (next.trim()) { setNicknameState(next.trim()); saveNickname(next.trim()); }
+                  else { setNicknameState(null); clearNickname(); }
+                }} title="Set a local nickname" style={{ background: "none", border: "none", color: "#8B7CF9", cursor: "pointer", fontSize: 10, fontWeight: 700 }}>
+                  {nickname ? "Edit" : "+ Nickname"}
+                </button>
+              </div>
+              {nickname && <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", marginBottom: 2 }}>{nickname}</div>}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div className="flowfi-mono" style={{ fontSize: 13, color: "#374151" }}>{shortAddr}</div>
+                <button onClick={copyAddress} title="Copy address"
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: copied ? "#22C55E" : "#6B7280", display: "flex" }}>
+                  {copied ? <Check size={13} /> : <Copy size={13} />}
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{wallet.walletName}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, background: "rgba(109,94,247,0.08)", borderRadius: 999, padding: "4px 10px", width: "fit-content" }}>
+                <Sparkles size={11} color="#6D5EF7" />
+                <span className="flowfi-mono" style={{ fontSize: 11, fontWeight: 700, color: "#6D5EF7" }}>{points} pts</span>
+              </div>
+              <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} style={{ marginTop: 10, fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 10, color: "#8B7CF9", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>GUEST MODE</div>
+              <p style={{ fontSize: 11.5, color: "#6B7280", margin: "0 0 10px 0", lineHeight: 1.5 }}>Browsing read-only. Connect a wallet to swap, bridge, and manage your own funds.</p>
+              <button onClick={() => setGuestMode(false)} style={{ fontSize: 12, color: "#fff", background: "#6D5EF7", border: "none", borderRadius: 999, padding: "7px 12px", cursor: "pointer", width: "100%", fontWeight: 700 }}>Connect Wallet</button>
+            </>
+          )}
         </div>
       </aside>
 
@@ -633,25 +664,34 @@ function AppInner() {
             <span className="flowfi-live-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E" }} />
             <span style={{ fontSize: 12, fontWeight: 800, color: "#16A34A" }}>Arc Testnet</span>
           </div>
-          <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
-            className="flowfi-mono"
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
-            {shortAddr}
-          </a>
-          <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} title="Disconnect wallet"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
-            <Power size={15} />
-          </button>
+          {wallet ? (
+            <>
+              <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
+                className="flowfi-mono"
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                {shortAddr}
+              </a>
+              <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} title="Disconnect wallet"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
+                <Power size={15} />
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setGuestMode(false)}
+              style={{ padding: "8px 16px", borderRadius: 999, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+              Connect Wallet
+            </button>
+          )}
         </header>
 
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
-          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" || tab === "gateway" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520), margin: "0 auto" }}>
+          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "send" ? "Send" : tab === "receive" ? "Receive" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
+                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "send" ? "Send USDC or EURC on Arc" : tab === "receive" ? "Share your address or QR code to receive funds" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "lending" ? "Supply to earn, or borrow against collateral — testnet only, not planned for mainnet" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Bridge USDC to Arc via CCTP"}
+               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "lending" ? "Supply to earn, or borrow against collateral — testnet only, not planned for mainnet" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
               {tab === "portfolio" && balances.usdc !== null && (
                 <div style={{ marginTop: 14 }}>
@@ -662,8 +702,8 @@ function AppInner() {
                 </div>
               )}
             </div>
-{tab === "home" && <CopilotHome address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
-{tab === "portfolio" && (
+{tab === "home" && wallet && <CopilotHome address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
+{tab === "portfolio" && wallet && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                 <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px" }}>BROWSER WALLET · {shortAddr}</div>
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "0.75rem" }}>
@@ -733,10 +773,9 @@ function AppInner() {
                 <div>
                   <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 10 }}>QUICK ACTIONS</div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => setTab("send")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}><ArrowUpRight size={16} />Send</button>
-                    <button onClick={() => setTab("receive")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}><ArrowDownLeft size={16} />Receive</button>
                     <button onClick={() => setTab("swap")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}><Repeat size={16} />Swap</button>
                     <button onClick={() => setTab("bridge")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}><Hexagon size={16} />Bridge</button>
+                    <button onClick={() => setTab("pools")} className="flowfi-glow-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "0.75rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}><Droplet size={16} />Pools</button>
                   </div>
                 </div>
 
@@ -768,18 +807,22 @@ function AppInner() {
               </div>
             )}
 
-            {tab === "dashboard" && <Dashboard address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
+            {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
             {tab === "analytics" && <StablecoinAnalytics />}
-            {tab === "history" && <TxHistory address={wallet.address} />}
-            {tab === "receive" && <ReceiveQR address={wallet.address} />}
-            {tab === "bridge" && <BridgeForm provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} onNavigate={(t) => setTab(t)} />}
-            {tab === "gateway" && <GatewayPanel provider={wallet.provider} address={wallet.address} />}
-            {tab === "swap" && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
-            {tab === "send" && <SendForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
+            {tab === "history" && wallet && <TxHistory address={wallet.address} />}
+            {tab === "bridge" && wallet && <TransferHub provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} onNavigate={(t) => setTab(t)} />}
+            {tab === "swap" && wallet && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
             {tab === "circlewallet" && <CircleWallet />}
-            {tab === "pools" && <LiquidityPools provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
-          {tab === "lending" && <LendingForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
-          {tab === "launch" && <TokenLaunch provider={wallet.provider} address={wallet.address} onNavigateToPools={() => setTab("pools")} />}
+            {tab === "pools" && (
+              <LiquidityPools
+                provider={wallet ? wallet.provider : GUEST_PROVIDER}
+                address={wallet ? wallet.address : GUEST_ADDRESS}
+                balances={wallet ? balances : { usdc: null, eurc: null, usyc: null, native: null }}
+                onRefresh={() => wallet && loadBalances(wallet.address)}
+              />
+            )}
+          {tab === "lending" && wallet && <LendingForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
+          {tab === "launch" && wallet && <TokenLaunch provider={wallet.provider} address={wallet.address} onNavigateToPools={() => setTab("pools")} />}
           </div>
         </div>
         </div>
@@ -834,7 +877,7 @@ function AppInner() {
         </footer>
       </main>
 
-      <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
+      {wallet && <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />}
       {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
     </div>
   );

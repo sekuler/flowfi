@@ -3,6 +3,7 @@ import AiNarrator from "./AiNarrator";
 import { useState, useEffect, useRef } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
+import { useIsMobile } from "../useIsMobile";
 
 // Real method-selector → label mapping (verified via keccak256 of each real
 // function signature) — not a guess, and not just "Transaction" for everything.
@@ -60,7 +61,7 @@ const POOL_FACTORY_ABI = [
 interface Props {
   address: string;
   balances: { usdc: string | null; eurc: string | null; usyc: string | null; native: string | null };
-  onNavigate: (tab: "swap" | "bridge" | "send" | "lending" | "pools" | "launch") => void;
+  onNavigate: (tab: "swap" | "bridge" | "lending" | "pools" | "launch") => void;
 }
 
 interface RecentTx {
@@ -96,6 +97,7 @@ function Sparkline({ color, seed }: { color: string; seed: number }) {
 }
 
 export default function CopilotHome({ address, balances, onNavigate }: Props) {
+  const isMobile = useIsMobile();
   const [memoryInsight, setMemoryInsight] = useState<MemoryInsight | null>(null);
   const [lendingAPR, setLendingAPR] = useState<string | null>(null);
   const [healthFactor, setHealthFactor] = useState<number | null>(null); // null = no debt / not applicable
@@ -253,7 +255,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       )}
 
       {/* Stat cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: "1rem" }}>
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 13, color: "#4B5563", marginBottom: 8 }}>Total Portfolio Value</div>
           <div className="flowfi-mono" style={{ fontSize: 28, fontWeight: 700, color: "#111827", marginBottom: 4 }}>
@@ -282,7 +284,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       </div>
 
       {/* Assets / AI Advisor / Quick Actions */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1fr)", gap: "1rem", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1fr)", gap: "1rem", alignItems: "start" }}>
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Your Assets</div>
@@ -379,7 +381,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       <AutomationCard usdcVal={usdcVal} onNavigate={onNavigate} />
 
       {/* Market Overview / Recent Activity */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)", gap: "1rem", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.4fr) minmax(0, 1fr)", gap: "1rem", alignItems: "start" }}>
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Market Overview</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
