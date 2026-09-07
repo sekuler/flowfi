@@ -7,3 +7,4 @@ register-entity-secret.cjs
 test-circle.cjs
 recovery_file*.dat
 temp_swap.txt
+start-activity.bat

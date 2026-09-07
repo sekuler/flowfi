@@ -1,6 +1,6 @@
 # FlowFi Smart Contracts (Arc Testnet)
 
-Source for the 4 contracts that were redeployed after the security review documented in `kontrat-denetim-raporu.md`.
+Source for the 4 contracts that were redeployed after the security review documented in [`SECURITY.md`](../SECURITY.md).
 
 | Contract | File | Address |
 |---|---|---|
@@ -9,4 +9,4 @@ Source for the 4 contracts that were redeployed after the security review docume
 | Pool Factory v2 | `ArcFactoryV2.sol` | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
 | Escrow v3 | `ArcEscrow.sol` | `0xCe6c2B0EAbC86974c653020467c05Ce5e1eB418C` |
 
-**Not included here:** Token Factory and the (disabled) Perpetuals contract — these were audited but never modified, and their source wasn't kept as a separate file during that process. Their addresses are still listed in the main README's contract table; the deployed bytecode is verified and viewable on [Arcscan](https://testnet.arcscan.app).
+**Not included here:** Token Factory — audited but never modified, and its source wasn't kept as a separate file. Its address is still listed in the main README's contract table; the deployed bytecode is verified and viewable on [Arcscan](https://testnet.arcscan.app). (The Perpetuals contract was audited the same way, but the feature — and every reference to it — has since been fully removed from the app; see [`SECURITY.md`](../SECURITY.md).)

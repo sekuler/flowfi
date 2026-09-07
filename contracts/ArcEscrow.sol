@@ -114,10 +114,19 @@ contract ArcEscrow {
         emit FundsReleased(id);
     }
 
+    // v4 fix (security review): refund() previously allowed the client to
+    // refund themselves even after Status.Submitted — meaning a client could
+    // let the freelancer submit completed work and then simply refund
+    // themselves, taking the funds back and paying nothing. That silently
+    // defeated claimAfterTimeout's entire purpose (protecting the freelancer
+    // from an unresponsive or bad-faith client). Refund is now only valid
+    // before work is submitted. Once Submitted, the client's only options
+    // are releaseFunds() (pay the freelancer) or doing nothing, in which case
+    // the freelancer can claimAfterTimeout() once SUBMISSION_TIMEOUT passes.
     function refund(uint256 id) external {
         Escrow storage e = escrows[id];
         require(e.client == msg.sender, "Only client can refund");
-        require(e.status == Status.Funded || e.status == Status.Submitted, "Cannot refund");
+        require(e.status == Status.Funded, "Cannot refund after work is submitted");
 
         e.status = Status.Refunded;
         require(usdc.transfer(e.client, e.amount), "Transfer failed");

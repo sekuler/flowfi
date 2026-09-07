@@ -34,7 +34,7 @@ contract ArcSwap {
     uint256 public usdcToEurcRate;
     bool public paused;
 
-    uint256 private locked; // reentrancy guard: 1 = unlocked, 2 = locked
+    uint256 private locked; // reentrancy guard: 0 = unlocked, 1 = locked
 
     event Swapped(address indexed user, bool usdcToEurc, uint256 amountIn, uint256 amountOut);
     event RateUpdated(uint256 newRate);
