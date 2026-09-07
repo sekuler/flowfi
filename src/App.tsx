@@ -7,7 +7,8 @@ import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
-import WalletConnect from "./components/WalletConnect";
+import { discoverWallets } from "./components/WalletConnect";
+import ConnectModal from "./components/ConnectModal";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
 import TransferHub from "./components/TransferHub";
 import SwapForm from "./components/SwapForm";
@@ -65,6 +66,13 @@ const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
 const PORTFOLIO_TAB: { id: Tab; label: string; Icon: any } = { id: "portfolio", label: "Portfolio", Icon: LayoutGrid };
 const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics"];
+// Bridge/Swap/History already read their own Circle Wallet from localStorage
+// internally (independent of the provider/address props) — so a Circle-primary
+// session can use them today. Portfolio only ever does read-only balance
+// lookups (no signing), so it works for any address. Home/Dashboard/Lending/
+// Launch and the AI Copilot all assume a real browser-wallet signer and don't
+// have a Circle-Wallet code path yet — those stay locked until that's built.
+const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet"];
 
 const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
@@ -178,6 +186,8 @@ function AppInner() {
 
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [guestMode, setGuestMode] = useState(false);
+  const [circlePrimary, setCirclePrimary] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 860);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -211,6 +221,26 @@ function AppInner() {
     return () => clearInterval(interval);
   }, []);
 
+  // Silently check whether the wallet from a previous session is still authorized —
+  // no popup, just a background eth_accounts check. Runs on load regardless of
+  // whether the connect modal is open, so a page refresh doesn't drop the session.
+  useEffect(() => {
+    const lastRdns = localStorage.getItem("flowfi-last-wallet-rdns");
+    if (!lastRdns) return;
+    (async () => {
+      const found = await discoverWallets();
+      const match = found.find((w) => w.info.rdns === lastRdns);
+      if (!match) return;
+      try {
+        const accounts = (await match.provider.request({ method: "eth_accounts", params: undefined })) as string[];
+        if (accounts[0]) handleConnected(match.provider, accounts[0], match.info.name);
+      } catch {
+        // Silent check failed — just show the normal connect screen.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     async function loadCircleBalances(info: CircleWalletInfo) {
@@ -240,14 +270,33 @@ function AppInner() {
  function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
   setWallet({ provider, address, walletName });
   setGuestMode(false);
+  setCirclePrimary(false);
+  setShowConnectModal(false);
   setTab("home");
   showToast("Wallet connected", "success");
   if (!hasSeenOnboarding()) setShowOnboarding(true);
 }
 
+  function handleCircleConnected(info: CircleWalletInfo) {
+    setCircleWalletInfo(info);
+    setCirclePrimary(true);
+    setGuestMode(false);
+    setShowConnectModal(false);
+    setTab("pools");
+    showToast("Circle Wallet connected", "success");
+  }
+
   function goToTab(id: Tab) {
-    if (!wallet && !GUEST_SAFE_TABS.includes(id)) {
+    if (!wallet && guestMode && !GUEST_SAFE_TABS.includes(id)) {
       setGuestMode(false); // bounce back to the connect screen — this tab needs a real wallet
+      return;
+    }
+    if (!wallet && circlePrimary && !CIRCLE_SAFE_TABS.includes(id)) {
+      setShowConnectModal(true); // this tab isn't wired for Circle Wallet yet — offer to add a browser wallet
+      return;
+    }
+    if (!wallet && !guestMode && !circlePrimary) {
+      setShowConnectModal(true);
       return;
     }
     setTab(id);
@@ -313,8 +362,12 @@ function AppInner() {
       loadBalances(wallet.address);
       loadRecentTxs(wallet.address);
       loadEurRate();
+    } else if (circlePrimary && circleWalletInfo) {
+      loadBalances(circleWalletInfo.address);
+      loadRecentTxs(circleWalletInfo.address);
+      loadEurRate();
     }
-  }, [wallet]);
+  }, [wallet, circlePrimary, circleWalletInfo]);
 
   function copyAddress() {
     if (!wallet) return;
@@ -393,7 +446,7 @@ function AppInner() {
     `}</style>
   );
 
- if (!wallet && !guestMode) {
+ if (!wallet && !guestMode && !circlePrimary) {
   return (
     <div style={{ minHeight: "100vh", color: "#111827", position: "relative" }}>
       {sharedStyle}
@@ -430,7 +483,10 @@ function AppInner() {
           Swap, bridge, lend, launch tokens, trade perpetuals, and manage your stablecoins — all through one intelligent Copilot on Arc.
         </p>
      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
-  <WalletConnect onConnected={handleConnected} />
+  <button onClick={() => setShowConnectModal(true)}
+    style={{ maxWidth: 420, width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: "pointer" }}>
+    Connect Wallet
+  </button>
   <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
     <button onClick={() => { setGuestMode(true); setTab("pools"); }}
       style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
@@ -527,6 +583,7 @@ function AppInner() {
           </div>
         </div>
       </footer>
+      {showConnectModal && <ConnectModal onClose={() => setShowConnectModal(false)} onConnected={handleConnected} onCircleConnected={handleCircleConnected} />}
     </div>
   );
 }
@@ -557,28 +614,31 @@ function AppInner() {
         </div>
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           <div style={{ marginBottom: 4 }}>
-            {[HOME_TAB, PORTFOLIO_TAB].map((t) => (
+            {[HOME_TAB, PORTFOLIO_TAB].map((t) => {
+              const tLocked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(t.id) : !GUEST_SAFE_TABS.includes(t.id));
+              return (
               <button key={t.id} onClick={() => goToTab(t.id)}
                 style={{
                   width: "100%", padding: "0.45rem 1rem", borderRadius: 999, border: "none",
                   background: tab === t.id ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
-                  color: tab === t.id ? "#6D5EF7" : !wallet ? "#B5B0C4" : "#4B5563",
+                  color: tab === t.id ? "#6D5EF7" : tLocked ? "#B5B0C4" : "#4B5563",
                   fontSize: 12.5, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer",
                   display: "flex", alignItems: "center", gap: 9, textAlign: "left",
                   marginBottom: 1,
                 }}>
                 <t.Icon size={15} strokeWidth={2} />
                 <span style={{ flex: 1 }}>{t.label}</span>
-                {!wallet && <Lock size={11} />}
+                {tLocked && <Lock size={11} />}
               </button>
-            ))}
+              );
+            })}
           </div>
           {TAB_GROUPS.map(({ group, variant, tabs }) => (
             <div key={group} style={{ marginBottom: 4 }}>
               <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : "#3B82F6", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem" }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
-                const locked = !wallet && !GUEST_SAFE_TABS.includes(id);
+                const locked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(id) : !GUEST_SAFE_TABS.includes(id));
                 return (
                   <button key={id} onClick={() => goToTab(id)}
                     style={{
@@ -627,11 +687,21 @@ function AppInner() {
               </div>
               <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} style={{ marginTop: 10, fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
             </>
+          ) : circlePrimary && circleWalletInfo ? (
+            <>
+              <div style={{ fontSize: 10, color: "#8B7CF9", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>CIRCLE WALLET</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div className="flowfi-mono" style={{ fontSize: 13, color: "#374151" }}>{circleWalletInfo.address.slice(0, 6)}...{circleWalletInfo.address.slice(-4)}</div>
+              </div>
+              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, marginBottom: 8 }}>No seed phrase — some features need a Browser Wallet</div>
+              <button onClick={() => setShowConnectModal(true)} style={{ fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Add Browser Wallet</button>
+              <button onClick={() => { setCirclePrimary(false); setCircleWalletInfo(null); setTab("home"); }} style={{ marginTop: 6, fontSize: 11, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", width: "100%" }}>Disconnect</button>
+            </>
           ) : (
             <>
               <div style={{ fontSize: 10, color: "#8B7CF9", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>GUEST MODE</div>
               <p style={{ fontSize: 11.5, color: "#6B7280", margin: "0 0 10px 0", lineHeight: 1.5 }}>Browsing read-only. Connect a wallet to swap, bridge, and manage your own funds.</p>
-              <button onClick={() => setGuestMode(false)} style={{ fontSize: 12, color: "#fff", background: "#6D5EF7", border: "none", borderRadius: 999, padding: "7px 12px", cursor: "pointer", width: "100%", fontWeight: 700 }}>Connect Wallet</button>
+              <button onClick={() => setShowConnectModal(true)} style={{ fontSize: 12, color: "#fff", background: "#6D5EF7", border: "none", borderRadius: 999, padding: "7px 12px", cursor: "pointer", width: "100%", fontWeight: 700 }}>Connect Wallet</button>
             </>
           )}
         </div>
@@ -676,8 +746,20 @@ function AppInner() {
                 <Power size={15} />
               </button>
             </>
+          ) : circlePrimary && circleWalletInfo ? (
+            <>
+              <a href={`https://testnet.arcscan.app/address/${circleWalletInfo.address}`} target="_blank" rel="noopener noreferrer"
+                className="flowfi-mono"
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                {circleWalletInfo.address.slice(0, 6)}...{circleWalletInfo.address.slice(-4)}
+              </a>
+              <button onClick={() => { setCirclePrimary(false); setCircleWalletInfo(null); setTab("home"); }} title="Disconnect"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
+                <Power size={15} />
+              </button>
+            </>
           ) : (
-            <button onClick={() => setGuestMode(false)}
+            <button onClick={() => setShowConnectModal(true)}
               style={{ padding: "8px 16px", borderRadius: 999, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
               Connect Wallet
             </button>
@@ -703,9 +785,14 @@ function AppInner() {
               )}
             </div>
 {tab === "home" && wallet && <CopilotHome address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
-{tab === "portfolio" && wallet && (
+{tab === "portfolio" && (wallet || (circlePrimary && circleWalletInfo)) && (() => {
+              const portfolioAddr = wallet ? wallet.address : circleWalletInfo!.address;
+              const portfolioShort = portfolioAddr.slice(0, 6) + "..." + portfolioAddr.slice(-4);
+              return (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px" }}>BROWSER WALLET · {shortAddr}</div>
+                <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px" }}>
+                  {wallet ? `BROWSER WALLET · ${shortAddr}` : `CIRCLE WALLET · ${portfolioShort}`}
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "0.75rem" }}>
                   {(["USDC", "EURC", "USYC"] as const).map((label) => {
                     const value = label === "USDC" ? balances.usdc : label === "EURC" ? balances.eurc : balances.usyc;
@@ -728,7 +815,7 @@ function AppInner() {
                   })}
                 </div>
 
-                {circleWalletInfo && (
+                {wallet && circleWalletInfo && (
                   <>
                     <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginTop: 6 }}>CIRCLE WALLET · {circleWalletInfo.address.slice(0, 6)}...{circleWalletInfo.address.slice(-4)}</div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
@@ -762,7 +849,7 @@ function AppInner() {
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <button onClick={() => loadBalances(wallet.address)} style={{ background: "#ffffff", border: "none", borderRadius: 999, padding: "0.5rem 1rem", color: "#6D5EF7", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
+                  <button onClick={() => loadBalances(portfolioAddr)} style={{ background: "#ffffff", border: "none", borderRadius: 999, padding: "0.5rem 1rem", color: "#6D5EF7", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
                     <RefreshCw size={12} style={{ marginRight: 5, verticalAlign: -1 }} />Refresh
                   </button>
                   {lastUpdated && (
@@ -779,7 +866,7 @@ function AppInner() {
                   </div>
                 </div>
 
-                <UnifiedBalance address={wallet.address} />
+                <UnifiedBalance address={portfolioAddr} />
 
                 {recentTxs.length > 0 && (
                   <div>
@@ -799,24 +886,39 @@ function AppInner() {
                   </div>
                 )}
 
-                <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
+                <a href={`https://testnet.arcscan.app/address/${portfolioAddr}`} target="_blank" rel="noopener noreferrer"
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderRadius: 12, border: "none", background: "rgba(109,94,247,0.08)", color: "#6D5EF7", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
                   <span>View on Explorer ↗</span>
-                  <span className="flowfi-mono" style={{ fontSize: 11, color: "#6D5EF7" }}>{shortAddr}</span>
+                  <span className="flowfi-mono" style={{ fontSize: 11, color: "#6D5EF7" }}>{portfolioShort}</span>
                 </a>
               </div>
-            )}
+              );
+            })()}
 
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
             {tab === "analytics" && <StablecoinAnalytics />}
-            {tab === "history" && wallet && <TxHistory address={wallet.address} />}
-            {tab === "bridge" && wallet && <TransferHub provider={wallet.provider} address={wallet.address} walletName={wallet.walletName} onNavigate={(t) => setTab(t)} />}
-            {tab === "swap" && wallet && <SwapForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
+            {tab === "history" && (wallet || (circlePrimary && circleWalletInfo)) && <TxHistory address={wallet ? wallet.address : circleWalletInfo!.address} />}
+            {tab === "bridge" && (wallet || (circlePrimary && circleWalletInfo)) && (
+              <TransferHub
+                provider={wallet ? wallet.provider : GUEST_PROVIDER}
+                address={wallet ? wallet.address : circleWalletInfo!.address}
+                walletName={wallet ? wallet.walletName : "Circle Wallet"}
+                onNavigate={(t) => setTab(t)}
+              />
+            )}
+            {tab === "swap" && (wallet || (circlePrimary && circleWalletInfo)) && (
+              <SwapForm
+                provider={wallet ? wallet.provider : GUEST_PROVIDER}
+                address={wallet ? wallet.address : circleWalletInfo!.address}
+                balances={balances}
+                onRefresh={() => loadBalances(wallet ? wallet.address : circleWalletInfo!.address)}
+              />
+            )}
             {tab === "circlewallet" && <CircleWallet />}
             {tab === "pools" && (
               <LiquidityPools
                 provider={wallet ? wallet.provider : GUEST_PROVIDER}
-                address={wallet ? wallet.address : GUEST_ADDRESS}
+                address={wallet ? wallet.address : (circlePrimary && circleWalletInfo ? circleWalletInfo.address : GUEST_ADDRESS)}
                 balances={wallet ? balances : { usdc: null, eurc: null, usyc: null, native: null }}
                 onRefresh={() => wallet && loadBalances(wallet.address)}
               />
@@ -879,6 +981,7 @@ function AppInner() {
 
       {wallet && <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />}
       {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
+      {showConnectModal && <ConnectModal onClose={() => setShowConnectModal(false)} onConnected={handleConnected} onCircleConnected={handleCircleConnected} />}
     </div>
   );
 }
