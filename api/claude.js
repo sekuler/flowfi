@@ -9,17 +9,36 @@
 // Rate limit: since every user shares this one server-side key, a per-IP
 // limit protects against a single abusive client (or a bug causing a tight
 // retry loop) from burning through the whole account's credit balance.
+//
+// This used to be a plain in-memory Map — which only counts requests seen
+// by ONE serverless instance. Under real traffic Vercel runs several
+// instances of the same function concurrently, so that limit was really
+// "20 requests per instance per minute", not 20 total — a client whose
+// requests happened to land on different instances could blow past it
+// entirely. Upstash Redis is a real shared store every instance talks to
+// over HTTP (no persistent connection needed, which is what makes it work
+// in a serverless function at all), so the count is now genuinely global.
+//
+// Requires two env vars: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN
+// (free tier at upstash.com — create a Redis database, both values are on
+// its detail page). If they're not set, rate limiting is skipped entirely
+// (logged once) rather than silently falling back to the old broken
+// per-instance counter, which was never a real limit to begin with.
+const { Ratelimit } = require("@upstash/ratelimit");
+const { Redis } = require("@upstash/redis");
 
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 20; // per IP, per window
-const requestLog = new Map(); // ip -> array of request timestamps
-
-function isRateLimited(ip) {
-  const now = Date.now();
-  const timestamps = (requestLog.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  timestamps.push(now);
-  requestLog.set(ip, timestamps);
-  return timestamps.length > RATE_LIMIT_MAX_REQUESTS;
+let ratelimit = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  ratelimit = new Ratelimit({
+    redis: new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    }),
+    limiter: Ratelimit.slidingWindow(20, "60 s"), // 20 requests per IP per minute, shared across all instances
+    prefix: "ratelimit:claude",
+  });
+} else {
+  console.warn("api/claude.js: UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting is OFF, not falling back to a per-instance approximation.");
 }
 
 module.exports = async function handler(req, res) {
@@ -28,8 +47,11 @@ module.exports = async function handler(req, res) {
   }
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
-  if (isRateLimited(ip)) {
-    return res.status(429).json({ error: "Too many requests — please wait a moment and try again." });
+  if (ratelimit) {
+    const { success } = await ratelimit.limit(ip);
+    if (!success) {
+      return res.status(429).json({ error: "Too many requests — please wait a moment and try again." });
+    }
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

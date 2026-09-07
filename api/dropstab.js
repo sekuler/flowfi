@@ -23,20 +23,35 @@
 // Fix: fetch pages in PARALLEL batches within a single request instead of
 // one at a time. This covers all ~101 pages in a few seconds instead of
 // timing out — no reliance on state surviving between invocations.
+//
+// The rate limiter below used to have the exact same bug this file's own
+// comment above already diagnosed for pagination: a plain in-memory Map
+// only counts requests seen by ONE instance, so it was never really "10
+// requests per IP per minute" under real concurrent traffic. Fixed the
+// same way — Upstash Redis, a real shared store every instance talks to
+// over HTTP. Requires UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
+// (see api/claude.js for the same setup). Rate limiting is skipped
+// (logged once) if those aren't set, rather than silently keeping the old
+// per-instance approximation.
 
 const BATCH_SIZE = 20; // concurrent requests per batch
 const MAX_PAGES = 101; // covers the full known range
 
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_MAX_REQUESTS = 10;
-const requestLog = new Map();
+const { Ratelimit } = require("@upstash/ratelimit");
+const { Redis } = require("@upstash/redis");
 
-function isRateLimited(ip) {
-  const now = Date.now();
-  const timestamps = (requestLog.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  timestamps.push(now);
-  requestLog.set(ip, timestamps);
-  return timestamps.length > RATE_LIMIT_MAX_REQUESTS;
+let ratelimit = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  ratelimit = new Ratelimit({
+    redis: new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    }),
+    limiter: Ratelimit.slidingWindow(10, "60 s"),
+    prefix: "ratelimit:dropstab",
+  });
+} else {
+  console.warn("api/dropstab.js: UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting is OFF, not falling back to a per-instance approximation.");
 }
 
 async function fetchPage(apiKey, page) {
@@ -93,8 +108,11 @@ module.exports = async function handler(req, res) {
   }
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
-  if (isRateLimited(ip)) {
-    return res.status(429).json({ error: "Too many requests — please wait a moment and try again." });
+  if (ratelimit) {
+    const { success } = await ratelimit.limit(ip);
+    if (!success) {
+      return res.status(429).json({ error: "Too many requests — please wait a moment and try again." });
+    }
   }
 
   const apiKey = process.env.DROPSTAB_API_KEY;

@@ -62,6 +62,8 @@ Live token unlock/vesting data via the DropsTab Builders Program API.
 
 **How it works:** Our Builders Program tier only includes the general overview endpoint (`/tokenUnlocks`), not per-coin lookups. This endpoint fetches that overview in parallel batches of pages (up to ~101 pages) and searches for a match. No reliance on in-memory state persisting between requests — Vercel serverless instances aren't guaranteed to be warm/shared, so every request re-searches from scratch via parallel batches rather than a slow sequential crawl.
 
+**Rate limit:** 10 requests/minute per IP, via Upstash Redis — shared across every serverless instance, not an in-memory approximation. Skipped entirely (not approximated) if `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` aren't set.
+
 **Response:** DropsTab's raw item for the matched coin (allocations array with `tokenUnlockProgress` per allocation), or a 404 if not found in their tracked list. Not every project — especially fully-vested ones — is tracked.
 
 ---
@@ -72,7 +74,7 @@ Proxy for all Claude API calls. The Anthropic key lives only here (`ANTHROPIC_AP
 
 **Body:** `{ model, max_tokens, system, messages }` — same shape as calling Anthropic's `/v1/messages` directly.
 
-**Rate limit:** 20 requests/minute per IP (in-memory, best-effort) — protects the shared API credit balance from abuse, since every user's AI usage draws from the same key.
+**Rate limit:** 20 requests/minute per IP, via Upstash Redis — shared across every serverless instance (not an in-memory per-instance approximation, which was never a real limit under concurrent traffic). Skipped entirely, not approximated, if `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` aren't set. Protects the shared API credit balance from abuse, since every user's AI usage draws from the same key.
 
 **Response:** Anthropic's raw response, passed through unmodified.
 
