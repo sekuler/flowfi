@@ -1,6 +1,6 @@
 # FlowFi Backend API
 
-Internal reference for FlowFi's serverless backend endpoints (Vercel functions under `/api`). All secrets (Anthropic key, DropsTab key, Telegram bot token) live server-side only — none of these are exposed to the browser.
+Internal reference for FlowFi's serverless backend endpoints (Vercel functions under `/api`). All secrets (Anthropic key, Circle key, DropsTab key) live server-side only — none of these are exposed to the browser.
 
 ---
 
@@ -78,15 +78,49 @@ Proxy for all Claude API calls. The Anthropic key lives only here (`ANTHROPIC_AP
 
 ---
 
-## `POST /api/feedback`
+## `GET|POST /api/iris-proxy`
 
-Sends in-app user feedback to a Telegram chat via the Bot API.
+Generic proxy for Circle's IRIS API (`iris-api-sandbox.circle.com`) — attestation polling, CCTPx token lookup, CCTPx fast-transfer allowance, and the CCTPx fee quote. Exists because the CCTPx fee-quote endpoint rejects direct browser calls (CORS), so every IRIS call is routed server-side for consistency.
 
-**Body:** `{ message: string, page?: string }`
+**GET params:** `path` — the absolute IRIS path to forward, URL-encoded (e.g. `/v2/messages/0?transactionHash=0x...`).
 
-**Env vars required:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+**POST body:** `{ path: string, body: object }` — `path` is the IRIS path, `body` is forwarded as the JSON request body.
 
-**Debug mode:** `GET /api/feedback?test=1` sends a test message and returns Telegram's raw response — useful for verifying the bot token/chat id are correctly configured without needing to trigger it from the UI.
+**Response:** IRIS's raw response body and status code, passed through unmodified.
+
+---
+
+## `GET /api/arcscan-proxy`
+
+Proxy for Arcscan's (Blockscout-style) explorer API — used for transaction history everywhere the app shows it (Home, Dashboard, History, Swap activity, etc.). Calling `testnet.arcscan.app/api` directly from the browser is unreliable (CORS), so this proxies it server-side.
+
+**Query params:** forwarded as-is to Arcscan's `/api` endpoint (e.g. `module`, `action`, `address`, `limit`).
+
+**Response:** Arcscan's raw response body and status code, passed through unmodified.
+
+---
+
+## `POST /api/rpc-proxy`
+
+JSON-RPC proxy for Arc Testnet. Two reasons this exists rather than calling an RPC directly from the browser: Arc's own public RPC (`rpc.testnet.arc.network`) doesn't return CORS headers, so direct browser calls to it fail; and a keyed provider (e.g. Alchemy) would otherwise require exposing that key in client-side source. This keeps any such key server-side only.
+
+**Body:** any standard JSON-RPC 2.0 payload (`{ jsonrpc, method, params, id }`) — forwarded verbatim.
+
+**Env vars:** `ARC_RPC_URL` (optional) — a keyed RPC provider URL. Falls back to the public `https://rpc.testnet.arc.network` if unset.
+
+**Response:** the upstream RPC's raw response body and status code, passed through unmodified.
+
+---
+
+## `POST /api/circle-wallet`
+
+Creates and operates Circle Developer-Controlled Wallets, and executes allowlisted contract calls on a wallet's behalf (used by the Circle Wallet path in Bridge, Swap, Gateway, and History).
+
+**Body:** `{ action, ... }` — `action` is one of `create`, `contractCall`, or a balance/wallet lookup; remaining fields depend on the action.
+
+**Security:** `contractCall` only accepts `contractAddress` values on an explicit allowlist (`ALLOWED_CONTRACTS` in the file) — USDC/EURC per chain, ArcSwap, CCTP's TokenMessengerV2/MessageTransmitterV2, and Circle Gateway's Wallet/Minter contracts. Any other address is rejected with a 403 before it reaches Circle's API. See [`SECURITY.md`](./SECURITY.md) for why this allowlist exists.
+
+**Env vars:** `CIRCLE_API_KEY`, `CIRCLE_ENTITY_SECRET`.
 
 ---
 

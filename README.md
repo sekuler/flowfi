@@ -54,7 +54,6 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | **Stablecoin Analytics** | Live, on-chain TVL and distribution across every FlowFi contract |
 | **AI Copilot** | Type what you want — "swap 10 USDC to EURC", "send 20 USDC to 0x..." — Copilot parses it and executes the on-chain transaction. An interface over the settlement rail above, not the product itself |
 | **AI Market Analysis** | Ask "analyze BTC" or "analyze Morpho" and get real technical analysis (RSI, EMA, MACD, pivot support/resistance across 1H/4H/1D/1W/1M) and tokenomics/unlock data — all numbers computed server-side from live data, with the AI only writing the interpretive summary, never the figures |
-| **Perpetuals** *(disabled, code retained)* | Long/short BTC and ETH up to 20x leverage. Removed from navigation after a security review found no oracle backs the pricing — the contract and code remain in the repo, but the feature isn't reachable in the app or via Copilot |
 
 ---
 
@@ -115,11 +114,10 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | Pool Factory v2 (permissionless AMM) | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
 | Escrow v3 *(deployed and verified, not yet wired to the app)* | `0xCe6c2B0EAbC86974c653020467c05Ce5e1eB418C` |
 | Token Factory | `0x481E8919f79A4DA6446EA78cEa70037acB9c85A1` |
-| Perpetuals *(disabled, code retained — see Known Limitations)* | `0x3B4cE1734087e1c67474Ff42982063febE3E4B20` |
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
 | EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 
-5 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see [`SECURITY.md`](./SECURITY.md) for the complete review.
+4 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see [`SECURITY.md`](./SECURITY.md) for the complete review.
 
 ### Circle CCTP V2 infrastructure (Arc Testnet, official — not FlowFi-deployed)
 
@@ -229,10 +227,10 @@ Security notes (self-review, not an audit): [`./SECURITY.md`](./SECURITY.md)
 - [ ] Cross-chain intent engine — extend the CCTP V2 settlement flow to route multi-step actions automatically
 - [ ] Native yield routing across liquidity positions, built on the same settlement rail
 
-**Not on the mainnet roadmap:** Perpetuals is disabled in the app — no decentralized oracle (Stork/Pyth) is integrated, so pricing isn't independently verified. The deployed contract stays on testnet, verified on Arcscan, for reference only; it won't ship to mainnet without a real oracle integration, and there's no plan to re-enable it in the app without one either.
+**Not on the roadmap:** Perpetuals was fully removed (app, Copilot, and frontend code) after a security review found no oracle backs the pricing. A contract from that era is still deployed and verified on Arcscan for historical/audit reference, but there's no plan to rebuild the feature without a real decentralized oracle integration.
 
 ---
 
 ## Disclaimer
 
-FlowFi runs entirely on Arc Testnet. All tokens are test assets with no monetary value. The Perpetuals contract specifically — disabled in the app itself, as noted above — is not reachable through the product; if you interact with its verified bytecode directly on Arcscan, be aware its pricing is client-submitted with no decentralized oracle behind it.
+FlowFi runs entirely on Arc Testnet. All tokens are test assets with no monetary value. An earlier Perpetuals contract remains deployed and verified on Arcscan for historical reference — it was fully removed from the app and isn't reachable through the product; if you interact with its bytecode directly, be aware its pricing was client-submitted with no decentralized oracle behind it.
