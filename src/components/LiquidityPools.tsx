@@ -3,6 +3,7 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits, parseAbiItem } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
+import { showToast } from "../toast";
 
 const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
@@ -354,6 +355,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
       setShowCreate(false);
       await loadPools();
+      showToast("Pool created", "success");
     } catch (e: unknown) {
       const err = e as { message?: string };
       setCreateError(err.message ?? "Failed to create pool.");
@@ -698,6 +700,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       setSwapTxHash(hash); setSwapState("done"); setSwapAmountIn(""); setSwapEstOut("0.00");
       await loadData();
       onRefresh();
+      showToast("Swap complete", "success");
     } catch (e: unknown) {
       const err = e as { message?: string };
       setSwapError(err.message ?? "Swap failed."); setSwapState("error");
@@ -732,6 +735,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       setState("idle"); setAmountA(""); setAmountB("");
       await loadData();
       onRefresh();
+      showToast("Liquidity added", "success");
     } catch (e: unknown) {
       const err = e as { message?: string };
       setErrorMsg(err.message ?? "Failed to add liquidity."); setState("error");
@@ -756,6 +760,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       setState("idle");
       await loadData();
       onRefresh();
+      showToast("Liquidity removed", "success");
     } catch (e: unknown) {
       const err = e as { message?: string };
       setErrorMsg(err.message ?? "Failed to remove liquidity."); setState("error");

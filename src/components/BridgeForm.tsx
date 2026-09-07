@@ -87,6 +87,20 @@ function parseIrisResponse(text: string, status: number): unknown {
 }
 
 async function irisProxyGet(path: string) {
+  // GET requests don't hit the CORS-preflight wall that POST does, and we've confirmed
+  // Circle's sandbox works fine from a real user IP — it's specifically Vercel's shared
+  // serverless IP pool that's getting an HTTP 403 "Lockout" page for at least the POST
+  // quote endpoint. Try direct-from-browser first (clean IP) and only fall back to our
+  // proxy if that fails for some other reason (e.g. Circle does add CORS restrictions here too).
+  try {
+    const direct = await fetch(`https://iris-api-sandbox.circle.com${path}`);
+    const directText = await direct.text();
+    const directData = parseIrisResponse(directText, direct.status);
+    if (!direct.ok) throw new Error(typeof directData === "string" ? directData : JSON.stringify(directData));
+    return directData;
+  } catch {
+    // Fall through to the proxy below.
+  }
   const res = await fetch(`/api/iris-proxy?path=${encodeURIComponent(path)}`);
   const text = await res.text();
   const data = parseIrisResponse(text, res.status);
@@ -727,7 +741,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       {bridgeType === "eth" && <EthBridge provider={provider} address={address} />}
 
       {bridgeType === "usdc" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "1.25rem", alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: "1.25rem", alignItems: "start" }}>
           <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
             <div style={{ display: "flex", gap: 6 }}>
               {(["usdc", "eurc"] as Asset[]).map((a) => (
