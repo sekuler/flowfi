@@ -5,7 +5,8 @@ import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { showToast } from "../toast";
 
-const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
+const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored (legacy — pools already created here keep working, but no new pools go here)
+const FACTORY_CONTRACT_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — SafeERC20 + fee-on-transfer-safe reserves + sync() + deadlines. New pools are created here.
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
 const TOKEN_LAUNCH_FACTORY = "0x481E8919f79A4DA6446EA78cEa70037acB9c85A1" as `0x${string}`;
 const STABLE_SYMBOLS = new Set(["USDC", "EURC", "USYC"]);
@@ -36,15 +37,15 @@ const FACTORY_ABI = [
 ] as const;
 
 const POOL_ABI = [
-  { type: "function", name: "addLiquidity", stateMutability: "nonpayable", inputs: [{ name: "amountA", type: "uint256" }, { name: "amountB", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
-  { type: "function", name: "removeLiquidity", stateMutability: "nonpayable", inputs: [{ name: "shareAmount", type: "uint256" }], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
+  { type: "function", name: "addLiquidity", stateMutability: "nonpayable", inputs: [{ name: "amountA", type: "uint256" }, { name: "amountB", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "removeLiquidity", stateMutability: "nonpayable", inputs: [{ name: "shareAmount", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
   { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
   { type: "function", name: "getShareValue", stateMutability: "view", inputs: [{ name: "provider", type: "address" }], outputs: [{ name: "amountA", type: "uint256" }, { name: "amountB", type: "uint256" }] },
   { type: "function", name: "shares", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "totalShares", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "tokenA", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
   { type: "function", name: "tokenB", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
-  { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+  { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
   { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
 ] as const;
 
@@ -300,30 +301,33 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
     setPools([legacyPool]);
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
-      const count = await client.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "allPoolsLength" });
-      const total = Number(count);
-      const indices = Array.from({ length: total }, (_, i) => i);
 
-      const BATCH_SIZE = 6;
-      for (let b = 0; b < indices.length; b += BATCH_SIZE) {
-        const batch = indices.slice(b, b + BATCH_SIZE);
-        const batchDetails = await Promise.all(batch.map(async (i) => {
-          try {
-            const poolAddr = await client.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "allPools", args: [BigInt(i)] });
-            const [tA, tB] = await Promise.all([
-              client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenA" }),
-              client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenB" }),
-            ]);
-            const metaA = tokenMetaSync(tA);
-            const metaB = tokenMetaSync(tB);
-            return { poolAddress: poolAddr, addressA: tA, addressB: tB, symbolA: metaA.symbol, symbolB: metaB.symbol, colorA: metaA.color, colorB: metaB.color, isLegacy: false };
-          } catch {
-            return null;
-          }
-        }));
-        const valid = batchDetails.filter((d): d is PoolInfo => d !== null);
-        if (valid.length > 0) setPools(prev => [...prev, ...valid]);
-        if (b + BATCH_SIZE < indices.length) await new Promise(r => setTimeout(r, 200));
+      for (const factoryAddr of [FACTORY_CONTRACT, FACTORY_CONTRACT_V3]) {
+        const count = await client.readContract({ address: factoryAddr, abi: FACTORY_ABI, functionName: "allPoolsLength" });
+        const total = Number(count);
+        const indices = Array.from({ length: total }, (_, i) => i);
+
+        const BATCH_SIZE = 6;
+        for (let b = 0; b < indices.length; b += BATCH_SIZE) {
+          const batch = indices.slice(b, b + BATCH_SIZE);
+          const batchDetails = await Promise.all(batch.map(async (i) => {
+            try {
+              const poolAddr = await client.readContract({ address: factoryAddr, abi: FACTORY_ABI, functionName: "allPools", args: [BigInt(i)] });
+              const [tA, tB] = await Promise.all([
+                client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenA" }),
+                client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenB" }),
+              ]);
+              const metaA = tokenMetaSync(tA);
+              const metaB = tokenMetaSync(tB);
+              return { poolAddress: poolAddr, addressA: tA, addressB: tB, symbolA: metaA.symbol, symbolB: metaB.symbol, colorA: metaA.color, colorB: metaB.color, isLegacy: false };
+            } catch {
+              return null;
+            }
+          }));
+          const valid = batchDetails.filter((d): d is PoolInfo => d !== null);
+          if (valid.length > 0) setPools(prev => [...prev, ...valid]);
+          if (b + BATCH_SIZE < indices.length) await new Promise(r => setTimeout(r, 200));
+        }
       }
     } catch {
       /* keep whatever pools already loaded */
@@ -345,12 +349,13 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
 
-      const existing = await publicClient.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`] });
-      if (existing !== "0x0000000000000000000000000000000000000000") {
+      const existingOld = await publicClient.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`] });
+      const existingNew = await publicClient.readContract({ address: FACTORY_CONTRACT_V3, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`] });
+      if (existingOld !== "0x0000000000000000000000000000000000000000" || existingNew !== "0x0000000000000000000000000000000000000000") {
         throw new Error("Pool already exists for this pair.");
       }
 
-      const hash = await wc.writeContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "createPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`], account: address as `0x${string}` });
+      const hash = await wc.writeContract({ address: FACTORY_CONTRACT_V3, abi: FACTORY_ABI, functionName: "createPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`], account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash });
 
       setShowCreate(false);
@@ -693,7 +698,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       setSwapState("swapping");
       const hash = await wc.writeContract({
         address: pool.poolAddress, abi: POOL_ABI, functionName: "swap",
-        args: [swapDirAtoB, amountIn, 0n], account: address as `0x${string}`,
+        args: [swapDirAtoB, amountIn, 0n, BigInt(Math.floor(Date.now() / 1000) + 1200)], account: address as `0x${string}`,
       });
       await publicClient.waitForTransactionReceipt({ hash });
 
@@ -729,7 +734,8 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       await publicClient.waitForTransactionReceipt({ hash: a2 });
 
       setState("processing");
-      const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "addLiquidity", args: [unitsA, unitsB], account: address as `0x${string}` });
+      const addArgs = pool.isLegacy ? [unitsA, unitsB] as const : [unitsA, unitsB, BigInt(Math.floor(Date.now() / 1000) + 1200)] as const;
+      const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "addLiquidity", args: addArgs, account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash });
 
       setState("idle"); setAmountA(""); setAmountB("");
@@ -754,7 +760,8 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       const shareToRemove = (myShares * BigInt(removePct)) / 100n;
       if (shareToRemove === 0n) throw new Error("Nothing to remove.");
 
-      const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "removeLiquidity", args: [shareToRemove], account: address as `0x${string}` });
+      const removeArgs = pool.isLegacy ? [shareToRemove] as const : [shareToRemove, BigInt(Math.floor(Date.now() / 1000) + 1200)] as const;
+      const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "removeLiquidity", args: removeArgs, account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash });
 
       setState("idle");

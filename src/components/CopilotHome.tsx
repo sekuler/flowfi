@@ -38,7 +38,8 @@ import {
 
 const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2
 const LEGACY_AMM = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
-const POOL_FACTORY = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
+const POOL_FACTORY = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 (legacy)
+const POOL_FACTORY_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — SafeERC20 + fee-on-transfer-safe reserves + sync() + deadlines
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 
@@ -102,15 +103,16 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-        const [poolsLen, usdcSwap, eurcSwap, usdcAmm, eurcAmm] = await Promise.all([
+        const [poolsLen, poolsLenV3, usdcSwap, eurcSwap, usdcAmm, eurcAmm] = await Promise.all([
           client.readContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "allPoolsLength" }).catch(() => 0n),
+          client.readContract({ address: POOL_FACTORY_V3, abi: POOL_FACTORY_ABI, functionName: "allPoolsLength" }).catch(() => 0n),
           client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [SWAP_CONTRACT] }).catch(() => 0n),
           client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [SWAP_CONTRACT] }).catch(() => 0n),
           client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LEGACY_AMM] }).catch(() => 0n),
           client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LEGACY_AMM] }).catch(() => 0n),
         ]);
 
-        setPoolCount(Number(poolsLen) + 1);
+        setPoolCount(Number(poolsLen) + Number(poolsLenV3) + 1);
         setTvl(
           Number(formatUnits(usdcSwap, 6)) + Number(formatUnits(eurcSwap, 6)) +
           Number(formatUnits(usdcAmm, 6)) + Number(formatUnits(eurcAmm, 6))

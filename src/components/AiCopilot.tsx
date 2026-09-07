@@ -11,7 +11,8 @@ import { computeMemoryInsight } from "../memory";
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2 — adds minAmountOut, pause()
-const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
+const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 (legacy)
+const FACTORY_CONTRACT_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — new pools go here
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const DOMAIN_BY_CHAIN: Record<string, number> = {
@@ -355,9 +356,10 @@ Respond with ONLY the JSON object.`,
         const tokenA = KNOWN_TOKENS[action.tokenA.toUpperCase()];
         const tokenB = KNOWN_TOKENS[action.tokenB.toUpperCase()];
         if (!tokenA || !tokenB) throw new Error("Unknown token symbol.");
-        const existing = await publicClient.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA, tokenB] });
-        if (existing !== "0x0000000000000000000000000000000000000000") throw new Error("Pool already exists for this pair.");
-        const hash = await wc.writeContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "createPool", args: [tokenA, tokenB], account: address as `0x${string}` });
+        const existingOld = await publicClient.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA, tokenB] });
+        const existingNew = await publicClient.readContract({ address: FACTORY_CONTRACT_V3, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA, tokenB] });
+        if (existingOld !== "0x0000000000000000000000000000000000000000" || existingNew !== "0x0000000000000000000000000000000000000000") throw new Error("Pool already exists for this pair.");
+        const hash = await wc.writeContract({ address: FACTORY_CONTRACT_V3, abi: FACTORY_ABI, functionName: "createPool", args: [tokenA, tokenB], account: address as `0x${string}` });
         await publicClient.waitForTransactionReceipt({ hash });
         showToast("Pool created", "success");
       } else if (action.action === "bridge") {
