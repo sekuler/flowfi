@@ -110,7 +110,7 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 
 | Contract | Address |
 |---|---|
-| Swap v2 (fixed-rate USDC/EURC) | `0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521` |
+| Swap v5 (fixed-rate USDC/EURC) | `0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1` |
 | Pool Factory v2 (permissionless AMM) | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
 | Escrow v4 *(deployed and verified, not yet wired to the app)* | `0xDDDe5a4E691F6ce6826CB85F09466E799FCFabfB` |
 | Token Factory | `0x481E8919f79A4DA6446EA78cEa70037acB9c85A1` |
