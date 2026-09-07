@@ -1,28 +1,37 @@
-// Proxies JSON-RPC calls to Arc Testnet. Two problems this solves at once:
+// Generic proxy for Circle's IRIS sandbox API (iris-api-sandbox.circle.com).
+// The bridge calls several IRIS endpoints — attestation polling (GET), CCTPx token
+// lookup (GET), CCTPx fast-transfer allowance (GET), and the CCTPx fee quote (POST).
+// At least the POST quote endpoint rejects direct browser calls (CORS preflight
+// failure — Circle's own quickstart for it is a Node.js script, not a browser page),
+// so every one of these calls is routed through here instead of straight from the
+// client, removing any dependency on Circle's per-endpoint CORS configuration.
 //
-// 1. Arc's own public RPC (rpc.testnet.arc.network) doesn't return CORS headers,
-//    so calling it directly from a browser fails (confirmed: circlefin/arc-node#90).
-//    A backend proxy sidesteps that entirely — the request never leaves our server.
-// 2. The app was previously calling a *keyed* provider (Alchemy) directly from the
-//    browser, with the key hardcoded in client-side source. That key is now
-//    server-side only, read from an environment variable never bundled into the
-//    frontend.
-//
-// This is a thin JSON-RPC passthrough — it doesn't inspect or restrict methods,
-// same as any RPC endpoint (reads and signed-transaction broadcasts are both
-// normal, harmless RPC traffic; the actual private key never touches this server).
-const ARC_RPC_URL = process.env.ARC_RPC_URL || 'https://rpc.testnet.arc.network';
+// GET  /api/iris-proxy?path=%2Fv2%2Fmessages%2F0%3FtransactionHash%3D0x...
+// POST /api/iris-proxy   body: { path: "/v1/quote/cctpx/{tokenId}/{src}/{dst}", body: {...} }
+const IRIS_ORIGIN = 'https://iris-api-sandbox.circle.com';
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
-    const response = await fetch(ARC_RPC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body ?? {}),
+    let targetPath;
+    let body;
+
+    if (req.method === 'GET') {
+      targetPath = req.query.path;
+    } else if (req.method === 'POST') {
+      targetPath = req.body && req.body.path;
+      body = req.body && req.body.body;
+    } else {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    if (!targetPath || typeof targetPath !== 'string' || !targetPath.startsWith('/')) {
+      return res.status(400).json({ error: 'Missing or invalid "path" — must be an absolute path like /v2/messages/0' });
+    }
+
+    const response = await fetch(`${IRIS_ORIGIN}${targetPath}`, {
+      method: req.method,
+      headers: req.method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+      body: req.method === 'POST' ? JSON.stringify(body ?? {}) : undefined,
     });
 
     const text = await response.text();
