@@ -2,7 +2,7 @@
 
 **Where cross-chain USDC becomes productive**
 
-FlowFi treats Arc as the destination, not just another chain to bridge into. USDC is Arc's native gas asset, not a wrapped placeholder — so funds arriving via CCTP V2 through a Circle Developer-Controlled Wallet are immediately usable for swaps, lending, and payments, with no synthetic-asset risk in between. Swap, lending, and token tools are built around that arrival point, not bolted onto it — all inside one application on [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
+FlowFi treats Arc as the destination, not just another chain to bridge into. USDC is Arc's native gas asset, not a wrapped placeholder — so funds arriving via CCTP V2 through a Circle Developer-Controlled Wallet are immediately usable for swaps and payments, with no synthetic-asset risk in between. Swap and token tools are built around that arrival point, not bolted onto it — all inside one application on [Arc](https://www.arc.io), Circle's stablecoin-native Layer-1.
 
 **Live:** [flowfi.finance](https://flowfi.finance) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
@@ -36,7 +36,7 @@ FlowFi is designed around stablecoins, not speculation.
 
 Being honest about it: CCTP V2 and Circle Developer-Controlled Wallets aren't Arc-exclusive — they work on other supported EVM chains too. What's actually Arc-specific is what happens after funds arrive. USDC is Arc's native gas asset, not a wrapped placeholder bolted onto a general-purpose chain — so cross-chain USDC becomes immediately productive the moment it lands, with no synthetic-asset discount and no "why is gas a random token" friction to explain away.
 
-FlowFi is built around that arrival point — bridging, swaps, lending, and token tools all settle through the same native-USDC rail, instead of being stitched together across incompatible chains and bridge providers.
+FlowFi is built around that arrival point — bridging, swaps, and token tools all settle through the same native-USDC rail, instead of being stitched together across incompatible chains and bridge providers.
 
 There's a second, independent reason Arc specifically: it runs on Malachite, a consensus engine built for sub-second deterministic finality — once a transaction confirms, it's final, no reorg risk. That's not a Circle-product claim that applies elsewhere; it's Arc's own chain-level property, and it's why FlowFi doesn't need to hedge language like "should be confirmed" around settlement.
 
@@ -46,11 +46,9 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 
 | Feature | What it does |
 |---|---|
-| **Bridge (CCTP V2)** | Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia |
-| **Circle Wallet** | FlowFi provisions a Developer-Controlled Wallet and tracks its per-chain wallet IDs — no seed phrase, no browser extension, one consistent address surfaced across all four supported chains |
-| **Gateway** | A genuinely unified USDC balance via Circle's Gateway protocol — deposit once from any supported chain, held as one pooled balance instead of four separate on-chain balances. Works from either a browser wallet or the Circle Wallet |
+| **Bridge & Gateway** | One page, two modes. Bridge: genuine cross-chain USDC transfer via Circle's official burn/attest/mint CCTP V2 protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia. Gateway: a unified USDC balance via Circle's Gateway protocol — deposit once, held as one pooled balance instead of four separate on-chain balances. Both work from either a browser wallet or the Circle Wallet |
+| **Circle Wallet** | FlowFi provisions a Developer-Controlled Wallet and tracks its per-chain wallet IDs — no seed phrase, no browser extension, one consistent address surfaced across all four supported chains. Can be used as your only login, or alongside a browser wallet |
 | **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
-| **Lending & Borrowing** | Supply USDC to earn interest, or post EURC as collateral to borrow — 75% max LTV, liquidation at 85% |
 | **Liquidity Pools** | Permissionless AMM — create a pool for any token pair, add/remove liquidity, swap directly against it |
 | **Token Launch** | Deploy your own ERC-20 on Arc and pair it with liquidity in one flow |
 | **Stablecoin Analytics** | Live, on-chain TVL and distribution across every FlowFi contract |
@@ -79,8 +77,8 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
                      │
        ┌─────────────▼──────────────┐
        │      Arc Testnet (L1)       │
-       │  Swap · Lending · Perps ·   │
-       │  TokenFactory · PoolFactory │
+       │  Swap · TokenFactory ·      │
+       │      PoolFactory            │
        └─────────────┬───────────────┘
                       │ CCTP V2
        ┌──────────────┼───────────────┐
@@ -102,8 +100,6 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | **Portfolio** | ![Portfolio](./screenshots/4%20-%20Portfolio.png) |
 | **Swap** | ![Swap](./screenshots/5%20-%20Swap.png) |
 | **Bridge** | ![Bridge](./screenshots/6%20-%20Bridge.png) |
-| **Send** | ![Send](./screenshots/7%20-%20Send.png) |
-| **Lending** | ![Lending](./screenshots/8%20-%20Lending.png) |
 | **Token Launch** | ![Token Launch](./screenshots/10%20-%20TokenLaunch.png) |
 | **Liquidity Pools** | ![Liquidity Pools](./screenshots/11%20-%20Liquidity%20pools.png) |
 | **Circle Wallet** | ![Circle Wallet](./screenshots/12%20-%20Circle%20wallet.png) |
@@ -116,7 +112,6 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | Contract | Address |
 |---|---|
 | Swap v2 (fixed-rate USDC/EURC) | `0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521` |
-| Lending v2 | `0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a` |
 | Pool Factory v2 (permissionless AMM) | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
 | Escrow v3 *(deployed and verified, not yet wired to the app)* | `0xCe6c2B0EAbC86974c653020467c05Ce5e1eB418C` |
 | Token Factory | `0x481E8919f79A4DA6446EA78cEa70037acB9c85A1` |
@@ -124,7 +119,7 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
 | EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 
-6 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see [`SECURITY.md`](./SECURITY.md) for the complete review.
+5 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see [`SECURITY.md`](./SECURITY.md) for the complete review.
 
 ### Circle CCTP V2 infrastructure (Arc Testnet, official — not FlowFi-deployed)
 
@@ -165,12 +160,7 @@ Every claim above is checkable on-chain. Rather than asking anyone to take our w
 |---|---|
 | On-chain execution | [`0x0226fc2c8b4cd4000bd25c6aea358f553aed9e69cc69b36582c0b2c7568146c0`](https://testnet.arcscan.app/tx/0x0226fc2c8b4cd4000bd25c6aea358f553aed9e69cc69b36582c0b2c7568146c0) |
 
-**Demo 3 — Financial action on Arc (Lending supply, 25 USDC)**
-| Step | Tx hash |
-|---|---|
-| Contract execution | [`0x970457d689c4507a8e9085b095ede0b374adf7b1dadabd254edcf25aebeb0374`](https://testnet.arcscan.app/tx/0x970457d689c4507a8e9085b095ede0b374adf7b1dadabd254edcf25aebeb0374) |
-
-All four transactions were confirmed successful on their respective explorers as of this writing.
+All transactions were confirmed successful on their respective explorers as of this writing.
 
 ---
 
@@ -213,8 +203,6 @@ cp .env.example .env
 # CIRCLE_API_KEY=
 # CIRCLE_ENTITY_SECRET=
 # DROPSTAB_API_KEY=        (optional — live token unlock data; falls back to the manual list without it)
-# TELEGRAM_BOT_TOKEN=      (optional — feedback widget)
-# TELEGRAM_CHAT_ID=        (optional — feedback widget)
 
 npm run dev
 ```
@@ -227,7 +215,7 @@ The app runs on Arc Testnet by default — no mainnet funds are ever involved. G
 
 FlowFi's contracts have been through a manual security review (not a professional third-party audit) — several deliberate design trade-offs came out of that review, documented here rather than hidden:
 
-- **ArcSwap and ArcLending price the USDC/EURC pair without an oracle.** ArcSwap's exchange rate is owner-set; ArcLending assumes both tokens hold their ~$1 peg. Neither reads a live price feed. This is a known simplification for the testnet stage — a real oracle (Chainlink/Pyth) is a prerequisite before either contract should touch real funds.
+- **ArcSwap prices the USDC/EURC pair without an oracle.** The exchange rate is owner-set and doesn't read a live price feed. This is a known simplification for the testnet stage — a real oracle (Chainlink/Pyth) is a prerequisite before the contract should touch real funds.
 - **ArcFactoryV2 pools have no TWAP.** Spot-price swaps on thin/low-liquidity pools carry real sandwich and price-impact risk, same as any constant-product AMM without time-weighted pricing. Use `minAmountOut` and be mindful of pool depth.
 - **ArcFactoryV2 has no admin kill-switch, by design.** The factory and its pools are fully permissionless — no owner, no pause. That's a deliberate trade-off in favor of trustlessness, not an oversight: adding a pause here would undercut the "no one can freeze your pool" guarantee that makes a permissionless AMM meaningful in the first place. If you'd rather have a pausable, guarded pool, use the ArcAMM (legacy, fixed USDC/EURC pair) contract instead.
 
@@ -239,7 +227,7 @@ Security notes (self-review, not an audit): [`./SECURITY.md`](./SECURITY.md)
 
 - [ ] Mainnet deployment (pending a professional third-party security audit)
 - [ ] Cross-chain intent engine — extend the CCTP V2 settlement flow to route multi-step actions automatically
-- [ ] Native yield routing across lending and liquidity positions, built on the same settlement rail
+- [ ] Native yield routing across liquidity positions, built on the same settlement rail
 
 **Not on the mainnet roadmap:** Perpetuals is disabled in the app — no decentralized oracle (Stork/Pyth) is integrated, so pricing isn't independently verified. The deployed contract stays on testnet, verified on Arcscan, for reference only; it won't ship to mainnet without a real oracle integration, and there's no plan to re-enable it in the app without one either.
 

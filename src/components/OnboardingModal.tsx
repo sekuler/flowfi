@@ -21,7 +21,7 @@ const STEPS = [
   {
     icon: "🧭",
     title: "Explore at your own pace",
-    body: "Bridge, Lending, Pools, Token Launch — everything's in the sidebar. No rush. You can always send feedback from the 💬 button if something's unclear.",
+    body: "Bridge, Pools, Token Launch — everything's in the sidebar. No rush, explore whenever you're ready.",
   },
 ];
 

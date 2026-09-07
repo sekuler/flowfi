@@ -1,6 +1,6 @@
 import NetworkHealth from "./NetworkHealth";
 import AiNarrator from "./AiNarrator";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 import { useIsMobile } from "../useIsMobile";
@@ -29,26 +29,17 @@ function labelForMethodId(methodId: string | undefined): string {
   if (!methodId || methodId === "0x") return "Contract Deploy";
   return METHOD_LABELS[methodId] ?? "Activity";
 }
-import { showToast } from "../toast";
-import { getRules, addRule, removeRule, type AutomationRule } from "../automation";
 import { computeMemoryInsight, type MemoryInsight } from "../memory";
 import {
   Droplet, Sparkles,
   ArrowUpRight, ExternalLink, ShieldCheck, Brain,
 } from "lucide-react";
 
-const LENDING_CONTRACT = "0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a" as `0x${string}`; // ArcLending v2
 const SWAP_CONTRACT = "0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521" as `0x${string}`; // ArcSwap v2
 const LEGACY_AMM = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
 const POOL_FACTORY = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-
-const LENDING_ABI = [
-  { type: "function", name: "currentAPR", stateMutability: "view", inputs: [], outputs: [{ name: "bps", type: "uint256" }] },
-  { type: "function", name: "healthFactor", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
-  { type: "function", name: "debtOf", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
-] as const;
 
 const ERC20_BALANCE_ABI = [
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
@@ -61,7 +52,7 @@ const POOL_FACTORY_ABI = [
 interface Props {
   address: string;
   balances: { usdc: string | null; eurc: string | null; usyc: string | null; native: string | null };
-  onNavigate: (tab: "swap" | "bridge" | "lending" | "pools" | "launch") => void;
+  onNavigate: (tab: "swap" | "bridge" | "pools" | "launch") => void;
 }
 
 interface RecentTx {
@@ -99,8 +90,6 @@ function Sparkline({ color, seed }: { color: string; seed: number }) {
 export default function CopilotHome({ address, balances, onNavigate }: Props) {
   const isMobile = useIsMobile();
   const [memoryInsight, setMemoryInsight] = useState<MemoryInsight | null>(null);
-  const [lendingAPR, setLendingAPR] = useState<string | null>(null);
-  const [healthFactor, setHealthFactor] = useState<number | null>(null); // null = no debt / not applicable
   const [poolCount, setPoolCount] = useState<number | null>(null);
   const [tvl, setTvl] = useState<number | null>(null);
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
@@ -112,38 +101,18 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-        const [apr, poolsLen, usdcSwap, eurcSwap, usdcAmm, eurcAmm, usdcLend, eurcLend, debt] = await Promise.all([
-          client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "currentAPR" }).catch(() => 0n),
+        const [poolsLen, usdcSwap, eurcSwap, usdcAmm, eurcAmm] = await Promise.all([
           client.readContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "allPoolsLength" }).catch(() => 0n),
           client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [SWAP_CONTRACT] }).catch(() => 0n),
           client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [SWAP_CONTRACT] }).catch(() => 0n),
           client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LEGACY_AMM] }).catch(() => 0n),
           client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LEGACY_AMM] }).catch(() => 0n),
-          client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LENDING_CONTRACT] }).catch(() => 0n),
-          client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LENDING_CONTRACT] }).catch(() => 0n),
-          client.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "debtOf", args: [address as `0x${string}`] }).catch(() => 0n),
         ]);
 
-        // Only fetch health factor if the user actually has outstanding debt —
-        // otherwise it's not a meaningful risk signal.
-        if (debt > 0n) {
-          try {
-            const client2 = createPublicClient({ chain: arcTestnet, transport: http() });
-            const hf = await client2.readContract({ address: LENDING_CONTRACT, abi: LENDING_ABI, functionName: "healthFactor", args: [address as `0x${string}`] });
-            setHealthFactor(hf > 100000n ? null : Number(hf) / 100);
-          } catch {
-            setHealthFactor(null);
-          }
-        } else {
-          setHealthFactor(null);
-        }
-
-        setLendingAPR((Number(apr) / 100).toFixed(2));
         setPoolCount(Number(poolsLen) + 1);
         setTvl(
           Number(formatUnits(usdcSwap, 6)) + Number(formatUnits(eurcSwap, 6)) +
-          Number(formatUnits(usdcAmm, 6)) + Number(formatUnits(eurcAmm, 6)) +
-          Number(formatUnits(usdcLend, 6)) + Number(formatUnits(eurcLend, 6))
+          Number(formatUnits(usdcAmm, 6)) + Number(formatUnits(eurcAmm, 6))
         );
 
         const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${address}&limit=4`);
@@ -171,8 +140,6 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
   const eurcVal = Number(balances.eurc ?? 0);
   const usycVal = Number(balances.usyc ?? 0);
   const totalValue = usdcVal + eurcVal + usycVal;
-  const hasIdleFunds = usdcVal > 10;
-  const estYield = hasIdleFunds && lendingAPR ? (usdcVal * Number(lendingAPR)) / 100 : 0;
 
   // Morning Brief: real overnight portfolio change, using the same daily
   // snapshot mechanism as Dashboard — only shown once the first time you
@@ -211,16 +178,6 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
     return Math.round(herfindahl * 10);
   })();
 
-  // Pushes a one-time-per-session notification when there's a clear, real action
-  // available (idle USDC that could be earning yield) — not a spammy repeat.
-  const notifiedIdleRef = useRef(false);
-  useEffect(() => {
-    if (hasIdleFunds && lendingAPR && !notifiedIdleRef.current) {
-      notifiedIdleRef.current = true;
-      showToast(`You have ${usdcVal.toFixed(0)} idle USDC. Supplying it to Lending could earn ${lendingAPR}% APY.`, "info");
-    }
-  }, [hasIdleFunds, lendingAPR, usdcVal]);
-
   const assets = [
     { symbol: "USDC", amount: balances.usdc, usd: usdcVal },
     { symbol: "EURC", amount: balances.eurc, usd: eurcVal },
@@ -243,11 +200,6 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
             ) : (
               <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.9)", margin: 0 }}>
                 Tracking your portfolio from today — check back tomorrow for a real overnight comparison.
-              </p>
-            )}
-            {hasIdleFunds && (
-              <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.9)", margin: 0 }}>
-                Idle funds: {usdcVal.toFixed(0)} USDC. {lendingAPR ? `Lending is currently offering ${lendingAPR}% APY.` : ""}
               </p>
             )}
           </div>
@@ -323,14 +275,6 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
                   {riskScore}/10 {riskScore >= 8 ? "· concentrated" : riskScore >= 5 ? "· moderate" : "· diversified"}
                 </span>
               </div>
-              {healthFactor !== null && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 11.5, color: "#6B7280" }}>Lending liquidation risk</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: healthFactor < 110 ? "#DC2626" : healthFactor < 130 ? "#B45309" : "#16A34A" }}>
-                    {healthFactor.toFixed(0)}% {healthFactor < 110 ? "· close" : healthFactor < 130 ? "· watch" : "· safe"}
-                  </span>
-                </div>
-              )}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 11.5, color: "#6B7280" }}>Protocol / bridge risk</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#16A34A" }}>Low · verified contracts, official CCTP</span>
@@ -349,20 +293,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
             <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
               <Sparkles size={18} color="#6D5EF7" />
             </div>
-            {hasIdleFunds ? (
-              <>
-                <p style={{ fontSize: 13, color: "#374151", marginBottom: 4 }}>You have <b>{usdcVal.toFixed(0)} USDC</b> idle in your wallet.</p>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Supply it to Lending to earn {lendingAPR ?? "..."}% APY.</p>
-                <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 2 }}>Estimated Annual Yield</div>
-                <div className="flowfi-mono" style={{ fontSize: 20, fontWeight: 700, color: "#6D5EF7", marginBottom: 2 }}>+${estYield.toFixed(2)}</div>
-                <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 14 }}>({lendingAPR ?? "..."}% APY)</div>
-                <button onClick={() => onNavigate("lending")} style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                  Review Opportunity
-                </button>
-              </>
-            ) : (
-              <p style={{ fontSize: 13, color: "#4B5563" }}>Explore Swap, Bridge, and Lending — Copilot will surface suggestions here as you build activity.</p>
-            )}
+            <p style={{ fontSize: 13, color: "#4B5563" }}>Explore Swap, Bridge, and Pools — Copilot will surface suggestions here as you build activity.</p>
           </div>
           <p style={{ fontSize: 10, color: "#6B7280", textAlign: "center", marginTop: 10 }}>AI suggestions are for reference only.</p>
           {memoryInsight && (
@@ -378,13 +309,11 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
         </div>
       </div>
 
-      <AutomationCard usdcVal={usdcVal} onNavigate={onNavigate} />
-
       {/* Market Overview / Recent Activity */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.4fr) minmax(0, 1fr)", gap: "1rem", alignItems: "start" }}>
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Market Overview</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
             <div>
               <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>TVL</div>
               <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 6 }}>{tvl === null ? "..." : `$${tvl.toFixed(0)}`}</div>
@@ -394,11 +323,6 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
               <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Pools</div>
               <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 6 }}>{poolCount ?? "..."}</div>
               <Sparkline color="#6D5EF7" seed={4} />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Lending APY</div>
-              <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 6 }}>{lendingAPR ?? "..."}%</div>
-              <Sparkline color="#6D5EF7" seed={5} />
             </div>
           </div>
         </div>
@@ -434,67 +358,3 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
   );
 }
 
-function AutomationCard({ usdcVal, onNavigate }: { usdcVal: number; onNavigate: (tab: "lending") => void }) {
-  const [rules, setRules] = useState<AutomationRule[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [threshold, setThreshold] = useState("1000");
-  const [lendAmount, setLendAmount] = useState("500");
-
-  useEffect(() => { setRules(getRules()); }, []);
-
-  return (
-    <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Automation Rules</div>
-        <button onClick={() => setShowForm(!showForm)} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-          {showForm ? "Cancel" : "+ New Rule"}
-        </button>
-      </div>
-      <p style={{ fontSize: 11.5, color: "#6B7280", margin: "0 0 10px 0" }}>
-        Checked whenever your balances refresh — this reminds you, it doesn't act on its own without your confirmation.
-      </p>
-
-      {showForm && (
-        <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.8rem", display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
-          <div style={{ fontSize: 12, color: "#374151" }}>IF my USDC balance is above</div>
-          <input type="number" value={threshold} onChange={(e) => setThreshold(e.target.value)}
-            style={{ background: "#ffffff", border: "none", borderRadius: 8, padding: "0.5rem 0.7rem", fontSize: 12, color: "#111827", outline: "none" }} />
-          <div style={{ fontSize: 12, color: "#374151" }}>THEN remind me to supply to Lending</div>
-          <input type="number" value={lendAmount} onChange={(e) => setLendAmount(e.target.value)}
-            style={{ background: "#ffffff", border: "none", borderRadius: 8, padding: "0.5rem 0.7rem", fontSize: 12, color: "#111827", outline: "none" }} />
-          <button onClick={() => {
-            if (!threshold || !lendAmount) return;
-            addRule({ condition: "usdc_above", conditionValue: Number(threshold), action: "lend", actionAmount: Number(lendAmount) });
-            setRules(getRules());
-            setShowForm(false);
-          }} style={{ padding: "0.5rem", borderRadius: 8, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-            Save Rule
-          </button>
-        </div>
-      )}
-
-      {rules.length === 0 && !showForm && (
-        <div style={{ fontSize: 11.5, color: "#9CA3AF", textAlign: "center", padding: "0.5rem 0" }}>No automation rules yet.</div>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {rules.map((rule) => {
-          const conditionMet = usdcVal > rule.conditionValue;
-          return (
-            <div key={rule.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: conditionMet ? "rgba(34,197,94,0.1)" : "#f5f3ff", borderRadius: 10, padding: "0.6rem 0.8rem" }}>
-              <span style={{ fontSize: 11.5, color: "#111827" }}>
-                IF USDC &gt; {rule.conditionValue} → lend {rule.actionAmount}
-                {conditionMet && <span style={{ color: "#16A34A", fontWeight: 700, marginLeft: 6 }}>· active</span>}
-              </span>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                {conditionMet && (
-                  <button onClick={() => onNavigate("lending")} style={{ fontSize: 10.5, fontWeight: 700, color: "#16A34A", background: "none", border: "none", cursor: "pointer" }}>Go</button>
-                )}
-                <button onClick={() => { removeRule(rule.id); setRules(getRules()); }} style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: 12 }}>×</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}

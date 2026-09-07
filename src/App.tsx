@@ -2,7 +2,6 @@ import Skeleton from "./components/Skeleton";
 import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHome from "./components/CopilotHome";
 import TokenLaunch from "./components/TokenLaunch";
-import LendingForm from "./components/LendingForm";
 import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
@@ -24,11 +23,10 @@ import NotificationCenter from "./components/NotificationCenter";
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
 import { getDCAPlan, isDCADue } from "./dca";
 import { getCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
-import { getRules, isRuleDue, markRuleTriggered } from "./automation";
 import { showToast } from "./toast";
 import {
   Home, LayoutGrid, Repeat, TrendingUp, Droplet,
-  Landmark, Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
+  Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
   Sparkles, Moon, Power, Copy, Check, RefreshCw, Lock,
 } from "lucide-react";
 
@@ -51,7 +49,7 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "home" | "portfolio" | "swap" | "pools" | "lending" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet";
+type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 // Guest mode (browsing Pools without a connected wallet) needs *something* to pass as
@@ -69,8 +67,8 @@ const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics"];
 // Bridge/Swap/History already read their own Circle Wallet from localStorage
 // internally (independent of the provider/address props) — so a Circle-primary
 // session can use them today. Portfolio only ever does read-only balance
-// lookups (no signing), so it works for any address. Home/Dashboard/Lending/
-// Launch and the AI Copilot all assume a real browser-wallet signer and don't
+// lookups (no signing), so it works for any address. Home/Dashboard/Launch and
+// the AI Copilot all assume a real browser-wallet signer and don't
 // have a Circle-Wallet code path yet — those stay locked until that's built.
 const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet"];
 
@@ -103,23 +101,15 @@ const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: 
     { id: "history",   label: "History",   Icon: HistoryIcon },
   ],
 },
-{
-  group: "TESTNET ONLY",
-  variant: "testnet",
-  tabs: [
-    { id: "lending",   label: "Lending",   Icon: Landmark },
-  ],
-},
 ];
 
-const LANDING_FEATURE_ICONS = [Sparkles, Repeat, Hexagon, TrendingUp, Landmark, Rocket];
+const LANDING_FEATURE_ICONS = [Sparkles, Repeat, Hexagon, TrendingUp, Rocket];
 
 const LANDING_FEATURES = [
   { title: "AI Copilot", desc: "Type what you want — swap, send, borrow, or open a trade — and Copilot executes it for you." },
   { title: "Smart Swap", desc: "On-chain swap with an AI advisor that reads real pool liquidity before you trade." },
   { title: "Real CCTP Bridge", desc: "Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol." },
   { title: "Leveraged Trading", desc: "Long or short BTC/ETH with live pricing and real-time PNL tracking." },
-  { title: "Lending & Borrowing", desc: "Supply USDC to earn interest, or borrow against EURC collateral." },
   { title: "Token Launch", desc: "Deploy your own ERC20 token on Arc and pair it with liquidity in seconds." },
 ];
 
@@ -319,14 +309,6 @@ function AppInner() {
         native: Number(formatUnits(native as bigint, 18)).toFixed(4),
       });
       setLastUpdated(Math.floor(Date.now() / 1000));
-
-      const usdcNum = Number(formatUnits(usdc as bigint, 6));
-      for (const rule of getRules()) {
-        if (isRuleDue(rule, usdcNum)) {
-          markRuleTriggered(rule.id);
-          showToast(`Automation: USDC balance is above ${rule.conditionValue} — you set a reminder to supply ${rule.actionAmount} USDC to Lending. Open Lending to confirm.`, "info");
-        }
-      }
     } catch {
       setBalances({ usdc: "—", eurc: "—", usyc: "—", native: "—" });
     }
@@ -501,7 +483,7 @@ function AppInner() {
         <p style={{ fontSize: 12, color: "#6B7280", marginBottom: 28 }}>Real wallet signatures. No seed phrase ever requested. Arc Testnet only.</p>
 
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px 20px" }}>
-          {["Native USDC", "CCTP V2", "AI Copilot", "Lending", "Token Launch"].map((f) => (
+          {["Native USDC", "CCTP V2", "AI Copilot", "Token Launch"].map((f) => (
             <div key={f} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4B5563" }}>
               <span style={{ color: "#22C55E", fontWeight: 800 }}>✓</span>
               {f}
@@ -770,10 +752,10 @@ function AppInner() {
           <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "lending" ? "Lending" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
+                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "lending" ? "Supply to earn, or borrow against collateral — testnet only, not planned for mainnet" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
+               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
               {tab === "portfolio" && balances.usdc !== null && (
                 <div style={{ marginTop: 14 }}>
@@ -923,7 +905,6 @@ function AppInner() {
                 onRefresh={() => wallet && loadBalances(wallet.address)}
               />
             )}
-          {tab === "lending" && wallet && <LendingForm provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} />}
           {tab === "launch" && wallet && <TokenLaunch provider={wallet.provider} address={wallet.address} onNavigateToPools={() => setTab("pools")} />}
           </div>
         </div>
