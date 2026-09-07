@@ -111,13 +111,14 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | Contract | Address |
 |---|---|
 | Swap v5 (fixed-rate USDC/EURC) | `0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1` |
-| Pool Factory v2 (permissionless AMM) | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
+| Pool Factory v2 *(legacy — pools created here before the v3 upgrade keep working, but no new pools are created here)* | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
+| Pool Factory v3 (permissionless AMM) | `0x5ee0c6cc6879728a4835826D87b28702f8993559` |
 | Escrow v4 *(deployed and verified, not yet wired to the app)* | `0xDDDe5a4E691F6ce6826CB85F09466E799FCFabfB` |
 | Token Factory | `0x481E8919f79A4DA6446EA78cEa70037acB9c85A1` |
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
 | EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 
-4 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see [`SECURITY.md`](./SECURITY.md) for the complete review.
+5 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see [`SECURITY.md`](./SECURITY.md) for the complete review.
 
 ### Circle CCTP V2 infrastructure (Arc Testnet, official — not FlowFi-deployed)
 

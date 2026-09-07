@@ -7,7 +7,8 @@ import { showToast } from "../toast";
 
 const TOKEN_FACTORY = "0x481E8919f79A4DA6446EA78cEa70037acB9c85A1" as `0x${string}`;
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
-const POOL_FACTORY = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored
+const POOL_FACTORY = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 (legacy)
+const POOL_FACTORY_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — new pools go here
 
 const TOKEN_FACTORY_ABI = [
   { type: "function", name: "launchToken", stateMutability: "nonpayable", inputs: [{ name: "name", type: "string" }, { name: "symbol", type: "string" }], outputs: [{ name: "token", type: "address" }] },
@@ -233,12 +234,13 @@ export default function TokenLaunch({ provider, address, onNavigateToPools }: Pr
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
 
-      const existing = await publicClient.readContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS] });
-      let pool = existing;
-      if (existing === "0x0000000000000000000000000000000000000000") {
-        const hash = await wc.writeContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "createPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS], account: address as `0x${string}` });
+      const existingOld = await publicClient.readContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS] });
+      const existingNew = await publicClient.readContract({ address: POOL_FACTORY_V3, abi: POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS] });
+      let pool = existingOld !== "0x0000000000000000000000000000000000000000" ? existingOld : existingNew;
+      if (pool === "0x0000000000000000000000000000000000000000") {
+        const hash = await wc.writeContract({ address: POOL_FACTORY_V3, abi: POOL_FACTORY_ABI, functionName: "createPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS], account: address as `0x${string}` });
         await publicClient.waitForTransactionReceipt({ hash });
-        pool = await publicClient.readContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS] });
+        pool = await publicClient.readContract({ address: POOL_FACTORY_V3, abi: POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS] });
       }
 
       setPoolAddress(pool);
