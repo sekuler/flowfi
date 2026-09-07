@@ -8,6 +8,7 @@ import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "./chains";
 import { discoverWallets } from "./components/WalletConnect";
 import ConnectModal from "./components/ConnectModal";
+import { TokenIcon } from "./components/TokenIcon";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
 import TransferHub from "./components/TransferHub";
 import SwapForm from "./components/SwapForm";
@@ -783,11 +784,7 @@ function AppInner() {
                     return (
                       <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                          {label === "USDC" || label === "EURC" ? (
-  <img src={label === "USDC" ? "https://assets.coingecko.com/coins/images/6319/small/usdc.png" : "https://assets.coingecko.com/coins/images/26045/small/euro.png"} alt={label} style={{ width: 20, height: 20, borderRadius: "50%" }} />
-) : (
-  <div style={{ width: 20, height: 20, borderRadius: "50%", background: meta.color, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{meta.icon}</div>
-)}
+                          <TokenIcon symbol={label} size={20} />
                           <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px" }}>{label}</div>
                         </div>
                         <div className="flowfi-mono" style={{ fontSize: 22, fontWeight: 700, color: meta.color }}>{value === null ? <Skeleton width={70} height={22} /> : value}</div>

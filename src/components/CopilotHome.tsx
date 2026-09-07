@@ -1,5 +1,6 @@
 import NetworkHealth from "./NetworkHealth";
 import AiNarrator from "./AiNarrator";
+import { TokenIcon } from "./TokenIcon";
 import { useState, useEffect } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
@@ -250,9 +251,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
               return (
                 <div key={a.symbol} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 0.25rem" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: meta.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700 }}>
-                      {meta.letter}
-                    </div>
+                    <TokenIcon symbol={a.symbol} size={34} />
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{a.symbol}</div>
                       <div style={{ fontSize: 11, color: "#6B7280" }}>{meta.name}</div>
