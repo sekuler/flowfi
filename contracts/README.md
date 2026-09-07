@@ -4,7 +4,7 @@ Source for the 4 contracts that were redeployed after the security review docume
 
 | Contract | File | Address |
 |---|---|---|
-| Swap v2 | `ArcSwap.sol` | `0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521` |
+| Swap v5 | `ArcSwap.sol` | `0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1` |
 | Lending v2 | `ArcLending.sol` | `0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a` |
 | Pool Factory v2 | `ArcFactoryV2.sol` | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
 | Escrow v4 | `ArcEscrow.sol` | `0xDDDe5a4E691F6ce6826CB85F09466E799FCFabfB` |
