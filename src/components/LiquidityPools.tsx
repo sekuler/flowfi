@@ -199,7 +199,26 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
     })(),
   };
   const totalTvl = metricsValues.length > 0 ? aggregate.tvl : null;
-  const loadingTvl = pools.length > 0 && Object.keys(poolMetrics).length < pools.length;
+  // Only curated, deduplicated pools ever get a <PoolRow> mounted (see
+  // visiblePools below) — so loadingTvl must compare against that count,
+  // not the raw pools.length (which includes every pool ever scanned from
+  // the factories, most of which are filtered out and never call
+  // onMetrics). Comparing against the raw count meant this never resolved:
+  // poolMetrics could never catch up to a number it wasn't building toward,
+  // so TVL/Volume stayed stuck on "..." forever.
+  const curatedPoolCount = (() => {
+    const seen = new Set<string>();
+    let n = 0;
+    for (const p of pools) {
+      if (!isCuratedPair(p.addressA, p.addressB)) continue;
+      const pairKey = [p.addressA.toLowerCase(), p.addressB.toLowerCase()].sort().join("_");
+      if (seen.has(pairKey)) continue;
+      seen.add(pairKey);
+      n++;
+    }
+    return n;
+  })();
+  const loadingTvl = curatedPoolCount > 0 && Object.keys(poolMetrics).length < curatedPoolCount;
 
   const loadPools = useCallback(async () => {
     setLoadingPools(true);
