@@ -156,7 +156,7 @@ export default function TxHistory({ address }: Props) {
     setLoading(true); setError(null);
     try {
       const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${effectiveAddress}&limit=30`);
-      if (!res.ok) throw new Error("Failed to fetch");
+      if (!res.ok) throw new Error(`Arcscan returned ${res.status}`);
       const data = await res.json();
       const items: Tx[] = (data.result ?? []).map((tx: any) => ({
         hash: tx.hash,
@@ -168,8 +168,15 @@ export default function TxHistory({ address }: Props) {
         input: tx.input ?? "0x",
       }));
       setTxs(items);
-    } catch {
-      setError("Could not load transactions.");
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      if (err.message?.includes("Arcscan returned")) {
+        setError(`Explorer API error (${err.message.replace("Arcscan returned ", "")}) — try again in a moment.`);
+      } else if (err.message === "Failed to fetch" || err.message?.toLowerCase().includes("network")) {
+        setError("Network error reaching Arc's explorer — check your connection and try again.");
+      } else {
+        setError("Could not load transactions — Arc RPC or explorer may be temporarily unavailable.");
+      }
     } finally {
       setLoading(false);
     }
@@ -185,7 +192,7 @@ export default function TxHistory({ address }: Props) {
     setTimeout(() => setCopiedHash(null), 1500);
   }
 
-  const filterOptions = ["all", "Send", "Swap", "Bridge", "Approve", "Escrow"];
+  const filterOptions = ["all", "Send", "Swap", "Bridge", "Approve"];
   const filteredTxs = filter === "all" ? txs : txs.filter(tx => methodMeta(tx.method).label === filter);
 
   return (
@@ -220,10 +227,32 @@ export default function TxHistory({ address }: Props) {
         <button onClick={load} style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "6px 12px", color: "#4B5563", fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
       </div>
 
-      {loading && <div style={{ textAlign: "center", padding: "3rem", color: "#374151", fontSize: 13 }}>Loading transactions...</div>}
-      {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "1rem", color: "#DC2626", fontSize: 13 }}>{error}</div>}
+      {loading && (
+        <div style={{ background: "#ffffff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "0.9rem 1rem", borderTop: i > 0 ? "1px solid #F5F3FF" : "none" }}>
+              <div style={{ width: 60, height: 12, borderRadius: 6, background: "#F5F3FF" }} />
+              <div style={{ flex: 1, height: 12, borderRadius: 6, background: "#F5F3FF" }} />
+              <div style={{ width: 50, height: 12, borderRadius: 6, background: "#F5F3FF" }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {!loading && error && (
+        <div style={{ background: "#ffffff", borderRadius: 16, padding: "2.5rem 1.5rem", textAlign: "center", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+            <span style={{ fontSize: 22 }}>⚠️</span>
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Could not load transactions</div>
+          <div style={{ fontSize: 12.5, color: "#6B7280", marginBottom: 16 }}>{error}</div>
+          <button onClick={load} style={{ background: "#6D5EF7", border: "none", borderRadius: 10, padding: "0.6rem 1.4rem", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", marginRight: 10 }}>↻ Try again</button>
+          {effectiveAddress && (
+            <a href={`https://testnet.arcscan.app/address/${effectiveAddress}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#6D5EF7", fontWeight: 600, textDecoration: "none" }}>Open explorer ↗</a>
+          )}
+        </div>
+      )}
       {!loading && !error && filteredTxs.length === 0 && (
-  <EmptyState icon="📭" title="No transactions found" subtitle="Your activity will show up here once you start using FlowFi" />
+  <EmptyState icon="📭" title="No transactions yet" subtitle="Your activity will show up here once you start using FlowFi" />
 )}
 
 

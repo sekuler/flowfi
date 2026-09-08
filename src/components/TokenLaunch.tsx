@@ -229,16 +229,25 @@ export default function TokenLaunch({ provider, address }: Props) {
         <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, color: "#6B7280", fontWeight: 500 }}>Token Name</label>
-            <input type="text" placeholder="e.g. Arc Doge" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} maxLength={32}
+            <input type="text" placeholder="e.g. My Token" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} maxLength={32}
               style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#111827", outline: "none" }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, color: "#6B7280", fontWeight: 500 }}>Symbol</label>
-            <input type="text" placeholder="e.g. ADOGE" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} disabled={isLoading} maxLength={10}
+            <input type="text" placeholder="e.g. MTK" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} disabled={isLoading} maxLength={10}
               style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#111827", outline: "none" }} />
           </div>
-          <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.7rem 0.9rem", fontSize: 12, color: "#4B5563" }}>
-            Initial supply: <span style={{ color: "#111827", fontWeight: 700 }}>1,000,000 {symbol || "TOKEN"}</span> — minted entirely to your wallet
+          {symbol && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", background: avatarColor(symbol), color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {symbol.slice(0, 2)}
+              </div>
+              <span style={{ fontSize: 12.5, color: "#4B5563" }}>{name || "Your token"} <span style={{ fontFamily: "ui-monospace, monospace", color: "#111827", fontWeight: 700 }}>{symbol}</span></span>
+            </div>
+          )}
+          <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.7rem 0.9rem", fontSize: 12, color: "#4B5563", display: "flex", justifyContent: "space-between" }}>
+            <span>Initial supply: <span style={{ color: "#111827", fontWeight: 700 }}>1,000,000 {symbol || "TOKEN"}</span> — minted entirely to your wallet</span>
+            <span style={{ color: "#9CA3AF" }}>18 decimals (fixed)</span>
           </div>
           {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
           <button onClick={doLaunch} disabled={isLoading}
@@ -324,8 +333,9 @@ export default function TokenLaunch({ provider, address }: Props) {
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}18`, padding: "3px 8px", borderRadius: 6 }}>LAUNCHED</span>
-                  <span style={{ fontSize: 11, color: "#4B5563", fontWeight: 600 }}>{t.supply} supply</span>
+                  <span className="flowfi-mono" style={{ fontSize: 10, color: "#9CA3AF" }}>{t.address.slice(0, 6)}...{t.address.slice(-4)}</span>
                 </div>
+                <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, marginTop: 6 }}>{t.supply} supply</div>
               </a>
             );
           })}

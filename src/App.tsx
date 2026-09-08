@@ -361,12 +361,6 @@ function AppInner() {
 
   const shortAddr = wallet ? wallet.address.slice(0, 6) + "..." + wallet.address.slice(-4) : "";
 
-  const TOKEN_META: Record<string, { icon: string; color: string; bg: string }> = {
-    USDC: { icon: "$", color: "#6D5EF7", bg: "rgba(109,94,247,0.08)" },
-    EURC: { icon: "€", color: "#6D5EF7", bg: "rgba(168,85,247,0.08)" },
-    USYC: { icon: "Y", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
-  };
-
   function usdEquivalent(label: string, value: string | null): string | null {
     if (value === null || value === "—") return null;
     const num = Number(value);
@@ -703,7 +697,7 @@ function AppInner() {
             <div style={{ width: 32 }} />
           </div>
         )}
-        <MarketTicker />
+        {tab !== "pools" && tab !== "history" && <MarketTicker />}
         <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: isMobile ? "0.85rem 1rem" : "1.25rem 2.5rem" }}>
           <NotificationCenter />
           <button disabled title="Coming soon"
@@ -775,40 +769,51 @@ function AppInner() {
                 <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px" }}>
                   {wallet ? `BROWSER WALLET · ${shortAddr}` : `CIRCLE WALLET · ${portfolioShort}`}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "0.75rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: "0.75rem" }}>
                   {(["USDC", "EURC", "USYC"] as const).map((label) => {
                     const value = label === "USDC" ? balances.usdc : label === "EURC" ? balances.eurc : balances.usyc;
-                    const meta = TOKEN_META[label];
                     const usd = usdEquivalent(label, value);
                     return (
-                      <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA" }}>
+                      <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA", display: "flex", flexDirection: "column" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                           <TokenIcon symbol={label} size={20} />
                           <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px" }}>{label}</div>
                         </div>
-                        <div className="flowfi-mono" style={{ fontSize: 22, fontWeight: 700, color: meta.color }}>{value === null ? <Skeleton width={70} height={22} /> : value}</div>
-                        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 4 }}>{usd ?? "Arc Testnet"}</div>
+                        <div className="flowfi-mono" style={{ fontSize: 22, fontWeight: 700, color: "#0f1222" }}>{value === null ? <Skeleton width={70} height={22} /> : value}</div>
+                        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 4, marginBottom: 12 }}>{usd ?? "Arc Testnet"}</div>
+                        <div style={{ display: "flex", gap: 12, marginTop: "auto" }}>
+                          <button onClick={() => setTab("swap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: 0 }}>Swap</button>
+                          <button onClick={() => setTab("swap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: 0 }}>Send</button>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
+                {wallet && (
+                  <div style={{ fontSize: 11, color: "#9CA3AF" }}>Arc gas is deducted from your USDC balance above.</div>
+                )}
 
                 {wallet && circleWalletInfo && (
                   <>
                     <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginTop: 6 }}>CIRCLE WALLET · {circleWalletInfo.address.slice(0, 6)}...{circleWalletInfo.address.slice(-4)}</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: "0.75rem" }}>
                       {(["USDC", "EURC"] as const).map((label) => (
-                        <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)", border: "1px solid #D4C9FA" }}>
+                        <div key={label} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)", border: "1px solid #D4C9FA", display: "flex", flexDirection: "column" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                            <img src={label === "USDC" ? "https://assets.coingecko.com/coins/images/6319/small/usdc.png" : "https://assets.coingecko.com/coins/images/26045/small/euro.png"} alt={label} style={{ width: 20, height: 20, borderRadius: "50%" }} />
+                            <TokenIcon symbol={label} size={20} />
                             <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px" }}>{label}</div>
                           </div>
-                          <div className="flowfi-mono" style={{ fontSize: 22, fontWeight: 700, color: label === "USDC" ? "#3B82F6" : "#22C55E" }}>
+                          <div className="flowfi-mono" style={{ fontSize: 22, fontWeight: 700, color: "#0f1222" }}>
                             {circleBalances ? (label === "USDC" ? circleBalances.usdc : circleBalances.eurc) : <Skeleton width={70} height={22} />}
                           </div>
-                          <div style={{ fontSize: 11, color: "#6B7280", marginTop: 4 }}>Same address, 4 chains</div>
+                          <div style={{ fontSize: 11, color: "#6B7280", marginTop: 4, marginBottom: 12 }}>4 chains</div>
+                          <div style={{ display: "flex", gap: 12, marginTop: "auto" }}>
+                            <button onClick={() => setTab("swap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: 0 }}>Swap</button>
+                            <button onClick={() => setTab("swap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: 0 }}>Send</button>
+                          </div>
                         </div>
                       ))}
+                      <div />
                     </div>
                   </>
                 )}
@@ -818,13 +823,6 @@ function AppInner() {
                     + Create a Circle Wallet to see it alongside your browser wallet here
                   </button>
                 )}
-                <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA" }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>USDC · NATIVE VIEW</div>
-                    <div style={{ fontSize: 13, color: "#4B5563" }}>Same USDC balance above — this is what pays gas</div>
-                  </div>
-                  <div className="flowfi-mono" style={{ fontSize: 18, fontWeight: 700, color: "#374151" }}>{balances.native === null ? "..." : `${balances.native} USDC`}</div>
-                </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <button onClick={() => loadBalances(portfolioAddr)} style={{ background: "#ffffff", border: "none", borderRadius: 999, padding: "0.5rem 1rem", color: "#6D5EF7", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
@@ -873,7 +871,7 @@ function AppInner() {
               );
             })()}
 
-            {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
+            {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
             {tab === "analytics" && <StablecoinAnalytics />}
             {tab === "history" && (wallet || (circlePrimary && circleWalletInfo)) && <TxHistory address={wallet ? wallet.address : circleWalletInfo!.address} />}
             {tab === "bridge" && (wallet || (circlePrimary && circleWalletInfo)) && (
@@ -906,6 +904,7 @@ function AppInner() {
         </div>
         </div>
 
+        {tab !== "pools" && tab !== "history" && (
         <footer style={{ background: "#F5F3FF", borderTop: "1px solid #E5DEFA" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
             <div style={{ maxWidth: 320 }}>
@@ -954,6 +953,7 @@ function AppInner() {
             </div>
           </div>
         </footer>
+        )}
       </main>
 
       {wallet && <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />}

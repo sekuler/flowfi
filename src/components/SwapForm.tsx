@@ -92,14 +92,6 @@ async function switchToArc(provider: EIP1193Provider) {
   }
 }
 
-const DEMO_TICKER: ContractTx[] = [
-  { hash: "demo1", age: "12s ago", method: "Swap" },
-  { hash: "demo2", age: "45s ago", method: "Swap" },
-  { hash: "demo3", age: "1m ago", method: "Swap" },
-  { hash: "demo4", age: "3m ago", method: "Swap" },
-  { hash: "demo5", age: "5m ago", method: "Swap" },
-];
-
 export default function SwapForm({ provider, address, balances, onRefresh }: Props) {
   const [tokenIn, setTokenIn] = useState<Token>("USDC");
   const [tokenOut, setTokenOut] = useState<Token>("EURC");
@@ -113,6 +105,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
   const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
   const [dcaPlan, setDcaPlanState] = useState<DCAPlan | null>(null);
+  const [showDcaForm, setShowDcaForm] = useState(false);
   const [dcaAmount, setDcaAmount] = useState("20");
   const [dcaFrequency, setDcaFrequency] = useState<DCAFrequency>("weekly");
   const [runningDCA, setRunningDCA] = useState(false);
@@ -397,7 +390,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       setRunningDCA(false);
     }
   }
-  const tickerItems = contractTxs.length > 0 ? contractTxs : DEMO_TICKER;
+  const tickerItems = contractTxs;
 
   return (
     <div style={{ position: "relative", width: "100%" }}>
@@ -593,6 +586,9 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </div>
             )}
 
+            <p style={{ fontSize: 12, color: "#4B5563", margin: "0 0 6px 0", textAlign: "center" }}>
+              1 USDC ≈ {poolRate?.toFixed(4) ?? "..."} EURC · {useLegacyRoute ? "0.3% fee · 0.5% slippage" : "fixed-rate desk"}
+            </p>
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
               disabled={isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged)}
               style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged) ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged) ? 0.5 : 1, marginTop: 4 }}>
@@ -638,19 +634,23 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             )}
           </div>
 
-          <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.75rem 1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-            <p style={{ fontSize: 12, color: "#4B5563", margin: 0 }}>
-              Pool rate: 1 USDC ≈ {poolRate?.toFixed(4) ?? "..."} EURC
-              {marketRate && <span> · Live market: {marketRate.toFixed(4)}</span>}
-            </p>
-            <AdminRate provider={provider} address={address} />
-          </div>
-
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-            <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>DCA — RECURRING BUY</div>
+            {!dcaPlan && !showDcaForm ? (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "#4B5563" }}>No recurring buys set up</span>
+                <button onClick={() => setShowDcaForm(true)} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>Set up →</button>
+              </div>
+            ) : (
+            <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 700, letterSpacing: "1px" }}>DCA — RECURRING BUY</div>
+              {!dcaPlan && (
+                <button onClick={() => setShowDcaForm(false)} style={{ background: "none", border: "none", color: "#9CA3AF", fontSize: 11, cursor: "pointer", padding: 0 }}>Collapse</button>
+              )}
+            </div>
             {!dcaPlan ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <p style={{ fontSize: 11, color: "#6B7280", margin: 0, lineHeight: 1.5 }}>
@@ -692,33 +692,33 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                 </button>
               </div>
             )}
+            </>
+            )}
           </div>
 
           <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ROUTE DETAILS</div>
-            {poolLiquidity ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#4B5563" }}>USDC in pool</span>
-                  <span style={{ color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity.usdc}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#4B5563" }}>EURC in pool</span>
-                  <span style={{ color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity.eurc}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#4B5563" }}>Pool rate</span>
-                  <span style={{ color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolRate?.toFixed(4) ?? "..."}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#4B5563" }}>Live EUR/USD</span>
-                  <span style={{ color: marketRate ? "#111827" : "#374151", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{marketRate?.toFixed(4) ?? "—"}</span>
-                </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "#4B5563" }}>USDC in pool</span>
+                <span style={{ color: poolLiquidity ? "#111827" : "#9CA3AF", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity?.usdc ?? "—"}</span>
               </div>
-            ) : (
-              <div style={{ fontSize: 12, color: "#6B7280" }}>Loading...</div>
-            )}
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "#4B5563" }}>EURC in pool</span>
+                <span style={{ color: poolLiquidity ? "#111827" : "#9CA3AF", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolLiquidity?.eurc ?? "—"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "#4B5563" }}>Pool rate</span>
+                <span style={{ color: poolRate ? "#111827" : "#9CA3AF", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{poolRate?.toFixed(4) ?? "—"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "#4B5563" }}>Live EUR/USD</span>
+                <span style={{ color: marketRate ? "#111827" : "#9CA3AF", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{marketRate?.toFixed(4) ?? "—"}</span>
+              </div>
+            </div>
           </div>
+
+          <AdminRate provider={provider} address={address} />
 
           <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
@@ -736,6 +736,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         </div>
       </div>
 
+      {tickerItems.length > 0 && (
       <div style={{ position: "relative", zIndex: 1, marginTop: "0.75rem", background: "#ffffff", borderRadius: 14, padding: "0.7rem 0", display: "flex", alignItems: "center", gap: 10, overflow: "hidden", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
         <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, paddingLeft: 14, flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6D5EF7" }} />
@@ -751,6 +752,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

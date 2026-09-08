@@ -34,7 +34,7 @@ import { TokenIcon } from "./TokenIcon";
 import ConfirmModal from "./ConfirmModal";
 import { useIsMobile } from "../useIsMobile";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
-import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, BookOpen } from "lucide-react";
+import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, BookOpen, Wallet, CircleDollarSign } from "lucide-react";
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x${string}`;
@@ -729,14 +729,23 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       <div style={{ display: "inline-flex", gap: 4, background: "#F5F3FF", borderRadius: 999, padding: 3, width: "fit-content" }}>
-        <button onClick={() => setBridgeType("usdc")}
-          style={{ padding: "0.4rem 0.9rem", borderRadius: 999, border: "none", background: bridgeType === "usdc" ? "#ffffff" : "transparent", color: bridgeType === "usdc" ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: bridgeType === "usdc" ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
-          Stablecoin
-        </button>
-        <button onClick={() => setBridgeType("eth")}
-          style={{ padding: "0.4rem 0.9rem", borderRadius: 999, border: "none", background: bridgeType === "eth" ? "#ffffff" : "transparent", color: bridgeType === "eth" ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: bridgeType === "eth" ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
-          ETH
-        </button>
+        {([
+          { key: "usdc" as const, label: "USDC" },
+          { key: "eurc" as const, label: "EURC" },
+          { key: "eth" as const, label: "ETH" },
+        ]).map((opt) => {
+          const active = opt.key === "eth" ? bridgeType === "eth" : bridgeType === "usdc" && asset === opt.key;
+          return (
+            <button key={opt.key} disabled={isLoading}
+              onClick={() => { if (opt.key === "eth") { setBridgeType("eth"); } else { setBridgeType("usdc"); setAsset(opt.key); } }}
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: active ? "#ffffff" : "transparent", color: active ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: active ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
+              {opt.key !== "eth" && (
+                <span style={{ width: 15, height: 15, borderRadius: "50%", background: ASSET_META[opt.key].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 800, color: "#fff" }}>{ASSET_META[opt.key].badge}</span>
+              )}
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
 
       {bridgeType === "eth" && <EthBridge provider={provider} address={address} />}
@@ -744,15 +753,6 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       {bridgeType === "usdc" && (
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: "1.25rem", alignItems: "start" }}>
           <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
-            <div style={{ display: "inline-flex", gap: 4, background: "#F5F3FF", borderRadius: 999, padding: 3, width: "fit-content" }}>
-              {(["usdc", "eurc"] as Asset[]).map((a) => (
-                <button key={a} onClick={() => setAsset(a)} disabled={isLoading}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: asset === a ? "#ffffff" : "transparent", color: asset === a ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: asset === a ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
-                  <span style={{ width: 15, height: 15, borderRadius: "50%", background: ASSET_META[a].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 800, color: "#fff" }}>{ASSET_META[a].badge}</span>
-                  {ASSET_META[a].label}
-                </button>
-              ))}
-            </div>
             {asset === "eurc" && (
               <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>
                 EURC moves through Circle's CCTPx (Expanded Assets), separate from standard USDC bridging — only Ethereum Sepolia ↔ Base Sepolia is confirmed supported right now.
@@ -762,12 +762,12 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
             {circleWallet && (
               <div style={{ display: "inline-flex", gap: 4, background: "#F5F3FF", borderRadius: 999, padding: 3, width: "fit-content" }}>
                 <button onClick={() => setUseCircle(false)} disabled={isLoading}
-                  style={{ padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: !useCircle ? "#ffffff" : "transparent", color: !useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: !useCircle ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
-                  Browser Wallet
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: !useCircle ? "#ffffff" : "transparent", color: !useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: !useCircle ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
+                  <Wallet size={13} /> Browser Wallet
                 </button>
                 <button onClick={() => setUseCircle(true)} disabled={isLoading}
-                  style={{ padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: useCircle ? "#ffffff" : "transparent", color: useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: useCircle ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
-                  Circle Wallet
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: useCircle ? "#ffffff" : "transparent", color: useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: useCircle ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
+                  <CircleDollarSign size={13} /> Circle Wallet
                 </button>
               </div>
             )}
@@ -792,7 +792,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                 <input type="number" min="0" step="0.01" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
                   style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", boxShadow: "none", fontSize: 32, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
                 <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#f5f3ff" }}>
-                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: ASSET_META[asset].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{ASSET_META[asset].badge}</span>
+                  <TokenIcon symbol={asset.toUpperCase()} size={20} />
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{assetLabel}</span>
                 </span>
               </div>
@@ -973,32 +973,18 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 10 }}>
-                <BookOpen size={15} color="#6D5EF7" /> About CCTP V2
-              </div>
-              <p style={{ fontSize: 12, color: "#4B5563", lineHeight: 1.6, margin: "0 0 10px 0" }}>
-                Circle's Cross-Chain Transfer Protocol burns USDC on the source chain and mints native USDC on the destination — no wrapped tokens, no bridge risk.
+              <p style={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.6, margin: "14px 0 0 0", paddingTop: 12, borderTop: "1px solid #F5F3FF" }}>
+                <BookOpen size={12} color="#6D5EF7" style={{ verticalAlign: -2, marginRight: 4 }} />
+                Powered by Circle's CCTP V2: burns USDC on the source chain and mints native USDC on the destination — no wrapped tokens, no bridge risk.
               </p>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
-                <span style={{ color: "#6B7280" }}>Protocol</span>
-                <span style={{ color: "#111827", fontWeight: 600 }}>CCTP V2</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                <span style={{ color: "#6B7280" }}>Route</span>
-                <span style={{ color: "#111827", fontWeight: 600 }}>{sourceKey} → {destKey}</span>
-              </div>
             </div>
 
             <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Supported assets</div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {[
                   { symbol: "USDC", name: "USD Coin" },
                   { symbol: "EURC", name: "Euro Coin" },
-                  { symbol: "ARCC", name: "Arc Coin" },
                 ].map((t) => (
                   <div key={t.symbol} style={{ textAlign: "center" }}>
                     <div style={{ margin: "0 auto 6px", width: 34 }}>

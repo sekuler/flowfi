@@ -3,6 +3,7 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits, parseAbiItem } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
+import { TokenIcon } from "./TokenIcon";
 import { showToast } from "../toast";
 
 const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — legacy, pools created here keep working, no new pools go here
@@ -267,12 +268,13 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 8 : 14 }}>
         <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} sub={`${pools.length} pool${pools.length !== 1 ? "s" : ""}`} color="#6D5EF7" isMobile={isMobile} />
-        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : formatCompact(aggregate.volume)} sub={`across ${metricsValues.length} pool${metricsValues.length !== 1 ? "s" : ""}`} color="#3B82F6" isMobile={isMobile} />
+        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} sub={`across ${pools.length} pool${pools.length !== 1 ? "s" : ""}`} color="#3B82F6" isMobile={isMobile} />
         <StatCard label="AVG APR" value={aggregate.avgApr !== null ? `${aggregate.avgApr.toFixed(2)}%` : "—"} sub="fee-weighted" color="#16A34A" isMobile={isMobile} />
-        <StatCard label="FEES · 24H" value={loadingTvl ? "..." : formatCompact(aggregate.fees)} sub="earned by LPs" color="#F59E0B" isMobile={isMobile} />
+        <StatCard label="FEES · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.fees) : "—"} sub="earned by LPs" color="#F59E0B" isMobile={isMobile} />
       </div>
 
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 10 }}>
+        {pools.length > 1 && (
         <div style={{ display: "flex", gap: 6, background: "#f5f3ff", borderRadius: 999, padding: 4, width: isMobile ? "100%" : undefined }}>
           {(["all", "stable", "volatile"] as const).map(tab => (
             <button key={tab} onClick={() => setFilterTab(tab)}
@@ -281,6 +283,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
             </button>
           ))}
         </div>
+        )}
         <div style={{ display: "flex", gap: 8 }}>
           <input type="text" placeholder="Search pair or address" value={search} onChange={(e) => setSearch(e.target.value)}
             style={{ flex: 1, minWidth: isMobile ? 0 : 200, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.55rem 0.8rem", fontSize: 12, color: "#111827", outline: "none" }} />
@@ -297,11 +300,10 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
       <div style={{ background: "#ffffff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
         {!isMobile && (
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr 1fr", gap: 10, padding: "0.7rem 1.25rem", borderBottom: "1px solid rgba(124,58,237,0.08)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr", gap: 10, padding: "0.7rem 1.25rem", borderBottom: "1px solid rgba(124,58,237,0.08)" }}>
             <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px" }}>POOL</div>
             <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>LIQUIDITY</div>
             <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>VOLUME · 24H</div>
-            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "center" }}>24H SHAPE</div>
             <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>FEE APR</div>
           </div>
         )}
@@ -332,20 +334,6 @@ function StatCard({ label, value, sub, color, isMobile }: { label: string; value
       <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{value}</div>
       <div style={{ fontSize: isMobile ? 9 : 10, color: "#9CA3AF" }}>{sub}</div>
     </div>
-  );
-}
-
-function Sparkline({ points, color }: { points: number[]; color: string }) {
-  if (points.length < 2) return <div style={{ fontSize: 10, color: "#D1D5DB" }}>—</div>;
-  const max = Math.max(...points, 0.0001);
-  const min = Math.min(...points, 0);
-  const range = max - min || 1;
-  const w = 64, h = 24;
-  const coords = points.map((p, i) => `${(i / (points.length - 1)) * w},${h - ((p - min) / range) * h}`).join(" ");
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <polyline points={coords} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
   );
 }
 
@@ -586,15 +574,15 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {!isMobile ? (
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr 1fr", gap: 10, alignItems: "center", padding: "0.85rem 1.25rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr", gap: 10, alignItems: "center", padding: "0.85rem 1.25rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex" }}>
-              <div style={{ width: 28, height: 28, borderRadius: "50%", background: `linear-gradient(135deg, ${pool.colorA}, ${pool.colorA}AA)`, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #ffffff", boxShadow: `0 3px 8px ${pool.colorA}40` }}>{resolvedSymbolA.slice(0, 2)}</div>
-              <div style={{ width: 28, height: 28, borderRadius: "50%", background: `linear-gradient(135deg, ${pool.colorB}, ${pool.colorB}AA)`, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #ffffff", marginLeft: -8, boxShadow: `0 3px 8px ${pool.colorB}40` }}>{resolvedSymbolB.slice(0, 2)}</div>
+              <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden" }}><TokenIcon symbol={resolvedSymbolA} size={24} /></div>
+              <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden", marginLeft: -8 }}><TokenIcon symbol={resolvedSymbolB} size={24} /></div>
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA} / {resolvedSymbolB}</div>
-              <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>{isStablePair ? "Concentrated" : "Volatile"} · 0.3% fee</div>
+              <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>Constant product · 0.3% fee</div>
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -614,9 +602,6 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
                 <div style={{ fontSize: 10, color: "#9CA3AF" }}>{metrics.swapCount7d} swap{metrics.swapCount7d !== 1 ? "s" : ""}</div>
               </>
             )}
-          </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <Sparkline points={metrics.shape} color={pool.colorA} />
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
             {metrics.logsUnavailable ? (
