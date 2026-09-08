@@ -425,7 +425,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                     onClick={() => setTokenInOpen(!tokenInOpen)}
                     disabled={isLoading}
                     style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px 7px 7px", borderRadius: 999, background: "#F5F3FF", border: "none", cursor: "pointer" }}>
-                    <TokenIcon symbol={tokenIn} size={22} />
+                    <TokenIcon symbol={tokenIn} size={28} />
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenIn}</span>
                     <span style={{ fontSize: 9, color: "#6B7280" }}>▾</span>
                   </button>
@@ -471,7 +471,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                     onClick={() => setTokenOutOpen(!tokenOutOpen)}
                     disabled={isLoading}
                     style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px 7px 7px", borderRadius: 999, background: "#F5F3FF", border: "none", cursor: "pointer" }}>
-                    <TokenIcon symbol={tokenOut} size={22} />
+                    <TokenIcon symbol={tokenOut} size={28} />
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{tokenOut}</span>
                     <span style={{ fontSize: 9, color: "#6B7280" }}>▾</span>
                   </button>
