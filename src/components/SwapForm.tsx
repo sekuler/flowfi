@@ -586,9 +586,16 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </div>
             )}
 
-            <p style={{ fontSize: 12, color: "#4B5563", margin: "0 0 6px 0", textAlign: "center" }}>
-              1 USDC ≈ {poolRate?.toFixed(4) ?? "..."} EURC · {useLegacyRoute ? "0.3% fee · 0.5% slippage" : "fixed-rate desk"}
-            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: "#f5f3ff", borderRadius: 14, overflow: "hidden" }}>
+              <div style={{ padding: "0.75rem 1rem" }}>
+                <div style={{ fontSize: 11, color: "#6B7280" }}>Rate</div>
+                <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>1 USDC = {poolRate?.toFixed(4) ?? "..."} EURC</div>
+              </div>
+              <div style={{ padding: "0.75rem 1rem", borderLeft: "1px solid #EDE9FE" }}>
+                <div style={{ fontSize: 11, color: "#6B7280" }}>Fee</div>
+                <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{useLegacyRoute ? "0.3%" : "0%"}</div>
+              </div>
+            </div>
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
               disabled={isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged)}
               style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged) ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged) ? 0.5 : 1, marginTop: 4 }}>

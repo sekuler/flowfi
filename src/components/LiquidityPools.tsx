@@ -266,11 +266,10 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 8 : 14 }}>
-        <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} sub={`${pools.length} pool${pools.length !== 1 ? "s" : ""}`} color="#6D5EF7" isMobile={isMobile} />
-        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} sub={`across ${pools.length} pool${pools.length !== 1 ? "s" : ""}`} color="#3B82F6" isMobile={isMobile} />
-        <StatCard label="AVG APR" value={aggregate.avgApr !== null ? `${aggregate.avgApr.toFixed(2)}%` : "—"} sub="fee-weighted" color="#16A34A" isMobile={isMobile} />
-        <StatCard label="FEES · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.fees) : "—"} sub="earned by LPs" color="#F59E0B" isMobile={isMobile} />
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 8 : 14 }}>
+        <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} sub={aggregate.avgApr !== null ? `${aggregate.avgApr.toFixed(2)}% avg APR` : "24h change"} color="#6D5EF7" isMobile={isMobile} />
+        <StatCard label="POOLS" value={String(pools.length)} sub="Active pools" color="#5B21B6" isMobile={isMobile} />
+        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} sub="24h volume" color="#3B82F6" isMobile={isMobile} />
       </div>
 
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 10 }}>
@@ -302,9 +301,9 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         {!isMobile && (
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr", gap: 10, padding: "0.7rem 1.25rem", borderBottom: "1px solid rgba(124,58,237,0.08)" }}>
             <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px" }}>POOL</div>
-            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>LIQUIDITY</div>
-            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>VOLUME · 24H</div>
-            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>FEE APR</div>
+            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px" }}>TYPE</div>
+            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>TVL</div>
+            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>APY</div>
           </div>
         )}
 
@@ -580,28 +579,15 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
               <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden" }}><TokenIcon symbol={resolvedSymbolA} size={24} /></div>
               <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden", marginLeft: -8 }}><TokenIcon symbol={resolvedSymbolB} size={24} /></div>
             </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA} / {resolvedSymbolB}</div>
-              <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>Constant product · 0.3% fee</div>
-            </div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA} / {resolvedSymbolB}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12.5, color: "#111827", fontWeight: 600 }}>Constant Product</div>
+            <div style={{ fontSize: 10, color: "#9CA3AF" }}>0.3% fee</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 13, color: "#111827", fontWeight: 800 }}>{!loading && metrics.tvl !== null ? formatCompact(metrics.tvl) : loading ? "..." : "—"}</div>
             {reserves && <div style={{ fontSize: 10, color: "#9CA3AF" }}>{reserves.a} {resolvedSymbolA} · {reserves.b} {resolvedSymbolB}</div>}
-          </div>
-          <div style={{ textAlign: "right" }}>
-            {loading ? (
-              <div style={{ fontSize: 13, color: "#9CA3AF" }}>...</div>
-            ) : metrics.logsUnavailable ? (
-              <div style={{ fontSize: 11, color: "#D97706" }}>Activity unavailable</div>
-            ) : metrics.swapCount7d === 0 ? (
-              <div style={{ fontSize: 11, color: "#9CA3AF" }}>Not traded yet</div>
-            ) : (
-              <>
-                <div style={{ fontSize: 13, color: "#111827", fontWeight: 800 }}>{metrics.volume7d !== null ? formatCompact(metrics.volume7d) : `${metrics.swapCount7d} swaps`}</div>
-                <div style={{ fontSize: 10, color: "#9CA3AF" }}>{metrics.swapCount7d} swap{metrics.swapCount7d !== 1 ? "s" : ""}</div>
-              </>
-            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
             {metrics.logsUnavailable ? (

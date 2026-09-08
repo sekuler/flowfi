@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 import { useIsMobile } from "../useIsMobile";
+import { Repeat, Droplet, ArrowRight as ArrowRightIcon } from "lucide-react";
 
 const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2
 const LEGACY_AMM = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
@@ -19,7 +20,7 @@ interface Metrics {
   ammPool: number;
 }
 
-export default function StablecoinAnalytics() {
+export default function StablecoinAnalytics({ onNavigate }: { onNavigate?: (tab: "swap" | "pools") => void }) {
   const isMobile = useIsMobile();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -114,13 +115,33 @@ export default function StablecoinAnalytics() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
-        <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, marginBottom: 4 }}>SWAP DESK</div>
-          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : metrics ? `$${metrics.swapPool.toFixed(2)}` : "—"}</div>
+        <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)", display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+            <div style={{ fontSize: 12.5, color: "#374151", fontWeight: 700 }}>Swap desk</div>
+            <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(124,58,237,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Repeat size={14} color="#7c3aed" />
+            </div>
+          </div>
+          <div className="flowfi-mono" style={{ fontSize: 22, fontWeight: 700, color: "#111827" }}>{loading ? "..." : metrics ? `$${metrics.swapPool.toFixed(2)}` : "—"}</div>
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 12 }}>Available to swap</div>
+          <button onClick={() => onNavigate?.("swap")}
+            style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.55rem 0.8rem", color: "#5B21B6", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+            View swap desk <ArrowRightIcon size={13} />
+          </button>
         </div>
-        <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ fontSize: 10, color: "#5B21B6", fontWeight: 700, marginBottom: 4 }}>AMM POOL</div>
-          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : metrics ? `$${metrics.ammPool.toFixed(2)}` : "—"}</div>
+        <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)", display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+            <div style={{ fontSize: 12.5, color: "#374151", fontWeight: 700 }}>AMM pool</div>
+            <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(91,33,182,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Droplet size={14} color="#5B21B6" />
+            </div>
+          </div>
+          <div className="flowfi-mono" style={{ fontSize: 22, fontWeight: 700, color: "#111827" }}>{loading ? "..." : metrics ? `$${metrics.ammPool.toFixed(2)}` : "—"}</div>
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 12 }}>Total liquidity</div>
+          <button onClick={() => onNavigate?.("pools")}
+            style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.55rem 0.8rem", color: "#5B21B6", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+            View AMM pool <ArrowRightIcon size={13} />
+          </button>
         </div>
       </div>
 
