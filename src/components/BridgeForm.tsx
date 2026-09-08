@@ -796,7 +796,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
                   <input type="number" min="0" step="0.01" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
                     style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", boxShadow: "none", fontSize: 32, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
                   <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#f5f3ff" }}>
-                    <TokenIcon symbol={asset.toUpperCase()} size={20} />
+                    <TokenIcon symbol={asset.toUpperCase()} size={26} />
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{assetLabel}</span>
                   </span>
                 </div>

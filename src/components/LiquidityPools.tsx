@@ -264,6 +264,15 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       }
       return true;
     })
+    .filter((p, _i, arr) => {
+      // Same pair can exist on both the old legacy AMM and a newer factory
+      // pool — show it once, preferring the non-legacy one.
+      const pairKey = [p.addressA.toLowerCase(), p.addressB.toLowerCase()].sort().join("_");
+      const candidates = arr.filter(o => [o.addressA.toLowerCase(), o.addressB.toLowerCase()].sort().join("_") === pairKey);
+      if (candidates.length === 1) return true;
+      const preferred = candidates.find(c => !c.isLegacy) ?? candidates[0];
+      return p.poolAddress === preferred.poolAddress;
+    })
     .sort((a, b) => {
       const ma = poolMetrics[a.poolAddress]; const mb = poolMetrics[b.poolAddress];
       const key = sortBy === "apr" ? "apr" : sortBy === "tvl" ? "tvl" : "volume7d";
@@ -283,7 +292,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 8 : 14 }}>
         <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} sub={aggregate.avgApr !== null ? `${aggregate.avgApr.toFixed(2)}% avg APR` : "24h change"} color="#6D5EF7" isMobile={isMobile} icon={Wallet2} />
-        <StatCard label="POOLS" value={String(pools.length)} sub="Active pools" color="#5B21B6" isMobile={isMobile} icon={Droplet} />
+        <StatCard label="POOLS" value={String(visiblePools.length)} sub="Active pools" color="#5B21B6" isMobile={isMobile} icon={Droplet} />
         <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} sub="24h volume" color="#3B82F6" isMobile={isMobile} icon={BarChart3} />
       </div>
 
@@ -596,8 +605,8 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr", gap: 10, alignItems: "center", padding: "0.85rem 1.25rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex" }}>
-              <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden" }}><TokenIcon symbol={resolvedSymbolA} size={24} /></div>
-              <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden", marginLeft: -8 }}><TokenIcon symbol={resolvedSymbolB} size={24} /></div>
+              <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden" }}><TokenIcon symbol={resolvedSymbolA} size={34} /></div>
+              <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden", marginLeft: -10 }}><TokenIcon symbol={resolvedSymbolB} size={34} /></div>
             </div>
             <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA} / {resolvedSymbolB}</div>
           </div>
