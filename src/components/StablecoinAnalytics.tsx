@@ -118,11 +118,11 @@ export default function StablecoinAnalytics() {
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
         <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, marginBottom: 4 }}>SWAP POOL</div>
-          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.swapPool.toFixed(2)}`}</div>
+          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : metrics ? `$${metrics.swapPool.toFixed(2)}` : "—"}</div>
         </div>
         <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ fontSize: 10, color: "#5B21B6", fontWeight: 700, marginBottom: 4 }}>AMM POOL</div>
-          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${metrics?.ammPool.toFixed(2)}`}</div>
+          <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : metrics ? `$${metrics.ammPool.toFixed(2)}` : "—"}</div>
         </div>
       </div>
 

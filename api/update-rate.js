@@ -1,7 +1,13 @@
 const { initiateDeveloperControlledWalletsClient } = require('@circle-fin/developer-controlled-wallets');
+const { createPublicClient, http } = require('viem');
 
-const SWAP_CONTRACT = '0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521'; // ArcSwap v2
+const SWAP_CONTRACT = '0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1'; // ArcSwap v5
 const ADMIN_WALLET_ADDRESS = '0x5e434b565c737ddf2a7a9392b29a329e08692241';
+const ARC_TESTNET = { id: 5042002, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } } };
+
+const RATE_ABI = [
+  { type: 'function', name: 'usdcToEurcRate', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint256' }] },
+];
 
 module.exports = async function handler(req, res) {
   // Vercel Cron sends a GET request with this header — reject anything else
@@ -20,6 +26,25 @@ module.exports = async function handler(req, res) {
       return res.status(502).json({ error: 'Could not fetch live rate.' });
     }
 
+    const desiredRateScaled = BigInt(Math.round(liveRate * 1e6));
+
+    // v5's setRate() caps any single call to a 10% move from the current
+    // on-chain rate (a security fix — previously one call could set an
+    // absurd rate with no limit at all). Read the current rate and clamp
+    // the target so this call can never revert on that cap. If the real
+    // rate ever drifts more than 10% between cron runs, this closes the
+    // gap by 10% per run rather than failing outright — it'll fully catch
+    // up over a few runs instead of jumping there in one.
+    const publicClient = createPublicClient({ chain: ARC_TESTNET, transport: http() });
+    const currentRateScaled = await publicClient.readContract({
+      address: SWAP_CONTRACT, abi: RATE_ABI, functionName: 'usdcToEurcRate',
+    });
+
+    const maxDelta = (currentRateScaled * 1000n) / 10000n; // 10%, in basis points
+    let newRateScaled = desiredRateScaled;
+    if (newRateScaled > currentRateScaled + maxDelta) newRateScaled = currentRateScaled + maxDelta;
+    if (newRateScaled < currentRateScaled - maxDelta) newRateScaled = currentRateScaled - maxDelta;
+
     const client = initiateDeveloperControlledWalletsClient({
       apiKey: process.env.CIRCLE_API_KEY,
       entitySecret: process.env.CIRCLE_ENTITY_SECRET,
@@ -35,19 +60,20 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'Admin wallet not found on ARC-TESTNET.' });
     }
 
-    // 3. Push the new rate on-chain.
-    const newRateScaled = Math.round(liveRate * 1e6).toString();
+    // 3. Push the (possibly clamped) new rate on-chain.
     const txResponse = await client.createContractExecutionTransaction({
       walletId: adminWallet.id,
       contractAddress: SWAP_CONTRACT,
       abiFunctionSignature: 'setRate(uint256)',
-      abiParameters: [newRateScaled],
+      abiParameters: [newRateScaled.toString()],
       fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
     });
 
     return res.status(200).json({
       success: true,
-      rate: liveRate,
+      liveRate,
+      appliedRateScaled: newRateScaled.toString(),
+      clamped: newRateScaled !== desiredRateScaled,
       transactionId: txResponse.data?.id,
       state: txResponse.data?.state,
     });
