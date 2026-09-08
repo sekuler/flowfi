@@ -26,7 +26,7 @@ import { getDCAPlan, isDCADue } from "./dca";
 import { getCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
 import { showToast } from "./toast";
 import {
-  Home, LayoutGrid, Repeat, TrendingUp, Droplet,
+  Home, LayoutGrid, Repeat, Droplet,
   Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
   Sparkles, Moon, Power, Copy, Check, RefreshCw, Lock,
 } from "lucide-react";
@@ -104,13 +104,12 @@ const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: 
 },
 ];
 
-const LANDING_FEATURE_ICONS = [Sparkles, Repeat, Hexagon, TrendingUp, Rocket];
+const LANDING_FEATURE_ICONS = [Sparkles, Repeat, Hexagon, Rocket];
 
 const LANDING_FEATURES = [
-  { title: "AI Copilot", desc: "Type what you want — swap, send, borrow, or open a trade — and Copilot executes it for you." },
+  { title: "AI Copilot", desc: "Type what you want — swap, send, bridge, or launch a token — and Copilot executes it for you." },
   { title: "Smart Swap", desc: "On-chain swap with an AI advisor that reads real pool liquidity before you trade." },
   { title: "Real CCTP Bridge", desc: "Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol." },
-  { title: "Leveraged Trading", desc: "Long or short BTC/ETH with live pricing and real-time PNL tracking." },
   { title: "Token Launch", desc: "Deploy your own ERC20 token on Arc and pair it with liquidity in seconds." },
 ];
 
