@@ -34,7 +34,7 @@ import { TokenIcon } from "./TokenIcon";
 import ConfirmModal from "./ConfirmModal";
 import { useIsMobile } from "../useIsMobile";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
-import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, BookOpen, Wallet, CircleDollarSign } from "lucide-react";
+import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, ArrowRight, BookOpen, Wallet, CircleDollarSign } from "lucide-react";
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x${string}`;
@@ -759,94 +759,67 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
               </p>
             )}
 
-            {circleWallet && (
-              <div style={{ display: "inline-flex", gap: 4, background: "#F5F3FF", borderRadius: 999, padding: 3, width: "fit-content" }}>
-                <button onClick={() => setUseCircle(false)} disabled={isLoading}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: !useCircle ? "#ffffff" : "transparent", color: !useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: !useCircle ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
-                  <Wallet size={13} /> Browser Wallet
-                </button>
-                <button onClick={() => setUseCircle(true)} disabled={isLoading}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: useCircle ? "#ffffff" : "transparent", color: useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: useCircle ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
-                  <CircleDollarSign size={13} /> Circle Wallet
-                </button>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto 1fr", gap: 10, alignItems: "end" }}>
+              <div>
+                <label style={{ fontSize: 12, color: "#4B5563", fontWeight: 600 }}>From</label>
+                <div style={{ marginTop: 6 }}>
+                  <ChainRow chainKey={sourceKey} open={sourceOpen} setOpen={setSourceOpen} onSelect={changeSource} />
+                </div>
               </div>
+              <button onClick={flipChains} disabled={isLoading}
+                style={{ width: 34, height: 34, borderRadius: 10, background: "#f5f3ff", border: "1px solid #D4C9FA", color: "#6D5EF7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12, flexShrink: 0 }}>
+                <ArrowRight size={15} />
+              </button>
+              <div>
+                <label style={{ fontSize: 12, color: "#4B5563", fontWeight: 600 }}>To</label>
+                <div style={{ marginTop: 6 }}>
+                  <ChainRow chainKey={destKey} open={destOpen} setOpen={setDestOpen} onSelect={changeDest} />
+                </div>
+              </div>
+            </div>
+            {!assetAddress(source, asset) && (
+              <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>{assetLabel} isn't deployed on {sourceKey} yet — pick a different source.</p>
+            )}
+            {!assetAddress(dest, asset) && (
+              <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>{assetLabel} isn't deployed on {destKey} yet — pick a different destination.</p>
             )}
 
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label style={{ fontSize: 13, color: "#4B5563", fontWeight: 600 }}>From</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label style={{ fontSize: 12, color: "#4B5563", fontWeight: 600 }}>Amount</label>
                 <span className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280" }}>
                   Balance: <span style={{ color: ASSET_META[asset].color, fontWeight: 700 }}>{sourceBalance ?? "..."} {assetLabel}</span>
                 </span>
               </div>
-              <div style={{ marginTop: 6 }}>
-                <ChainRow chainKey={sourceKey} open={sourceOpen} setOpen={setSourceOpen} onSelect={changeSource} />
-              </div>
-              {!assetAddress(source, asset) && (
-                <p style={{ fontSize: 11, color: "#B45309", marginTop: 4 }}>{assetLabel} isn't deployed on {sourceKey} yet — pick a different source.</p>
-              )}
-            </div>
-
-            <div style={{ borderRadius: 16, border: "1px solid #D4C9FA", padding: "1rem 1.1rem" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                <input type="number" min="0" step="0.01" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
-                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", boxShadow: "none", fontSize: 32, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
-                <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#f5f3ff" }}>
-                  <TokenIcon symbol={asset.toUpperCase()} size={20} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{assetLabel}</span>
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                <span className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280" }}>{amount ? `${ASSET_META[asset].badge}${Number(amount).toFixed(2)}` : `${ASSET_META[asset].badge}0.00`}</span>
-                {sourceBalance && sourceBalance !== "—" && (
-                  <button onClick={() => setAmount(sourceBalance)} disabled={isLoading}
-                    style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>
-                    Max
-                  </button>
-                )}
+              <div style={{ borderRadius: 16, border: "1px solid #D4C9FA", padding: "1rem 1.1rem" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                  <input type="number" min="0" step="0.01" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading}
+                    style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", boxShadow: "none", fontSize: 32, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
+                  <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#f5f3ff" }}>
+                    <TokenIcon symbol={asset.toUpperCase()} size={20} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{assetLabel}</span>
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                  <span style={{ fontSize: 11, color: "#9CA3AF" }}>Receive native {assetLabel} on {destKey} — no wrapped tokens</span>
+                  {sourceBalance && sourceBalance !== "—" && (
+                    <button onClick={() => setAmount(sourceBalance)} disabled={isLoading}
+                      style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0, flexShrink: 0 }}>
+                      Max
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", marginTop: -6, marginBottom: -6 }}>
-              <button onClick={flipChains} disabled={isLoading}
-                style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", border: "1px solid #D4C9FA", color: "#6D5EF7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.1)" }}>
-                <ArrowDownUp size={15} />
-              </button>
-            </div>
-
-            <div>
-              <label style={{ fontSize: 13, color: "#4B5563", fontWeight: 600 }}>To</label>
-              <div style={{ marginTop: 6 }}>
-                <ChainRow chainKey={destKey} open={destOpen} setOpen={setDestOpen} onSelect={changeDest} />
-              </div>
-              {!assetAddress(dest, asset) && (
-                <p style={{ fontSize: 11, color: "#B45309", marginTop: 4 }}>{assetLabel} isn't deployed on {destKey} yet — pick a different destination.</p>
-              )}
-            </div>
-
-            <div style={{ borderRadius: 16, border: "1px solid #D4C9FA", padding: "1rem 1.1rem", background: "#f5f3ff" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                <span className="flowfi-mono" style={{ fontSize: 32, fontWeight: 700, color: "#111827" }}>{amount ? Number(amount).toFixed(2) : "0"}</span>
-                <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 6px 6px", borderRadius: 999, background: "#ffffff" }}>
-                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: ASSET_META[asset].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{ASSET_META[asset].badge}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{assetLabel}</span>
-                </span>
-              </div>
-              <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>Estimated — native {assetLabel}, no wrapped tokens</div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8 }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 2 }}>Est. time</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
+              <div style={{ textAlign: "center", background: "#f5f3ff", borderRadius: 10, padding: "0.5rem" }}>
+                <div style={{ fontSize: 10.5, color: "#6B7280" }}>Est. time</div>
                 <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>~20 sec</div>
               </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 2 }}>Network fee</div>
+              <div style={{ textAlign: "center", background: "#f5f3ff", borderRadius: 10, padding: "0.5rem" }}>
+                <div style={{ fontSize: 10.5, color: "#6B7280" }}>Network fee</div>
                 <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>0.0005 {assetLabel}</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 2 }}>You receive</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Native {assetLabel}</div>
               </div>
             </div>
 
@@ -888,6 +861,22 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
               <div style={{ background: "rgba(34,197,94,0.1)", borderRadius: 12, padding: "1rem" }}>
                 <p style={{ color: "#16A34A", fontWeight: 700, marginBottom: 6 }}>Bridge complete!</p>
                 <a href={`${dest.chain.blockExplorers?.default.url ?? "https://testnet.arcscan.app"}/tx/${mintTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563EB", fontSize: 13 }}>View mint on {destKey} ↗</a>
+              </div>
+            )}
+
+            {circleWallet && (
+              <div>
+                <label style={{ fontSize: 12, color: "#4B5563", fontWeight: 600 }}>Pay with</label>
+                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                  <button onClick={() => setUseCircle(false)} disabled={isLoading}
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.65rem", borderRadius: 12, border: `1.5px solid ${!useCircle ? "#6D5EF7" : "#D4C9FA"}`, background: !useCircle ? "#f5f3ff" : "#ffffff", color: !useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                    <Wallet size={14} /> Browser Wallet
+                  </button>
+                  <button onClick={() => setUseCircle(true)} disabled={isLoading}
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.65rem", borderRadius: 12, border: `1.5px solid ${useCircle ? "#6D5EF7" : "#D4C9FA"}`, background: useCircle ? "#f5f3ff" : "#ffffff", color: useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                    <CircleDollarSign size={14} /> Circle Wallet
+                  </button>
+                </div>
               </div>
             )}
 

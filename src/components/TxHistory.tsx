@@ -1,4 +1,5 @@
 import EmptyState from "./EmptyState";
+import { HelpCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getCircleWallet, type CircleWalletInfo } from "../circleWalletHelpers";
 import { contactNameFor } from "../contacts";
@@ -241,7 +242,7 @@ export default function TxHistory({ address }: Props) {
       {!loading && error && (
         <div style={{ background: "#ffffff", borderRadius: 16, padding: "2.5rem 1.5rem", textAlign: "center", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
           <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-            <span style={{ fontSize: 22 }}>⚠️</span>
+            <HelpCircle size={22} color="#6D5EF7" />
           </div>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Could not load transactions</div>
           <div style={{ fontSize: 12.5, color: "#6B7280", marginBottom: 16 }}>{error}</div>
