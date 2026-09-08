@@ -292,8 +292,8 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 8 : 14 }}>
         <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} sub={aggregate.avgApr !== null ? `${aggregate.avgApr.toFixed(2)}% avg APR` : "24h change"} color="#6D5EF7" isMobile={isMobile} icon={Wallet2} />
-        <StatCard label="POOLS" value={String(visiblePools.length)} sub="Active pools" color="#5B21B6" isMobile={isMobile} icon={Droplet} />
-        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} sub="24h volume" color="#3B82F6" isMobile={isMobile} icon={BarChart3} />
+        <StatCard label="POOLS" value={String(visiblePools.length)} sub="Active pools" color="#7C5CFC" isMobile={isMobile} icon={Droplet} />
+        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} sub="24h volume" color="#5B21B6" isMobile={isMobile} icon={BarChart3} />
       </div>
 
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 10 }}>
@@ -322,6 +322,9 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
 
       <div style={{ background: "#ffffff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+        <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(124,58,237,0.08)" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>All Pools</div>
+        </div>
         {!isMobile && (
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr", gap: 10, padding: "0.7rem 1.25rem", borderBottom: "1px solid rgba(124,58,237,0.08)" }}>
             <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px" }}>POOL</div>
@@ -354,7 +357,7 @@ function StatCard({ label, value, sub, color, isMobile, icon: Icon }: { label: s
   return (
     <div style={{ background: "#ffffff", border: "1px solid #E5E0FA", borderRadius: 18, padding: isMobile ? "1.1rem 1.2rem" : "1.5rem 1.6rem", boxShadow: "0 2px 8px rgba(109,94,247,0.06)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ fontSize: isMobile ? 12 : 13, color: "#6B7280", fontWeight: 600 }}>{label}</div>
+        <div style={{ fontSize: isMobile ? 10 : 11, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" }}>{label}</div>
         <div style={{ width: isMobile ? 36 : 44, height: isMobile ? 36 : 44, borderRadius: "50%", background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Icon size={isMobile ? 17 : 20} color={color} />
         </div>
