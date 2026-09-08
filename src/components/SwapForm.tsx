@@ -36,7 +36,8 @@ const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2 — adds minAmountOut, pause(), fixes withdraw event
 const POOL_FACTORY_V2 = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 (legacy)
-const POOL_FACTORY_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3
+const POOL_FACTORY_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 (legacy)
+const POOL_FACTORY_V4 = "0x57B451D60F09222C2bb6c828FFE3703069A532Ed" as `0x${string}`; // ArcFactoryV2 v4
 
 const POOL_FACTORY_ABI = [
   { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
@@ -175,9 +176,15 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       // route can be surfaced instead of only ever showing the fixed-rate pool.
       try {
         let poolAddress = await client.readContract({
-          address: POOL_FACTORY_V3, abi: POOL_FACTORY_ABI, functionName: "getPool",
+          address: POOL_FACTORY_V4, abi: POOL_FACTORY_ABI, functionName: "getPool",
           args: [USDC_ADDRESS, EURC_ADDRESS],
         }) as `0x${string}`;
+        if (poolAddress === "0x0000000000000000000000000000000000000000") {
+          poolAddress = await client.readContract({
+            address: POOL_FACTORY_V3, abi: POOL_FACTORY_ABI, functionName: "getPool",
+            args: [USDC_ADDRESS, EURC_ADDRESS],
+          }) as `0x${string}`;
+        }
         if (poolAddress === "0x0000000000000000000000000000000000000000") {
           poolAddress = await client.readContract({
             address: POOL_FACTORY_V2, abi: POOL_FACTORY_ABI, functionName: "getPool",
@@ -446,6 +453,15 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>{amount && Number(amount) > 0 ? `$${Number(amount).toFixed(2)}` : "$0.00"}</div>
             </div>
 
+            <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+              {[25, 50, 75, 100].map((pct) => (
+                <button key={pct} onClick={() => setAmount((Number(currentBalance) * pct / 100).toFixed(6))} disabled={isLoading}
+                  style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 10, padding: "6px 14px", color: "#111827", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.08)" }}>
+                  {pct === 100 ? "Max" : `${pct}%`}
+                </button>
+              ))}
+            </div>
+
             <div style={{ display: "flex", justifyContent: "center", marginTop: -14, marginBottom: -14, position: "relative", zIndex: 1 }}>
               <button onClick={flipTokens} disabled={isLoading}
                 style={{ width: 34, height: 34, borderRadius: 10, background: "#ffffff", border: "1px solid #EDE9FE", color: "#6D5EF7", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(109,94,247,0.1)" }}>
@@ -576,15 +592,6 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                 })}
               </div>
             )}
-
-            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 10 }}>
-              {[25, 50, 75, 100].map((pct) => (
-                <button key={pct} onClick={() => setAmount((Number(currentBalance) * pct / 100).toFixed(6))} disabled={isLoading}
-                  style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 10, padding: "6px 14px", color: "#111827", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.08)" }}>
-                  {pct === 100 ? "Max" : `${pct}%`}
-                </button>
-              ))}
-            </div>
 
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
               disabled={isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged)}

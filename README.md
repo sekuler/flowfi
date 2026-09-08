@@ -14,7 +14,7 @@ FlowFi treats Arc as the destination, not just another chain to bridge into. USD
 - ✓ **Real CCTP V2** — Circle's actual burn/attest/mint protocol, not a synthetic bridge
 - ✓ **AI executes transactions** — natural language in, signed on-chain transaction out
 - ✓ **AI market analysis** — real RSI/EMA/MACD/support-resistance computed server-side from live data, not AI-generated numbers
-- ✓ **Permissionless liquidity pools** — anyone can create a pool for any token pair
+- ✓ **Curated liquidity pools** — FlowFi creates pools for major assets (USDC, EURC, cirBTC, and more); anyone can add/remove liquidity or swap against any of them
 - ✓ **Seedless wallets** — Circle Developer-Controlled Wallets, no browser extension required
 - ✓ **Built specifically for Arc** — not a multi-chain app with Arc bolted on
 
@@ -49,8 +49,8 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | **Bridge & Gateway** | One page, two modes. Bridge: genuine cross-chain USDC transfer via Circle's official burn/attest/mint CCTP V2 protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia. Gateway: a unified USDC balance via Circle's Gateway protocol — deposit once, held as one pooled balance instead of four separate on-chain balances. Both work from either a browser wallet or the Circle Wallet |
 | **Circle Wallet** | FlowFi provisions a Developer-Controlled Wallet and tracks its per-chain wallet IDs — no seed phrase, no browser extension, one consistent address surfaced across all four supported chains. Can be used as your only login, or alongside a browser wallet |
 | **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
-| **Liquidity Pools** | Permissionless AMM — create a pool for any token pair, add/remove liquidity, swap directly against it |
-| **Token Launch** | Deploy your own ERC-20 on Arc and pair it with liquidity in one flow |
+| **Liquidity Pools** | FlowFi creates pools for major assets (USDC, EURC, cirBTC, and more) — anyone can add/remove liquidity or swap against any of them |
+| **Token Launch** | Deploy your own ERC-20 on Arc — fixed 1,000,000 supply, minted to your wallet |
 | **Stablecoin Analytics** | Live, on-chain TVL and distribution across every FlowFi contract |
 | **AI Copilot** | Type what you want — "swap 10 USDC to EURC", "send 20 USDC to 0x..." — Copilot parses it and executes the on-chain transaction. An interface over the settlement rail above, not the product itself |
 | **AI Market Analysis** | Ask "analyze BTC" or "analyze Morpho" and get real technical analysis (RSI, EMA, MACD, pivot support/resistance across 1H/4H/1D/1W/1M) and tokenomics/unlock data — all numbers computed server-side from live data, with the AI only writing the interpretive summary, never the figures |
@@ -111,14 +111,15 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | Contract | Address |
 |---|---|
 | Swap v5 (fixed-rate USDC/EURC) | `0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1` |
-| Pool Factory v2 *(legacy — pools created here before the v3 upgrade keep working, but no new pools are created here)* | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
-| Pool Factory v3 (permissionless AMM) | `0x5ee0c6cc6879728a4835826D87b28702f8993559` |
+| Pool Factory v2 *(legacy — pools created here keep working, but no new pools are created here)* | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
+| Pool Factory v3 *(legacy — same reasoning as v2)* | `0x5ee0c6cc6879728a4835826D87b28702f8993559` |
+| Pool Factory v4 | `0x57B451D60F09222C2bb6c828FFE3703069A532Ed` |
 | Escrow v4 *(deployed and verified, not yet wired to the app)* | `0xDDDe5a4E691F6ce6826CB85F09466E799FCFabfB` |
 | Token Factory | `0x481E8919f79A4DA6446EA78cEa70037acB9c85A1` |
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
 | EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 
-5 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see [`SECURITY.md`](./SECURITY.md) for the complete review.
+6 FlowFi-deployed contracts, all verified and viewable on [Arcscan](https://testnet.arcscan.app). A full security review covered these plus 2 legacy/superseded versions (an earlier Swap-pool factory and AMM) — see [`SECURITY.md`](./SECURITY.md) for the complete review.
 
 ### Circle CCTP V2 infrastructure (Arc Testnet, official — not FlowFi-deployed)
 
@@ -235,7 +236,7 @@ FlowFi's contracts have been through a manual security review (not a professiona
 
 - **ArcSwap prices the USDC/EURC pair without an oracle.** The exchange rate is owner-set and doesn't read a live price feed. This is a known simplification for the testnet stage — a real oracle (Chainlink/Pyth) is a prerequisite before the contract should touch real funds.
 - **ArcFactoryV2 pools have no TWAP.** Spot-price swaps on thin/low-liquidity pools carry real sandwich and price-impact risk, same as any constant-product AMM without time-weighted pricing. Use `minAmountOut` and be mindful of pool depth.
-- **ArcFactoryV2 has no admin kill-switch, by design.** The factory and its pools are fully permissionless — no owner, no pause. That's a deliberate trade-off in favor of trustlessness, not an oversight: adding a pause here would undercut the "no one can freeze your pool" guarantee that makes a permissionless AMM meaningful in the first place. If you'd rather have a pausable, guarded pool, use the ArcAMM (legacy, fixed USDC/EURC pair) contract instead.
+- **Individual ArcPool contracts have no admin kill-switch, by design.** Once a pool exists, `addLiquidity`/`removeLiquidity`/`swap`/`sync()` are fully permissionless — no owner, no pause, for anyone interacting with that pool. That's a deliberate trade-off in favor of trustlessness: adding a pause here would undercut the "no one can freeze your funds" guarantee that matters once you've put liquidity in. **Creating a *new* pool is a different matter** — as of ArcFactoryV2 v4, `createPool()` is `onlyOwner`. FlowFi curates which assets get a pool (USDC, EURC, cirBTC, and similar); this was previously permissionless (v2/v3) but a mainnet-readiness review closed it — see [`SECURITY.md`](./SECURITY.md) for the reasoning.
 
 Security notes (self-review, not an audit): [`./SECURITY.md`](./SECURITY.md)
 

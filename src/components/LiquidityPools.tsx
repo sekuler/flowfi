@@ -1,25 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits, parseAbiItem } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { showToast } from "../toast";
 
-const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — reentrancy guard + MINIMUM_SHARES restored (legacy — pools already created here keep working, but no new pools go here)
-const FACTORY_CONTRACT_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — SafeERC20 + fee-on-transfer-safe reserves + sync() + deadlines. New pools are created here.
+const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — legacy, pools created here keep working, no new pools go here
+const FACTORY_CONTRACT_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — legacy, same reasoning as v2 (superseded by v4 for new pools)
+const FACTORY_CONTRACT_V4 = "0x57B451D60F09222C2bb6c828FFE3703069A532Ed" as `0x${string}`; // ArcFactoryV2 v4 — createPool is now onlyOwner (FlowFi creates pools; anyone can still add/remove liquidity or swap on any existing pool)
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
-const TOKEN_LAUNCH_FACTORY = "0x481E8919f79A4DA6446EA78cEa70037acB9c85A1" as `0x${string}`;
 const STABLE_SYMBOLS = new Set(["USDC", "EURC", "USYC"]);
-
-const TOKEN_LAUNCH_FACTORY_ABI = [
-  { type: "function", name: "allTokensLength", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
-  { type: "function", name: "allTokens", stateMutability: "view", inputs: [{ name: "", type: "uint256" }], outputs: [{ name: "", type: "address" }] },
-] as const;
-
-const TOKEN_NAME_ABI = [
-  { type: "function", name: "name", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "string" }] },
-  { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "string" }] },
-] as const;
 
 const KNOWN_TOKENS: { symbol: string; address: `0x${string}`; color: string }[] = [
   { symbol: "USDC", address: "0x3600000000000000000000000000000000000000", color: "#2563eb" },
@@ -166,101 +156,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   const [pools, setPools] = useState<PoolInfo[]>([]);
   const [loadingPools, setLoadingPools] = useState(true);
   const [expandedPool, setExpandedPool] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [tokenASym, setTokenASym] = useState("USDC");
-  const [tokenBSym, setTokenBSym] = useState("EURC");
-  const [customAAddr, setCustomAAddr] = useState("");
-  const [customBAddr, setCustomBAddr] = useState("");
-  const [searchAResults, setSearchAResults] = useState<{ symbol: string; name: string; address: string }[]>([]);
-  const [searchBResults, setSearchBResults] = useState<{ symbol: string; name: string; address: string }[]>([]);
-  const [searchingA, setSearchingA] = useState(false);
-  const [searchingB, setSearchingB] = useState(false);
-  const [launchedTokenCache, setLaunchedTokenCache] = useState<{ symbol: string; name: string; address: string }[] | null>(null);
-  const [cacheLoading, setCacheLoading] = useState(false);
-  const debounceARef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debounceBRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function ensureTokenCache(): Promise<{ symbol: string; name: string; address: string }[]> {
-    if (launchedTokenCache && launchedTokenCache.length > 0) return launchedTokenCache;
-    if (cacheLoading) {
-      let waited = 0;
-      while (cacheLoading && waited < 15000) { await new Promise(r => setTimeout(r, 200)); waited += 200; }
-      return launchedTokenCache ?? [];
-    }
-    setCacheLoading(true);
-    try {
-      const client = createPublicClient({ chain: arcTestnet, transport: http() });
-      const count = await client.readContract({ address: TOKEN_LAUNCH_FACTORY, abi: TOKEN_LAUNCH_FACTORY_ABI, functionName: "allTokensLength" });
-      const total = Number(count);
-      const scanCount = Math.min(total, 20);
-      const indices = Array.from({ length: scanCount }, (_, k) => total - 1 - k);
-
-      const list: { symbol: string; name: string; address: string }[] = [];
-      const BATCH_SIZE = 4;
-      for (let b = 0; b < indices.length; b += BATCH_SIZE) {
-        const batch = indices.slice(b, b + BATCH_SIZE);
-        const batchResults = await Promise.all(batch.map(async (i) => {
-          try {
-            const tokenAddr = await client.readContract({ address: TOKEN_LAUNCH_FACTORY, abi: TOKEN_LAUNCH_FACTORY_ABI, functionName: "allTokens", args: [BigInt(i)] });
-            const tName = await client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "name" });
-            const tSymbol = await client.readContract({ address: tokenAddr, abi: TOKEN_NAME_ABI, functionName: "symbol" });
-            return { symbol: tSymbol, name: tName, address: tokenAddr as string };
-          } catch {
-            return null;
-          }
-        }));
-        for (const r of batchResults) if (r) list.push(r);
-        if (b + BATCH_SIZE < indices.length) await new Promise(r => setTimeout(r, 250));
-      }
-
-      if (list.length > 0) setLaunchedTokenCache(list);
-      return list;
-    } finally {
-      setCacheLoading(false);
-    }
-  }
-
-  async function searchLaunchedTokens(query: string): Promise<{ symbol: string; name: string; address: string }[]> {
-    if (query.trim().startsWith("0x")) return [];
-    const needle = query.trim().toLowerCase();
-    if (!needle) return [];
-    const list = await ensureTokenCache();
-    return list
-      .filter(r => r.name.toLowerCase().includes(needle) || r.symbol.toLowerCase().includes(needle))
-      .slice(0, 8);
-  }
-
-  function handleCustomASearch(value: string) {
-    setCustomAAddr(value);
-    if (debounceARef.current) clearTimeout(debounceARef.current);
-    if (value.trim().startsWith("0x") || value.trim().length < 2) { setSearchAResults([]); setSearchingA(false); return; }
-    setSearchingA(true);
-    debounceARef.current = setTimeout(async () => {
-      try {
-        const results = await searchLaunchedTokens(value);
-        setSearchAResults(results);
-      } finally {
-        setSearchingA(false);
-      }
-    }, 400);
-  }
-
-  function handleCustomBSearch(value: string) {
-    setCustomBAddr(value);
-    if (debounceBRef.current) clearTimeout(debounceBRef.current);
-    if (value.trim().startsWith("0x") || value.trim().length < 2) { setSearchBResults([]); setSearchingB(false); return; }
-    setSearchingB(true);
-    debounceBRef.current = setTimeout(async () => {
-      try {
-        const results = await searchLaunchedTokens(value);
-        setSearchBResults(results);
-      } finally {
-        setSearchingB(false);
-      }
-    }, 400);
-  }
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
   const [poolMetrics, setPoolMetrics] = useState<Record<string, PoolMetrics>>({});
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [filterTab, setFilterTab] = useState<"all" | "stable" | "volatile">("all");
@@ -302,7 +198,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-      for (const factoryAddr of [FACTORY_CONTRACT, FACTORY_CONTRACT_V3]) {
+      for (const factoryAddr of [FACTORY_CONTRACT, FACTORY_CONTRACT_V3, FACTORY_CONTRACT_V4]) {
         const count = await client.readContract({ address: factoryAddr, abi: FACTORY_ABI, functionName: "allPoolsLength" });
         const total = Number(count);
         const indices = Array.from({ length: total }, (_, i) => i);
@@ -338,36 +234,6 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
   useEffect(() => { loadPools(); }, [loadPools]);
 
-  async function createPool() {
-    const tokenA = tokenASym === "CUSTOM" ? customAAddr.trim() : KNOWN_TOKENS.find(t => t.symbol === tokenASym)?.address;
-    const tokenB = tokenBSym === "CUSTOM" ? customBAddr.trim() : KNOWN_TOKENS.find(t => t.symbol === tokenBSym)?.address;
-    if (!tokenA || !tokenB) { setCreateError("Enter a valid token address."); return; }
-    if (tokenA.toLowerCase() === tokenB.toLowerCase()) { setCreateError("Choose two different tokens."); return; }
-    setCreateError(null); setCreating(true);
-    try {
-      await switchToArc(provider);
-      const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
-      const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-
-      const existingOld = await publicClient.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`] });
-      const existingNew = await publicClient.readContract({ address: FACTORY_CONTRACT_V3, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`] });
-      if (existingOld !== "0x0000000000000000000000000000000000000000" || existingNew !== "0x0000000000000000000000000000000000000000") {
-        throw new Error("Pool already exists for this pair.");
-      }
-
-      const hash = await wc.writeContract({ address: FACTORY_CONTRACT_V3, abi: FACTORY_ABI, functionName: "createPool", args: [tokenA as `0x${string}`, tokenB as `0x${string}`], account: address as `0x${string}` });
-      await publicClient.waitForTransactionReceipt({ hash });
-
-      setShowCreate(false);
-      await loadPools();
-      showToast("Pool created", "success");
-    } catch (e: unknown) {
-      const err = e as { message?: string };
-      setCreateError(err.message ?? "Failed to create pool.");
-    } finally {
-      setCreating(false);
-    }
-  }
 
   const visiblePools = pools
     .filter(p => {
@@ -396,10 +262,6 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         <button onClick={() => { setPoolMetrics({}); setRefreshNonce(n => n + 1); }} title="Refetch on-chain data for every pool"
           style={{ padding: "0.65rem 1rem", borderRadius: 999, border: "1px solid rgba(124,58,237,0.25)", background: "#ffffff", color: "#5B21B6", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
           ↻ Refresh
-        </button>
-        <button onClick={() => setShowCreate(!showCreate)}
-          style={{ padding: "0.65rem 1.2rem", borderRadius: 999, border: "none", background: "linear-gradient(135deg, #6D5EF7, #5B21B6)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(109,94,247,0.35)" }}>
-          {showCreate ? "Cancel" : "+ New Pool"}
         </button>
       </div>
 
@@ -431,63 +293,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         </div>
       </div>
 
-      {showCreate && (
-        <div style={{ background: "#ffffff", borderRadius: 16, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <select value={tokenASym} onChange={(e) => setTokenASym(e.target.value)}
-              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem", color: "#111827", fontSize: 13 }}>
-              {KNOWN_TOKENS.map(t => <option key={t.symbol} value={t.symbol} style={{ color: "#000" }}>{t.symbol}</option>)}
-              <option value="CUSTOM" style={{ color: "#000" }}>Custom token...</option>
-            </select>
-            <span style={{ color: "#374151" }}>+</span>
-            <select value={tokenBSym} onChange={(e) => setTokenBSym(e.target.value)}
-              style={{ flex: 1, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem", color: "#111827", fontSize: 13 }}>
-              {KNOWN_TOKENS.map(t => <option key={t.symbol} value={t.symbol} style={{ color: "#000" }}>{t.symbol}</option>)}
-              <option value="CUSTOM" style={{ color: "#000" }}>Custom token...</option>
-            </select>
-          </div>
-          {tokenASym === "CUSTOM" && (
-            <div style={{ position: "relative" }}>
-              <input type="text" placeholder="Token name (e.g. Doge) or address (0x...)" value={customAAddr} onChange={(e) => handleCustomASearch(e.target.value)}
-                style={{ width: "100%", background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", color: "#111827", fontSize: 12, outline: "none" }} />
-              {searchingA && <div style={{ fontSize: 11, color: "#374151", marginTop: 4 }}>Searching...</div>}
-              {searchAResults.length > 0 && (
-                <div style={{ marginTop: 6, background: "#ffffff", border: "1px solid rgba(109,94,247,0.15)", borderRadius: 10, overflow: "hidden" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-                  {searchAResults.map((r) => (
-                    <button key={r.address} onClick={() => { setCustomAAddr(r.address); setSearchAResults([]); }}
-                      style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "0.6rem 0.8rem", background: "transparent", border: "none", borderBottom: "1px solid rgba(109,94,247,0.08)", cursor: "pointer", textAlign: "left" }}>
-                      <span style={{ fontSize: 12, color: "#111827", fontWeight: 700 }}>{r.name} <span style={{ color: "#4B5563", fontWeight: 400 }}>{r.symbol}</span></span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          {tokenBSym === "CUSTOM" && (
-            <div style={{ position: "relative" }}>
-              <input type="text" placeholder="Token name (e.g. Doge) or address (0x...)" value={customBAddr} onChange={(e) => handleCustomBSearch(e.target.value)}
-                style={{ width: "100%", background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.65rem 0.8rem", color: "#111827", fontSize: 12, outline: "none" }} />
-              {searchingB && <div style={{ fontSize: 11, color: "#374151", marginTop: 4 }}>Searching...</div>}
-              {searchBResults.length > 0 && (
-                <div style={{ marginTop: 6, background: "#ffffff", border: "1px solid rgba(109,94,247,0.15)", borderRadius: 10, overflow: "hidden" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-                  {searchBResults.map((r) => (
-                    <button key={r.address} onClick={() => { setCustomBAddr(r.address); setSearchBResults([]); }}
-                      style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "0.6rem 0.8rem", background: "transparent", border: "none", borderBottom: "1px solid rgba(109,94,247,0.08)", cursor: "pointer", textAlign: "left" }}>
-                      <span style={{ fontSize: 12, color: "#111827", fontWeight: 700 }}>{r.name} <span style={{ color: "#4B5563", fontWeight: 400 }}>{r.symbol}</span></span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          {createError && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.6rem 0.8rem", color: "#DC2626", fontSize: 12 }}>{createError}</div>}
-          <button onClick={createPool} disabled={creating}
-            style={{ width: "100%", padding: "0.8rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7c3aed, #7c3aed)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: creating ? "not-allowed" : "pointer", opacity: creating ? 0.6 : 1 }}>
-            {creating ? "Creating Pool..." : "Create Pool"}
-          </button>
-          <p style={{ fontSize: 11, color: "#374151", margin: 0 }}>Pool starts empty. You'll add the first liquidity next.</p>
-        </div>
-      )}
+
 
       <div style={{ background: "#ffffff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
         {!isMobile && (

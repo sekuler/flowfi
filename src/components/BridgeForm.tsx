@@ -728,14 +728,14 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "inline-flex", gap: 4, background: "#F5F3FF", borderRadius: 999, padding: 3, width: "fit-content" }}>
         <button onClick={() => setBridgeType("usdc")}
-          style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "usdc" ? "#ede9fe" : "#ffffff", color: bridgeType === "usdc" ? "#5B21B6" : "#4B5563", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-          Stablecoin Bridge
+          style={{ padding: "0.4rem 0.9rem", borderRadius: 999, border: "none", background: bridgeType === "usdc" ? "#ffffff" : "transparent", color: bridgeType === "usdc" ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: bridgeType === "usdc" ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
+          Stablecoin
         </button>
         <button onClick={() => setBridgeType("eth")}
-          style={{ flex: 1, padding: "0.7rem", borderRadius: 12, border: "none", background: bridgeType === "eth" ? "#ede9fe" : "#ffffff", color: bridgeType === "eth" ? "#5B21B6" : "#4B5563", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-          ETH Bridge
+          style={{ padding: "0.4rem 0.9rem", borderRadius: 999, border: "none", background: bridgeType === "eth" ? "#ffffff" : "transparent", color: bridgeType === "eth" ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: bridgeType === "eth" ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
+          ETH
         </button>
       </div>
 
@@ -744,11 +744,11 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       {bridgeType === "usdc" && (
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: "1.25rem", alignItems: "start" }}>
           <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "inline-flex", gap: 4, background: "#F5F3FF", borderRadius: 999, padding: 3, width: "fit-content" }}>
               {(["usdc", "eurc"] as Asset[]).map((a) => (
                 <button key={a} onClick={() => setAsset(a)} disabled={isLoading}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.5rem", borderRadius: 10, border: "none", background: asset === a ? "#ede9fe" : "#f5f3ff", color: asset === a ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: ASSET_META[a].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff" }}>{ASSET_META[a].badge}</span>
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: asset === a ? "#ffffff" : "transparent", color: asset === a ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: asset === a ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
+                  <span style={{ width: 15, height: 15, borderRadius: "50%", background: ASSET_META[a].color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 800, color: "#fff" }}>{ASSET_META[a].badge}</span>
                   {ASSET_META[a].label}
                 </button>
               ))}
@@ -760,13 +760,13 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
             )}
 
             {circleWallet && (
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "inline-flex", gap: 4, background: "#F5F3FF", borderRadius: 999, padding: 3, width: "fit-content" }}>
                 <button onClick={() => setUseCircle(false)} disabled={isLoading}
-                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  style={{ padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: !useCircle ? "#ffffff" : "transparent", color: !useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: !useCircle ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
                   Browser Wallet
                 </button>
                 <button onClick={() => setUseCircle(true)} disabled={isLoading}
-                  style={{ flex: 1, padding: "0.5rem", borderRadius: 10, border: "none", background: useCircle ? "#ede9fe" : "#f5f3ff", color: useCircle ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  style={{ padding: "0.4rem 0.8rem", borderRadius: 999, border: "none", background: useCircle ? "#ffffff" : "transparent", color: useCircle ? "#5B21B6" : "#6B7280", fontSize: 12.5, fontWeight: 700, cursor: "pointer", boxShadow: useCircle ? "0 1px 3px rgba(109,94,247,0.15)" : "none" }}>
                   Circle Wallet
                 </button>
               </div>
