@@ -4,6 +4,7 @@ import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUn
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { TokenIcon } from "./TokenIcon";
+import { Wallet2, Droplet, BarChart3, type LucideIcon } from "lucide-react";
 import { showToast } from "../toast";
 
 const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — legacy, pools created here keep working, no new pools go here
@@ -19,6 +20,20 @@ const KNOWN_TOKENS: { symbol: string; address: `0x${string}`; color: string }[] 
   { symbol: "ARCC", address: "0x215D82093892AA24b2901aeb4fcCca933346De18", color: "#10b981" },
   { symbol: "cirBTC", address: "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF", color: "#f97316" },
 ];
+
+// The only pairs FlowFi actually curates and shows on the Pools page —
+// anything else (e.g. pools someone created for a random launched token
+// before v4 locked createPool down to onlyOwner) is real on-chain data,
+// just not something we surface in this UI.
+const CURATED_PAIRS = new Set([
+  ["0x3600000000000000000000000000000000000000", "0x89b50855aa3be2f677cd6303cec089b5f319d72a"].sort().join("_"), // USDC/EURC
+  ["0x3600000000000000000000000000000000000000", "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf"].sort().join("_"), // USDC/cirBTC
+  ["0x3600000000000000000000000000000000000000", "0xe9185f0c5f296ed1797aae4238d26ccabeadb86c"].sort().join("_"), // USDC/USYC
+  ["0x89b50855aa3be2f677cd6303cec089b5f319d72a", "0xe9185f0c5f296ed1797aae4238d26ccabeadb86c"].sort().join("_"), // EURC/USYC
+]);
+function isCuratedPair(addrA: string, addrB: string): boolean {
+  return CURATED_PAIRS.has([addrA.toLowerCase(), addrB.toLowerCase()].sort().join("_"));
+}
 
 const FACTORY_ABI = [
   { type: "function", name: "createPool", stateMutability: "nonpayable", inputs: [{ name: "tokenA", type: "address" }, { name: "tokenB", type: "address" }], outputs: [{ name: "pool", type: "address" }] },
@@ -221,7 +236,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
               return null;
             }
           }));
-          const valid = batchDetails.filter((d): d is PoolInfo => d !== null);
+          const valid = batchDetails.filter((d): d is PoolInfo => d !== null && isCuratedPair(d.addressA, d.addressB));
           if (valid.length > 0) setPools(prev => [...prev, ...valid]);
           if (b + BATCH_SIZE < indices.length) await new Promise(r => setTimeout(r, 200));
         }
@@ -267,9 +282,9 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 8 : 14 }}>
-        <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} sub={aggregate.avgApr !== null ? `${aggregate.avgApr.toFixed(2)}% avg APR` : "24h change"} color="#6D5EF7" isMobile={isMobile} />
-        <StatCard label="POOLS" value={String(pools.length)} sub="Active pools" color="#5B21B6" isMobile={isMobile} />
-        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} sub="24h volume" color="#3B82F6" isMobile={isMobile} />
+        <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} sub={aggregate.avgApr !== null ? `${aggregate.avgApr.toFixed(2)}% avg APR` : "24h change"} color="#6D5EF7" isMobile={isMobile} icon={Wallet2} />
+        <StatCard label="POOLS" value={String(pools.length)} sub="Active pools" color="#5B21B6" isMobile={isMobile} icon={Droplet} />
+        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} sub="24h volume" color="#3B82F6" isMobile={isMobile} icon={BarChart3} />
       </div>
 
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 10 }}>
@@ -326,10 +341,15 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   );
 }
 
-function StatCard({ label, value, sub, color, isMobile }: { label: string; value: string; sub: string; color: string; isMobile: boolean }) {
+function StatCard({ label, value, sub, color, isMobile, icon: Icon }: { label: string; value: string; sub: string; color: string; isMobile: boolean; icon: LucideIcon }) {
   return (
     <div style={{ background: `linear-gradient(160deg, ${color}12, #ffffff)`, border: `1px solid ${color}30`, borderRadius: 14, padding: isMobile ? "0.7rem 0.8rem" : "0.9rem 1.1rem" }}>
-      <div style={{ fontSize: isMobile ? 9 : 10, color, fontWeight: 700, letterSpacing: "0.5px" }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ fontSize: isMobile ? 9 : 10, color, fontWeight: 700, letterSpacing: "0.5px" }}>{label}</div>
+        <div style={{ width: isMobile ? 22 : 26, height: isMobile ? 22 : 26, borderRadius: "50%", background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon size={isMobile ? 12 : 14} color={color} />
+        </div>
+      </div>
       <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{value}</div>
       <div style={{ fontSize: isMobile ? 9 : 10, color: "#9CA3AF" }}>{sub}</div>
     </div>
