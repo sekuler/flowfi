@@ -5,7 +5,6 @@ import { useIsMobile } from "../useIsMobile";
 interface Props {
   address: string;
   balances: { usdc: string | null; eurc: string | null; usyc: string | null; native: string | null };
-  onNavigate: (tab: "swap" | "bridge" | "pools") => void;
 }
 
 interface ActivityItem {
@@ -73,7 +72,7 @@ function loadWeekSnapshot(address: string): { weekStart: string; value: number }
   }
 }
 
-export default function Dashboard({ address, balances, onNavigate }: Props) {
+export default function Dashboard({ address, balances }: Props) {
   const isMobile = useIsMobile();
   const [txCount, setTxCount] = useState<number | null>(null);
   const [incomingCount, setIncomingCount] = useState(0);
@@ -195,12 +194,6 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
     { label: "USYC", value: usycVal, color: "#F59E0B" },
   ].filter(d => d.value > 0);
 
-  const quickActions = [
-    { key: "swap" as const, label: "Swap", emoji: "⇄", color: "#6D5EF7" },
-    { key: "bridge" as const, label: "Bridge", emoji: "⬡", color: "#3B82F6" },
-    { key: "pools" as const, label: "Pools", emoji: "💧", color: "#16A34A" },
-  ];
-
   const CATEGORY_META: Record<string, { label: string; color: string; bg: string }> = {
     income: { label: "Income", color: "#16A34A", bg: "rgba(34,197,94,0.1)" },
     expense: { label: "Sent", color: "#DC2626", bg: "rgba(239,68,68,0.1)" },
@@ -221,11 +214,6 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Hero: net worth */}
       <div style={{ position: "relative", overflow: "hidden", background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.75rem" }}>
-        <svg width="320" height="200" viewBox="0 0 320 200" style={{ position: "absolute", top: -30, right: -40, pointerEvents: "none" }}>
-          <path d="M -20 140 Q 70 70, 150 110 T 340 40" stroke="#6D5EF7" strokeWidth="3" fill="none" opacity="0.9" />
-          <path d="M -20 170 Q 80 90, 160 150 T 340 80" stroke="#A78BFA" strokeWidth="3" fill="none" opacity="0.7" />
-          <path d="M -20 100 Q 60 40, 140 75 T 340 20" stroke="#3B82F6" strokeWidth="2.5" fill="none" opacity="0.5" />
-        </svg>
         <div style={{ position: "relative" }}>
         <div style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 8 }}>NET WORTH</div>
         <div className="flowfi-mono" style={{ fontSize: 42, fontWeight: 800, color: "#111827", marginBottom: 8 }}>${total.toFixed(2)}</div>
@@ -264,19 +252,6 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
           </div>
         </div>
         </div>
-      </div>
-
-      {/* Quick actions */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 10 }}>
-        {quickActions.map((a) => (
-          <button key={a.key} onClick={() => onNavigate(a.key)}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 8px 20px ${a.color}50`; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = `0 2px 8px ${a.color}25`; }}
-            style={{ background: `linear-gradient(160deg, ${a.color}12, #ffffff)`, border: `1.5px solid ${a.color}40`, borderRadius: 16, padding: "1.2rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 9, cursor: "pointer", boxShadow: `0 2px 8px ${a.color}25`, transition: "transform 0.15s ease, box-shadow 0.15s ease" }}>
-            <div style={{ width: 44, height: 44, borderRadius: 13, background: `linear-gradient(135deg, ${a.color}, ${a.color}AA)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, color: "#fff", boxShadow: `0 4px 12px ${a.color}55` }}>{a.emoji}</div>
-            <span style={{ fontSize: 12.5, fontWeight: 800, color: "#111827" }}>{a.label}</span>
-          </button>
-        ))}
       </div>
 
       {/* Portfolio allocation */}

@@ -58,15 +58,15 @@ export default function StablecoinAnalytics() {
     return () => clearInterval(interval);
   }, []);
 
-  const totalTVL = metrics ? metrics.usdcTotal + metrics.eurcTotal : 0;
-  const usdcPct = totalTVL > 0 && metrics ? (metrics.usdcTotal / totalTVL) * 100 : 0;
-  const eurcPct = totalTVL > 0 && metrics ? (metrics.eurcTotal / totalTVL) * 100 : 0;
+  const totalTVL = metrics ? metrics.usdcTotal + metrics.eurcTotal : null;
+  const usdcPct = totalTVL && totalTVL > 0 && metrics ? (metrics.usdcTotal / totalTVL) * 100 : 0;
+  const eurcPct = totalTVL && totalTVL > 0 && metrics ? (metrics.eurcTotal / totalTVL) * 100 : 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <div style={{ background: "linear-gradient(135deg, #f5f3ff, #ede9fe)", borderRadius: 18, padding: "1.5rem" }}>
         <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 6 }}>PLATFORM STABLECOIN TVL</div>
-        <div className="flowfi-mono" style={{ fontSize: 36, fontWeight: 700, color: "#111827" }}>{loading ? "..." : `$${totalTVL.toFixed(2)}`}</div>
+        <div className="flowfi-mono" style={{ fontSize: 36, fontWeight: 700, color: "#111827" }}>{loading ? "..." : totalTVL !== null ? `$${totalTVL.toFixed(2)}` : "—"}</div>
         <p style={{ fontSize: 11, color: "#7c3aed", marginTop: 4 }}>Held across ArcSwap and Liquidity Pools — verifiable on-chain</p>
       </div>
 
@@ -74,11 +74,9 @@ export default function StablecoinAnalytics() {
         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>DISTRIBUTION BY STABLECOIN</div>
         {loading ? (
           <div style={{ fontSize: 12, color: "#6B7280" }}>Loading...</div>
-        ) : totalTVL === 0 ? (
-          <div style={{ fontSize: 12, color: "#6B7280" }}>No liquidity yet.</div>
         ) : (
           <>
-            <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
+            <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 12, background: "#F5F3FF" }}>
               <div style={{ width: `${usdcPct}%`, background: "#7c3aed" }} />
               <div style={{ width: `${eurcPct}%`, background: "#5B21B6" }} />
             </div>
@@ -86,12 +84,12 @@ export default function StablecoinAnalytics() {
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#7c3aed" }} />
                 <span style={{ color: "#6B7280" }}>USDC</span>
-                <span style={{ color: "#111827", fontWeight: 700 }}>{usdcPct.toFixed(1)}%</span>
+                <span style={{ color: "#111827", fontWeight: 700 }}>{totalTVL === null ? "—" : `${usdcPct.toFixed(1)}%`}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#5B21B6" }} />
                 <span style={{ color: "#6B7280" }}>EURC</span>
-                <span style={{ color: "#111827", fontWeight: 700 }}>{eurcPct.toFixed(1)}%</span>
+                <span style={{ color: "#111827", fontWeight: 700 }}>{totalTVL === null ? "—" : `${eurcPct.toFixed(1)}%`}</span>
               </div>
             </div>
           </>
@@ -117,7 +115,7 @@ export default function StablecoinAnalytics() {
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
         <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-          <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, marginBottom: 4 }}>SWAP POOL</div>
+          <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, marginBottom: 4 }}>SWAP DESK</div>
           <div className="flowfi-mono" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{loading ? "..." : metrics ? `$${metrics.swapPool.toFixed(2)}` : "—"}</div>
         </div>
         <div style={{ background: "#ffffff", borderRadius: 14, padding: "1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>

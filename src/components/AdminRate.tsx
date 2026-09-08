@@ -3,7 +3,7 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 
-const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2
+const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v5
 
 const SWAP_ABI = [
   { type: "function", name: "owner", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },

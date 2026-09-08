@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { EIP1193Provider } from "viem";
+import { Wallet, CircleDollarSign } from "lucide-react";
 import WalletConnect from "./WalletConnect";
 import { saveCircleWallet, type CircleWalletInfo } from "../circleWalletHelpers";
 
@@ -50,12 +51,12 @@ export default function ConnectModal({ onClose, onConnected, onCircleConnected }
 
         <div style={{ display: "flex", gap: 6, background: "#f5f3ff", borderRadius: 999, padding: 4, marginBottom: 18 }}>
           <button onClick={() => setTab("browser")}
-            style={{ flex: 1, padding: "0.55rem", borderRadius: 999, border: "none", background: tab === "browser" ? "#ffffff" : "transparent", color: tab === "browser" ? "#5B21B6" : "#6B7280", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: tab === "browser" ? "0 1px 3px rgba(124,58,237,0.15)" : "none" }}>
-            Browser Wallet
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.55rem", borderRadius: 999, border: "none", background: tab === "browser" ? "#ffffff" : "transparent", color: tab === "browser" ? "#5B21B6" : "#6B7280", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: tab === "browser" ? "0 1px 3px rgba(124,58,237,0.15)" : "none" }}>
+            <Wallet size={14} /> Browser Wallet
           </button>
           <button onClick={() => setTab("circle")}
-            style={{ flex: 1, padding: "0.55rem", borderRadius: 999, border: "none", background: tab === "circle" ? "#ffffff" : "transparent", color: tab === "circle" ? "#5B21B6" : "#6B7280", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: tab === "circle" ? "0 1px 3px rgba(124,58,237,0.15)" : "none" }}>
-            Circle Wallet
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.55rem", borderRadius: 999, border: "none", background: tab === "circle" ? "#ffffff" : "transparent", color: tab === "circle" ? "#5B21B6" : "#6B7280", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: tab === "circle" ? "0 1px 3px rgba(124,58,237,0.15)" : "none" }}>
+            <CircleDollarSign size={14} /> Circle Wallet
           </button>
         </div>
 

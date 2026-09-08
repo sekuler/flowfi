@@ -4,7 +4,7 @@ import { createWalletClient, createPublicClient, custom, http } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import type { EIP1193Provider } from "viem";
-import { Zap, RefreshCw, ArrowRight, ChevronDown } from "lucide-react";
+import { Zap, RefreshCw, ArrowRight, ChevronDown, Wallet, CircleDollarSign } from "lucide-react";
 import { ChainIcon } from "./ChainIcon";
 import { useIsMobile } from "../useIsMobile";
 import { showToast } from "../toast";
@@ -383,12 +383,12 @@ export default function GatewayPanel({ provider, address }: Props) {
         <div>
           <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "#F3F4F6", borderRadius: 10, padding: 4 }}>
             <button onClick={() => setWalletMode("browser")}
-              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "browser" ? "#fff" : "transparent", boxShadow: walletMode === "browser" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "browser" ? "#111827" : "#6B7280", cursor: "pointer" }}>
-              Browser Wallet
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "browser" ? "#fff" : "transparent", boxShadow: walletMode === "browser" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "browser" ? "#111827" : "#6B7280", cursor: "pointer" }}>
+              <Wallet size={13} /> Browser Wallet
             </button>
             <button onClick={() => setWalletMode("circle")}
-              style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "circle" ? "#fff" : "transparent", boxShadow: walletMode === "circle" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "circle" ? "#111827" : "#6B7280", cursor: "pointer" }}>
-              Circle Wallet
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.5rem", borderRadius: 8, border: "none", background: walletMode === "circle" ? "#fff" : "transparent", boxShadow: walletMode === "circle" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", fontSize: 12.5, fontWeight: 700, color: walletMode === "circle" ? "#111827" : "#6B7280", cursor: "pointer" }}>
+              <CircleDollarSign size={13} /> Circle Wallet
             </button>
           </div>
 
