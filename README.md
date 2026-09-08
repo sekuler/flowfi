@@ -202,11 +202,30 @@ cp .env.example .env
 # CIRCLE_API_KEY=
 # CIRCLE_ENTITY_SECRET=
 # DROPSTAB_API_KEY=        (optional — live token unlock data; falls back to the manual list without it)
+# ARC_RPC_URL=             (optional — a keyed RPC provider for Arc Testnet; falls back to the public RPC)
+# UPSTASH_REDIS_REST_URL=  (optional — shared rate limiting for /api/claude and /api/dropstab;
+# UPSTASH_REDIS_REST_TOKEN= rate limiting is off entirely, not approximated, if unset)
 
 npm run dev
 ```
 
 The app runs on Arc Testnet by default — no mainnet funds are ever involved. Get test USDC from [faucet.circle.com](https://faucet.circle.com).
+
+---
+
+## Testing
+
+Contracts have a Foundry test suite covering the fixes documented in [`SECURITY.md`](./SECURITY.md) — the ArcEscrow refund loophole, ArcSwap's withdrawLiquidity/setRate restrictions, and ArcPool's fee-on-transfer and non-standard-token (USDT-style) handling — plus happy-path coverage for each contract.
+
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+forge install foundry-rs/forge-std --no-git --no-commit
+forge test -vv
+```
+
+CI ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) runs this suite plus a frontend type-check (`tsc --noEmit`) on every push and pull request to `main`.
 
 ---
 
