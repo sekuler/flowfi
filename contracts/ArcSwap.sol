@@ -21,6 +21,14 @@ interface IERC20 {
 //    can't accidentally become the new owner.
 // 5. Added a nonReentrant guard on the swap functions as defense-in-depth.
 //
+// v5 changes from v2 (security review, second pass):
+// 6. withdrawLiquidity now only accepts USDC or EURC — previously any
+//    token address, so the owner could withdraw anything this contract
+//    happened to hold.
+// 7. setRate can now only move the rate by 10% per call — previously any
+//    value > 0 was accepted in one shot, so a fat-finger or malicious
+//    call could set an absurd rate before anyone noticed.
+//
 // Still true of this design (unchanged, documented for transparency): the
 // exchange rate is owner-set, not oracle-derived. This is a fixed-rate demo
 // pool, not a price-discovery AMM — pair this contract with real oracle
@@ -37,7 +45,7 @@ contract ArcSwap {
     uint256 private locked; // reentrancy guard: 0 = unlocked, 1 = locked
 
     event Swapped(address indexed user, bool usdcToEurc, uint256 amountIn, uint256 amountOut);
-    event RateUpdated(uint256 newRate);
+    event RateUpdated(uint256 oldRate, uint256 newRate);
     event LiquidityAdded(address indexed provider, uint256 usdcAmount, uint256 eurcAmount);
     event LiquidityWithdrawn(address indexed owner, address indexed token, uint256 amount);
     event Paused(address indexed by);
@@ -69,10 +77,27 @@ contract ArcSwap {
         usdcToEurcRate = _initialRate;
     }
 
+    // v5 fix (security review): setRate previously accepted any value > 0 —
+    // a single call (fat-finger or malicious) could set an absurd rate and
+    // let anyone drain the pool at that price before it's noticed. A single
+    // update can now move the rate by at most 10% — enough for the owner to
+    // track real EUR/USD movement over time, not enough for one call to do
+    // real damage. To move further, call setRate() again after the first
+    // update lands.
+    uint256 constant MAX_RATE_CHANGE_BPS = 1000; // 10%, in basis points (10000 = 100%)
+
     function setRate(uint256 newRate) external onlyOwner {
         require(newRate > 0, "Invalid rate");
+        uint256 current = usdcToEurcRate;
+        if (current > 0) {
+            uint256 maxDelta = (current * MAX_RATE_CHANGE_BPS) / 10000;
+            require(
+                newRate >= current - maxDelta && newRate <= current + maxDelta,
+                "Rate change exceeds 10% limit per call"
+            );
+        }
+        emit RateUpdated(current, newRate);
         usdcToEurcRate = newRate;
-        emit RateUpdated(newRate);
     }
 
     function pause() external onlyOwner {
@@ -113,7 +138,12 @@ contract ArcSwap {
         emit LiquidityAdded(msg.sender, usdcAmount, eurcAmount);
     }
 
+    // v5 fix (security review): withdrawLiquidity previously accepted ANY
+    // token address — the owner could withdraw any ERC20 this contract
+    // happened to hold, not just the two it's actually meant to custody.
+    // Restricted to USDC/EURC only.
     function withdrawLiquidity(address token, uint256 amount) external onlyOwner {
+        require(token == address(usdc) || token == address(eurc), "Can only withdraw USDC or EURC");
         require(IERC20(token).transfer(owner, amount), "Withdraw failed");
         emit LiquidityWithdrawn(owner, token, amount);
     }

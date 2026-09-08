@@ -7,4 +7,10 @@ register-entity-secret.cjs
 test-circle.cjs
 recovery_file*.dat
 temp_swap.txt
-start-activity.bat
+
+# Foundry — build artifacts and dependencies, both reproducible via
+# `forge build` / `forge install foundry-rs/forge-std --no-git --no-commit`
+out/
+cache/
+broadcast/
+lib/
