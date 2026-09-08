@@ -352,15 +352,15 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
 function StatCard({ label, value, sub, color, isMobile, icon: Icon }: { label: string; value: string; sub: string; color: string; isMobile: boolean; icon: LucideIcon }) {
   return (
-    <div style={{ background: `linear-gradient(160deg, ${color}12, #ffffff)`, border: `1px solid ${color}30`, borderRadius: 14, padding: isMobile ? "0.7rem 0.8rem" : "0.9rem 1.1rem" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <div style={{ fontSize: isMobile ? 9 : 10, color, fontWeight: 700, letterSpacing: "0.5px" }}>{label}</div>
-        <div style={{ width: isMobile ? 22 : 26, height: isMobile ? 22 : 26, borderRadius: "50%", background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Icon size={isMobile ? 12 : 14} color={color} />
+    <div style={{ background: "#ffffff", border: "1px solid #E5E0FA", borderRadius: 18, padding: isMobile ? "1.1rem 1.2rem" : "1.5rem 1.6rem", boxShadow: "0 2px 8px rgba(109,94,247,0.06)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ fontSize: isMobile ? 12 : 13, color: "#6B7280", fontWeight: 600 }}>{label}</div>
+        <div style={{ width: isMobile ? 36 : 44, height: isMobile ? 36 : 44, borderRadius: "50%", background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon size={isMobile ? 17 : 20} color={color} />
         </div>
       </div>
-      <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{value}</div>
-      <div style={{ fontSize: isMobile ? 9 : 10, color: "#9CA3AF" }}>{sub}</div>
+      <div style={{ fontSize: isMobile ? 24 : 30, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace", lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: isMobile ? 11.5 : 12.5, color: "#9CA3AF", marginTop: 6 }}>{sub}</div>
     </div>
   );
 }
@@ -423,20 +423,32 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    let tvl: number | null = null;
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const [resA, resB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getReserves" });
       const rA = Number(formatUnits(resA, decimalsA));
       const rB = Number(formatUnits(resB, decimalsB));
       setReserves({ a: rA.toFixed(4), b: rB.toFixed(4) });
+      tvl = stableA && stableB ? rA + rB : stableA ? rA * 2 : stableB ? rB * 2 : null;
 
-      const [myA, myB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getShareValue", args: [address as `0x${string}`] });
-      const myShares = await client.readContract({ address: pool.poolAddress, abi, functionName: "shares", args: [address as `0x${string}`] });
-      const total = await client.readContract({ address: pool.poolAddress, abi, functionName: "totalShares" });
-      const pct = total > 0n ? (Number(myShares) / Number(total)) * 100 : 0;
-      setMyShare({ a: Number(formatUnits(myA, decimalsA)).toFixed(4), b: Number(formatUnits(myB, decimalsB)).toFixed(4), pct: pct.toFixed(3) });
-
-      const tvl = stableA && stableB ? rA + rB : stableA ? rA * 2 : stableB ? rB * 2 : null;
+      // User-specific position data needs a real connected address — keep
+      // this failure separate from the pool-level data above, so a missing
+      // wallet (or an RPC hiccup on just this call) doesn't stop TVL/volume
+      // from ever being reported for the whole page.
+      try {
+        if (address) {
+          const [myA, myB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getShareValue", args: [address as `0x${string}`] });
+          const myShares = await client.readContract({ address: pool.poolAddress, abi, functionName: "shares", args: [address as `0x${string}`] });
+          const total = await client.readContract({ address: pool.poolAddress, abi, functionName: "totalShares" });
+          const pct = total > 0n ? (Number(myShares) / Number(total)) * 100 : 0;
+          setMyShare({ a: Number(formatUnits(myA, decimalsA)).toFixed(4), b: Number(formatUnits(myB, decimalsB)).toFixed(4), pct: pct.toFixed(3) });
+        } else {
+          setMyShare(null);
+        }
+      } catch {
+        setMyShare(null);
+      }
 
       let swapCount = 0;
       let volume7d: number | null = null;
@@ -472,6 +484,12 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
     } catch {
       setReserves(null);
       setMyShare(null);
+      // Even a total failure (e.g. bad reserves read) must still report
+      // something — otherwise this pool's slot in poolMetrics never fills
+      // in, and the page-wide TVL/Volume cards stay stuck on "..." forever.
+      const next: PoolMetrics = { tvl: null, swapCount7d: 0, volume7d: null, fees7d: null, apr: null, shape: [], logsUnavailable: true };
+      setMetrics(next);
+      onMetrics(pool.poolAddress, next);
     } finally {
       setLoading(false);
     }
