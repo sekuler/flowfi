@@ -18,7 +18,8 @@ const ALLOWED_CONTRACTS = new Set([
   // FlowFi's own contracts (Arc)
   '0x3cd201da3dddf2d0e9fcbc606a32e821099deac1', // ArcSwap v5
   '0x23782643650d73b2bb145b9145d62d743bf25cb0', // ArcFactoryV2 v2 (legacy — existing pools still live here)
-  '0x5ee0c6cc6879728a4835826d87b28702f8993559', // ArcFactoryV2 v3 (new pools created here)
+  '0x5ee0c6cc6879728a4835826d87b28702f8993559', // ArcFactoryV2 v3 (legacy)
+  '0x57b451d60f09222c2bb6c828ffe3703069a532ed', // ArcFactoryV2 v4 (createPool is now onlyOwner; new pools go here)
   '0xddde5a4e691f6ce6826cb85f09466e799fcfabfb', // ArcEscrow v4
   '0x481e8919f79a4da6446ea78cea70037acb9c85a1', // Token Factory
   // Circle CCTP V2 (same address on every supported chain)

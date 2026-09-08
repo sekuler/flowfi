@@ -238,7 +238,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
                 {dailyChange.pct >= 0 ? "▲" : "▼"} {Math.abs(dailyChange.pct).toFixed(1)}%
               </span>
             ) : (
-              <span style={{ fontSize: 11, color: "#6B7280" }}>tracking...</span>
+              <span style={{ fontSize: 11, color: "#9CA3AF" }}>No data yet</span>
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -248,7 +248,7 @@ export default function Dashboard({ address, balances, onNavigate }: Props) {
                 {weeklyChange.pct >= 0 ? "▲" : "▼"} {Math.abs(weeklyChange.pct).toFixed(1)}%
               </span>
             ) : (
-              <span style={{ fontSize: 11, color: "#6B7280" }}>tracking...</span>
+              <span style={{ fontSize: 11, color: "#9CA3AF" }}>No data yet</span>
             )}
           </div>
         </div>

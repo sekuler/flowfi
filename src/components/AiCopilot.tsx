@@ -10,9 +10,7 @@ import { computeMemoryInsight } from "../memory";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2 — adds minAmountOut, pause()
-const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 (legacy)
-const FACTORY_CONTRACT_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — new pools go here
+const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v5 — minAmountOut, pause(), withdrawLiquidity restricted to USDC/EURC, setRate capped to 10%/call
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const DOMAIN_BY_CHAIN: Record<string, number> = {
@@ -103,24 +101,11 @@ function bytes32Address(addr: string): `0x${string}` {
   return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
 }
 
-const KNOWN_TOKENS: Record<string, `0x${string}`> = {
-  USDC: USDC_ADDRESS,
-  EURC: EURC_ADDRESS,
-  USYC: "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C",
-  ARCC: "0x215D82093892AA24b2901aeb4fcCca933346De18",
-  CIRBTC: "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF",
-};
-
 const SWAP_ABI = [
   { type: "function", name: "swapUsdcToEurc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
   { type: "function", name: "swapEurcToUsdc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
   { type: "function", name: "getEurcOut", stateMutability: "view", inputs: [{ name: "usdcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "getUsdcOut", stateMutability: "view", inputs: [{ name: "eurcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
-] as const;
-
-const FACTORY_ABI = [
-  { type: "function", name: "createPool", stateMutability: "nonpayable", inputs: [{ name: "tokenA", type: "address" }, { name: "tokenB", type: "address" }], outputs: [{ name: "pool", type: "address" }] },
-  { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
 ] as const;
 
 interface Props {
@@ -139,7 +124,7 @@ interface Allocation {
 }
 
 interface ParsedAction {
-  action: "swap" | "send" | "create_pool" | "bridge" | "strategy" | "unknown";
+  action: "swap" | "send" | "bridge" | "strategy" | "unknown";
   fromToken?: string;
   toToken?: string;
   amount?: number;
@@ -149,8 +134,6 @@ interface ParsedAction {
   isLong?: boolean;
   leverage?: number;
   market?: string;
-  tokenA?: string;
-  tokenB?: string;
   allocations?: Allocation[];
   followUp?: { action: "swap"; toToken: string }; // for chained requests like "bridge X then swap to Y"
   summary: string;
@@ -199,14 +182,13 @@ export default function AiCopilot({ provider, address, balances, onRefresh, onNa
 
 Schema:
 {
-  "action": "swap" | "send" | "create_pool" | "bridge" | "strategy" | "unknown",
+  "action": "swap" | "send" | "bridge" | "strategy" | "unknown",
   "fromToken": "USDC" | "EURC" (for swap — this is a fixed-rate USDC/EURC swap only, no other pair is executable here),
   "toToken": "USDC" | "EURC" (for swap — same restriction as fromToken),
   "amount": number (omit if useAllBalance is true),
   "useAllBalance": boolean (true if user says "all my X"),
   "recipient": string (address or .arc name, for send),
   "destinationChain": "Arc Testnet" | "Ethereum Sepolia" | "Base Sepolia" | "Arbitrum Sepolia" (ONLY for send, ONLY if the user names a specific chain the recipient should receive funds on, e.g. "send 50 USDC to 0xABC on Base" — omit entirely if no chain is mentioned, defaulting to a normal same-chain transfer on Arc),
-  "tokenA": string, "tokenB": string (for create_pool),
   "allocations": [{ "category": "swap_to_eurc" | "idle", "amount": number, "percent": number, "note": "short reason for this allocation" }] (ONLY for action "strategy"),
   "followUp": { "action": "swap", "toToken": "EURC" } (ONLY for action "bridge", ONLY if the user's request has a clear second step after the bridge, e.g. "bridge 50 USDC to Arc and swap it to EURC" → followUp: {"action":"swap","toToken":"EURC"}. Omit entirely if the user only asked to bridge, with no stated next step.),
   "summary": "short one-line plain-English summary of what will happen",
@@ -217,7 +199,7 @@ Use "strategy" when the user describes a total amount and asks for a plan, alloc
 
 Only USDC and EURC are swappable via this fixed-rate action. If the user asks to swap USYC, ARCC, cirBTC, or any other token, do NOT set fromToken/toToken to that token — set action to "unknown" and explain in summary that this pair isn't supported by the fixed-rate swap, and that they'd need an existing Liquidity Pool for that pair instead (Tools → Liquidity). If the request is otherwise ambiguous or ill-formed, also set action to "unknown" and explain in summary.
 
-Interpret goal-oriented requests, not just literal commands. If the user states an outcome they want rather than a specific mechanism (e.g. "Get me 100 EURC on Arc", "I need 50 USDC", "top up my EURC"), figure out which single supported action gets them there and use that — you do not need the user to say the word "swap" or "bridge" explicitly. As a rule of thumb: wanting a different token they don't currently hold enough of, while already having USDC on Arc, means "swap"; wanting funds moved to a specific external address means "send" (with destinationChain if a chain is named); wanting USDC specifically on a different chain than Arc, with no recipient mentioned, means "bridge". Only fall back to "unknown" if the goal genuinely can't be reached with swap, send, bridge, create_pool, or strategy.
+Interpret goal-oriented requests, not just literal commands. If the user states an outcome they want rather than a specific mechanism (e.g. "Get me 100 EURC on Arc", "I need 50 USDC", "top up my EURC"), figure out which single supported action gets them there and use that — you do not need the user to say the word "swap" or "bridge" explicitly. As a rule of thumb: wanting a different token they don't currently hold enough of, while already having USDC on Arc, means "swap"; wanting funds moved to a specific external address means "send" (with destinationChain if a chain is named); wanting USDC specifically on a different chain than Arc, with no recipient mentioned, means "bridge". Only fall back to "unknown" if the goal genuinely can't be reached with swap, send, bridge, or strategy.
 Available user balances: USDC ${balances.usdc}, EURC ${balances.eurc}.
 ${memoryText ? `What you know about this user's real recent behavior, from their actual transaction history: ${memoryText} Use this naturally when relevant — for example, weight a "strategy" allocation toward what they already do, or mention it briefly in your reasoning if it's genuinely relevant. Never state this as a fact if it isn't directly implied by the note above, and never fabricate additional behavioral claims beyond it.` : ""}
 The "summary" field must be written in the same language the user's message is written in — if they write in Turkish, write the summary in Turkish; if in English, write it in English.
@@ -279,7 +261,6 @@ Respond with ONLY the JSON object.`,
           normalizedType === "swap" ? `Swap ${action.amount ?? "?"} ${action.fromToken ?? ""} to ${action.toToken ?? ""}` :
           normalizedType === "send" ? `Send ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.recipient ?? "recipient"}` :
           normalizedType === "bridge" ? `Bridge ${action.amount ?? "?"} ${action.fromToken ?? "USDC"} to ${action.destinationChain ?? "destination"}` :
-          normalizedType === "create_pool" ? `Create a pool for ${action.tokenA ?? "?"} / ${action.tokenB ?? "?"}` :
           normalizedType === "strategy" ? "Suggested allocation strategy" :
           `Confirm this action (type: "${action.action}")`;
         const summary = action.summary && action.summary.trim() ? action.summary : fallbackSummary;
@@ -351,17 +332,6 @@ Respond with ONLY the JSON object.`,
           await publicClient.waitForTransactionReceipt({ hash });
           showToast("Send completed", "success");
         }
-      } else if (action.action === "create_pool") {
-        if (!action.tokenA || !action.tokenB) throw new Error("Missing tokens for pool.");
-        const tokenA = KNOWN_TOKENS[action.tokenA.toUpperCase()];
-        const tokenB = KNOWN_TOKENS[action.tokenB.toUpperCase()];
-        if (!tokenA || !tokenB) throw new Error("Unknown token symbol.");
-        const existingOld = await publicClient.readContract({ address: FACTORY_CONTRACT, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA, tokenB] });
-        const existingNew = await publicClient.readContract({ address: FACTORY_CONTRACT_V3, abi: FACTORY_ABI, functionName: "getPool", args: [tokenA, tokenB] });
-        if (existingOld !== "0x0000000000000000000000000000000000000000" || existingNew !== "0x0000000000000000000000000000000000000000") throw new Error("Pool already exists for this pair.");
-        const hash = await wc.writeContract({ address: FACTORY_CONTRACT_V3, abi: FACTORY_ABI, functionName: "createPool", args: [tokenA, tokenB], account: address as `0x${string}` });
-        await publicClient.waitForTransactionReceipt({ hash });
-        showToast("Pool created", "success");
       } else if (action.action === "bridge") {
         if (action.followUp) setPendingFollowUp(action.followUp);
         onNavigate("bridge");

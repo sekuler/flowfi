@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
-import "../contracts/ArcFactoryV2_v3.sol";
+import "../contracts/ArcFactoryV2_v4.sol";
 import "./mocks/MockERC20.sol";
 import "./mocks/MockFeeOnTransferERC20.sol";
 import "./mocks/MockUSDT.sol";
@@ -246,6 +246,52 @@ contract ArcFactoryV2Test is Test {
         factory.createPool(address(tokenA), address(tokenB));
         vm.expectRevert("Pool already exists");
         factory.createPool(address(tokenA), address(tokenB));
+    }
+
+    // ─── onlyOwner on createPool (the v4 fix) ──────────────────────────────
+
+    function test_CreatePool_RejectsNonOwner() public {
+        vm.prank(trader); // trader is not the owner (test contract is)
+        vm.expectRevert("Not owner");
+        factory.createPool(address(tokenA), address(tokenB));
+    }
+
+    function test_CreatePool_OwnerStillWorks() public {
+        // test contract deployed the factory, so it's the owner by default
+        address pool = factory.createPool(address(tokenA), address(tokenB));
+        assertTrue(pool != address(0));
+    }
+
+    function test_TwoStepOwnershipTransfer() public {
+        address newOwner = address(0xB2);
+        factory.transferOwnership(newOwner);
+        assertEq(factory.owner(), address(this)); // unchanged until accepted
+
+        vm.prank(newOwner);
+        factory.acceptOwnership();
+        assertEq(factory.owner(), newOwner);
+
+        // Old owner can no longer create pools.
+        vm.expectRevert("Not owner");
+        factory.createPool(address(tokenA), address(tokenB));
+
+        // New owner can.
+        vm.prank(newOwner);
+        address pool = factory.createPool(address(tokenA), address(tokenB));
+        assertTrue(pool != address(0));
+    }
+
+    function test_OnlyOwnerCanTransferOwnership() public {
+        vm.prank(trader);
+        vm.expectRevert("Not owner");
+        factory.transferOwnership(trader);
+    }
+
+    function test_OnlyPendingOwnerCanAccept() public {
+        factory.transferOwnership(address(0xB2));
+        vm.prank(trader); // not the pending owner
+        vm.expectRevert("Not pending owner");
+        factory.acceptOwnership();
     }
 
     function test_HappyPath_AddSwapRemove() public {

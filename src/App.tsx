@@ -97,7 +97,7 @@ const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: 
  {
   group: "ANALYTICS",
   tabs: [
-    { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
+    { id: "dashboard", label: "Portfolio Breakdown", Icon: LayoutDashboard },
     { id: "analytics", label: "Stablecoin Analytics", Icon: BarChart3 },
     { id: "history",   label: "History",   Icon: HistoryIcon },
   ],
@@ -110,7 +110,7 @@ const LANDING_FEATURES = [
   { title: "AI Copilot", desc: "Type what you want — swap, send, bridge, or launch a token — and Copilot executes it for you." },
   { title: "Smart Swap", desc: "On-chain swap with an AI advisor that reads real pool liquidity before you trade." },
   { title: "Real CCTP Bridge", desc: "Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol." },
-  { title: "Token Launch", desc: "Deploy your own ERC20 token on Arc and pair it with liquidity in seconds." },
+  { title: "Token Launch", desc: "Deploy your own ERC20 token on Arc — fixed supply, minted to your wallet, live in seconds." },
 ];
 
 function timeAgo(sec: number) {
@@ -752,10 +752,10 @@ function AppInner() {
           <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
+                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Portfolio Breakdown" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Portfolio analytics and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Permissionless AMM — create or join any pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
+               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
               {tab === "portfolio" && balances.usdc !== null && (
                 <div style={{ marginTop: 14 }}>
@@ -901,7 +901,7 @@ function AppInner() {
                 onRefresh={() => wallet && loadBalances(wallet.address)}
               />
             )}
-          {tab === "launch" && wallet && <TokenLaunch provider={wallet.provider} address={wallet.address} onNavigateToPools={() => setTab("pools")} />}
+          {tab === "launch" && wallet && <TokenLaunch provider={wallet.provider} address={wallet.address} />}
           </div>
         </div>
         </div>
