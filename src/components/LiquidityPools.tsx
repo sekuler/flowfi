@@ -4,7 +4,7 @@ import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUn
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { TokenIcon } from "./TokenIcon";
-import { Wallet2, Droplet, BarChart3, type LucideIcon } from "lucide-react";
+import { TrendingUp, Droplet, BarChart3, type LucideIcon } from "lucide-react";
 import { showToast } from "../toast";
 
 const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — legacy, pools created here keep working, no new pools go here
@@ -291,9 +291,9 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 8 : 14 }}>
-        <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} sub={aggregate.avgApr !== null ? `${aggregate.avgApr.toFixed(2)}% avg APR` : "24h change"} color="#6D5EF7" isMobile={isMobile} icon={Wallet2} />
+        <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} changePct={null} color="#6D5EF7" isMobile={isMobile} icon={TrendingUp} />
         <StatCard label="POOLS" value={String(visiblePools.length)} sub="Active pools" color="#7C5CFC" isMobile={isMobile} icon={Droplet} />
-        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} sub="24h volume" color="#5B21B6" isMobile={isMobile} icon={BarChart3} />
+        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} changePct={null} color="#5B21B6" isMobile={isMobile} icon={BarChart3} />
       </div>
 
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 10 }}>
@@ -353,7 +353,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   );
 }
 
-function StatCard({ label, value, sub, color, isMobile, icon: Icon }: { label: string; value: string; sub: string; color: string; isMobile: boolean; icon: LucideIcon }) {
+function StatCard({ label, value, sub, changePct, color, isMobile, icon: Icon }: { label: string; value: string; sub?: string; changePct?: number | null; color: string; isMobile: boolean; icon: LucideIcon }) {
   return (
     <div style={{ background: "#ffffff", border: "1px solid #E5E0FA", borderRadius: 18, padding: isMobile ? "1.1rem 1.2rem" : "1.5rem 1.6rem", boxShadow: "0 2px 8px rgba(109,94,247,0.06)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -363,7 +363,13 @@ function StatCard({ label, value, sub, color, isMobile, icon: Icon }: { label: s
         </div>
       </div>
       <div style={{ fontSize: isMobile ? 24 : 30, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace", lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: isMobile ? 11.5 : 12.5, color: "#9CA3AF", marginTop: 6 }}>{sub}</div>
+      {sub !== undefined ? (
+        <div style={{ fontSize: isMobile ? 11.5 : 12.5, color: "#9CA3AF", marginTop: 6 }}>{sub}</div>
+      ) : (
+        <div style={{ fontSize: isMobile ? 11.5 : 12.5, marginTop: 6, fontWeight: 700, color: changePct === null || changePct === undefined ? "#9CA3AF" : changePct >= 0 ? "#16A34A" : "#DC2626" }}>
+          {changePct === null || changePct === undefined ? "—" : `${changePct >= 0 ? "↑" : "↓"} ${Math.abs(changePct).toFixed(2)}%`}
+        </div>
+      )}
     </div>
   );
 }
@@ -626,8 +632,8 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr", gap: 10, alignItems: "center", padding: "0.85rem 1.25rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex" }}>
-              <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden" }}><TokenIcon symbol={resolvedSymbolA} size={34} /></div>
-              <div style={{ borderRadius: "50%", border: "2px solid #ffffff", overflow: "hidden", marginLeft: -10 }}><TokenIcon symbol={resolvedSymbolB} size={34} /></div>
+              <div style={{ borderRadius: "50%", border: "2.5px solid #ffffff", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}><TokenIcon symbol={resolvedSymbolA} size={40} /></div>
+              <div style={{ borderRadius: "50%", border: "2.5px solid #ffffff", overflow: "hidden", marginLeft: -12, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}><TokenIcon symbol={resolvedSymbolB} size={40} /></div>
             </div>
             <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA} / {resolvedSymbolB}</div>
           </div>
@@ -645,7 +651,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
             ) : metrics.swapCount7d === 0 ? (
               <span style={{ fontSize: 11, color: "#9CA3AF", background: "#F3F4F6", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>New</span>
             ) : (
-              <span style={{ fontSize: 13, color: "#16A34A", fontWeight: 800 }}>{metrics.apr !== null ? `${metrics.apr.toFixed(2)}%` : "—"}</span>
+              <span style={{ fontSize: 14, color: "#7C5CFC", fontWeight: 800 }}>{metrics.apr !== null ? `${metrics.apr.toFixed(2)}%` : "—"}</span>
             )}
             <button onClick={onToggle}
               style={{ padding: "0.4rem 0.9rem", borderRadius: 999, border: "1px solid rgba(124,58,237,0.25)", background: expanded ? "#5B21B6" : "#ffffff", color: expanded ? "#ffffff" : "#5B21B6", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
