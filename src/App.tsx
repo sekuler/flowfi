@@ -638,34 +638,33 @@ function AppInner() {
             </div>
           ))}
         </nav>
-        <div style={{ padding: "0.65rem 1.25rem", marginTop: "auto" }}>
+        <div style={{ padding: "0.5rem 1.25rem", marginTop: "auto" }}>
           {wallet ? (
             <>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 10, color: "#8B7CF9", fontWeight: 700, letterSpacing: "1px" }}>CONNECTED</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+                  <div className="flowfi-mono" style={{ fontSize: 12, color: "#374151" }}>{nickname || shortAddr}</div>
+                  <button onClick={copyAddress} title="Copy address"
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 1, color: copied ? "#22C55E" : "#9CA3AF", display: "flex", flexShrink: 0 }}>
+                    {copied ? <Check size={11} /> : <Copy size={11} />}
+                  </button>
+                </div>
                 <button onClick={() => {
                   const next = window.prompt("Set a local nickname (only visible to you, this browser only):", nickname ?? "");
                   if (next === null) return;
                   if (next.trim()) { setNicknameState(next.trim()); saveNickname(next.trim()); }
                   else { setNicknameState(null); clearNickname(); }
-                }} title="Set a local nickname" style={{ background: "none", border: "none", color: "#8B7CF9", cursor: "pointer", fontSize: 10, fontWeight: 700 }}>
-                  {nickname ? "Edit" : "+ Nickname"}
+                }} title="Set a local nickname" style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: 9, fontWeight: 700, flexShrink: 0 }}>
+                  {nickname ? "edit" : "+nick"}
                 </button>
               </div>
-              {nickname && <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", marginBottom: 2 }}>{nickname}</div>}
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div className="flowfi-mono" style={{ fontSize: 13, color: "#374151" }}>{shortAddr}</div>
-                <button onClick={copyAddress} title="Copy address"
-                  style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: copied ? "#22C55E" : "#6B7280", display: "flex" }}>
-                  {copied ? <Check size={13} /> : <Copy size={13} />}
-                </button>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <Sparkles size={10} color="#6D5EF7" />
+                  <span className="flowfi-mono" style={{ fontSize: 10, fontWeight: 700, color: "#6D5EF7" }}>{points} pts</span>
+                </div>
+                <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} style={{ fontSize: 10, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Disconnect</button>
               </div>
-              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{wallet.walletName}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, background: "rgba(109,94,247,0.08)", borderRadius: 999, padding: "4px 10px", width: "fit-content" }}>
-                <Sparkles size={11} color="#6D5EF7" />
-                <span className="flowfi-mono" style={{ fontSize: 11, fontWeight: 700, color: "#6D5EF7" }}>{points} pts</span>
-              </div>
-              <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} style={{ marginTop: 10, fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Disconnect</button>
             </>
           ) : circlePrimary && circleWalletInfo ? (
             <>
