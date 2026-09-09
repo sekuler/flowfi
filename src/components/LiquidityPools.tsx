@@ -459,7 +459,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   refreshNonce: number;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<"add" | "remove">("add");
+  const [mode, setMode] = useState<"swap" | "add" | "remove">("add");
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
   const [removePct, setRemovePct] = useState(50);
@@ -470,6 +470,13 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<PoolMetrics>({ tvl: null, swapCount7d: 0, volume7d: null, fees7d: null, apr: null, shape: [], logsUnavailable: false });
 
+  const [swapDirAtoB, setSwapDirAtoB] = useState(true);
+  const [swapAmountIn, setSwapAmountIn] = useState("");
+  const [swapEstOut, setSwapEstOut] = useState("0.00");
+  const [swapState, setSwapState] = useState<"idle" | "approving" | "swapping" | "done" | "error">("idle");
+  const [swapError, setSwapError] = useState<string | null>(null);
+  const [swapTxHash, setSwapTxHash] = useState<string | null>(null);
+
   const [resolvedSymbolA, setResolvedSymbolA] = useState(pool.symbolA);
   const [resolvedSymbolB, setResolvedSymbolB] = useState(pool.symbolB);
   const [decimalsA, setDecimalsA] = useState(tokenDecimalsSync(pool.addressA));
@@ -478,6 +485,10 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   const tokenAInfo = { symbol: resolvedSymbolA, address: pool.addressA, color: pool.colorA };
   const tokenBInfo = { symbol: resolvedSymbolB, address: pool.addressB, color: pool.colorB };
   const abi = pool.abiVersion === "legacy" ? LEGACY_ABI : pool.abiVersion === "v2" ? V2_POOL_ABI : POOL_ABI;
+  // The old legacy AMM has no swap()/getAmountOut() at all — both real
+  // factory-created pool versions (v2 and v3/v4) do, just with a different
+  // arg count on swap() itself (handled separately in doSwap below).
+  const swapSupported = pool.abiVersion !== "legacy";
   const stableA = STABLE_SYMBOLS.has(resolvedSymbolA);
   const stableB = STABLE_SYMBOLS.has(resolvedSymbolB);
   const isStablePair = stableA && stableB;
@@ -576,6 +587,64 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   useEffect(() => { loadData(); }, [loadData]);
 
   const hasPosition = myShare && Number(myShare.pct) > 0;
+  const swapTokenIn = swapDirAtoB ? tokenAInfo : tokenBInfo;
+  const swapTokenOut = swapDirAtoB ? tokenBInfo : tokenAInfo;
+
+  useEffect(() => {
+    async function estimate() {
+      if (!swapSupported || !swapAmountIn || isNaN(Number(swapAmountIn)) || Number(swapAmountIn) <= 0) {
+        setSwapEstOut("0.00");
+        return;
+      }
+      try {
+        const client = createPublicClient({ chain: arcTestnet, transport: http() });
+        const amountIn = parseUnits(swapAmountIn, swapDirAtoB ? decimalsA : decimalsB);
+        const out = await client.readContract({ address: pool.poolAddress, abi, functionName: "getAmountOut", args: [swapDirAtoB, amountIn] });
+        setSwapEstOut(Number(formatUnits(out as bigint, swapDirAtoB ? decimalsB : decimalsA)).toFixed(reservePrecision(swapDirAtoB ? decimalsB : decimalsA)));
+      } catch {
+        setSwapEstOut("0.00");
+      }
+    }
+    estimate();
+  }, [swapAmountIn, swapDirAtoB, pool.poolAddress, swapSupported, decimalsA, decimalsB, abi]);
+
+  async function doSwap() {
+    if (!swapTokenIn || !swapAmountIn || Number(swapAmountIn) <= 0) { setSwapError("Enter a valid amount."); return; }
+    setSwapError(null); setSwapTxHash(null);
+    try {
+      await switchToArc(provider);
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
+      const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const amountIn = parseUnits(swapAmountIn, swapDirAtoB ? decimalsA : decimalsB);
+
+      setSwapState("approving");
+      const approveHash = await wc.writeContract({
+        address: swapTokenIn.address, abi: erc20Abi, functionName: "approve",
+        args: [pool.poolAddress, amountIn], account: address as `0x${string}`,
+      });
+      await waitForSuccess(publicClient, approveHash);
+
+      setSwapState("swapping");
+      // v2 pools' swap() has no deadline param (3 args); v3/v4 added one (4 args) —
+      // same class of ABI mismatch as addLiquidity/removeLiquidity, now handled correctly.
+      const swapArgs = pool.abiVersion === "v3v4"
+        ? [swapDirAtoB, amountIn, 0n, BigInt(Math.floor(Date.now() / 1000) + 3600)] as const
+        : [swapDirAtoB, amountIn, 0n] as const;
+      const hash = await wc.writeContract({
+        address: pool.poolAddress, abi, functionName: "swap",
+        args: swapArgs, account: address as `0x${string}`,
+      });
+      await waitForSuccess(publicClient, hash);
+
+      setSwapTxHash(hash); setSwapState("done"); setSwapAmountIn(""); setSwapEstOut("0.00");
+      await loadData();
+      onRefresh();
+      showToast("Swap complete", "success");
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setSwapError(err.message ?? "Swap failed."); setSwapState("error");
+    }
+  }
 
   async function doAdd() {
     if (!amountA || !amountB || Number(amountA) <= 0 || Number(amountB) <= 0) {
@@ -646,9 +715,10 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
     <div style={{ display: "flex", flexDirection: "column" }}>
       {!isMobile ? (
         <div
+          onClick={onToggle}
           onMouseEnter={(e) => { e.currentTarget.style.background = "#FAF8FF"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-          style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 72px", gap: 10, alignItems: "center", padding: "0 20px", minHeight: 64, transition: "background 0.1s ease" }}>
+          style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 72px", gap: 10, alignItems: "center", padding: "0 20px", minHeight: 64, transition: "background 0.1s ease", cursor: "pointer" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex" }}>
               <div style={{ borderRadius: "50%", overflow: "hidden" }}><TokenIcon symbol={resolvedSymbolA} size={28} /></div>
@@ -674,7 +744,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
             )}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={onToggle}
+            <button onClick={(e) => { e.stopPropagation(); onToggle(); }}
               style={{ padding: "6px 14px", borderRadius: 999, border: "1px solid #D4C9FA", background: expanded ? "#5B21B6" : "#ffffff", color: expanded ? "#ffffff" : "#6D5EF7", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               {expanded ? "Close" : "Add"}
             </button>
@@ -746,6 +816,12 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
           </div>
 
           <div style={{ display: "flex", gap: 6 }}>
+            {swapSupported && (
+              <button onClick={() => setMode("swap")}
+                style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "swap" ? "#ede9fe" : "#f5f3ff", color: mode === "swap" ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                Swap
+              </button>
+            )}
             <button onClick={() => setMode("add")}
               style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "add" ? "#ede9fe" : "#f5f3ff", color: mode === "add" ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               Add
@@ -755,6 +831,40 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
               Remove
             </button>
           </div>
+
+          {mode === "swap" && swapSupported && (
+            <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ background: "#ffffff", borderRadius: 10, padding: "0.7rem 0.8rem" }}>
+                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>You pay</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <input type="number" min="0" placeholder="0.00" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} disabled={swapState === "approving" || swapState === "swapping"}
+                      style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 18, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{swapTokenIn.symbol}</span>
+                  </div>
+                </div>
+                <button onClick={() => setSwapDirAtoB(v => !v)} disabled={swapState === "approving" || swapState === "swapping"}
+                  style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 28, height: 28, borderRadius: 8, background: "#ffffff", border: "1px solid #EDE9FE", color: "#6D5EF7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
+                  ↓
+                </button>
+                <div style={{ background: "#ffffff", borderRadius: 10, padding: "0.7rem 0.8rem" }}>
+                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>You receive (estimated)</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 18, color: "#111827", fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>{swapEstOut}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{swapTokenOut.symbol}</span>
+                  </div>
+                </div>
+              </div>
+              {swapError && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.6rem 0.8rem", color: "#DC2626", fontSize: 12 }}>{swapError}</div>}
+              {swapTxHash && swapState === "done" && (
+                <a href={`https://testnet.arcscan.app/tx/${swapTxHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#6D5EF7", textAlign: "center" }}>View on explorer ↗</a>
+              )}
+              <button onClick={doSwap} disabled={swapState === "approving" || swapState === "swapping"}
+                style={{ width: "100%", padding: "0.7rem", borderRadius: 10, border: "none", background: "#7c3aed", color: "#fff", fontSize: 13, fontWeight: 700, cursor: swapState === "approving" || swapState === "swapping" ? "not-allowed" : "pointer", opacity: swapState === "approving" || swapState === "swapping" ? 0.6 : 1 }}>
+                {swapState === "approving" ? "Approving..." : swapState === "swapping" ? "Swapping..." : "Swap"}
+              </button>
+            </div>
+          )}
 
           {mode === "add" && (
             <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
