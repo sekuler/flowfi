@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
-import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits, parseAbiItem } from "viem";
+import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits, parseAbiItem, decodeAbiParameters } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { TokenIcon } from "./TokenIcon";
@@ -187,22 +187,60 @@ async function resolveTokenDecimals(addr: string, client: ReturnType<typeof crea
   }
 }
 
+const SWAP_EVENT_TOPIC0 = "0xbfd50a04f1e6e4aee344f5d0e7f15d74d0dbb58cd1f711daa6463094ca9508cd" as const; // keccak256("Swap(address,bool,uint256,uint256)")
+
+// Same shape as what client.getLogs({ event: SWAP_EVENT }) returns, but only
+// the two fields anything downstream actually reads — kept minimal so this
+// fallback source is a drop-in replacement regardless of where the logs
+// came from.
+type SwapLogLike = { args: { amountIn?: bigint; aToB?: boolean } };
+
+async function fetchSwapLogsFromArcscan(poolAddress: `0x${string}`): Promise<{ logs: SwapLogLike[]; ok: boolean }> {
+  try {
+    const url = `/api/arcscan-proxy?module=logs&action=getLogs&address=${poolAddress}&topic0=${SWAP_EVENT_TOPIC0}&fromBlock=0&toBlock=latest`;
+    const res = await fetch(url);
+    if (!res.ok) return { logs: [], ok: false };
+    const json = await res.json();
+    const items: { data: `0x${string}`; topics: string[] }[] = json?.result ?? [];
+    if (!Array.isArray(items)) return { logs: [], ok: false };
+    const logs: SwapLogLike[] = items.map((item) => {
+      try {
+        const [aToB, amountIn] = decodeAbiParameters(
+          [{ type: "bool" }, { type: "uint256" }, { type: "uint256" }],
+          item.data
+        );
+        return { args: { amountIn: amountIn as bigint, aToB: aToB as boolean } };
+      } catch {
+        return { args: {} };
+      }
+    });
+    return { logs, ok: true };
+  } catch {
+    return { logs: [], ok: false };
+  }
+}
+
 async function fetchSwapLogsWithFallback(
   client: ReturnType<typeof createPublicClient>,
   poolAddress: `0x${string}`,
   currentBlock: bigint
-) {
+): Promise<{ logs: SwapLogLike[]; ok: boolean }> {
   const windows = [50000n, 20000n, 5000n, 1000n, 200n];
   for (const w of windows) {
     const fromBlock = currentBlock > w ? currentBlock - w : 0n;
     try {
       const logs = await client.getLogs({ address: poolAddress, event: SWAP_EVENT, fromBlock, toBlock: "latest" });
-      return { logs, ok: true as const };
+      return { logs: logs.map((l) => ({ args: { amountIn: l.args.amountIn, aToB: l.args.aToB } })), ok: true };
     } catch {
       continue;
     }
   }
-  return { logs: [] as Awaited<ReturnType<typeof client.getLogs>>, ok: false as const };
+  // eth_getLogs is unreliable on Arc Testnet's RPC (confirmed) — before
+  // giving up entirely, try Arcscan's own indexed logs endpoint instead.
+  // This is a real fallback to a different data source, not just a retry.
+  const fromArcscan = await fetchSwapLogsFromArcscan(poolAddress);
+  if (fromArcscan.ok) return fromArcscan;
+  return { logs: [], ok: false };
 }
 
 // A fixed 4-decimal display works fine for 6-decimal stablecoins, but a
@@ -369,7 +407,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12 }}>
         <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "$0.00"} changePct={null} isMobile={isMobile} icon={TrendingUp} />
         <StatCard label="POOLS" value={String(visiblePools.length)} sub="Active pools" isMobile={isMobile} icon={Droplet} />
-        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "$0.00"} changePct={null} isMobile={isMobile} icon={BarChart3} />
+        <StatCard label="RECENT VOLUME" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "$0.00"} changePct={null} isMobile={isMobile} icon={BarChart3} />
       </div>
 
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 10 }}>
