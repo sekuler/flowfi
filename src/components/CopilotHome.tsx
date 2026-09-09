@@ -154,7 +154,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
   const eurcVal = Number(balances.eurc ?? 0);
   const usycVal = Number(balances.usyc ?? 0);
   const cirbtcVal = btcUsd !== null ? Number(balances.cirbtc ?? 0) * btcUsd : 0;
-  const totalValue = usdcVal + eurcVal + usycVal;
+  const totalValue = usdcVal + eurcVal + usycVal + cirbtcVal;
 
   // Morning Brief: real overnight portfolio change, using the same daily
   // snapshot mechanism as Dashboard — only shown once the first time you
@@ -188,7 +188,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
   // sitting 100% in one asset scores riskier than one spread across several.
   const riskScore = (() => {
     if (totalValue === 0) return null;
-    const shares = [usdcVal, eurcVal, usycVal].filter((v) => v > 0).map((v) => v / totalValue);
+    const shares = [usdcVal, eurcVal, usycVal, cirbtcVal].filter((v) => v > 0).map((v) => v / totalValue);
     const herfindahl = shares.reduce((sum, s) => sum + s * s, 0); // 1 = fully concentrated, lower = more diversified
     return Math.round(herfindahl * 10);
   })();

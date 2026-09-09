@@ -14,6 +14,11 @@
 //      a cache doesn't need to be globally exact to be useful.)
 //   2. Automatic retries with short backoff specifically on 429, since explorer rate
 //      limits are typically a short rolling window — often gone within a second or two.
+//
+// Also used with ?module=logs&action=getLogs (Blockscout's Etherscan-compatible log
+// endpoint) as a fallback source for event logs when eth_getLogs on the RPC itself is
+// unreliable (a real, confirmed issue on Arc Testnet's public RPC) — this reads from
+// Arcscan's own indexed database instead, same query shape, no extra code needed here.
 const ARCSCAN_ORIGIN = 'https://testnet.arcscan.app';
 const CACHE_TTL_MS = 20 * 1000; // transaction history doesn't need to be to-the-second fresh
 const cache = new Map(); // key -> { status, contentType, body, expiresAt }

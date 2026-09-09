@@ -41,6 +41,7 @@ interface Balances {
   usdc: string | null;
   eurc: string | null;
   usyc: string | null;
+  cirbtc: string | null;
   native: string | null;
 }
 
@@ -61,6 +62,7 @@ const GUEST_ADDRESS = "0x0000000000000000000000000000000000000000";
 const GUEST_PROVIDER = { request: async () => { throw new Error("Connect a wallet to do this."); } } as unknown as EIP1193Provider;
 const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
+const ARC_CIRBTC = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF" as `0x${string}`;
 
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
 const PORTFOLIO_TAB: { id: Tab; label: string; Icon: any } = { id: "portfolio", label: "Portfolio", Icon: LayoutGrid };
@@ -188,7 +190,7 @@ function AppInner() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const [tab, setTab] = useState<Tab>("home");
-  const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, native: null });
+  const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
@@ -296,21 +298,23 @@ function AppInner() {
   async function loadBalances(address: string) {
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
-      const [usdc, eurc, usyc, native] = await Promise.all([
+      const [usdc, eurc, usyc, cirbtc, native] = await Promise.all([
         client.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n),
         client.readContract({ address: ARC_EURC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n),
         client.readContract({ address: ARC_USYC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n),
+        client.readContract({ address: ARC_CIRBTC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n),
         client.getBalance({ address: address as `0x${string}` }).catch(() => 0n),
       ]);
       setBalances({
         usdc: Number(formatUnits(usdc as bigint, 6)).toFixed(2),
         eurc: Number(formatUnits(eurc as bigint, 6)).toFixed(2),
         usyc: Number(formatUnits(usyc as bigint, 6)).toFixed(2),
+        cirbtc: Number(formatUnits(cirbtc as bigint, 8)).toFixed(6),
         native: Number(formatUnits(native as bigint, 18)).toFixed(4),
       });
       setLastUpdated(Math.floor(Date.now() / 1000));
     } catch {
-      setBalances({ usdc: "—", eurc: "—", usyc: "—", native: "—" });
+      setBalances({ usdc: "—", eurc: "—", usyc: "—", cirbtc: "—", native: "—" });
     }
   }
 
@@ -877,7 +881,7 @@ function AppInner() {
               <LiquidityPools
                 provider={wallet ? wallet.provider : GUEST_PROVIDER}
                 address={wallet ? wallet.address : (circlePrimary && circleWalletInfo ? circleWalletInfo.address : GUEST_ADDRESS)}
-                balances={wallet ? balances : { usdc: null, eurc: null, usyc: null, native: null }}
+                balances={wallet ? balances : { usdc: null, eurc: null, usyc: null, cirbtc: null, native: null }}
                 onRefresh={() => wallet && loadBalances(wallet.address)}
               />
             )}
