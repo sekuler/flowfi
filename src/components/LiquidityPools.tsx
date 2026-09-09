@@ -36,6 +36,15 @@ function isCuratedPair(addrA: string, addrB: string): boolean {
   return CURATED_PAIRS.has([addrA.toLowerCase(), addrB.toLowerCase()].sort().join("_"));
 }
 
+// Specific pool addresses FlowFi's UI must never surface, regardless of
+// which pair they hold. This is a UI-only block — the pool contract itself
+// has no admin pause (by design, see SECURITY.md), so this can't stop
+// someone who already has the address from interacting with it directly.
+// What it guarantees is that FlowFi itself never points a user at it again.
+const BLOCKED_POOL_ADDRESSES = new Set([
+  "0xe182de122c0f9f8472d0e67dd6279796b3e18358", // pre-v4 permissionless USDC/EURC pool, reverts with NotPermissioned()
+].map(a => a.toLowerCase()));
+
 const FACTORY_ABI = [
   { type: "function", name: "createPool", stateMutability: "nonpayable", inputs: [{ name: "tokenA", type: "address" }, { name: "tokenB", type: "address" }], outputs: [{ name: "pool", type: "address" }] },
   { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
@@ -107,6 +116,14 @@ interface PoolInfo {
   // with the 3-arg selector doesn't match any function on that contract and
   // reverts immediately with empty data — this was a real, confirmed bug.
   abiVersion: "legacy" | "v2" | "v3v4";
+  // Precise factory that created this pool — used only to rank which pool
+  // to prefer when the same pair exists on more than one factory. abiVersion
+  // groups v3+v4 together (same call signature) but v3 and v4 are NOT
+  // equally preferred: a v3 pool that predates the onlyOwner lock could be
+  // an untrusted, permissionlessly-created leftover. Confirmed real bug:
+  // a brand-new v4 pool was silently shadowed by an old, broken v3 pool for
+  // the same pair because the old ranking treated v3 and v4 as one tier.
+  sourceFactory: "legacy" | "v2" | "v3" | "v4";
 }
 
 interface PoolMetrics {
@@ -253,6 +270,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       symbolA: "USDC", symbolB: "EURC",
       colorA: "#2563eb", colorB: "#7c3aed",
       abiVersion: "legacy",
+      sourceFactory: "legacy",
     };
     setPools([legacyPool]);
     try {
@@ -260,6 +278,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
       for (const factoryAddr of [FACTORY_CONTRACT, FACTORY_CONTRACT_V3, FACTORY_CONTRACT_V4]) {
         const poolAbiVersion: PoolInfo["abiVersion"] = factoryAddr === FACTORY_CONTRACT ? "v2" : "v3v4";
+        const poolSourceFactory: PoolInfo["sourceFactory"] = factoryAddr === FACTORY_CONTRACT ? "v2" : factoryAddr === FACTORY_CONTRACT_V3 ? "v3" : "v4";
         const count = await client.readContract({ address: factoryAddr, abi: FACTORY_ABI, functionName: "allPoolsLength" });
         const total = Number(count);
         const indices = Array.from({ length: total }, (_, i) => i);
@@ -276,12 +295,12 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
               ]);
               const metaA = tokenMetaSync(tA);
               const metaB = tokenMetaSync(tB);
-              return { poolAddress: poolAddr, addressA: tA, addressB: tB, symbolA: metaA.symbol, symbolB: metaB.symbol, colorA: metaA.color, colorB: metaB.color, abiVersion: poolAbiVersion } as PoolInfo;
+              return { poolAddress: poolAddr, addressA: tA, addressB: tB, symbolA: metaA.symbol, symbolB: metaB.symbol, colorA: metaA.color, colorB: metaB.color, abiVersion: poolAbiVersion, sourceFactory: poolSourceFactory } as PoolInfo;
             } catch {
               return null;
             }
           }));
-          const valid = batchDetails.filter((d): d is PoolInfo => d !== null && isCuratedPair(d.addressA, d.addressB));
+          const valid = batchDetails.filter((d): d is PoolInfo => d !== null && isCuratedPair(d.addressA, d.addressB) && !BLOCKED_POOL_ADDRESSES.has(d.poolAddress.toLowerCase()));
           if (valid.length > 0) setPools(prev => [...prev, ...valid]);
           if (b + BATCH_SIZE < indices.length) await new Promise(r => setTimeout(r, 200));
         }
@@ -315,7 +334,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       const pairKey = [p.addressA.toLowerCase(), p.addressB.toLowerCase()].sort().join("_");
       const candidates = arr.filter(o => [o.addressA.toLowerCase(), o.addressB.toLowerCase()].sort().join("_") === pairKey);
       if (candidates.length === 1) return true;
-      const rank = (c: PoolInfo) => c.abiVersion === "v3v4" ? 0 : c.abiVersion === "v2" ? 1 : 2;
+      const rank = (c: PoolInfo) => c.sourceFactory === "v4" ? 0 : c.sourceFactory === "v3" ? 1 : c.sourceFactory === "v2" ? 2 : 3;
       const preferred = [...candidates].sort((a, b) => rank(a) - rank(b))[0];
       return p.poolAddress === preferred.poolAddress;
     })
