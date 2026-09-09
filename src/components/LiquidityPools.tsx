@@ -195,29 +195,39 @@ const SWAP_EVENT_TOPIC0 = "0xbfd50a04f1e6e4aee344f5d0e7f15d74d0dbb58cd1f711daa64
 // came from.
 type SwapLogLike = { args: { amountIn?: bigint; aToB?: boolean } };
 
-async function fetchSwapLogsFromArcscan(poolAddress: `0x${string}`): Promise<{ logs: SwapLogLike[]; ok: boolean }> {
-  try {
-    const url = `/api/arcscan-proxy?module=logs&action=getLogs&address=${poolAddress}&topic0=${SWAP_EVENT_TOPIC0}&fromBlock=0&toBlock=latest`;
-    const res = await fetch(url);
-    if (!res.ok) return { logs: [], ok: false };
-    const json = await res.json();
-    const items: { data: `0x${string}`; topics: string[] }[] = json?.result ?? [];
-    if (!Array.isArray(items)) return { logs: [], ok: false };
-    const logs: SwapLogLike[] = items.map((item) => {
-      try {
-        const [aToB, amountIn] = decodeAbiParameters(
-          [{ type: "bool" }, { type: "uint256" }, { type: "uint256" }],
-          item.data
-        );
-        return { args: { amountIn: amountIn as bigint, aToB: aToB as boolean } };
-      } catch {
-        return { args: {} };
-      }
-    });
-    return { logs, ok: true };
-  } catch {
-    return { logs: [], ok: false };
+async function fetchSwapLogsFromArcscan(poolAddress: `0x${string}`, currentBlock: bigint): Promise<{ logs: SwapLogLike[]; ok: boolean }> {
+  // Arcscan's getLogs rejects a fromBlock/toBlock span wider than roughly
+  // 10,000 blocks (documented) rather than silently truncating — asking
+  // for the whole chain (fromBlock=0) was being flat-out refused, which is
+  // the real reason this fallback wasn't actually recovering anything.
+  const windows = [9000n, 4000n, 1000n];
+  for (const w of windows) {
+    const fromBlock = currentBlock > w ? currentBlock - w : 0n;
+    try {
+      const url = `/api/arcscan-proxy?module=logs&action=getLogs&address=${poolAddress}&topic0=${SWAP_EVENT_TOPIC0}&fromBlock=${fromBlock}&toBlock=latest`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json();
+      if (json?.status !== "1" && json?.message !== "OK") continue; // Blockscout signals a rejected range this way, not just a bad HTTP status
+      const items: { data: `0x${string}`; topics: string[] }[] = json?.result ?? [];
+      if (!Array.isArray(items)) continue;
+      const logs: SwapLogLike[] = items.map((item) => {
+        try {
+          const [aToB, amountIn] = decodeAbiParameters(
+            [{ type: "bool" }, { type: "uint256" }, { type: "uint256" }],
+            item.data
+          );
+          return { args: { amountIn: amountIn as bigint, aToB: aToB as boolean } };
+        } catch {
+          return { args: {} };
+        }
+      });
+      return { logs, ok: true };
+    } catch {
+      continue;
+    }
   }
+  return { logs: [], ok: false };
 }
 
 async function fetchSwapLogsWithFallback(
@@ -238,7 +248,7 @@ async function fetchSwapLogsWithFallback(
   // eth_getLogs is unreliable on Arc Testnet's RPC (confirmed) — before
   // giving up entirely, try Arcscan's own indexed logs endpoint instead.
   // This is a real fallback to a different data source, not just a retry.
-  const fromArcscan = await fetchSwapLogsFromArcscan(poolAddress);
+  const fromArcscan = await fetchSwapLogsFromArcscan(poolAddress, currentBlock);
   if (fromArcscan.ok) return fromArcscan;
   return { logs: [], ok: false };
 }
