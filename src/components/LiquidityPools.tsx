@@ -31,6 +31,7 @@ const CURATED_PAIRS = new Set([
   ["0x3600000000000000000000000000000000000000", "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf"].sort().join("_"), // USDC/cirBTC
   ["0x3600000000000000000000000000000000000000", "0xe9185f0c5f296ed1797aae4238d26ccabeadb86c"].sort().join("_"), // USDC/USYC
   ["0x89b50855aa3be2f677cd6303cec089b5f319d72a", "0xe9185f0c5f296ed1797aae4238d26ccabeadb86c"].sort().join("_"), // EURC/USYC
+  ["0x89b50855aa3be2f677cd6303cec089b5f319d72a", "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf"].sort().join("_"), // EURC/cirBTC
 ]);
 function isCuratedPair(addrA: string, addrB: string): boolean {
   return CURATED_PAIRS.has([addrA.toLowerCase(), addrB.toLowerCase()].sort().join("_"));
