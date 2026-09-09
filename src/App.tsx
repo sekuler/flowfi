@@ -195,6 +195,7 @@ function AppInner() {
   const [copied, setCopied] = useState(false);
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
   const [eurUsdRate, setEurUsdRate] = useState<number | null>(null);
+  const [btcUsdRate, setBtcUsdRate] = useState<number | null>(null);
   const [nickname, setNicknameState] = useState<string | null>(null);
   const [circleWalletInfo, setCircleWalletInfo] = useState<CircleWalletInfo | null>(null);
   const [circleBalances, setCircleBalances] = useState<{ usdc: string; eurc: string } | null>(null);
@@ -343,15 +344,27 @@ function AppInner() {
     }
   }
 
+  async function loadBtcRate() {
+    try {
+      const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd");
+      const data = await res.json();
+      if (data?.bitcoin?.usd) setBtcUsdRate(data.bitcoin.usd);
+    } catch {
+      /* ignore */
+    }
+  }
+
   useEffect(() => {
     if (wallet) {
       loadBalances(wallet.address);
       loadRecentTxs(wallet.address);
       loadEurRate();
+      loadBtcRate();
     } else if (circlePrimary && circleWalletInfo) {
       loadBalances(circleWalletInfo.address);
       loadRecentTxs(circleWalletInfo.address);
       loadEurRate();
+      loadBtcRate();
     }
   }, [wallet, circlePrimary, circleWalletInfo]);
 
@@ -746,7 +759,7 @@ function AppInner() {
                 <div style={{ marginTop: 14 }}>
                   <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>TOTAL VALUE</div>
                   <div className="flowfi-mono" style={{ fontSize: 34, fontWeight: 700, color: "#111827" }}>
-                    ${(Number(balances.usdc || 0) + Number(balances.eurc || 0) * (eurUsdRate ?? 1.08) + Number(balances.usyc || 0)).toFixed(2)}
+                    ${(Number(balances.usdc || 0) + Number(balances.eurc || 0) * (eurUsdRate ?? 1.08) + Number(balances.usyc || 0) + Number(balances.cirbtc || 0) * (btcUsdRate ?? 0)).toFixed(2)}
                   </div>
                 </div>
               )}
@@ -802,6 +815,7 @@ function AppInner() {
                 { label: "USDC", value: balances.usdc, sub: "Native USDC" },
                 { label: "EURC", value: balances.eurc, sub: "Euro Coin" },
                 ...(balances.usyc && Number(balances.usyc) > 0 ? [{ label: "USYC", value: balances.usyc, sub: "Circle Yield" }] : []),
+                ...(balances.cirbtc && Number(balances.cirbtc) > 0 ? [{ label: "cirBTC", value: balances.cirbtc, sub: "Circle Wrapped Bitcoin" }] : []),
               ];
               const circleRows = [
                 { label: "USDC", value: circleBalances?.usdc ?? null, sub: "Across 4 chains" },
@@ -881,7 +895,7 @@ function AppInner() {
               <LiquidityPools
                 provider={wallet ? wallet.provider : GUEST_PROVIDER}
                 address={wallet ? wallet.address : (circlePrimary && circleWalletInfo ? circleWalletInfo.address : GUEST_ADDRESS)}
-                balances={wallet ? balances : { usdc: null, eurc: null, usyc: null, cirbtc: null, native: null }}
+                balances={wallet ? balances : { usdc: null, eurc: null, usyc: null, native: null }}
                 onRefresh={() => wallet && loadBalances(wallet.address)}
               />
             )}
