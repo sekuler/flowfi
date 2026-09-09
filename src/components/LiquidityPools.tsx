@@ -401,7 +401,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   refreshNonce: number;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<"swap" | "add" | "remove">("swap");
+  const [mode, setMode] = useState<"add" | "remove">("add");
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
   const [removePct, setRemovePct] = useState(50);
@@ -411,13 +411,6 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   const [myShare, setMyShare] = useState<{ a: string; b: string; pct: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<PoolMetrics>({ tvl: null, swapCount7d: 0, volume7d: null, fees7d: null, apr: null, shape: [], logsUnavailable: false });
-
-  const [swapDirAtoB, setSwapDirAtoB] = useState(true);
-  const [swapAmountIn, setSwapAmountIn] = useState("");
-  const [swapEstOut, setSwapEstOut] = useState("0.00");
-  const [swapState, setSwapState] = useState<"idle" | "approving" | "swapping" | "done" | "error">("idle");
-  const [swapError, setSwapError] = useState<string | null>(null);
-  const [swapTxHash, setSwapTxHash] = useState<string | null>(null);
 
   const [resolvedSymbolA, setResolvedSymbolA] = useState(pool.symbolA);
   const [resolvedSymbolB, setResolvedSymbolB] = useState(pool.symbolB);
@@ -430,7 +423,6 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   const stableA = STABLE_SYMBOLS.has(resolvedSymbolA);
   const stableB = STABLE_SYMBOLS.has(resolvedSymbolB);
   const isStablePair = stableA && stableB;
-  const swapSupported = !pool.isLegacy;
 
   useEffect(() => {
     let cancelled = false;
@@ -525,60 +517,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  useEffect(() => {
-    async function estimate() {
-      if (!swapSupported || !swapAmountIn || isNaN(Number(swapAmountIn)) || Number(swapAmountIn) <= 0) {
-        setSwapEstOut("0.00");
-        return;
-      }
-      try {
-        const client = createPublicClient({ chain: arcTestnet, transport: http() });
-        const amountIn = parseUnits(swapAmountIn, swapDirAtoB ? decimalsA : decimalsB);
-        const out = await client.readContract({ address: pool.poolAddress, abi: POOL_ABI, functionName: "getAmountOut", args: [swapDirAtoB, amountIn] });
-        setSwapEstOut(Number(formatUnits(out as bigint, swapDirAtoB ? decimalsB : decimalsA)).toFixed(4));
-      } catch {
-        setSwapEstOut("0.00");
-      }
-    }
-    estimate();
-  }, [swapAmountIn, swapDirAtoB, pool.poolAddress, swapSupported, decimalsA, decimalsB]);
-
   const hasPosition = myShare && Number(myShare.pct) > 0;
-  const swapTokenIn = swapDirAtoB ? tokenAInfo : tokenBInfo;
-  const swapTokenOut = swapDirAtoB ? tokenBInfo : tokenAInfo;
-
-  async function doSwap() {
-    if (!swapTokenIn || !swapAmountIn || Number(swapAmountIn) <= 0) { setSwapError("Enter a valid amount."); return; }
-    setSwapError(null); setSwapTxHash(null);
-    try {
-      await switchToArc(provider);
-      const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
-      const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-      const amountIn = parseUnits(swapAmountIn, swapDirAtoB ? decimalsA : decimalsB);
-
-      setSwapState("approving");
-      const approveHash = await wc.writeContract({
-        address: swapTokenIn.address, abi: erc20Abi, functionName: "approve",
-        args: [pool.poolAddress, amountIn], account: address as `0x${string}`,
-      });
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
-
-      setSwapState("swapping");
-      const hash = await wc.writeContract({
-        address: pool.poolAddress, abi: POOL_ABI, functionName: "swap",
-        args: [swapDirAtoB, amountIn, 0n, BigInt(Math.floor(Date.now() / 1000) + 1200)], account: address as `0x${string}`,
-      });
-      await publicClient.waitForTransactionReceipt({ hash });
-
-      setSwapTxHash(hash); setSwapState("done"); setSwapAmountIn(""); setSwapEstOut("0.00");
-      await loadData();
-      onRefresh();
-      showToast("Swap complete", "success");
-    } catch (e: unknown) {
-      const err = e as { message?: string };
-      setSwapError(err.message ?? "Swap failed."); setSwapState("error");
-    }
-  }
 
   async function doAdd() {
     if (!amountA || !amountB || Number(amountA) <= 0 || Number(amountB) <= 0) {
@@ -602,7 +541,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       await publicClient.waitForTransactionReceipt({ hash: a2 });
 
       setState("processing");
-      const addArgs = pool.isLegacy ? [unitsA, unitsB] as const : [unitsA, unitsB, BigInt(Math.floor(Date.now() / 1000) + 1200)] as const;
+      const addArgs = pool.isLegacy ? [unitsA, unitsB] as const : [unitsA, unitsB, BigInt(Math.floor(Date.now() / 1000) + 3600)] as const;
       const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "addLiquidity", args: addArgs, account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash });
 
@@ -628,7 +567,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       const shareToRemove = (myShares * BigInt(removePct)) / 100n;
       if (shareToRemove === 0n) throw new Error("Nothing to remove.");
 
-      const removeArgs = pool.isLegacy ? [shareToRemove] as const : [shareToRemove, BigInt(Math.floor(Date.now() / 1000) + 1200)] as const;
+      const removeArgs = pool.isLegacy ? [shareToRemove] as const : [shareToRemove, BigInt(Math.floor(Date.now() / 1000) + 3600)] as const;
       const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "removeLiquidity", args: removeArgs, account: address as `0x${string}` });
       await publicClient.waitForTransactionReceipt({ hash });
 
@@ -643,7 +582,6 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   }
 
   const isLoading = state === "approving1" || state === "approving2" || state === "processing";
-  const isSwapLoading = swapState === "approving" || swapState === "swapping";
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -744,12 +682,6 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
           </div>
 
           <div style={{ display: "flex", gap: 6 }}>
-            {swapSupported && (
-              <button onClick={() => setMode("swap")}
-                style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "swap" ? "#ede9fe" : "#f5f3ff", color: mode === "swap" ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                Swap
-              </button>
-            )}
             <button onClick={() => setMode("add")}
               style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: mode === "add" ? "#ede9fe" : "#f5f3ff", color: mode === "add" ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               Add
@@ -759,42 +691,6 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
               Remove
             </button>
           </div>
-
-          {mode === "swap" && swapSupported && (
-            <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ background: "#ffffff", borderRadius: 10, padding: "0.7rem 0.8rem" }}>
-                  <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 4 }}>You pay</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input type="number" min="0" placeholder="0.00" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} disabled={isSwapLoading}
-                      style={{ flex: 1, background: "transparent", border: "none", padding: 0, fontSize: 14, color: "#111827", outline: "none" }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 50, textAlign: "center" }}>{swapTokenIn?.symbol}</span>
-                  </div>
-                </div>
-                <div style={{ background: "#ffffff", borderRadius: 10, padding: "0.7rem 0.8rem" }}>
-                  <div style={{ fontSize: 10, color: "#4B5563", marginBottom: 4 }}>You receive (estimated)</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ flex: 1, fontSize: 14, color: "#111827" }}>{swapEstOut}</div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 50, textAlign: "center" }}>{swapTokenOut?.symbol}</span>
-                  </div>
-                </div>
-                <button onClick={() => setSwapDirAtoB(!swapDirAtoB)} disabled={isSwapLoading}
-                  style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "#f5f3ff", border: "3px solid #ffffff", borderRadius: 10, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", color: "#5B21B6", fontSize: 14, cursor: "pointer", boxShadow: "0 2px 6px rgba(124,58,237,0.2)" }}>
-                  ⇅
-                </button>
-              </div>
-              {swapError && <div style={{ fontSize: 11, color: "#DC2626" }}>{swapError}</div>}
-              {swapTxHash && swapState === "done" && (
-                <a href={`https://testnet.arcscan.app/tx/${swapTxHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#2563EB" }}>View on explorer</a>
-              )}
-              <button onClick={doSwap} disabled={isSwapLoading}
-                style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "linear-gradient(90deg, #7c3aed, #5B21B6)", color: "#ffffff", fontSize: 12, fontWeight: 700, cursor: isSwapLoading ? "not-allowed" : "pointer", opacity: isSwapLoading ? 0.6 : 1 }}>
-                {swapState === "approving" && "Approving..."}
-                {swapState === "swapping" && "Swapping..."}
-                {(swapState === "idle" || swapState === "error" || swapState === "done") && "Swap"}
-              </button>
-            </div>
-          )}
 
           {mode === "add" && (
             <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
