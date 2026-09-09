@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http } from "viem";
+import { waitForSuccess } from "../txHelpers";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 
 const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v5
@@ -74,7 +75,7 @@ export default function AdminRate({ provider, address }: Props) {
         address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "setRate",
         args: [newRateScaled], account: address as `0x${string}`,
       });
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitForSuccess(publicClient, hash);
       setCurrentRate(liveRate.toFixed(4));
       setState("done");
     } catch (e: unknown) {

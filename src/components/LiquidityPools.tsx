@@ -6,6 +6,7 @@ import { useIsMobile } from "../useIsMobile";
 import { TokenIcon } from "./TokenIcon";
 import { TrendingUp, Droplet, BarChart3, type LucideIcon } from "lucide-react";
 import { showToast } from "../toast";
+import { waitForSuccess } from "../txHelpers";
 
 const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — legacy, pools created here keep working, no new pools go here
 const FACTORY_CONTRACT_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — legacy, same reasoning as v2 (superseded by v4 for new pools)
@@ -534,16 +535,16 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
 
       setState("approving1");
       const a1 = await wc.writeContract({ address: tokenAInfo.address, abi: erc20Abi, functionName: "approve", args: [pool.poolAddress, unitsA], account: address as `0x${string}` });
-      await publicClient.waitForTransactionReceipt({ hash: a1 });
+      await waitForSuccess(publicClient, a1);
 
       setState("approving2");
       const a2 = await wc.writeContract({ address: tokenBInfo.address, abi: erc20Abi, functionName: "approve", args: [pool.poolAddress, unitsB], account: address as `0x${string}` });
-      await publicClient.waitForTransactionReceipt({ hash: a2 });
+      await waitForSuccess(publicClient, a2);
 
       setState("processing");
       const addArgs = pool.isLegacy ? [unitsA, unitsB] as const : [unitsA, unitsB, BigInt(Math.floor(Date.now() / 1000) + 3600)] as const;
       const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "addLiquidity", args: addArgs, account: address as `0x${string}` });
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitForSuccess(publicClient, hash);
 
       setState("idle"); setAmountA(""); setAmountB("");
       await loadData();
@@ -569,7 +570,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
 
       const removeArgs = pool.isLegacy ? [shareToRemove] as const : [shareToRemove, BigInt(Math.floor(Date.now() / 1000) + 3600)] as const;
       const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "removeLiquidity", args: removeArgs, account: address as `0x${string}` });
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitForSuccess(publicClient, hash);
 
       setState("idle");
       await loadData();

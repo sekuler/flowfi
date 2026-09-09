@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, formatUnits } from "viem";
+import { waitForSuccess } from "../txHelpers";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { showToast } from "../toast";
@@ -191,7 +192,7 @@ export default function TokenLaunch({ provider, address }: Props) {
 
       setState("processing");
       const hash = await wc.writeContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "launchToken", args: [name.trim(), symbol.trim().toUpperCase()], account: address as `0x${string}` });
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitForSuccess(publicClient, hash);
 
       const count = await publicClient.readContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "allTokensLength" });
       const newAddr = await publicClient.readContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "allTokens", args: [count - 1n] });
