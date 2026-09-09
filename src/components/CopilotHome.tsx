@@ -54,7 +54,7 @@ const POOL_FACTORY_ABI = [
 
 interface Props {
   address: string;
-  balances: { usdc: string | null; eurc: string | null; usyc: string | null; native: string | null };
+  balances: { usdc: string | null; eurc: string | null; usyc: string | null; cirbtc: string | null; native: string | null };
   onNavigate: (tab: "swap" | "bridge" | "pools" | "launch") => void;
 }
 
@@ -68,6 +68,7 @@ const TOKEN_META: Record<string, { color: string; letter: string; name: string }
   USDC: { color: "#3B82F6", letter: "$", name: "USD Coin" },
   EURC: { color: "#22C55E", letter: "€", name: "Euro Coin" },
   USYC: { color: "#F59E0B", letter: "Y", name: "Circle Yield" },
+  CIRBTC: { color: "#C2410C", letter: "₿", name: "Circle Wrapped Bitcoin" },
 };
 
 function timeAgo(sec: number) {
@@ -141,9 +142,18 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
     if (address) computeMemoryInsight(address).then(setMemoryInsight);
   }, [address]);
 
+  const [btcUsd, setBtcUsd] = useState<number | null>(null);
+  useEffect(() => {
+    fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
+      .then(r => r.json())
+      .then(d => setBtcUsd(d?.bitcoin?.usd ?? null))
+      .catch(() => setBtcUsd(null));
+  }, []);
+
   const usdcVal = Number(balances.usdc ?? 0);
   const eurcVal = Number(balances.eurc ?? 0);
   const usycVal = Number(balances.usyc ?? 0);
+  const cirbtcVal = btcUsd !== null ? Number(balances.cirbtc ?? 0) * btcUsd : 0;
   const totalValue = usdcVal + eurcVal + usycVal;
 
   // Morning Brief: real overnight portfolio change, using the same daily
@@ -187,6 +197,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
     { symbol: "USDC", amount: balances.usdc, usd: usdcVal },
     { symbol: "EURC", amount: balances.eurc, usd: eurcVal },
     { symbol: "USYC", amount: balances.usyc, usd: usycVal },
+    { symbol: "CIRBTC", amount: balances.cirbtc, usd: cirbtcVal },
   ];
 
   return (

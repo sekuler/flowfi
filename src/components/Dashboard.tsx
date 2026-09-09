@@ -4,7 +4,7 @@ import { useIsMobile } from "../useIsMobile";
 
 interface Props {
   address: string;
-  balances: { usdc: string | null; eurc: string | null; usyc: string | null; native: string | null };
+  balances: { usdc: string | null; eurc: string | null; usyc: string | null; cirbtc: string | null; native: string | null };
 }
 
 interface ActivityItem {
@@ -146,10 +146,19 @@ export default function Dashboard({ address, balances }: Props) {
     if (address) load();
   }, [address]);
 
+  const [btcUsd, setBtcUsd] = useState<number | null>(null);
+  useEffect(() => {
+    fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
+      .then(r => r.json())
+      .then(d => setBtcUsd(d?.bitcoin?.usd ?? null))
+      .catch(() => setBtcUsd(null));
+  }, []);
+
   const usdcVal = Number(balances.usdc ?? 0);
   const eurcVal = Number(balances.eurc ?? 0);
   const usycVal = Number(balances.usyc ?? 0);
-  const total = usdcVal + eurcVal + usycVal;
+  const cirbtcVal = btcUsd !== null ? Number(balances.cirbtc ?? 0) * btcUsd : 0;
+  const total = usdcVal + eurcVal + usycVal + cirbtcVal;
 
   // Track daily + weekly portfolio snapshots in localStorage — real data, accumulates from today onward.
   useEffect(() => {
@@ -192,6 +201,7 @@ export default function Dashboard({ address, balances }: Props) {
     { label: "USDC", value: usdcVal, color: "#3B82F6" },
     { label: "EURC", value: eurcVal, color: "#22C55E" },
     { label: "USYC", value: usycVal, color: "#F59E0B" },
+    { label: "cirBTC", value: cirbtcVal, color: "#C2410C" },
   ].filter(d => d.value > 0);
 
   const CATEGORY_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -241,7 +251,7 @@ export default function Dashboard({ address, balances }: Props) {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 18 }}>
           <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
             <div style={{ fontSize: 10, color: "#3B82F6", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE USDC</div>
             <div className="flowfi-mono" style={{ fontSize: 18, color: "#111827", fontWeight: 800 }}>{balances.usdc ?? "..."}</div>
@@ -249,6 +259,10 @@ export default function Dashboard({ address, balances }: Props) {
           <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
             <div style={{ fontSize: 10, color: "#22C55E", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE EURC</div>
             <div className="flowfi-mono" style={{ fontSize: 18, color: "#111827", fontWeight: 800 }}>{balances.eurc ?? "..."}</div>
+          </div>
+          <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
+            <div style={{ fontSize: 10, color: "#C2410C", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE CIRBTC</div>
+            <div className="flowfi-mono" style={{ fontSize: 18, color: "#111827", fontWeight: 800 }}>{balances.cirbtc ?? "..."}</div>
           </div>
         </div>
         </div>
