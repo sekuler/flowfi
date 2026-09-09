@@ -205,6 +205,16 @@ async function fetchSwapLogsWithFallback(
   return { logs: [] as Awaited<ReturnType<typeof client.getLogs>>, ok: false as const };
 }
 
+// A fixed 4-decimal display works fine for 6-decimal stablecoins, but a
+// real, non-zero cirBTC balance like 0.00001 (raw: 1000 at 8 decimals)
+// rounds straight to "0.0000" at that precision — looking exactly like the
+// deposit never happened, even though Arcscan confirms the transfer
+// succeeded. Tokens with 8+ decimals need more display precision to show
+// realistically small amounts at all.
+function reservePrecision(tokenDecimals: number): number {
+  return tokenDecimals >= 8 ? 8 : 4;
+}
+
 function formatCompact(n: number): string {
   if (n >= 1000) return `$${(n / 1000).toFixed(1)}K`;
   return `$${n.toFixed(2)}`;
@@ -497,7 +507,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       const [resA, resB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getReserves" });
       const rA = Number(formatUnits(resA, decimalsA));
       const rB = Number(formatUnits(resB, decimalsB));
-      setReserves({ a: rA.toFixed(4), b: rB.toFixed(4) });
+      setReserves({ a: rA.toFixed(reservePrecision(decimalsA)), b: rB.toFixed(reservePrecision(decimalsB)) });
       tvl = stableA && stableB ? rA + rB : stableA ? rA * 2 : stableB ? rB * 2 : null;
 
       // User-specific position data needs a real connected address — keep
@@ -510,7 +520,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
           const myShares = await client.readContract({ address: pool.poolAddress, abi, functionName: "shares", args: [address as `0x${string}`] });
           const total = await client.readContract({ address: pool.poolAddress, abi, functionName: "totalShares" });
           const pct = total > 0n ? (Number(myShares) / Number(total)) * 100 : 0;
-          setMyShare({ a: Number(formatUnits(myA, decimalsA)).toFixed(4), b: Number(formatUnits(myB, decimalsB)).toFixed(4), pct: pct.toFixed(3) });
+          setMyShare({ a: Number(formatUnits(myA, decimalsA)).toFixed(reservePrecision(decimalsA)), b: Number(formatUnits(myB, decimalsB)).toFixed(reservePrecision(decimalsB)), pct: pct.toFixed(3) });
         } else {
           setMyShare(null);
         }
@@ -768,7 +778,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
               {hasPosition ? (
                 <>
                   <input type="range" min="1" max="100" value={removePct} onChange={(e) => setRemovePct(Number(e.target.value))} disabled={isLoading} />
-                  <div style={{ fontSize: 11, color: "#4B5563" }}>{removePct}% — {(Number(myShare!.a) * removePct / 100).toFixed(4)} {resolvedSymbolA} + {(Number(myShare!.b) * removePct / 100).toFixed(4)} {resolvedSymbolB}</div>
+                  <div style={{ fontSize: 11, color: "#4B5563" }}>{removePct}% — {(Number(myShare!.a) * removePct / 100).toFixed(reservePrecision(decimalsA))} {resolvedSymbolA} + {(Number(myShare!.b) * removePct / 100).toFixed(reservePrecision(decimalsB))} {resolvedSymbolB}</div>
                   {errorMsg && <div style={{ fontSize: 11, color: "#DC2626" }}>{errorMsg}</div>}
                   <button onClick={doRemove} disabled={isLoading}
                     style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #dc2626, #ef4444)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
