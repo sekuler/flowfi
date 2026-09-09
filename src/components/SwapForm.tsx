@@ -7,6 +7,7 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits, formatUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
+import { waitForSuccess } from "../txHelpers";
 import { addPoints } from "../gamification";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo } from "../circleWalletHelpers";
 import { getDCAPlan, setDCAPlan, clearDCAPlan, markDCAExecuted, isDCADue, type DCAPlan, type DCAFrequency } from "../dca";
@@ -327,7 +328,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
         address: tokenAddress, abi: erc20Abi, functionName: "approve",
         args: [routeContract, amountIn], account: address as `0x${string}`,
       });
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      await waitForSuccess(publicClient, approveHash);
 
       setSwapState("swapping");
       const minOut = (parseUnits(estimatedOut, 6) * 99n) / 100n; // 1% slippage tolerance
@@ -341,7 +342,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             functionName: tokenIn === "USDC" ? "swapUsdcToEurc" : "swapEurcToUsdc",
             args: [amountIn, minOut], account: address as `0x${string}`,
           });
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitForSuccess(publicClient, hash);
 
       setTxHash(hash); setSwapState("done"); setAmount(""); setEstimatedOut("0.00");
       showToast("Swap completed", "success");
@@ -372,12 +373,12 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       const amountIn = parseUnits(String(dcaPlan.amount), 6);
 
       const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountIn], account: address as `0x${string}` });
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      await waitForSuccess(publicClient, approveHash);
 
       const freshQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getEurcOut", args: [amountIn] }) as bigint;
       const minOutForDCA = (freshQuote * 99n) / 100n; // 1% slippage tolerance
       const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountIn, minOutForDCA], account: address as `0x${string}` });
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitForSuccess(publicClient, hash);
 
       markDCAExecuted();
       setDcaPlanState(getDCAPlan());

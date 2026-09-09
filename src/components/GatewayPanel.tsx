@@ -3,6 +3,7 @@ import { parseUnits, erc20Abi } from "viem";
 import { createWalletClient, createPublicClient, custom, http } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
+import { waitForSuccess } from "../txHelpers";
 import type { EIP1193Provider } from "viem";
 import { Zap, RefreshCw, ArrowRight, ChevronDown, Wallet, CircleDollarSign } from "lucide-react";
 import { ChainIcon } from "./ChainIcon";
@@ -238,13 +239,13 @@ export default function GatewayPanel({ provider, address }: Props) {
           address: usdcAddress, abi: erc20Abi, functionName: "approve",
           args: [GATEWAY_WALLET_ADDRESS, amountUnits], account: address as `0x${string}`,
         });
-        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        await waitForSuccess(publicClient, approveHash);
 
         const depositHash = await walletClient.writeContract({
           address: GATEWAY_WALLET_ADDRESS, abi: GATEWAY_WALLET_ABI, functionName: "deposit",
           args: [usdcAddress, amountUnits], account: address as `0x${string}`,
         });
-        await publicClient.waitForTransactionReceipt({ hash: depositHash });
+        await waitForSuccess(publicClient, depositHash);
       }
 
       showToast("Deposited — waiting for Gateway to process it...", "success");
@@ -338,7 +339,7 @@ export default function GatewayPanel({ provider, address }: Props) {
           address: GATEWAY_MINTER_ADDRESS, abi: GATEWAY_MINTER_ABI, functionName: "gatewayMint",
           args: [attestation, attestationSignature], account: transferAddress,
         });
-        await destPublicClient.waitForTransactionReceipt({ hash: mintHash });
+        await waitForSuccess(destPublicClient, mintHash);
 
         // The on-chain mint is confirmed here, but Gateway's own balance
         // ledger can take longer to catch up (same lag we saw on deposits) —

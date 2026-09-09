@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, createWalletClient, custom, http, parseEther } from "viem";
+import { waitForSuccess } from "../txHelpers";
 import { sepolia } from "viem/chains";
 import { showToast } from "../toast";
 import { Zap, ShieldAlert, ExternalLink } from "lucide-react";
@@ -59,7 +60,7 @@ export default function EthBridge({ provider, address }: Props) {
       } else {
         hash = await wc.writeContract({ address: ARBITRUM_INBOX, abi: ARBITRUM_INBOX_ABI, functionName: "depositEth", args: [address as `0x${string}`], value, account: address as `0x${string}`, gas: 300000n });
       }
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitForSuccess(publicClient, hash);
 
       setTxHash(hash);
       setState("done");

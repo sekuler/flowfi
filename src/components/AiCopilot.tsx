@@ -3,6 +3,7 @@ import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits } from "viem";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { showToast } from "../toast";
+import { waitForSuccess } from "../txHelpers";
 import { getFormattedMarketAnalysis } from "../marketData";
 import { addPoints } from "../gamification";
 import { setPendingFollowUp } from "../pendingFollowUp";
@@ -293,7 +294,7 @@ Respond with ONLY the JSON object.`,
         const tokenAddress = action.fromToken === "USDC" ? USDC_ADDRESS : EURC_ADDRESS;
 
         const approveHash = await wc.writeContract({ address: tokenAddress, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountIn], account: address as `0x${string}` });
-        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        await waitForSuccess(publicClient, approveHash);
 
         const readFn = action.fromToken === "USDC" ? "getEurcOut" : "getUsdcOut";
         const freshQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: readFn, args: [amountIn] }) as bigint;
@@ -304,7 +305,7 @@ Respond with ONLY the JSON object.`,
           functionName: action.fromToken === "USDC" ? "swapUsdcToEurc" : "swapEurcToUsdc",
           args: [amountIn, minOut], account: address as `0x${string}`,
         });
-        await publicClient.waitForTransactionReceipt({ hash });
+        await waitForSuccess(publicClient, hash);
         showToast("Swap completed", "success");
       } else if (action.action === "send") {
         if (!action.recipient || !action.amount) throw new Error("Missing recipient or amount.");
@@ -317,19 +318,19 @@ Respond with ONLY the JSON object.`,
           if (domain === undefined) throw new Error(`Unsupported destination chain: ${action.destinationChain}`);
 
           const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [TOKEN_MESSENGER, amountUnits], account: address as `0x${string}` });
-          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+          await waitForSuccess(publicClient, approveHash);
 
           const burnHash = await wc.writeContract({
             address: TOKEN_MESSENGER, abi: DEPOSIT_FOR_BURN_ABI, functionName: "depositForBurn",
             args: [amountUnits, domain, bytes32Address(action.recipient), USDC_ADDRESS, bytes32Address("0x0000000000000000000000000000000000000000"), 500n, 1000],
             account: address as `0x${string}`,
           });
-          await publicClient.waitForTransactionReceipt({ hash: burnHash });
+          await waitForSuccess(publicClient, burnHash);
           showToast(`USDC sent to ${action.recipient.slice(0, 6)}...${action.recipient.slice(-4)} on ${action.destinationChain} — it will arrive once Circle attests the transfer (usually 1-2 min).`, "info");
         } else {
           const tokenAddress = action.fromToken === "EURC" ? EURC_ADDRESS : USDC_ADDRESS;
           const hash = await wc.writeContract({ address: tokenAddress, abi: erc20Abi, functionName: "transfer", args: [action.recipient as `0x${string}`, amountUnits], account: address as `0x${string}` });
-          await publicClient.waitForTransactionReceipt({ hash });
+          await waitForSuccess(publicClient, hash);
           showToast("Send completed", "success");
         }
       } else if (action.action === "bridge") {
@@ -349,11 +350,11 @@ Respond with ONLY the JSON object.`,
 
           if (alloc.category === "swap_to_eurc") {
             const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountUnits], account: address as `0x${string}` });
-            await publicClient.waitForTransactionReceipt({ hash: approveHash });
+            await waitForSuccess(publicClient, approveHash);
             const stratQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getEurcOut", args: [amountUnits] }) as bigint;
             const stratMinOut = (stratQuote * 99n) / 100n;
             const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountUnits, stratMinOut], account: address as `0x${string}` });
-            await publicClient.waitForTransactionReceipt({ hash });
+            await waitForSuccess(publicClient, hash);
           }
         }
         showToast("Strategy executed", "success");
