@@ -4,7 +4,7 @@ import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUn
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { TokenIcon } from "./TokenIcon";
-import { TrendingUp, Droplet, BarChart3, type LucideIcon } from "lucide-react";
+import { TrendingUp, Droplet, BarChart3, RefreshCw, type LucideIcon } from "lucide-react";
 import { showToast } from "../toast";
 import { waitForSuccess } from "../txHelpers";
 
@@ -328,18 +328,18 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
     });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: isMobile ? 460 : 1100, margin: isMobile ? undefined : "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: isMobile ? 460 : 960, margin: isMobile ? undefined : "0 auto", background: "#F7F4FF" }}>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
         <button onClick={() => { setPoolMetrics({}); setRefreshNonce(n => n + 1); }} title="Refetch on-chain data for every pool"
-          style={{ padding: "0.65rem 1rem", borderRadius: 999, border: "1px solid rgba(124,58,237,0.25)", background: "#ffffff", color: "#5B21B6", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-          ↻ Refresh
+          style={{ height: 36, display: "flex", alignItems: "center", gap: 6, padding: "0 16px", borderRadius: 999, border: "1px solid #EDE9FE", background: "#ffffff", color: "#6D5EF7", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          <RefreshCw size={14} /> Refresh
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 8 : 14 }}>
-        <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "—"} changePct={null} color="#6D5EF7" isMobile={isMobile} icon={TrendingUp} />
-        <StatCard label="POOLS" value={String(visiblePools.length)} sub="Active pools" color="#7C5CFC" isMobile={isMobile} icon={Droplet} />
-        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "—"} changePct={null} color="#5B21B6" isMobile={isMobile} icon={BarChart3} />
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12 }}>
+        <StatCard label="TVL" value={loadingTvl ? "..." : totalTvl !== null ? formatCompact(totalTvl) : "$0.00"} changePct={null} isMobile={isMobile} icon={TrendingUp} />
+        <StatCard label="POOLS" value={String(visiblePools.length)} sub="Active pools" isMobile={isMobile} icon={Droplet} />
+        <StatCard label="VOLUME · 24H" value={loadingTvl ? "..." : metricsValues.length > 0 ? formatCompact(aggregate.volume) : "$0.00"} changePct={null} isMobile={isMobile} icon={BarChart3} />
       </div>
 
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 10 }}>
@@ -347,7 +347,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         <div style={{ display: "flex", gap: 6, background: "#f5f3ff", borderRadius: 999, padding: 4, width: isMobile ? "100%" : undefined }}>
           {(["all", "stable", "volatile"] as const).map(tab => (
             <button key={tab} onClick={() => setFilterTab(tab)}
-              style={{ flex: isMobile ? 1 : undefined, padding: "0.4rem 0.9rem", borderRadius: 999, border: "none", background: filterTab === tab ? "#ffffff" : "transparent", color: filterTab === tab ? "#5B21B6" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: filterTab === tab ? "0 1px 3px rgba(124,58,237,0.15)" : "none", textTransform: "capitalize" }}>
+              style={{ flex: isMobile ? 1 : undefined, padding: "0.4rem 0.9rem", borderRadius: 999, border: "none", background: filterTab === tab ? "#EDE9FE" : "transparent", color: filterTab === tab ? "#5B21B6" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", textTransform: "capitalize" }}>
               {tab}
             </button>
           ))}
@@ -355,7 +355,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
         )}
         <div style={{ display: "flex", gap: 8 }}>
           <input type="text" placeholder="Search pair or address" value={search} onChange={(e) => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: isMobile ? 0 : 200, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.55rem 0.8rem", fontSize: 12, color: "#111827", outline: "none" }} />
+            style={{ width: isMobile ? "100%" : 200, flexShrink: 0, background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.55rem 0.8rem", fontSize: 12, color: "#111827", outline: "none" }} />
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.55rem 0.6rem", fontSize: 12, color: "#111827" }}>
             <option value="apr">APR</option>
@@ -367,16 +367,17 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
 
 
 
-      <div style={{ background: "#ffffff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
+      <div style={{ background: "#FFFFFF", border: "1px solid #EDE9FE", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(109,94,247,0.08)", padding: "8px 0" }}>
         <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(124,58,237,0.08)" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>All Pools</div>
         </div>
         {!isMobile && (
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr", gap: 10, padding: "0.7rem 1.25rem", borderBottom: "1px solid rgba(124,58,237,0.08)" }}>
-            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px" }}>POOL</div>
-            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px" }}>TYPE</div>
-            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>TVL</div>
-            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textAlign: "right" }}>APY</div>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 72px", gap: 10, padding: "8px 20px", borderBottom: "1px solid #EDE9FE" }}>
+            <div style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" }}>POOL</div>
+            <div style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" }}>TYPE</div>
+            <div style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", textAlign: "right" }}>TVL</div>
+            <div style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", textAlign: "right" }}>APY</div>
+            <div />
           </div>
         )}
 
@@ -399,23 +400,23 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
   );
 }
 
-function StatCard({ label, value, sub, changePct, color, isMobile, icon: Icon }: { label: string; value: string; sub?: string; changePct?: number | null; color: string; isMobile: boolean; icon: LucideIcon }) {
+function StatCard({ label, value, sub, changePct, isMobile, icon: Icon }: { label: string; value: string; sub?: string; changePct?: number | null; isMobile: boolean; icon: LucideIcon }) {
   return (
-    <div style={{ background: "#ffffff", border: "1px solid #E5E0FA", borderRadius: 18, padding: isMobile ? "1.1rem 1.2rem" : "1.5rem 1.6rem", boxShadow: "0 2px 8px rgba(109,94,247,0.06)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ fontSize: isMobile ? 10 : 11, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" }}>{label}</div>
-        <div style={{ width: isMobile ? 36 : 44, height: isMobile ? 36 : 44, borderRadius: "50%", background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Icon size={isMobile ? 17 : 20} color={color} />
-        </div>
+    <div style={{ background: "#FFFFFF", border: "1px solid #EDE9FE", borderRadius: 16, padding: isMobile ? "16px 18px" : "20px 22px", boxShadow: "0 1px 3px rgba(109,94,247,0.08)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase" }}>{label}</div>
+        <div className="flowfi-mono" style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: "#111827", marginTop: 6, lineHeight: 1.1 }}>{value}</div>
+        {sub !== undefined ? (
+          <div style={{ fontSize: 12, fontWeight: 500, color: "#9CA3AF", marginTop: 6 }}>{sub}</div>
+        ) : (
+          <div style={{ fontSize: 12, fontWeight: 500, marginTop: 6, color: changePct === null || changePct === undefined ? "#9CA3AF" : changePct >= 0 ? "#16A34A" : "#DC2626" }}>
+            {changePct === null || changePct === undefined ? "— 24h change" : `${changePct >= 0 ? "↑" : "↓"} ${Math.abs(changePct).toFixed(2)}% 24h change`}
+          </div>
+        )}
       </div>
-      <div style={{ fontSize: isMobile ? 24 : 30, fontWeight: 800, color: "#111827", fontFamily: "ui-monospace, monospace", lineHeight: 1.1 }}>{value}</div>
-      {sub !== undefined ? (
-        <div style={{ fontSize: isMobile ? 11.5 : 12.5, color: "#9CA3AF", marginTop: 6 }}>{sub}</div>
-      ) : (
-        <div style={{ fontSize: isMobile ? 11.5 : 12.5, marginTop: 6, fontWeight: 700, color: changePct === null || changePct === undefined ? "#9CA3AF" : changePct >= 0 ? "#16A34A" : "#DC2626" }}>
-          {changePct === null || changePct === undefined ? "—" : `${changePct >= 0 ? "↑" : "↓"} ${Math.abs(changePct).toFixed(2)}%`}
-        </div>
-      )}
+      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F3EFFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Icon size={18} color="#6D5EF7" />
+      </div>
     </div>
   );
 }
@@ -614,32 +615,37 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {!isMobile ? (
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1.2fr 1fr", gap: 10, alignItems: "center", padding: "0.85rem 1.25rem" }}>
+        <div
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#FAF8FF"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 72px", gap: 10, alignItems: "center", padding: "0 20px", minHeight: 64, transition: "background 0.1s ease" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex" }}>
-              <div style={{ borderRadius: "50%", border: "2.5px solid #ffffff", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}><TokenIcon symbol={resolvedSymbolA} size={40} /></div>
-              <div style={{ borderRadius: "50%", border: "2.5px solid #ffffff", overflow: "hidden", marginLeft: -12, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}><TokenIcon symbol={resolvedSymbolB} size={40} /></div>
+              <div style={{ borderRadius: "50%", overflow: "hidden" }}><TokenIcon symbol={resolvedSymbolA} size={28} /></div>
+              <div style={{ borderRadius: "50%", overflow: "hidden", marginLeft: -10 }}><TokenIcon symbol={resolvedSymbolB} size={28} /></div>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA} / {resolvedSymbolB}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{resolvedSymbolA} / {resolvedSymbolB}</div>
           </div>
           <div>
-            <div style={{ fontSize: 12.5, color: "#111827", fontWeight: 600 }}>Constant Product</div>
-            <div style={{ fontSize: 10, color: "#9CA3AF" }}>0.3% fee</div>
+            <div style={{ fontSize: 12, color: "#111827", fontWeight: 600 }}>Constant Product</div>
+            <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 500 }}>0.3% fee</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 13, color: "#111827", fontWeight: 800 }}>{!loading && metrics.tvl !== null ? formatCompact(metrics.tvl) : loading ? "..." : "—"}</div>
+            <div className="flowfi-mono" style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{!loading && metrics.tvl !== null ? formatCompact(metrics.tvl) : loading ? "..." : "$0.00"}</div>
             {reserves && <div style={{ fontSize: 10, color: "#9CA3AF" }}>{reserves.a} {resolvedSymbolA} · {reserves.b} {resolvedSymbolB}</div>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+          <div style={{ textAlign: "right" }}>
             {metrics.logsUnavailable ? (
-              <span style={{ fontSize: 11, color: "#D97706" }}>—</span>
+              <span style={{ fontSize: 12, color: "#9CA3AF" }}>—</span>
             ) : metrics.swapCount7d === 0 ? (
               <span style={{ fontSize: 11, color: "#9CA3AF", background: "#F3F4F6", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>New</span>
             ) : (
-              <span style={{ fontSize: 14, color: "#7C5CFC", fontWeight: 800 }}>{metrics.apr !== null ? `${metrics.apr.toFixed(2)}%` : "—"}</span>
+              <span style={{ fontSize: 13, color: "#5B21B6", fontWeight: 800 }}>{metrics.apr !== null ? `${metrics.apr.toFixed(2)}%` : "—"}</span>
             )}
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button onClick={onToggle}
-              style={{ padding: "0.4rem 0.9rem", borderRadius: 999, border: "1px solid rgba(124,58,237,0.25)", background: expanded ? "#5B21B6" : "#ffffff", color: expanded ? "#ffffff" : "#5B21B6", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              style={{ padding: "6px 14px", borderRadius: 999, border: "1px solid #D4C9FA", background: expanded ? "#5B21B6" : "#ffffff", color: expanded ? "#ffffff" : "#6D5EF7", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               {expanded ? "Close" : "Add"}
             </button>
           </div>
