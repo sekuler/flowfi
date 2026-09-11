@@ -10,7 +10,8 @@ import { waitForSuccess } from "../txHelpers";
 
 const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — legacy, pools created here keep working, no new pools go here
 const FACTORY_CONTRACT_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — legacy, same reasoning as v2 (superseded by v4 for new pools)
-const FACTORY_CONTRACT_V4 = "0x57B451D60F09222C2bb6c828FFE3703069A532Ed" as `0x${string}`; // ArcFactoryV2 v4 — createPool is now onlyOwner (FlowFi creates pools; anyone can still add/remove liquidity or swap on any existing pool)
+const FACTORY_CONTRACT_V4 = "0x57B451D60F09222C2bb6c828FFE3703069A532Ed" as `0x${string}`; // ArcFactoryV2 v4 (original) — legacy now, kept scanned only so real liquidity still sitting in these pools stays visible/withdrawable until it's migrated to v4b
+const FACTORY_CONTRACT_V4B = "0xa42c3bDcd385350880165120fE7E72e43733f70B" as `0x${string}`; // ArcFactoryV2 v4b — adds a timelocked pause (2-day delay, unpause instant); this is the current factory for anything new
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
 const STABLE_SYMBOLS = new Set(["USDC", "EURC", "USYC"]);
 
@@ -124,7 +125,7 @@ interface PoolInfo {
   // an untrusted, permissionlessly-created leftover. Confirmed real bug:
   // a brand-new v4 pool was silently shadowed by an old, broken v3 pool for
   // the same pair because the old ranking treated v3 and v4 as one tier.
-  sourceFactory: "legacy" | "v2" | "v3" | "v4";
+  sourceFactory: "legacy" | "v2" | "v3" | "v4" | "v4b";
 }
 
 interface PoolMetrics {
@@ -335,9 +336,9 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-      for (const factoryAddr of [FACTORY_CONTRACT, FACTORY_CONTRACT_V3, FACTORY_CONTRACT_V4]) {
+      for (const factoryAddr of [FACTORY_CONTRACT, FACTORY_CONTRACT_V3, FACTORY_CONTRACT_V4, FACTORY_CONTRACT_V4B]) {
         const poolAbiVersion: PoolInfo["abiVersion"] = factoryAddr === FACTORY_CONTRACT ? "v2" : "v3v4";
-        const poolSourceFactory: PoolInfo["sourceFactory"] = factoryAddr === FACTORY_CONTRACT ? "v2" : factoryAddr === FACTORY_CONTRACT_V3 ? "v3" : "v4";
+        const poolSourceFactory: PoolInfo["sourceFactory"] = factoryAddr === FACTORY_CONTRACT ? "v2" : factoryAddr === FACTORY_CONTRACT_V3 ? "v3" : factoryAddr === FACTORY_CONTRACT_V4 ? "v4" : "v4b";
         const count = await client.readContract({ address: factoryAddr, abi: FACTORY_ABI, functionName: "allPoolsLength" });
         const total = Number(count);
         const indices = Array.from({ length: total }, (_, i) => i);
@@ -393,7 +394,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       const pairKey = [p.addressA.toLowerCase(), p.addressB.toLowerCase()].sort().join("_");
       const candidates = arr.filter(o => [o.addressA.toLowerCase(), o.addressB.toLowerCase()].sort().join("_") === pairKey);
       if (candidates.length === 1) return true;
-      const rank = (c: PoolInfo) => c.sourceFactory === "v4" ? 0 : c.sourceFactory === "v3" ? 1 : c.sourceFactory === "v2" ? 2 : 3;
+      const rank = (c: PoolInfo) => c.sourceFactory === "v4b" ? 0 : c.sourceFactory === "v4" ? 1 : c.sourceFactory === "v3" ? 2 : c.sourceFactory === "v2" ? 3 : 4;
       const preferred = [...candidates].sort((a, b) => rank(a) - rank(b))[0];
       return p.poolAddress === preferred.poolAddress;
     })
