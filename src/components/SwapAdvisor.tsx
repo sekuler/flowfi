@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 
-const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2
+// Same pool SwapForm.tsx quotes from — was pointing at the retired ArcSwap
+// contract independently, which is why this panel could show stale/wrong
+// liquidity numbers that didn't match the actual quote being given.
+const POOL_ADDRESS = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`; // ArcFactoryV2 v4c — USDC/EURC (tokenA=USDC, tokenB=EURC)
 
-const SWAP_ABI = [
-  { type: "function", name: "getLiquidity", stateMutability: "view", inputs: [], outputs: [{ name: "usdcBalance", type: "uint256" }, { name: "eurcBalance", type: "uint256" }] },
+const POOL_ABI = [
+  { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
 ] as const;
 
 interface Props {
@@ -85,7 +88,7 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
     setLoading(true);
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
-      const [usdcBal, eurcBal] = await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getLiquidity" });
+      const [usdcBal, eurcBal] = await client.readContract({ address: POOL_ADDRESS, abi: POOL_ABI, functionName: "getReserves" });
       const poolOut = tokenOut === "USDC" ? Number(formatUnits(usdcBal, 6)) : Number(formatUnits(eurcBal, 6));
       const out = Number(amountOut);
       const impact = poolOut > 0 ? out / poolOut : 1;

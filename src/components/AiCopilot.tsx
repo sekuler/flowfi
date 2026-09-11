@@ -11,7 +11,6 @@ import { computeMemoryInsight } from "../memory";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v5 — minAmountOut, pause(), withdrawLiquidity restricted to USDC/EURC, setRate capped to 10%/call
 
 const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const DOMAIN_BY_CHAIN: Record<string, number> = {
@@ -102,11 +101,10 @@ function bytes32Address(addr: string): `0x${string}` {
   return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
 }
 
+const POOL_ADDRESS = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`; // ArcFactoryV2 v4c — USDC/EURC pool (tokenA=USDC, tokenB=EURC); replaces the retired ArcSwap contract
 const SWAP_ABI = [
-  { type: "function", name: "swapUsdcToEurc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
-  { type: "function", name: "swapEurcToUsdc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
-  { type: "function", name: "getEurcOut", stateMutability: "view", inputs: [{ name: "usdcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
-  { type: "function", name: "getUsdcOut", stateMutability: "view", inputs: [{ name: "eurcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+  { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
 ] as const;
 
 interface Props {
@@ -293,17 +291,17 @@ Respond with ONLY the JSON object.`,
         const amountIn = parseUnits(amt, 6);
         const tokenAddress = action.fromToken === "USDC" ? USDC_ADDRESS : EURC_ADDRESS;
 
-        const approveHash = await wc.writeContract({ address: tokenAddress, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountIn], account: address as `0x${string}` });
+        const approveHash = await wc.writeContract({ address: tokenAddress, abi: erc20Abi, functionName: "approve", args: [POOL_ADDRESS, amountIn], account: address as `0x${string}` });
         await waitForSuccess(publicClient, approveHash);
 
-        const readFn = action.fromToken === "USDC" ? "getEurcOut" : "getUsdcOut";
-        const freshQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: readFn, args: [amountIn] }) as bigint;
+        const aToB = action.fromToken === "USDC";
+        const freshQuote = await publicClient.readContract({ address: POOL_ADDRESS, abi: SWAP_ABI, functionName: "getAmountOut", args: [aToB, amountIn] }) as bigint;
         const minOut = (freshQuote * 99n) / 100n; // 1% slippage tolerance
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
 
         const hash = await wc.writeContract({
-          address: SWAP_CONTRACT, abi: SWAP_ABI,
-          functionName: action.fromToken === "USDC" ? "swapUsdcToEurc" : "swapEurcToUsdc",
-          args: [amountIn, minOut], account: address as `0x${string}`,
+          address: POOL_ADDRESS, abi: SWAP_ABI, functionName: "swap",
+          args: [aToB, amountIn, minOut, deadline], account: address as `0x${string}`,
         });
         await waitForSuccess(publicClient, hash);
         showToast("Swap completed", "success");
@@ -349,11 +347,12 @@ Respond with ONLY the JSON object.`,
           const amountUnits = parseUnits(String(alloc.amount), 6);
 
           if (alloc.category === "swap_to_eurc") {
-            const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountUnits], account: address as `0x${string}` });
+            const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [POOL_ADDRESS, amountUnits], account: address as `0x${string}` });
             await waitForSuccess(publicClient, approveHash);
-            const stratQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getEurcOut", args: [amountUnits] }) as bigint;
+            const stratQuote = await publicClient.readContract({ address: POOL_ADDRESS, abi: SWAP_ABI, functionName: "getAmountOut", args: [true, amountUnits] }) as bigint;
             const stratMinOut = (stratQuote * 99n) / 100n;
-            const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountUnits, stratMinOut], account: address as `0x${string}` });
+            const stratDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+            const hash = await wc.writeContract({ address: POOL_ADDRESS, abi: SWAP_ABI, functionName: "swap", args: [true, amountUnits, stratMinOut, stratDeadline], account: address as `0x${string}` });
             await waitForSuccess(publicClient, hash);
           }
         }
