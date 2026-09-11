@@ -811,7 +811,7 @@ function AppInner() {
                 );
               }
               const browserRows = [
-                { label: "USDC", value: balances.usdc, sub: "Native USDC" },
+                { label: "USDC", value: balances.usdc, sub: "USDC on Arc" },
                 { label: "EURC", value: balances.eurc, sub: "Euro Coin" },
                 ...(balances.usyc && Number(balances.usyc) > 0 ? [{ label: "USYC", value: balances.usyc, sub: "Circle Yield" }] : []),
                 ...(balances.cirbtc && Number(balances.cirbtc) > 0 ? [{ label: "cirBTC", value: balances.cirbtc, sub: "Circle Wrapped Bitcoin" }] : []),

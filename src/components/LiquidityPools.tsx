@@ -192,6 +192,16 @@ async function resolveTokenSymbol(addr: string, client: ReturnType<typeof create
 const CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
 
 function tokenDecimalsSync(addr: string): number {
+  // Arc's USDC has a documented dual-interface quirk: the native/gas
+  // representation (eth_getBalance) uses 18 decimals, while the ERC-20
+  // interface at this exact address uses 6 — Circle's own docs and several
+  // independent teams warn this has caused silent 10^12 value bugs
+  // elsewhere. This address is unusually round for a normal deployed
+  // contract (almost certainly a precompile), so hardcoding 6 here removes
+  // any risk of ever reading the native representation's value by mistake,
+  // rather than trusting a decimals() call to always land on the right
+  // interface.
+  if (addr.toLowerCase() === "0x3600000000000000000000000000000000000000") return 6;
   // Best-guess used only until the real on-chain decimals() resolves (see resolveTokenDecimals
   // below, which is authoritative and always queries the chain — never trust this alone).
   if (addr.toLowerCase() === CIRBTC_ADDRESS.toLowerCase()) return 8; // BTC convention, matches CircleWallet.tsx
@@ -200,6 +210,8 @@ function tokenDecimalsSync(addr: string): number {
 }
 
 async function resolveTokenDecimals(addr: string, client: ReturnType<typeof createPublicClient>): Promise<number> {
+  // USDC is hardcoded, never queried — see the note in tokenDecimalsSync above.
+  if (addr.toLowerCase() === "0x3600000000000000000000000000000000000000") return 6;
   // Always ask the contract directly — don't shortcut based on KNOWN_TOKENS membership.
   // A wrong assumption here (e.g. cirBTC previously assumed 6 like the other Circle assets,
   // when CircleWallet.tsx elsewhere correctly treats it as 8) silently breaks reserve display,
@@ -677,7 +689,12 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       }
 
       const fees7d = volume7d !== null ? volume7d * 0.003 : null;
-      const apr = fees7d !== null && tvl && tvl > 0 ? (fees7d / tvl) * (365 / 7) * 100 : null;
+      // Below this, dividing even a tiny real fee by near-zero TVL and
+      // annualizing (×52) produces a technically-correct but meaningless
+      // percentage — a genuinely observed case: $0.07 TVL turned one small
+      // fee into "5829% APY". Suppressing it is more honest than showing it.
+      const MIN_TVL_FOR_MEANINGFUL_APR = 10;
+      const apr = fees7d !== null && tvl && tvl >= MIN_TVL_FOR_MEANINGFUL_APR ? (fees7d / tvl) * (365 / 7) * 100 : null;
 
       const next: PoolMetrics = { tvl, swapCount7d: swapCount, volume7d, fees7d, apr, shape, logsUnavailable };
       setMetrics(next);
