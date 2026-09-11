@@ -561,6 +561,39 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
   const [decimalsA, setDecimalsA] = useState(tokenDecimalsSync(pool.addressA));
   const [decimalsB, setDecimalsB] = useState(tokenDecimalsSync(pool.addressB));
 
+  // Same real risk as the main Swap page: this pool has no built-in
+  // awareness of real-world prices, only the ratio of whatever's actually
+  // deposited. A thin pool like this has no arbitrage activity correcting
+  // that ratio toward reality, so comparing against real EUR/USD and BTC/USD
+  // is the only thing warning a user before an unknowingly bad trade.
+  const [eurUsdRate, setEurUsdRate] = useState<number | null>(null);
+  const [btcUsdRate, setBtcUsdRate] = useState<number | null>(null);
+  useEffect(() => {
+    const needsEur = resolvedSymbolA === "EURC" || resolvedSymbolB === "EURC";
+    const needsBtc = resolvedSymbolA === "cirBTC" || resolvedSymbolB === "cirBTC";
+    if (needsEur) {
+      fetch("https://api.frankfurter.dev/v1/latest?from=EUR&to=USD").then(r => r.json()).then(d => { if (d.rates?.USD) setEurUsdRate(d.rates.USD); }).catch(() => {});
+    }
+    if (needsBtc) {
+      fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd").then(r => r.json()).then(d => { if (d?.bitcoin?.usd) setBtcUsdRate(d.bitcoin.usd); }).catch(() => {});
+    }
+  }, [resolvedSymbolA, resolvedSymbolB]);
+
+  function usdValuePerUnit(symbol: string): number | null {
+    if (symbol === "USDC" || symbol === "USYC") return 1;
+    if (symbol === "EURC") return eurUsdRate;
+    if (symbol === "cirBTC") return btcUsdRate;
+    return null;
+  }
+  const expectedSwapRate = (() => {
+    const inVal = usdValuePerUnit(swapDirAtoB ? resolvedSymbolA : resolvedSymbolB);
+    const outVal = usdValuePerUnit(swapDirAtoB ? resolvedSymbolB : resolvedSymbolA);
+    return inVal !== null && outVal !== null ? inVal / outVal : null;
+  })();
+  const poolSwapRate = swapAmountIn && Number(swapAmountIn) > 0 && swapEstOut !== "0.00" ? Number(swapEstOut) / Number(swapAmountIn) : null;
+  const swapPriceDeviationPct = poolSwapRate !== null && expectedSwapRate !== null ? Math.abs(poolSwapRate - expectedSwapRate) / expectedSwapRate * 100 : null;
+  const swapPriceStale = swapPriceDeviationPct !== null && swapPriceDeviationPct > 1.5;
+
   const tokenAInfo = { symbol: resolvedSymbolA, address: pool.addressA, color: pool.colorA };
   const tokenBInfo = { symbol: resolvedSymbolB, address: pool.addressB, color: pool.colorB };
   const abi = pool.abiVersion === "legacy" ? LEGACY_ABI : pool.abiVersion === "v2" ? V2_POOL_ABI : pool.abiVersion === "v4c" ? V4C_POOL_ABI : POOL_ABI;
@@ -943,6 +976,13 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
                   </div>
                 </div>
               </div>
+              {swapPriceStale && (
+                <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 8, padding: "0.6rem 0.8rem" }}>
+                  <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>
+                    This pool's price is {swapPriceDeviationPct?.toFixed(1)}% off the live market rate. Thin liquidity means nothing is correcting it automatically — double-check before swapping a large amount.
+                  </p>
+                </div>
+              )}
               {swapError && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.6rem 0.8rem", color: "#DC2626", fontSize: 12 }}>{swapError}</div>}
               {swapTxHash && swapState === "done" && (
                 <a href={`https://testnet.arcscan.app/tx/${swapTxHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#6D5EF7", textAlign: "center" }}>View on explorer ↗</a>
