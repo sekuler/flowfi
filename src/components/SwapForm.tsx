@@ -139,6 +139,16 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [poolLiquidity, setPoolLiquidity] = useState<{ usdc: string; eurc: string } | null>(null);
   const [contractTxs, setContractTxs] = useState<ContractTx[]>([]);
 
+  // The pool has no built-in awareness of the real market price — it only
+  // knows the ratio of whatever's actually deposited in it. A small,
+  // thinly-traded pool like this one has no arbitrage activity correcting
+  // that ratio toward reality the way a deep pool (Uniswap etc.) would, so
+  // this comparison is the only thing standing between a user and an
+  // unknowingly bad trade. Purely informational — doesn't block the swap.
+  const expectedPoolRate = marketRate ? 1 / marketRate : null;
+  const priceDeviationPct = poolRate && expectedPoolRate ? Math.abs(poolRate - expectedPoolRate) / expectedPoolRate * 100 : null;
+  const priceStale = priceDeviationPct !== null && priceDeviationPct > 1.5;
+
   const activeBalances = useCircle && circleBalances ? circleBalances : { usdc: balances.usdc ?? "...", eurc: balances.eurc ?? "..." };
   const currentBalance = tokenIn === "USDC" ? activeBalances.usdc : activeBalances.eurc;
 
@@ -424,6 +434,14 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </div>
               <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>{Number(estimatedOut) > 0 ? `$${Number(estimatedOut).toFixed(2)}` : "$0.00"}</div>
             </div>
+
+            {priceStale && (
+              <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
+                <p style={{ fontSize: 12, color: "#B45309", margin: 0 }}>
+                  This pool's price ({poolRate?.toFixed(4)} EURC/USDC) is {priceDeviationPct?.toFixed(1)}% off the live market rate ({expectedPoolRate?.toFixed(4)}). This is a small, thinly-traded pool — its price can drift from the real market until someone trades or adds liquidity to correct it. Double-check before swapping a large amount.
+                </p>
+              </div>
+            )}
 
             {amount && Number(amount) > 0 && Number(estimatedOut) > 0 && (
               <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.9rem 1rem", display: "flex", flexDirection: "column", gap: 8 }}>
