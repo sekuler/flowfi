@@ -20,9 +20,9 @@
 // unreliable (a real, confirmed issue on Arc Testnet's public RPC) — this reads from
 // Arcscan's own indexed database instead, same query shape, no extra code needed here.
 const ARCSCAN_ORIGIN = 'https://testnet.arcscan.app';
-const CACHE_TTL_MS = 20 * 1000; // transaction history doesn't need to be to-the-second fresh
+const CACHE_TTL_MS = 30 * 1000; // bumped from 20s — real usage today (more pools, more activity) showed 20s wasn't cutting enough repeat calls
 const cache = new Map(); // key -> { status, contentType, body, expiresAt }
-const RETRY_DELAYS_MS = [0, 800, 2000]; // immediate, then two short backoffs on 429
+const RETRY_DELAYS_MS = [0, 600, 1500, 3000, 5000]; // more attempts, longer max wait — 3 tries wasn't enough under today's real traffic
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
