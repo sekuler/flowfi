@@ -11,7 +11,8 @@ import { waitForSuccess } from "../txHelpers";
 const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — legacy, pools created here keep working, no new pools go here
 const FACTORY_CONTRACT_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — legacy, same reasoning as v2 (superseded by v4 for new pools)
 const FACTORY_CONTRACT_V4 = "0x57B451D60F09222C2bb6c828FFE3703069A532Ed" as `0x${string}`; // ArcFactoryV2 v4 (original) — legacy now, kept scanned only so real liquidity still sitting in these pools stays visible/withdrawable until it's migrated to v4b
-const FACTORY_CONTRACT_V4B = "0xa42c3bDcd385350880165120fE7E72e43733f70B" as `0x${string}`; // ArcFactoryV2 v4b — adds a timelocked pause (2-day delay, unpause instant); this is the current factory for anything new
+const FACTORY_CONTRACT_V4B = "0xa42c3bDcd385350880165120fE7E72e43733f70B" as `0x${string}`; // ArcFactoryV2 v4b — legacy now, kept scanned only so any liquidity in these pools stays visible/withdrawable
+const FACTORY_CONTRACT_V4C = "0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0" as `0x${string}`; // ArcFactoryV2 v4c — addLiquidity now takes amountAMin/amountBMin (slippage protection) and pulls only the ratio-matching amount instead of the full desired amount (no more silent excess donation); this is the current factory for anything new
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
 const STABLE_SYMBOLS = new Set(["USDC", "EURC", "USYC"]);
 
@@ -85,6 +86,22 @@ const V2_POOL_ABI = [
   { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
 ] as const;
 
+// v4c: addLiquidity gained slippage protection (amountAMin/amountBMin) and
+// now only pulls the ratio-matching amount instead of the full desired
+// amount — a genuinely different selector from v3/v4/v4b's 3-arg version.
+const V4C_POOL_ABI = [
+  { type: "function", name: "addLiquidity", stateMutability: "nonpayable", inputs: [{ name: "amountADesired", type: "uint256" }, { name: "amountBDesired", type: "uint256" }, { name: "amountAMin", type: "uint256" }, { name: "amountBMin", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "removeLiquidity", stateMutability: "nonpayable", inputs: [{ name: "shareAmount", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
+  { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
+  { type: "function", name: "getShareValue", stateMutability: "view", inputs: [{ name: "provider", type: "address" }], outputs: [{ name: "amountA", type: "uint256" }, { name: "amountB", type: "uint256" }] },
+  { type: "function", name: "shares", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "totalShares", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "tokenA", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+  { type: "function", name: "tokenB", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+  { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+  { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+] as const;
+
 const LEGACY_ABI = [
   { type: "function", name: "addLiquidity", stateMutability: "nonpayable", inputs: [{ name: "usdcAmount", type: "uint256" }, { name: "eurcAmount", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "removeLiquidity", stateMutability: "nonpayable", inputs: [{ name: "shareAmount", type: "uint256" }], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
@@ -117,7 +134,7 @@ interface PoolInfo {
   // deadline param; v3/v4 added a third deadline param. Calling a v2 pool
   // with the 3-arg selector doesn't match any function on that contract and
   // reverts immediately with empty data — this was a real, confirmed bug.
-  abiVersion: "legacy" | "v2" | "v3v4";
+  abiVersion: "legacy" | "v2" | "v3v4" | "v4c";
   // Precise factory that created this pool — used only to rank which pool
   // to prefer when the same pair exists on more than one factory. abiVersion
   // groups v3+v4 together (same call signature) but v3 and v4 are NOT
@@ -125,7 +142,7 @@ interface PoolInfo {
   // an untrusted, permissionlessly-created leftover. Confirmed real bug:
   // a brand-new v4 pool was silently shadowed by an old, broken v3 pool for
   // the same pair because the old ranking treated v3 and v4 as one tier.
-  sourceFactory: "legacy" | "v2" | "v3" | "v4" | "v4b";
+  sourceFactory: "legacy" | "v2" | "v3" | "v4" | "v4b" | "v4c";
 }
 
 interface PoolMetrics {
@@ -336,9 +353,9 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-      for (const factoryAddr of [FACTORY_CONTRACT, FACTORY_CONTRACT_V3, FACTORY_CONTRACT_V4, FACTORY_CONTRACT_V4B]) {
-        const poolAbiVersion: PoolInfo["abiVersion"] = factoryAddr === FACTORY_CONTRACT ? "v2" : "v3v4";
-        const poolSourceFactory: PoolInfo["sourceFactory"] = factoryAddr === FACTORY_CONTRACT ? "v2" : factoryAddr === FACTORY_CONTRACT_V3 ? "v3" : factoryAddr === FACTORY_CONTRACT_V4 ? "v4" : "v4b";
+      for (const factoryAddr of [FACTORY_CONTRACT, FACTORY_CONTRACT_V3, FACTORY_CONTRACT_V4, FACTORY_CONTRACT_V4B, FACTORY_CONTRACT_V4C]) {
+        const poolAbiVersion: PoolInfo["abiVersion"] = factoryAddr === FACTORY_CONTRACT ? "v2" : factoryAddr === FACTORY_CONTRACT_V4C ? "v4c" : "v3v4";
+        const poolSourceFactory: PoolInfo["sourceFactory"] = factoryAddr === FACTORY_CONTRACT ? "v2" : factoryAddr === FACTORY_CONTRACT_V3 ? "v3" : factoryAddr === FACTORY_CONTRACT_V4 ? "v4" : factoryAddr === FACTORY_CONTRACT_V4B ? "v4b" : "v4c";
         const count = await client.readContract({ address: factoryAddr, abi: FACTORY_ABI, functionName: "allPoolsLength" });
         const total = Number(count);
         const indices = Array.from({ length: total }, (_, i) => i);
@@ -394,7 +411,7 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
       const pairKey = [p.addressA.toLowerCase(), p.addressB.toLowerCase()].sort().join("_");
       const candidates = arr.filter(o => [o.addressA.toLowerCase(), o.addressB.toLowerCase()].sort().join("_") === pairKey);
       if (candidates.length === 1) return true;
-      const rank = (c: PoolInfo) => c.sourceFactory === "v4b" ? 0 : c.sourceFactory === "v4" ? 1 : c.sourceFactory === "v3" ? 2 : c.sourceFactory === "v2" ? 3 : 4;
+      const rank = (c: PoolInfo) => c.sourceFactory === "v4c" ? 0 : c.sourceFactory === "v4b" ? 1 : c.sourceFactory === "v4" ? 2 : c.sourceFactory === "v3" ? 3 : c.sourceFactory === "v2" ? 4 : 5;
       const preferred = [...candidates].sort((a, b) => rank(a) - rank(b))[0];
       return p.poolAddress === preferred.poolAddress;
     })
@@ -533,7 +550,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
 
   const tokenAInfo = { symbol: resolvedSymbolA, address: pool.addressA, color: pool.colorA };
   const tokenBInfo = { symbol: resolvedSymbolB, address: pool.addressB, color: pool.colorB };
-  const abi = pool.abiVersion === "legacy" ? LEGACY_ABI : pool.abiVersion === "v2" ? V2_POOL_ABI : POOL_ABI;
+  const abi = pool.abiVersion === "legacy" ? LEGACY_ABI : pool.abiVersion === "v2" ? V2_POOL_ABI : pool.abiVersion === "v4c" ? V4C_POOL_ABI : POOL_ABI;
   // The old legacy AMM has no swap()/getAmountOut() at all — both real
   // factory-created pool versions (v2 and v3/v4) do, just with a different
   // arg count on swap() itself (handled separately in doSwap below).
@@ -717,8 +734,16 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       await waitForSuccess(publicClient, a2);
 
       setState("processing");
-      const needsDeadline = pool.abiVersion === "v3v4";
-      const addArgs = needsDeadline ? [unitsA, unitsB, BigInt(Math.floor(Date.now() / 1000) + 3600)] as const : [unitsA, unitsB] as const;
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+      // 1% slippage tolerance — protects against the pool's ratio moving
+      // between submitting and mining without being so tight that a normal
+      // block or two of drift causes a spurious revert.
+      const minA = (unitsA * 99n) / 100n;
+      const minB = (unitsB * 99n) / 100n;
+      const addArgs =
+        pool.abiVersion === "v4c" ? [unitsA, unitsB, minA, minB, deadline] as const :
+        pool.abiVersion === "v3v4" ? [unitsA, unitsB, deadline] as const :
+        [unitsA, unitsB] as const;
       const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "addLiquidity", args: addArgs, account: address as `0x${string}` });
       await waitForSuccess(publicClient, hash);
 
