@@ -36,20 +36,14 @@ import {
   ArrowUpRight, ExternalLink, ShieldCheck, Brain,
 } from "lucide-react";
 
-const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2
-const LEGACY_AMM = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
-const POOL_FACTORY = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 (legacy)
-const POOL_FACTORY_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 (legacy)
-const POOL_FACTORY_V4 = "0x57B451D60F09222C2bb6c828FFE3703069A532Ed" as `0x${string}`; // ArcFactoryV2 v4 — createPool is now onlyOwner
-const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
-const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-
-const ERC20_BALANCE_ABI = [
-  { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
-] as const;
-
-const POOL_FACTORY_ABI = [
-  { type: "function", name: "allPoolsLength", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
+// Real curated v4c pools — replaces the old stat that summed ArcSwap's
+// balance (now retired) and a legacy AMM's balance, neither of which
+// reflects what FlowFi actually curates today.
+const POOL_USDC_EURC = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`;
+const POOL_USDC_CIRBTC = "0x954A5D017C9C18c27572df1644D974cB30e201Ac" as `0x${string}`;
+const POOL_EURC_CIRBTC = "0x1c80D206e692A5faf2E918693A88cFA48426F39b" as `0x${string}`;
+const POOL_GET_RESERVES_ABI = [
+  { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
 ] as const;
 
 interface Props {
@@ -105,20 +99,19 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-        const [poolsLen, poolsLenV3, poolsLenV4, usdcSwap, eurcSwap, usdcAmm, eurcAmm] = await Promise.all([
-          client.readContract({ address: POOL_FACTORY, abi: POOL_FACTORY_ABI, functionName: "allPoolsLength" }).catch(() => 0n),
-          client.readContract({ address: POOL_FACTORY_V3, abi: POOL_FACTORY_ABI, functionName: "allPoolsLength" }).catch(() => 0n),
-          client.readContract({ address: POOL_FACTORY_V4, abi: POOL_FACTORY_ABI, functionName: "allPoolsLength" }).catch(() => 0n),
-          client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [SWAP_CONTRACT] }).catch(() => 0n),
-          client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [SWAP_CONTRACT] }).catch(() => 0n),
-          client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LEGACY_AMM] }).catch(() => 0n),
-          client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [LEGACY_AMM] }).catch(() => 0n),
+        const [usdcEurcRes, usdcCirbtcRes, eurcCirbtcRes] = await Promise.all([
+          client.readContract({ address: POOL_USDC_EURC, abi: POOL_GET_RESERVES_ABI, functionName: "getReserves" }).catch(() => [0n, 0n] as const),
+          client.readContract({ address: POOL_USDC_CIRBTC, abi: POOL_GET_RESERVES_ABI, functionName: "getReserves" }).catch(() => [0n, 0n] as const),
+          client.readContract({ address: POOL_EURC_CIRBTC, abi: POOL_GET_RESERVES_ABI, functionName: "getReserves" }).catch(() => [0n, 0n] as const),
         ]);
 
-        setPoolCount(Number(poolsLen) + Number(poolsLenV3) + Number(poolsLenV4) + 1);
+        setPoolCount(3);
+        // Rough platform-liquidity figure (USDC+EURC sides only, same
+        // simplification the original stat used) — not a precise portfolio
+        // valuation, just a homepage signal of real curated liquidity.
         setTvl(
-          Number(formatUnits(usdcSwap, 6)) + Number(formatUnits(eurcSwap, 6)) +
-          Number(formatUnits(usdcAmm, 6)) + Number(formatUnits(eurcAmm, 6))
+          Number(formatUnits(usdcEurcRes[0], 6)) + Number(formatUnits(usdcEurcRes[1], 6)) +
+          Number(formatUnits(usdcCirbtcRes[0], 6)) + Number(formatUnits(eurcCirbtcRes[0], 6))
         );
 
         const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${address}&limit=4`);

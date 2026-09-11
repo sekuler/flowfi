@@ -4,13 +4,10 @@ import { arcTestnet } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { Repeat, Droplet, ArrowRight as ArrowRightIcon } from "lucide-react";
 
-const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2
-const LEGACY_AMM = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
-const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
-const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
+const POOL_USDC_EURC = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`; // ArcFactoryV2 v4c — real curated pool, replaces the retired ArcSwap + unrelated legacy AMM
 
-const ERC20_BALANCE_ABI = [
-  { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+const POOL_GET_RESERVES_ABI = [
+  { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
 ] as const;
 
 interface Metrics {
@@ -31,22 +28,15 @@ export default function StablecoinAnalytics({ onNavigate }: { onNavigate?: (tab:
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
 
-        const contracts = [SWAP_CONTRACT, LEGACY_AMM];
-        const usdcBalances = await Promise.all(
-          contracts.map((c) => client.readContract({ address: USDC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [c] }))
-        );
-        const eurcBalances = await Promise.all(
-          contracts.map((c) => client.readContract({ address: EURC_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [c] }))
-        );
-
-        const usdcTotal = usdcBalances.reduce((sum, b) => sum + Number(formatUnits(b, 6)), 0);
-        const eurcTotal = eurcBalances.reduce((sum, b) => sum + Number(formatUnits(b, 6)), 0);
+        const [reserveUsdc, reserveEurc] = await client.readContract({ address: POOL_USDC_EURC, abi: POOL_GET_RESERVES_ABI, functionName: "getReserves" });
+        const usdcTotal = Number(formatUnits(reserveUsdc, 6));
+        const eurcTotal = Number(formatUnits(reserveEurc, 6));
 
         setMetrics({
           usdcTotal,
           eurcTotal,
-          swapPool: Number(formatUnits(usdcBalances[0], 6)) + Number(formatUnits(eurcBalances[0], 6)),
-          ammPool: Number(formatUnits(usdcBalances[1], 6)) + Number(formatUnits(eurcBalances[1], 6)),
+          swapPool: usdcTotal + eurcTotal,
+          ammPool: usdcTotal + eurcTotal,
         });
       } catch {
         setMetrics(null);
