@@ -93,16 +93,16 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 
 | | |
 |---|---|
-| **Landing** | ![Landing](./screenshots/1-%20Landing.png) |
-| **Home** | ![Home](./screenshots/2%20-%20Home.png) |
-| **Dashboard** | ![Dashboard](./screenshots/3%20-%20Dashboard.png) |
-| **Portfolio** | ![Portfolio](./screenshots/4%20-%20Portfolio.png) |
-| **Swap** | ![Swap](./screenshots/5%20-%20Swap.png) |
-| **Bridge** | ![Bridge](./screenshots/6%20-%20Bridge.png) |
-| **Token Launch** | ![Token Launch](./screenshots/10%20-%20TokenLaunch.png) |
-| **Liquidity Pools** | ![Liquidity Pools](./screenshots/11%20-%20Liquidity%20pools.png) |
-| **Circle Wallet** | ![Circle Wallet](./screenshots/12%20-%20Circle%20wallet.png) |
-| **History** | ![History](./screenshots/13%20-%20History.png) |
+| **Landing** | ![Landing](./screenshots/1%20-%20Landing.png) |
+| **Portfolio** | ![Portfolio](./screenshots/2%20-%20Portfolio.png) |
+| **Swap** | ![Swap](./screenshots/3%20-%20Swap.png) |
+| **Bridge** | ![Bridge](./screenshots/4%20-%20Bridge.png) |
+| **Circle Wallet** | ![Circle Wallet](./screenshots/5%20-%20Circle%20Wallet.png) |
+| **Liquidity Pools** | ![Liquidity Pools](./screenshots/6%20-%20Liquidity%20Pools.png) |
+| **Launch Token** | ![Launch Token](./screenshots/7%20-%20Launch%20Token.png) |
+| **Dashboard** | ![Dashboard](./screenshots/8%20-%20Dashboard.png) |
+| **Stablecoin Analytics** | ![Stablecoin Analytics](./screenshots/9%20-%20Stablecoin%20Analytics.png) |
+| **History** | ![History](./screenshots/10%20-%20History.png) |
 
 ---
 
