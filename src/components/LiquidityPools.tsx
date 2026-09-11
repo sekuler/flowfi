@@ -691,9 +691,10 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       await waitForSuccess(publicClient, approveHash);
 
       setSwapState("swapping");
-      // v2 pools' swap() has no deadline param (3 args); v3/v4 added one (4 args) —
-      // same class of ABI mismatch as addLiquidity/removeLiquidity, now handled correctly.
-      const swapArgs = pool.abiVersion === "v3v4"
+      // v2 pools' swap() has no deadline param (3 args); v3/v4/v4b/v4c all use
+      // the 4-arg version (deadline) — v4c only changed addLiquidity's
+      // signature, not swap's.
+      const swapArgs = (pool.abiVersion === "v3v4" || pool.abiVersion === "v4c")
         ? [swapDirAtoB, amountIn, 0n, BigInt(Math.floor(Date.now() / 1000) + 3600)] as const
         : [swapDirAtoB, amountIn, 0n] as const;
       const hash = await wc.writeContract({
@@ -769,7 +770,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       const shareToRemove = (myShares * BigInt(removePct)) / 100n;
       if (shareToRemove === 0n) throw new Error("Nothing to remove.");
 
-      const removeArgs = pool.abiVersion === "v3v4" ? [shareToRemove, BigInt(Math.floor(Date.now() / 1000) + 3600)] as const : [shareToRemove] as const;
+      const removeArgs = (pool.abiVersion === "v3v4" || pool.abiVersion === "v4c") ? [shareToRemove, BigInt(Math.floor(Date.now() / 1000) + 3600)] as const : [shareToRemove] as const;
       const hash = await wc.writeContract({ address: pool.poolAddress, abi, functionName: "removeLiquidity", args: removeArgs, account: address as `0x${string}` });
       await waitForSuccess(publicClient, hash);
 
