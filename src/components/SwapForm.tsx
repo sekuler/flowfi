@@ -1,5 +1,4 @@
 ﻿import SwapAdvisor from "./SwapAdvisor";
-import AdminRate from "./AdminRate";
 import ConfirmModal from "./ConfirmModal";
 import { TokenIcon } from "./TokenIcon";
 import { useState, useEffect, useCallback } from "react";
@@ -35,27 +34,20 @@ function swapStepIndex(state: string) {
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-const SWAP_CONTRACT = "0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1" as `0x${string}`; // ArcSwap v2 — adds minAmountOut, pause(), fixes withdraw event
-const POOL_FACTORY_V2 = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 (legacy)
-const POOL_FACTORY_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 (legacy)
-const POOL_FACTORY_V4 = "0x57B451D60F09222C2bb6c828FFE3703069A532Ed" as `0x${string}`; // ArcFactoryV2 v4
+// v6 change (mainnet-readiness — FlowFi does not provide swap liquidity
+// itself): USDC/EURC swaps now route through FlowFi's own curated ArcPool
+// instead of ArcSwap. ArcSwap required FlowFi (the contract owner) to be the
+// sole liquidity provider and used an owner-set rate rather than one derived
+// from real supply and demand — both directly contradicted the decision that
+// FlowFi is an interface, not a liquidity provider. The pool is organically
+// priced (constant-product, moves with real trading) and open to anyone to
+// add liquidity to.
+const POOL_ADDRESS = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`; // ArcFactoryV2 v4c — USDC/EURC
 
-const POOL_FACTORY_ABI = [
-  { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
-] as const;
-
-const POOL_V2_ABI = [
+const POOL_ABI = [
   { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
-  { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
-] as const;
-
-const SWAP_ABI = [
-  { type: "function", name: "swapUsdcToEurc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
-  { type: "function", name: "swapEurcToUsdc", stateMutability: "nonpayable", inputs: [{ name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }], outputs: [] },
-  { type: "function", name: "getEurcOut", stateMutability: "view", inputs: [{ name: "usdcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
-  { type: "function", name: "getUsdcOut", stateMutability: "view", inputs: [{ name: "eurcIn", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
-  { type: "function", name: "usdcToEurcRate", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
-  { type: "function", name: "getLiquidity", stateMutability: "view", inputs: [], outputs: [{ name: "usdcBalance", type: "uint256" }, { name: "eurcBalance", type: "uint256" }] },
+  { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+  { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
 ] as const;
 
 const TOKENS = ["USDC", "EURC"] as const;
@@ -144,118 +136,64 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
 
   const [poolRate, setPoolRate] = useState<number | null>(null);
   const [marketRate, setMarketRate] = useState<number | null>(null);
-  const [rateStale, setRateStale] = useState(false);
-  const [staleRateAcknowledged, setStaleRateAcknowledged] = useState(false);
   const [poolLiquidity, setPoolLiquidity] = useState<{ usdc: string; eurc: string } | null>(null);
   const [contractTxs, setContractTxs] = useState<ContractTx[]>([]);
-  const [legacyOut, setLegacyOut] = useState<string | null>(null);
-  const [legacyPoolAddress, setLegacyPoolAddress] = useState<`0x${string}` | null>(null);
-  const [useLegacyRoute, setUseLegacyRoute] = useState(false);
 
   const activeBalances = useCircle && circleBalances ? circleBalances : { usdc: balances.usdc ?? "...", eurc: balances.eurc ?? "..." };
   const currentBalance = tokenIn === "USDC" ? activeBalances.usdc : activeBalances.eurc;
 
   const estimate = useCallback(async () => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setEstimatedOut("0.00"); setLegacyOut(null); return; }
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setEstimatedOut("0.00"); return; }
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const amountIn = parseUnits(amount, 6);
-      const out = tokenIn === "USDC"
-        ? await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getEurcOut", args: [amountIn] })
-        : await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getUsdcOut", args: [amountIn] });
+      const out = await client.readContract({ address: POOL_ADDRESS, abi: POOL_ABI, functionName: "getAmountOut", args: [tokenIn === "USDC", amountIn] });
       setEstimatedOut(Number(formatUnits(out as bigint, 6)).toFixed(4));
-
-      // Compare against a real Pool Factory V2 pool for USDC/EURC, if one
-      // exists — a second genuine liquidity source on FlowFi, so the better
-      // route can be surfaced instead of only ever showing the fixed-rate pool.
-      try {
-        let poolAddress = await client.readContract({
-          address: POOL_FACTORY_V4, abi: POOL_FACTORY_ABI, functionName: "getPool",
-          args: [USDC_ADDRESS, EURC_ADDRESS],
-        }) as `0x${string}`;
-        if (poolAddress === "0x0000000000000000000000000000000000000000") {
-          poolAddress = await client.readContract({
-            address: POOL_FACTORY_V3, abi: POOL_FACTORY_ABI, functionName: "getPool",
-            args: [USDC_ADDRESS, EURC_ADDRESS],
-          }) as `0x${string}`;
-        }
-        if (poolAddress === "0x0000000000000000000000000000000000000000") {
-          poolAddress = await client.readContract({
-            address: POOL_FACTORY_V2, abi: POOL_FACTORY_ABI, functionName: "getPool",
-            args: [USDC_ADDRESS, EURC_ADDRESS],
-          }) as `0x${string}`;
-        }
-        if (poolAddress === "0x0000000000000000000000000000000000000000") {
-          setLegacyOut(null);
-        } else {
-          const legacyOutRaw = await client.readContract({
-            address: poolAddress, abi: POOL_V2_ABI, functionName: "getAmountOut",
-            args: [tokenIn === "USDC", amountIn],
-          });
-          setLegacyOut(Number(formatUnits(legacyOutRaw as bigint, 6)).toFixed(4));
-          setLegacyPoolAddress(poolAddress);
-        }
-      } catch (legacyErr) {
-        console.error("Pool V2 quote failed:", legacyErr);
-        setLegacyOut(null);
-      }
     } catch {
       setEstimatedOut("0.00");
-      setLegacyOut(null);
     }
   }, [amount, tokenIn]);
 
   useEffect(() => { estimate(); }, [estimate]);
 
-  // Auto-pick whichever route quotes more, so the toggle below reflects the
-  // actual best price rather than defaulting to the fixed-rate pool.
   useEffect(() => {
-    if (legacyOut && Number(legacyOut) > Number(estimatedOut)) setUseLegacyRoute(true);
-    else setUseLegacyRoute(false);
-  }, [legacyOut, estimatedOut]);
-
-  useEffect(() => {
-    async function checkRates() {
+    async function loadPoolRate() {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
-        const rate = await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "usdcToEurcRate" });
-        const pool = Number(rate) / 1e6;
-        setPoolRate(pool);
+        // A pool has no single stored "rate" the way ArcSwap did — quote a
+        // reference amount to get an effective price. Purely informational
+        // (no owner-set rate to validate for staleness anymore; the pool's
+        // price is whatever real trading has made it).
+        const out = await client.readContract({ address: POOL_ADDRESS, abi: POOL_ABI, functionName: "getAmountOut", args: [true, parseUnits("1", 6)] });
+        setPoolRate(Number(formatUnits(out as bigint, 6)));
 
         const res = await fetch("https://api.frankfurter.dev/v1/latest?from=USD&to=EUR");
         const data = await res.json();
-        const market = data.rates?.EUR;
-        if (market) {
-          setMarketRate(market);
-          const diff = Math.abs(pool - market) / market;
-          const isStale = diff > 0.01;
-          setRateStale(isStale);
-          if (!isStale) setStaleRateAcknowledged(false);
-        }
+        if (data.rates?.EUR) setMarketRate(data.rates.EUR);
       } catch {
-        /* ignore, silently skip staleness check */
+        /* ignore */
       }
     }
-    checkRates();
+    loadPoolRate();
   }, []);
 
   useEffect(() => {
     async function loadMarketInfo() {
       try {
         const client = createPublicClient({ chain: arcTestnet, transport: http() });
-        const [usdcBal, eurcBal] = await client.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getLiquidity" });
+        const [usdcBal, eurcBal] = await client.readContract({ address: POOL_ADDRESS, abi: POOL_ABI, functionName: "getReserves" });
         setPoolLiquidity({ usdc: Number(formatUnits(usdcBal, 6)).toFixed(2), eurc: Number(formatUnits(eurcBal, 6)).toFixed(2) });
       } catch {
         setPoolLiquidity(null);
       }
 
       try {
-        const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${SWAP_CONTRACT}&limit=8`);
+        const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${POOL_ADDRESS}&limit=8`);
         const data = await res.json();
         const items: ContractTx[] = (data.result ?? []).slice(0, 8).map((tx: any) => ({
           hash: tx.hash,
           age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—",
-          method: tx.methodId === "0x9cd441da" || tx.methodId === "0x74b30078" ? "Swap" : "Contract Call",
+          method: tx.methodId === "0x59542ca9" ? "Swap" : "Contract Call",
         }));
         setContractTxs(items);
       } catch {
@@ -286,6 +224,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
     setErrorMsg(null); setTxHash(null);
     const amountIn = parseUnits(amount, 6);
     const tokenAddress = tokenIn === "USDC" ? USDC_ADDRESS : EURC_ADDRESS;
+    const minOut = (parseUnits(estimatedOut, 6) * 99n) / 100n; // 1% slippage tolerance
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
 
     if (useCircle && circleWallet) {
       const arcWalletId = getWalletIdForChain(circleWallet, "ARC-TESTNET");
@@ -296,16 +236,15 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
           walletId: arcWalletId,
           contractAddress: tokenAddress,
           abiFunctionSignature: "approve(address,uint256)",
-          abiParameters: [SWAP_CONTRACT, amountIn.toString()],
+          abiParameters: [POOL_ADDRESS, amountIn.toString()],
         });
 
         setSwapState("swapping");
-        const minOutForCircle = (parseUnits(estimatedOut, 6) * 99n) / 100n; // 1% slippage tolerance
         const hash = await circleContractCallAndWait({
           walletId: arcWalletId,
-          contractAddress: SWAP_CONTRACT,
-          abiFunctionSignature: tokenIn === "USDC" ? "swapUsdcToEurc(uint256,uint256)" : "swapEurcToUsdc(uint256,uint256)",
-          abiParameters: [amountIn.toString(), minOutForCircle.toString()],
+          contractAddress: POOL_ADDRESS,
+          abiFunctionSignature: "swap(bool,uint256,uint256,uint256)",
+          abiParameters: [tokenIn === "USDC" ? "true" : "false", amountIn.toString(), minOut.toString(), deadline.toString()],
         });
 
         setTxHash(hash); setSwapState("done"); setAmount(""); setEstimatedOut("0.00");
@@ -321,27 +260,19 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       await switchToArc(provider);
       const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
-      const routeContract = useLegacyRoute && legacyPoolAddress ? legacyPoolAddress : SWAP_CONTRACT;
 
       setSwapState("approving");
       const approveHash = await wc.writeContract({
         address: tokenAddress, abi: erc20Abi, functionName: "approve",
-        args: [routeContract, amountIn], account: address as `0x${string}`,
+        args: [POOL_ADDRESS, amountIn], account: address as `0x${string}`,
       });
       await waitForSuccess(publicClient, approveHash);
 
       setSwapState("swapping");
-      const minOut = (parseUnits(estimatedOut, 6) * 99n) / 100n; // 1% slippage tolerance
-      const hash = useLegacyRoute && legacyPoolAddress
-        ? await wc.writeContract({
-            address: legacyPoolAddress, abi: POOL_V2_ABI, functionName: "swap",
-            args: [tokenIn === "USDC", amountIn, legacyOut ? (parseUnits(legacyOut, 6) * 99n) / 100n : 0n], account: address as `0x${string}`,
-          })
-        : await wc.writeContract({
-            address: SWAP_CONTRACT, abi: SWAP_ABI,
-            functionName: tokenIn === "USDC" ? "swapUsdcToEurc" : "swapEurcToUsdc",
-            args: [amountIn, minOut], account: address as `0x${string}`,
-          });
+      const hash = await wc.writeContract({
+        address: POOL_ADDRESS, abi: POOL_ABI, functionName: "swap",
+        args: [tokenIn === "USDC", amountIn, minOut, deadline], account: address as `0x${string}`,
+      });
       await waitForSuccess(publicClient, hash);
 
       setTxHash(hash); setSwapState("done"); setAmount(""); setEstimatedOut("0.00");
@@ -372,12 +303,13 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
       const amountIn = parseUnits(String(dcaPlan.amount), 6);
 
-      const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [SWAP_CONTRACT, amountIn], account: address as `0x${string}` });
+      const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "approve", args: [POOL_ADDRESS, amountIn], account: address as `0x${string}` });
       await waitForSuccess(publicClient, approveHash);
 
-      const freshQuote = await publicClient.readContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "getEurcOut", args: [amountIn] }) as bigint;
+      const freshQuote = await publicClient.readContract({ address: POOL_ADDRESS, abi: POOL_ABI, functionName: "getAmountOut", args: [true, amountIn] }) as bigint;
       const minOutForDCA = (freshQuote * 99n) / 100n; // 1% slippage tolerance
-      const hash = await wc.writeContract({ address: SWAP_CONTRACT, abi: SWAP_ABI, functionName: "swapUsdcToEurc", args: [amountIn, minOutForDCA], account: address as `0x${string}` });
+      const dcaDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+      const hash = await wc.writeContract({ address: POOL_ADDRESS, abi: POOL_ABI, functionName: "swap", args: [true, amountIn, minOutForDCA, dcaDeadline], account: address as `0x${string}` });
       await waitForSuccess(publicClient, hash);
 
       markDCAExecuted();
@@ -466,7 +398,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             <div style={{ borderRadius: 20, background: "#ffffff", border: "1px solid #EDE9FE", padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
               <div style={{ fontSize: 12, color: "#6B7280", fontWeight: 500, marginBottom: 10 }}>You receive</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 34, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{useLegacyRoute && legacyOut ? legacyOut : estimatedOut}</span>
+                <span style={{ fontSize: 34, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{estimatedOut}</span>
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <button
                     onClick={() => setTokenOutOpen(!tokenOutOpen)}
@@ -490,20 +422,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                   )}
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>{(useLegacyRoute && legacyOut ? Number(legacyOut) : Number(estimatedOut)) > 0 ? `$${(useLegacyRoute && legacyOut ? Number(legacyOut) : Number(estimatedOut)).toFixed(2)}` : "$0.00"}</div>
+              <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>{Number(estimatedOut) > 0 ? `$${Number(estimatedOut).toFixed(2)}` : "$0.00"}</div>
             </div>
-
-            {rateStale && !useLegacyRoute && (
-              <div style={{ background: "rgba(239,68,68,0.1)", borderRadius: 10, padding: "0.65rem 0.8rem", display: "flex", flexDirection: "column", gap: 8 }}>
-                <p style={{ fontSize: 12, color: "#DC2626", margin: 0 }}>
-                  Pool rate ({poolRate?.toFixed(4)}) differs from the live market rate ({marketRate?.toFixed(4)}) by more than 1%. This route has no slippage protection — the fixed rate is used regardless.
-                </p>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#DC2626", cursor: "pointer" }}>
-                  <input type="checkbox" checked={staleRateAcknowledged} onChange={(e) => setStaleRateAcknowledged(e.target.checked)} />
-                  I understand and want to proceed at this rate
-                </label>
-              </div>
-            )}
 
             {amount && Number(amount) > 0 && Number(estimatedOut) > 0 && (
               <div style={{ background: "#f5f3ff", borderRadius: 12, padding: "0.9rem 1rem", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -517,36 +437,12 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#4B5563" }}>Fee</span>
-                  <span style={{ color: "#16A34A", fontWeight: 600 }}>0% — fixed-rate pool</span>
+                  <span style={{ color: "#16A34A", fontWeight: 600 }}>0.3% — pool fee, shared with liquidity providers</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#4B5563" }}>Minimum received</span>
-                  <span style={{ color: "#111827", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{estimatedOut} {tokenOut}</span>
+                  <span style={{ color: "#111827", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{(Number(estimatedOut) * 0.99).toFixed(4)} {tokenOut}</span>
                 </div>
-              </div>
-            )}
-
-            {legacyOut && Number(amount) > 0 && (
-              <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "0.85rem", display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 2 }}>ROUTES ON FLOWFI</div>
-                {[
-                  { name: "Fixed-Rate Pool", out: estimatedOut, isLegacy: false },
-                  { name: "Pool Factory V2", out: legacyOut, isLegacy: true },
-                ].sort((a, b) => Number(b.out) - Number(a.out)).map((route, i) => (
-                  <button key={route.name} onClick={() => setUseLegacyRoute(route.isLegacy)}
-                    style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "0.6rem 0.75rem", borderRadius: 10, border: "none", cursor: "pointer",
-                      background: useLegacyRoute === route.isLegacy ? "#ffffff" : "transparent",
-                      boxShadow: useLegacyRoute === route.isLegacy ? "0 1px 3px rgba(109,94,247,0.15)" : "none",
-                    }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {i === 0 && <span style={{ fontSize: 9, fontWeight: 800, color: "#16A34A", background: "rgba(34,197,94,0.15)", padding: "2px 6px", borderRadius: 999 }}>BEST</span>}
-                      <span style={{ fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{route.name}</span>
-                    </div>
-                    <span className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: i === 0 ? "#16A34A" : "#4B5563" }}>{route.out} {tokenOut}</span>
-                  </button>
-                ))}
               </div>
             )}
 
@@ -594,12 +490,12 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </div>
               <div style={{ padding: "0.75rem 1rem", borderLeft: "1px solid #EDE9FE" }}>
                 <div style={{ fontSize: 11, color: "#6B7280" }}>Fee</div>
-                <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{useLegacyRoute ? "0.3%" : "0%"}</div>
+                <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>0.3%</div>
               </div>
             </div>
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
-              disabled={isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged)}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged) ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" || (rateStale && !useLegacyRoute && !staleRateAcknowledged) ? 0.5 : 1, marginTop: 4 }}>
+              disabled={isLoading || swapState === "done"}
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" ? 0.5 : 1, marginTop: 4 }}>
               {swapState === "idle" && "Swap"}
               {swapState === "approving" && "Approving..."}
               {swapState === "swapping" && "Swapping..."}
@@ -612,8 +508,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                 title="Confirm Swap"
                 rows={[
                   { label: "You pay", value: `${amount} ${tokenIn}`, highlight: true },
-                  { label: "You receive (est.)", value: `${useLegacyRoute && legacyOut ? legacyOut : estimatedOut} ${tokenIn === "USDC" ? "EURC" : "USDC"}` },
-                  { label: "Route", value: useLegacyRoute ? "Pool V2" : "Fixed-Rate Pool" },
+                  { label: "You receive (est.)", value: `${estimatedOut} ${tokenIn === "USDC" ? "EURC" : "USDC"}` },
                 ]}
                 confirmLabel="Confirm Swap"
                 onConfirm={executeSwap}
@@ -725,8 +620,6 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </div>
             </div>
           </div>
-
-          <AdminRate provider={provider} address={address} />
 
           <div style={{ background: "#ffffff", borderRadius: 18, padding: "1.1rem", boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
             <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
