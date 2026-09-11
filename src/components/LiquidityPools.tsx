@@ -28,6 +28,13 @@ const KNOWN_TOKENS: { symbol: string; address: `0x${string}`; color: string }[] 
 // anything else (e.g. pools someone created for a random launched token
 // before v4 locked createPool down to onlyOwner) is real on-chain data,
 // just not something we surface in this UI.
+const CURATED_PAIR_LIST: readonly [`0x${string}`, `0x${string}`][] = [
+  ["0x3600000000000000000000000000000000000000", "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a"], // USDC/EURC
+  ["0x3600000000000000000000000000000000000000", "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF"], // USDC/cirBTC
+  ["0x3600000000000000000000000000000000000000", "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C"], // USDC/USYC
+  ["0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C"], // EURC/USYC
+  ["0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF"], // EURC/cirBTC
+];
 const CURATED_PAIRS = new Set([
   ["0x3600000000000000000000000000000000000000", "0x89b50855aa3be2f677cd6303cec089b5f319d72a"].sort().join("_"), // USDC/EURC
   ["0x3600000000000000000000000000000000000000", "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf"].sort().join("_"), // USDC/cirBTC
@@ -253,6 +260,16 @@ async function fetchSwapLogsWithFallback(
   poolAddress: `0x${string}`,
   currentBlock: bigint
 ): Promise<{ logs: SwapLogLike[]; ok: boolean }> {
+  // Arc Testnet's public RPC has a confirmed, real reliability problem with
+  // eth_getLogs specifically — trying it first (across up to 5 shrinking
+  // block windows) before falling back to Arcscan meant waiting out several
+  // near-guaranteed failures on every single pool, which is what was making
+  // the page slow. Arcscan's own indexed logs endpoint is the one we've
+  // actually confirmed works, so it goes first now; the RPC windows are
+  // kept only as a fallback in case Arcscan itself has a bad moment.
+  const fromArcscan = await fetchSwapLogsFromArcscan(poolAddress, currentBlock);
+  if (fromArcscan.ok) return fromArcscan;
+
   const windows = [50000n, 20000n, 5000n, 1000n, 200n];
   for (const w of windows) {
     const fromBlock = currentBlock > w ? currentBlock - w : 0n;
@@ -263,11 +280,6 @@ async function fetchSwapLogsWithFallback(
       continue;
     }
   }
-  // eth_getLogs is unreliable on Arc Testnet's RPC (confirmed) — before
-  // giving up entirely, try Arcscan's own indexed logs endpoint instead.
-  // This is a real fallback to a different data source, not just a retry.
-  const fromArcscan = await fetchSwapLogsFromArcscan(poolAddress, currentBlock);
-  if (fromArcscan.ok) return fromArcscan;
   return { logs: [], ok: false };
 }
 
@@ -352,36 +364,37 @@ export default function LiquidityPools({ provider, address, onRefresh }: Props) 
     setPools([legacyPool]);
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
+      const factories: { addr: `0x${string}`; abiVersion: PoolInfo["abiVersion"]; sourceFactory: PoolInfo["sourceFactory"] }[] = [
+        { addr: FACTORY_CONTRACT, abiVersion: "v2", sourceFactory: "v2" },
+        { addr: FACTORY_CONTRACT_V3, abiVersion: "v3v4", sourceFactory: "v3" },
+        { addr: FACTORY_CONTRACT_V4, abiVersion: "v3v4", sourceFactory: "v4" },
+        { addr: FACTORY_CONTRACT_V4B, abiVersion: "v3v4", sourceFactory: "v4b" },
+        { addr: FACTORY_CONTRACT_V4C, abiVersion: "v4c", sourceFactory: "v4c" },
+      ];
 
-      for (const factoryAddr of [FACTORY_CONTRACT, FACTORY_CONTRACT_V3, FACTORY_CONTRACT_V4, FACTORY_CONTRACT_V4B, FACTORY_CONTRACT_V4C]) {
-        const poolAbiVersion: PoolInfo["abiVersion"] = factoryAddr === FACTORY_CONTRACT ? "v2" : factoryAddr === FACTORY_CONTRACT_V4C ? "v4c" : "v3v4";
-        const poolSourceFactory: PoolInfo["sourceFactory"] = factoryAddr === FACTORY_CONTRACT ? "v2" : factoryAddr === FACTORY_CONTRACT_V3 ? "v3" : factoryAddr === FACTORY_CONTRACT_V4 ? "v4" : factoryAddr === FACTORY_CONTRACT_V4B ? "v4b" : "v4c";
-        const count = await client.readContract({ address: factoryAddr, abi: FACTORY_ABI, functionName: "allPoolsLength" });
-        const total = Number(count);
-        const indices = Array.from({ length: total }, (_, i) => i);
-
-        const BATCH_SIZE = 6;
-        for (let b = 0; b < indices.length; b += BATCH_SIZE) {
-          const batch = indices.slice(b, b + BATCH_SIZE);
-          const batchDetails = await Promise.all(batch.map(async (i) => {
-            try {
-              const poolAddr = await client.readContract({ address: factoryAddr, abi: FACTORY_ABI, functionName: "allPools", args: [BigInt(i)] });
-              const [tA, tB] = await Promise.all([
-                client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenA" }),
-                client.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "tokenB" }),
-              ]);
-              const metaA = tokenMetaSync(tA);
-              const metaB = tokenMetaSync(tB);
-              return { poolAddress: poolAddr, addressA: tA, addressB: tB, symbolA: metaA.symbol, symbolB: metaB.symbol, colorA: metaA.color, colorB: metaB.color, abiVersion: poolAbiVersion, sourceFactory: poolSourceFactory } as PoolInfo;
-            } catch {
-              return null;
-            }
-          }));
-          const valid = batchDetails.filter((d): d is PoolInfo => d !== null && isCuratedPair(d.addressA, d.addressB) && !BLOCKED_POOL_ADDRESSES.has(d.poolAddress.toLowerCase()));
-          if (valid.length > 0) setPools(prev => [...prev, ...valid]);
-          if (b + BATCH_SIZE < indices.length) await new Promise(r => setTimeout(r, 200));
+      // We already know exactly which pairs we curate — ask each factory's
+      // own getPool(a, b) mapping directly instead of paging through every
+      // pool it has ever created (a factory like v2 has ~50 pools from
+      // pre-curation testing, almost none of them relevant). This is 25
+      // parallel reads total instead of potentially hundreds of sequential
+      // ones, and it's what actually made the page slow to load.
+      const lookups = factories.flatMap(f =>
+        CURATED_PAIR_LIST.map(([a, b]) => ({ factory: f, a, b }))
+      );
+      const results = await Promise.all(lookups.map(async ({ factory, a, b }) => {
+        try {
+          const poolAddr = await client.readContract({ address: factory.addr, abi: FACTORY_ABI, functionName: "getPool", args: [a, b] });
+          if (!poolAddr || poolAddr === "0x0000000000000000000000000000000000000000") return null;
+          if (BLOCKED_POOL_ADDRESSES.has(poolAddr.toLowerCase())) return null;
+          const metaA = tokenMetaSync(a);
+          const metaB = tokenMetaSync(b);
+          return { poolAddress: poolAddr, addressA: a, addressB: b, symbolA: metaA.symbol, symbolB: metaB.symbol, colorA: metaA.color, colorB: metaB.color, abiVersion: factory.abiVersion, sourceFactory: factory.sourceFactory } as PoolInfo;
+        } catch {
+          return null;
         }
-      }
+      }));
+      const found = results.filter((d): d is PoolInfo => d !== null);
+      setPools(prev => [...prev, ...found]);
     } catch {
       /* keep whatever pools already loaded */
     } finally {
