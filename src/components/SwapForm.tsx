@@ -149,6 +149,19 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const priceDeviationPct = poolRate && expectedPoolRate ? Math.abs(poolRate - expectedPoolRate) / expectedPoolRate * 100 : null;
   const priceStale = priceDeviationPct !== null && priceDeviationPct > 1.5;
 
+  // Below this, the pool physically cannot support a real swap — its price
+  // is whatever dust ratio it happens to hold, not a live market rate, and
+  // there's no "use the real rate" parameter for a constant-product AMM.
+  // Real live pricing arrives via routing to actual deep liquidity (Uniswap/
+  // LI.FI on Arc mainnet, expected after Sept 16) — until then, close this
+  // pair off as a swap venue rather than execute against dust and surprise
+  // the user with a terrible fill.
+  const MIN_POOL_LIQUIDITY_USD = 50;
+  const poolTooThin = poolLiquidity ? Number(poolLiquidity.usdc) + Number(poolLiquidity.eurc) < MIN_POOL_LIQUIDITY_USD : true;
+  const fxEstimate = amount && expectedPoolRate && Number(amount) > 0
+    ? (tokenIn === "USDC" ? Number(amount) * expectedPoolRate : Number(amount) / expectedPoolRate).toFixed(4)
+    : "0.00";
+
   const activeBalances = useCircle && circleBalances ? circleBalances : { usdc: balances.usdc ?? "...", eurc: balances.eurc ?? "..." };
   const currentBalance = tokenIn === "USDC" ? activeBalances.usdc : activeBalances.eurc;
 
@@ -408,7 +421,7 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             <div style={{ borderRadius: 20, background: "#ffffff", border: "1px solid #EDE9FE", padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
               <div style={{ fontSize: 12, color: "#6B7280", fontWeight: 500, marginBottom: 10 }}>You receive</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 34, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{estimatedOut}</span>
+                <span style={{ fontSize: 34, fontWeight: 700, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{poolTooThin ? fxEstimate : estimatedOut}</span>
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <button
                     onClick={() => setTokenOutOpen(!tokenOutOpen)}
@@ -435,7 +448,13 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>{Number(estimatedOut) > 0 ? `$${Number(estimatedOut).toFixed(2)}` : "$0.00"}</div>
             </div>
 
-            {priceStale && (
+            {poolTooThin ? (
+              <div style={{ background: "rgba(109,94,247,0.08)", border: "1px solid rgba(109,94,247,0.25)", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
+                <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>
+                  No live on-chain venue for USDC/EURC yet — this pool doesn't hold enough liquidity to execute a real swap. The amount above is an FX estimate only, not an executable quote. Live routing to real liquidity (via Arc mainnet DEXs) is expected after mainnet launch (Sept 16).
+                </p>
+              </div>
+            ) : priceStale && (
               <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
                 <p style={{ fontSize: 12, color: "#B45309", margin: 0 }}>
                   This pool's price ({poolRate?.toFixed(4)} EURC/USDC) is {priceDeviationPct?.toFixed(1)}% off the live market rate ({expectedPoolRate?.toFixed(4)}). This is a small, thinly-traded pool — its price can drift from the real market until someone trades or adds liquidity to correct it. Double-check before swapping a large amount.
@@ -512,9 +531,10 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
               </div>
             </div>
             <button onClick={swapState === "error" ? () => { setSwapState("idle"); setErrorMsg(null); } : doSwap}
-              disabled={isLoading || swapState === "done"}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" ? 0.5 : 1, marginTop: 4 }}>
-              {swapState === "idle" && "Swap"}
+              disabled={isLoading || swapState === "done" || poolTooThin}
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#6D5EF7", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: isLoading || swapState === "done" || poolTooThin ? "not-allowed" : "pointer", opacity: isLoading || swapState === "done" || poolTooThin ? 0.5 : 1, marginTop: 4 }}>
+              {poolTooThin && swapState === "idle" && "No live venue yet"}
+              {!poolTooThin && swapState === "idle" && "Swap"}
               {swapState === "approving" && "Approving..."}
               {swapState === "swapping" && "Swapping..."}
               {swapState === "done" && "Done!"}
