@@ -10,9 +10,16 @@ const RATE_ABI = [
 ];
 
 module.exports = async function handler(req, res) {
-  // Vercel Cron sends a GET request with this header — reject anything else
-  // so this endpoint can't be triggered by a random outside request.
-  if (req.headers['x-vercel-cron'] !== '1' && process.env.NODE_ENV === 'production') {
+  // Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` on every
+  // real cron invocation, once CRON_SECRET is set as an env var — this is
+  // the actual documented verification mechanism. (The previous check here
+  // looked for an `x-vercel-cron` header instead, which isn't it — that
+  // check would never reliably confirm a request came from Vercel's
+  // scheduler.) CRON_SECRET must be added in Vercel's project settings
+  // (Environment Variables) for this check to do anything; Vercel does not
+  // generate it automatically.
+  const authHeader = req.headers['authorization'];
+  if (process.env.NODE_ENV === 'production' && (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
