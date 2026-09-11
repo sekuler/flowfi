@@ -701,40 +701,40 @@ function AppInner() {
           </div>
         )}
         {tab !== "pools" && tab !== "history" && <MarketTicker />}
-        <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, padding: isMobile ? "0.85rem 1rem" : "1.25rem 2.5rem" }}>
+        <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, padding: isMobile ? "0.85rem 1rem" : "1rem 1.75rem" }}>
           <NotificationCenter />
           <button disabled title="Coming soon"
-            style={{ position: "relative", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#6D5EF7" }}>
-            <Moon size={16} />
-            <span style={{ position: "absolute", top: -8, right: -10, fontSize: 8, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 5px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
+            style={{ position: "relative", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 10, width: 32, height: 32, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#6D5EF7" }}>
+            <Moon size={15} />
+            <span style={{ position: "absolute", top: -7, right: -9, fontSize: 7, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 4px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
           </button>
-          <div style={{ width: 1, height: 20, background: "rgba(109,94,247,0.12)" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(34,197,94,0.1)" }}>
-            <span className="flowfi-live-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E" }} />
-            <span style={{ fontSize: 12, fontWeight: 800, color: "#16A34A" }}>Arc Testnet</span>
+          <div style={{ width: 1, height: 18, background: "rgba(109,94,247,0.12)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(34,197,94,0.1)" }}>
+            <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E" }} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#16A34A" }}>Arc Testnet</span>
           </div>
           {wallet ? (
             <>
               <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
                 className="flowfi-mono"
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                 {shortAddr}
               </a>
               <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} title="Disconnect wallet"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
-                <Power size={15} />
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
+                <Power size={14} />
               </button>
             </>
           ) : circlePrimary && circleWalletInfo ? (
             <>
               <a href={`https://testnet.arcscan.app/address/${circleWalletInfo.address}`} target="_blank" rel="noopener noreferrer"
                 className="flowfi-mono"
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                 {circleWalletInfo.address.slice(0, 6)}...{circleWalletInfo.address.slice(-4)}
               </a>
               <button onClick={() => { setCirclePrimary(false); setCircleWalletInfo(null); setTab("home"); }} title="Disconnect"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
-                <Power size={15} />
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
+                <Power size={14} />
               </button>
             </>
           ) : (
