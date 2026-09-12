@@ -40,6 +40,14 @@ export const POOL_FACTORY_V4B = "0xa42c3bDcd385350880165120fE7E72e43733f70B" as 
 /** The current pool factory — use this one for anything new. */
 export const POOL_FACTORY_V4C = "0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0" as `0x${string}`;
 
+// ---- Launch pool factory (ArcLaunchPoolFactory.sol) ----
+// Permissionless, but scoped: only allows creating a (token, USDC) pool
+// when the token was genuinely minted through Token Factory below (checked
+// on-chain via its launchedAt() view, not just trusted). Has no owner at
+// all, by design — see contracts/README.md and SECURITY.md. Not yet
+// independently reviewed the way the contracts above were.
+export const LAUNCH_POOL_FACTORY = "0xc72cbFcCf1fB4D84436Db3D8a641d058E53f5c1c" as `0x${string}`;
+
 // ---- Curated pool instances (deployed by ArcFactoryV2 v4c) ----
 export const POOL_USDC_EURC = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`;
 export const POOL_USDC_CIRBTC = "0x954A5D017C9C18c27572df1644D974cB30e201Ac" as `0x${string}`;
