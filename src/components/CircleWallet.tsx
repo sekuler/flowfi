@@ -16,32 +16,6 @@ export default function CircleWallet() {
   const [balances, setBalances] = useState<{ usdc: string; eurc: string; cirbtc: string } | null>(null);
   const [loadingBalances, setLoadingBalances] = useState(false);
 
-  const [showRestore, setShowRestore] = useState(false);
-  const [pastWallets, setPastWallets] = useState<CircleWalletInfo[]>([]);
-  const [loadingPast, setLoadingPast] = useState(false);
-  const [hiddenAddresses, setHiddenAddresses] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("flowfi_circle_hidden_wallets") ?? "[]");
-    } catch {
-      return [];
-    }
-  });
-  const [showHidden, setShowHidden] = useState(false);
-
-  function hideWallet(addr: string, e: React.MouseEvent) {
-    e.stopPropagation();
-    const updated = [...hiddenAddresses, addr.toLowerCase()];
-    setHiddenAddresses(updated);
-    localStorage.setItem("flowfi_circle_hidden_wallets", JSON.stringify(updated));
-  }
-
-  function unhideWallet(addr: string, e: React.MouseEvent) {
-    e.stopPropagation();
-    const updated = hiddenAddresses.filter((a) => a !== addr.toLowerCase());
-    setHiddenAddresses(updated);
-    localStorage.setItem("flowfi_circle_hidden_wallets", JSON.stringify(updated));
-  }
-
   useEffect(() => {
     setWallet(getCircleWallet());
   }, []);
@@ -107,33 +81,6 @@ export default function CircleWallet() {
     setBalances(null);
   }
 
-  async function loadPastWallets() {
-    setLoadingPast(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/circle-wallet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "listWallets" }),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error ?? "Failed to load past wallets.");
-      setPastWallets(data.wallets);
-      setShowRestore(true);
-    } catch (e: unknown) {
-      const err = e as { message?: string };
-      setError(err.message ?? "Failed to load past wallets.");
-    } finally {
-      setLoadingPast(false);
-    }
-  }
-
-  function restoreWallet(w: CircleWalletInfo) {
-    setWallet(w);
-    saveCircleWallet(w);
-    setShowRestore(false);
-  }
-
   const chainList = wallet ? Object.keys(wallet.walletsByChain) : [];
 
   return (
@@ -145,7 +92,7 @@ export default function CircleWallet() {
       </div>
 
       <div style={{ background: "#ffffff", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-        {!wallet && !showRestore && (
+        {!wallet && (
           <>
             <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>
               Create a Circle-managed wallet in one click. No extension, no private key to store. This wallet is yours — it stays linked to your browser, works across four testnets, and holds real testnet balances.
@@ -155,56 +102,13 @@ export default function CircleWallet() {
               style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
               {loading ? "Creating wallet..." : "Create Circle Wallet"}
             </button>
-            <button onClick={loadPastWallets} disabled={loadingPast}
-              style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "#f5f3ff", color: "#5B21B6", fontSize: 13, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
-              {loadingPast ? "Loading..." : "Restore a previous wallet"}
-            </button>
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0, textAlign: "center" }}>
+              This wallet is tied to this browser only — clearing site data or switching browsers loses access to it. Account-based recovery is planned for later.
+            </p>
           </>
         )}
 
-        {showRestore && (
-          <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Pick a wallet to restore:</p>
-              <button onClick={() => setShowRestore(false)} style={{ background: "none", border: "none", color: "#4B5563", fontSize: 12, cursor: "pointer" }}>Cancel</button>
-            </div>
-            {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
-            {pastWallets.length === 0 && <p style={{ fontSize: 12, color: "#374151" }}>No previous wallets found.</p>}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
-              {pastWallets.filter((w) => showHidden || !hiddenAddresses.includes(w.address.toLowerCase())).map((w) => {
-                const isHidden = hiddenAddresses.includes(w.address.toLowerCase());
-                return (
-                  <div key={w.address} style={{ display: "flex", alignItems: "center", gap: 6, opacity: isHidden ? 0.4 : 1 }}>
-                    <button onClick={() => restoreWallet(w)}
-                      style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, textAlign: "left", padding: "0.75rem 0.9rem", borderRadius: 12, border: "none", background: "#f5f3ff", cursor: "pointer" }}>
-                      <span style={{ fontSize: 12, color: "#111827", fontFamily: "ui-monospace, monospace" }}>{w.address}</span>
-                      <span style={{ fontSize: 11, color: "#4B5563" }}>{Object.keys(w.walletsByChain).length} chain(s){isHidden ? " · hidden" : ""}</span>
-                    </button>
-                    {isHidden ? (
-                      <button onClick={(e) => unhideWallet(w.address, e)} title="Unhide"
-                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#f5f3ff", color: "#5B21B6", fontSize: 13, cursor: "pointer" }}>
-                        ↺
-                      </button>
-                    ) : (
-                      <button onClick={(e) => hideWallet(w.address, e)} title="Hide from this list"
-                        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: "none", background: "#f5f3ff", color: "#4B5563", fontSize: 14, cursor: "pointer" }}>
-                        ×
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {hiddenAddresses.length > 0 && (
-              <button onClick={() => setShowHidden(!showHidden)}
-                style={{ background: "none", border: "none", color: "#4B5563", fontSize: 11, cursor: "pointer", padding: 0, alignSelf: "flex-start" }}>
-                {showHidden ? "Hide hidden wallets" : `Show ${hiddenAddresses.length} hidden wallet(s)`}
-              </button>
-            )}
-          </>
-        )}
-
-        {wallet && !showRestore && (
+        {wallet && (
           <>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <p style={{ fontSize: 14, color: "#16A34A", fontWeight: 700, margin: 0 }}>This is your wallet</p>
@@ -260,10 +164,6 @@ export default function CircleWallet() {
             <button onClick={forgetWallet}
               style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#4B5563", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
               Create Another
-            </button>
-            <button onClick={loadPastWallets} disabled={loadingPast}
-              style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "none", background: "transparent", color: "#5B21B6", fontSize: 12, fontWeight: 600, cursor: loadingPast ? "not-allowed" : "pointer" }}>
-              {loadingPast ? "Loading..." : "Switch to a previous wallet"}
             </button>
           </>
         )}
