@@ -8,11 +8,8 @@ import { getFormattedMarketAnalysis } from "../marketData";
 import { addPoints } from "../gamification";
 import { setPendingFollowUp } from "../pendingFollowUp";
 import { computeMemoryInsight } from "../memory";
+import { USDC_ADDRESS, EURC_ADDRESS, CCTP_TOKEN_MESSENGER as TOKEN_MESSENGER, POOL_USDC_EURC as POOL_ADDRESS } from "../contracts";
 
-const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
-const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-
-const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
 const DOMAIN_BY_CHAIN: Record<string, number> = {
   "Ethereum Sepolia": 0,
   "Arbitrum Sepolia": 3,
@@ -101,7 +98,8 @@ function bytes32Address(addr: string): `0x${string}` {
   return `0x000000000000000000000000${addr.slice(2)}` as `0x${string}`;
 }
 
-const POOL_ADDRESS = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`; // ArcFactoryV2 v4c — USDC/EURC pool (tokenA=USDC, tokenB=EURC); replaces the retired ArcSwap contract
+
+
 const SWAP_ABI = [
   { type: "function", name: "swap", stateMutability: "nonpayable", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }, { name: "minAmountOut", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
   { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },

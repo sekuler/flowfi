@@ -3,6 +3,7 @@ import { HelpCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getCircleWallet, type CircleWalletInfo } from "../circleWalletHelpers";
 import { contactNameFor } from "../contacts";
+import { USDC_ADDRESS, EURC_ADDRESS } from "../contracts";
 
 interface Tx {
   hash: string;
@@ -19,8 +20,8 @@ interface Props {
 }
 
 const KNOWN_TOKENS: Record<string, string> = {
-  "0x3600000000000000000000000000000000000000": "USDC",
-  "0x89b50855aa3be2f677cd6303cec089b5f319d72a": "EURC",
+  [USDC_ADDRESS.toLowerCase()]: "USDC",
+  [EURC_ADDRESS.toLowerCase()]: "EURC",
 };
 
 const METHOD_META: Record<string, { label: string; color: string }> = {

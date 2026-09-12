@@ -3,8 +3,7 @@ import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { Repeat, Droplet, ArrowRight as ArrowRightIcon } from "lucide-react";
-
-const POOL_USDC_EURC = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`; // ArcFactoryV2 v4c — real curated pool, replaces the retired ArcSwap + unrelated legacy AMM
+import { POOL_USDC_EURC } from "../contracts";
 
 const POOL_GET_RESERVES_ABI = [
   { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },

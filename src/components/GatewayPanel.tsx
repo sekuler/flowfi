@@ -18,6 +18,7 @@ import {
   getUnifiedGatewayBalance,
   type GatewayChainKey,
 } from "../gatewayHelpers";
+import { CHAINS as BRIDGE_CHAINS } from "./BridgeForm";
 
 const CIRCLE_CHAIN_FOR: Record<GatewayChainKey, CircleChain> = {
   "Arc Testnet": "ARC-TESTNET",
@@ -26,11 +27,14 @@ const CIRCLE_CHAIN_FOR: Record<GatewayChainKey, CircleChain> = {
   "Arbitrum Sepolia": "ARB-SEPOLIA",
 };
 
+// Same source as BridgeForm.tsx and UnifiedBalance.tsx — was previously an
+// independent copy here, a third place this exact set of addresses could
+// silently drift out of sync.
 const CHAIN_USDC: Record<GatewayChainKey, `0x${string}`> = {
-  "Arc Testnet": "0x3600000000000000000000000000000000000000",
-  "Ethereum Sepolia": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
-  "Base Sepolia": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-  "Arbitrum Sepolia": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+  "Arc Testnet": BRIDGE_CHAINS["Arc Testnet"].usdc,
+  "Ethereum Sepolia": BRIDGE_CHAINS["Ethereum Sepolia"].usdc,
+  "Base Sepolia": BRIDGE_CHAINS["Base Sepolia"].usdc,
+  "Arbitrum Sepolia": BRIDGE_CHAINS["Arbitrum Sepolia"].usdc,
 };
 
 const CHAIN_OBJECT = {

@@ -7,9 +7,10 @@
 // supported EVM testnet (Arc, Ethereum Sepolia, Base Sepolia, Arbitrum
 // Sepolia, etc.) — confirmed via GET /v1/info.
 
+import { GATEWAY_WALLET_ADDRESS, GATEWAY_MINTER_ADDRESS } from "./contracts";
+export { GATEWAY_WALLET_ADDRESS, GATEWAY_MINTER_ADDRESS };
+
 export const GATEWAY_API_BASE = "https://gateway-api-testnet.circle.com";
-export const GATEWAY_WALLET_ADDRESS = "0x0077777d7EBA4688BDeF3E311b846F25870A19B9" as `0x${string}`;
-export const GATEWAY_MINTER_ADDRESS = "0x0022222ABE238Cc2C7Bb1f21003F0a260052475B" as `0x${string}`;
 
 // Same domain IDs as CCTP — Gateway reuses them.
 export const GATEWAY_DOMAINS = {

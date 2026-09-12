@@ -39,9 +39,7 @@ import {
 // Real curated v4c pools — replaces the old stat that summed ArcSwap's
 // balance (now retired) and a legacy AMM's balance, neither of which
 // reflects what FlowFi actually curates today.
-const POOL_USDC_EURC = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`;
-const POOL_USDC_CIRBTC = "0x954A5D017C9C18c27572df1644D974cB30e201Ac" as `0x${string}`;
-const POOL_EURC_CIRBTC = "0x1c80D206e692A5faf2E918693A88cFA48426F39b" as `0x${string}`;
+import { POOL_USDC_EURC, POOL_USDC_CIRBTC, POOL_EURC_CIRBTC } from "../contracts";
 const POOL_GET_RESERVES_ABI = [
   { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
 ] as const;

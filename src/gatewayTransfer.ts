@@ -1,4 +1,6 @@
 import { pad, type Address } from "viem";
+import { GATEWAY_WALLET_ADDRESS, GATEWAY_MINTER_ADDRESS } from "./contracts";
+export { GATEWAY_WALLET_ADDRESS, GATEWAY_MINTER_ADDRESS };
 
 // Circle Gateway instant transfer (<500ms) — burn on source, mint on
 // destination, without waiting for source-chain finality.
@@ -11,8 +13,8 @@ import { pad, type Address } from "viem";
 // types, ordering, or omitting fields produces invalid signatures."
 // Do not "clean up" or reorder anything below.
 
-export const GATEWAY_WALLET_ADDRESS = "0x0077777d7EBA4688BDeF3E311b846F25870A19B9" as const;
-export const GATEWAY_MINTER_ADDRESS = "0x0022222ABE238Cc2C7Bb1f21003F0a260052475B" as const;
+
+
 export const GATEWAY_TRANSFER_API = "https://gateway-api-testnet.circle.com/v1/transfer";
 
 // Chain-agnostic EIP-712 domain — deliberately has no chainId/verifyingContract,
