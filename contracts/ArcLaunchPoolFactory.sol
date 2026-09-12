@@ -76,9 +76,44 @@ contract ArcPool {
         factory = msg.sender;
     }
 
-    function addLiquidity(uint256 amountA, uint256 amountB, uint256 deadline) external nonReentrant returns (uint256 mintedShares) {
+    // v2 change (matches ArcFactoryV2 v4c's own addLiquidity, per the real
+    // interface already used successfully against live v4c pools elsewhere
+    // in this app — LiquidityPools.tsx's V4C_POOL_ABI): takes desired +
+    // minimum amounts on both sides (standard Uniswap V2 Router pattern)
+    // and pulls only the ratio-matching amount instead of the full desired
+    // amount, so excess tokens are never silently donated to the pool.
+    // This is NOT the same signature as ArcFactoryV2_v4.sol's addLiquidity
+    // (amountA, amountB, deadline — 3 args) — ArcTokenFactoryV2's
+    // lockLaunchLiquidity() calls the 5-arg version below specifically,
+    // confirmed by decoding the exact selector (0xa360501c) it sent from a
+    // live reverted transaction. An earlier version of this file copied
+    // the 3-arg v4 signature by mistake, which made every pool created by
+    // this factory permanently un-lockable — lockLaunchLiquidity would
+    // revert every time, with no funds moved, since the pool had no
+    // function matching what it was calling.
+    function addLiquidity(uint256 amountADesired, uint256 amountBDesired, uint256 amountAMin, uint256 amountBMin, uint256 deadline) external nonReentrant returns (uint256 mintedShares) {
         require(block.timestamp <= deadline, "Transaction expired");
-        require(amountA > 0 && amountB > 0, "Amounts must be > 0");
+
+        uint256 amountA;
+        uint256 amountB;
+        if (totalShares == 0) {
+            require(amountADesired > 0 && amountBDesired > 0, "Amounts must be > 0");
+            amountA = amountADesired;
+            amountB = amountBDesired;
+        } else {
+            uint256 amountBOptimal = (amountADesired * reserveB) / reserveA;
+            if (amountBOptimal <= amountBDesired) {
+                require(amountBOptimal >= amountBMin, "Insufficient B amount");
+                amountA = amountADesired;
+                amountB = amountBOptimal;
+            } else {
+                uint256 amountAOptimal = (amountBDesired * reserveA) / reserveB;
+                require(amountAOptimal <= amountADesired, "Excessive A amount");
+                require(amountAOptimal >= amountAMin, "Insufficient A amount");
+                amountA = amountAOptimal;
+                amountB = amountBDesired;
+            }
+        }
 
         uint256 balanceABefore = IERC20(tokenA).balanceOf(address(this));
         uint256 balanceBBefore = IERC20(tokenB).balanceOf(address(this));

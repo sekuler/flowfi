@@ -120,7 +120,7 @@ Every `onlyOwner` contract below (all four Pool Factory versions, plus Swap v5) 
 | Pool Factory v4 *(legacy — superseded by v4b, then v4c; kept scanned only so liquidity still sitting in these pools stays visible/withdrawable)* | `0x57B451D60F09222C2bb6c828FFE3703069A532Ed` |
 | Pool Factory v4b *(legacy — same reasoning as v4)* | `0xa42c3bDcd385350880165120fE7E72e43733f70B` |
 | Pool Factory v4c *(current — this is where new pools actually get created; addLiquidity gained slippage protection over v4/v4b)* | `0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0` |
-| Launch Pool Factory *(permissionless, but only for tokens minted through Token Factory below, paired with USDC — see [`contracts/README.md`](./contracts/README.md); not yet independently reviewed)* | `0xc72cbFcCf1fB4D84436Db3D8a641d058E53f5c1c` |
+| Launch Pool Factory *(permissionless, but only for tokens minted through Token Factory below, paired with USDC — see [`contracts/README.md`](./contracts/README.md); not yet independently reviewed)* | `0x2b3B2E69C14DA2558E3ce6e2d58c04b2147E5ec0` |
 | Escrow v4 *(deployed and verified, not yet wired to the app)* | `0xDDDe5a4E691F6ce6826CB85F09466E799FCFabfB` |
 | Token Factory (v2) | `0x1Fe800a2663988C043e4a9A393651f18Cd49D998` |
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
