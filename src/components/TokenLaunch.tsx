@@ -10,7 +10,7 @@ import { showToast } from "../toast";
 // separately) -> lockLaunchLiquidity. POOL_FACTORY_V4C is the current
 // curated-pool factory, used only to check whether a pool exists yet for a
 // launched token.
-import { TOKEN_FACTORY, USDC_ADDRESS, POOL_FACTORY_V4C } from "../contracts";
+import { TOKEN_FACTORY, USDC_ADDRESS, POOL_FACTORY_V4C, LAUNCH_POOL_FACTORY } from "../contracts";
 
 const TOKEN_FACTORY_ABI = [
   { type: "function", name: "launchToken", stateMutability: "nonpayable", inputs: [{ name: "name", type: "string" }, { name: "symbol", type: "string" }, { name: "supply", type: "uint256" }], outputs: [{ name: "token", type: "address" }] },
@@ -24,6 +24,14 @@ const TOKEN_FACTORY_ABI = [
 
 const POOL_FACTORY_ABI = [
   { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
+] as const;
+
+// ArcLaunchPoolFactory — permissionless pool creation, scoped to tokens
+// actually minted through Token Factory. getPool() here takes just the
+// token (USDC is implicit), unlike POOL_FACTORY_ABI's two-token version.
+const LAUNCH_POOL_FACTORY_ABI = [
+  { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
+  { type: "function", name: "createLaunchPool", stateMutability: "nonpayable", inputs: [{ name: "token", type: "address" }], outputs: [{ name: "pool", type: "address" }] },
 ] as const;
 
 // Every pool created by ArcFactoryV2 exposes these — used here just to get
@@ -274,7 +282,7 @@ export default function TokenLaunch({ provider, address }: Props) {
   const [state, setState] = useState<"idle" | "processing" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const [lockState, setLockState] = useState<"idle" | "checking" | "no-pool" | "ready" | "locking" | "locked">("idle");
+  const [lockState, setLockState] = useState<"idle" | "checking" | "no-pool" | "creating-pool" | "ready" | "locking" | "locked">("idle");
   const [lockPoolAddress, setLockPoolAddress] = useState<`0x${string}` | null>(null);
   const [lockTokenAmount, setLockTokenAmount] = useState("");
   const [lockUsdcAmount, setLockUsdcAmount] = useState("");
@@ -455,10 +463,11 @@ export default function TokenLaunch({ provider, address }: Props) {
     }
   }
 
-  // After launch, check whether a pool exists yet for this token (owner
-  // creates it separately, via the Pools page — see the contract's top
-  // comment for why). If one exists and liquidity hasn't been locked yet,
-  // the creator can lock it below.
+  // After launch, check whether a pool exists yet for this token. Two ways
+  // one can exist: FlowFi's curated factory (v4c — owner-created, legacy
+  // path), or ArcLaunchPoolFactory (permissionless — the creator can open
+  // it themselves below, no owner approval needed). If one exists and
+  // liquidity hasn't been locked yet, the creator can lock it below.
   useEffect(() => {
     if (flowStep !== "created" || !newTokenAddress) { setLockState("idle"); return; }
     async function checkPool() {
@@ -470,12 +479,18 @@ export default function TokenLaunch({ provider, address }: Props) {
           setLockState("locked");
           return;
         }
-        const poolAddr = await client.readContract({ address: POOL_FACTORY_V4C, abi: POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS] });
-        if (poolAddr === "0x0000000000000000000000000000000000000000") {
-          setLockState("no-pool");
-        } else {
-          setLockPoolAddress(poolAddr);
+        const curatedPool = await client.readContract({ address: POOL_FACTORY_V4C, abi: POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS] });
+        if (curatedPool !== "0x0000000000000000000000000000000000000000") {
+          setLockPoolAddress(curatedPool);
           setLockState("ready");
+          return;
+        }
+        const launchPool = await client.readContract({ address: LAUNCH_POOL_FACTORY, abi: LAUNCH_POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`] });
+        if (launchPool !== "0x0000000000000000000000000000000000000000") {
+          setLockPoolAddress(launchPool);
+          setLockState("ready");
+        } else {
+          setLockState("no-pool");
         }
       } catch {
         setLockState("no-pool");
@@ -483,6 +498,31 @@ export default function TokenLaunch({ provider, address }: Props) {
     }
     checkPool();
   }, [flowStep, newTokenAddress]);
+
+  // Permissionless — the creator opens their own pool instead of waiting
+  // for FlowFi to do it. Only works because ArcLaunchPoolFactory itself
+  // verifies on-chain that this token was really minted through Token
+  // Factory (see the contract's own comments) — this call can't be used to
+  // spin up a pool for an arbitrary/unrelated token.
+  async function doCreateLaunchPool() {
+    if (!newTokenAddress) return;
+    setLockState("creating-pool");
+    try {
+      await switchToArc(provider);
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
+      const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const hash = await wc.writeContract({ address: LAUNCH_POOL_FACTORY, abi: LAUNCH_POOL_FACTORY_ABI, functionName: "createLaunchPool", args: [newTokenAddress as `0x${string}`], account: address as `0x${string}` });
+      await waitForSuccess(publicClient, hash);
+      const pool = await publicClient.readContract({ address: LAUNCH_POOL_FACTORY, abi: LAUNCH_POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`] });
+      setLockPoolAddress(pool);
+      setLockState("ready");
+      showToast("Pool created", "success");
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      showToast(err.message ?? "Failed to create pool.", "error");
+      setLockState("no-pool");
+    }
+  }
 
   async function doLockLiquidity() {
     if (!newTokenAddress || !lockPoolAddress) return;
@@ -642,9 +682,13 @@ export default function TokenLaunch({ provider, address }: Props) {
           {lockState === "checking" && (
             <div style={{ marginTop: 16, fontSize: 12, color: "#6B7280" }}>Checking whether a trading pool exists yet...</div>
           )}
-          {lockState === "no-pool" && (
-            <div style={{ marginTop: 16, background: "rgba(109,94,247,0.08)", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 12, color: "#5B21B6" }}>
-              No trading pool yet for {newTokenSymbol}. Once the FlowFi team creates one, come back here to permanently lock your launch liquidity.
+          {(lockState === "no-pool" || lockState === "creating-pool") && (
+            <div style={{ marginTop: 16, background: "rgba(109,94,247,0.08)", borderRadius: 10, padding: "0.75rem 1rem", display: "flex", flexDirection: "column", gap: 8 }}>
+              <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>No trading pool yet for {newTokenSymbol}. Open one yourself — no approval needed, since {newTokenSymbol} was launched here.</p>
+              <button onClick={doCreateLaunchPool} disabled={lockState === "creating-pool"}
+                style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "#7c3aed", color: "#fff", fontSize: 13, fontWeight: 700, cursor: lockState === "creating-pool" ? "not-allowed" : "pointer", opacity: lockState === "creating-pool" ? 0.6 : 1 }}>
+                {lockState === "creating-pool" ? "Creating pool..." : "Create your pool now"}
+              </button>
             </div>
           )}
           {lockState === "locked" && (
