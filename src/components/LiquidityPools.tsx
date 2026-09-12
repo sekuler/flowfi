@@ -7,21 +7,22 @@ import { TokenIcon } from "./TokenIcon";
 import { TrendingUp, Droplet, BarChart3, RefreshCw, type LucideIcon } from "lucide-react";
 import { showToast } from "../toast";
 import { waitForSuccess } from "../txHelpers";
+import { POOL_FACTORY_V2, POOL_FACTORY_V3, POOL_FACTORY_V4, POOL_FACTORY_V4B, POOL_FACTORY_V4C, USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, ARCC_ADDRESS, CIRBTC_ADDRESS } from "../contracts";
 
-const FACTORY_CONTRACT = "0x23782643650D73b2Bb145B9145D62D743bF25CB0" as `0x${string}`; // ArcFactoryV2 v2 — legacy, pools created here keep working, no new pools go here
-const FACTORY_CONTRACT_V3 = "0x5ee0c6cc6879728a4835826D87b28702f8993559" as `0x${string}`; // ArcFactoryV2 v3 — legacy, same reasoning as v2 (superseded by v4 for new pools)
-const FACTORY_CONTRACT_V4 = "0x57B451D60F09222C2bb6c828FFE3703069A532Ed" as `0x${string}`; // ArcFactoryV2 v4 (original) — legacy now, kept scanned only so real liquidity still sitting in these pools stays visible/withdrawable until it's migrated to v4b
-const FACTORY_CONTRACT_V4B = "0xa42c3bDcd385350880165120fE7E72e43733f70B" as `0x${string}`; // ArcFactoryV2 v4b — legacy now, kept scanned only so any liquidity in these pools stays visible/withdrawable
-const FACTORY_CONTRACT_V4C = "0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0" as `0x${string}`; // ArcFactoryV2 v4c — addLiquidity now takes amountAMin/amountBMin (slippage protection) and pulls only the ratio-matching amount instead of the full desired amount (no more silent excess donation); this is the current factory for anything new
+const FACTORY_CONTRACT = POOL_FACTORY_V2; // legacy, pools created here keep working, no new pools go here
+const FACTORY_CONTRACT_V3 = POOL_FACTORY_V3; // legacy, same reasoning as v2 (superseded by v4 for new pools)
+const FACTORY_CONTRACT_V4 = POOL_FACTORY_V4; // legacy now, kept scanned only so real liquidity still sitting in these pools stays visible/withdrawable until it's migrated to v4b
+const FACTORY_CONTRACT_V4B = POOL_FACTORY_V4B; // legacy now, kept scanned only so any liquidity in these pools stays visible/withdrawable
+const FACTORY_CONTRACT_V4C = POOL_FACTORY_V4C; // addLiquidity now takes amountAMin/amountBMin (slippage protection) and pulls only the ratio-matching amount instead of the full desired amount (no more silent excess donation); this is the current factory for anything new
 const LEGACY_AMM_CONTRACT = "0x01ddb4902e2F22f6124Ec685540C424d1BB75E0C" as `0x${string}`;
 const STABLE_SYMBOLS = new Set(["USDC", "EURC", "USYC"]);
 
 const KNOWN_TOKENS: { symbol: string; address: `0x${string}`; color: string }[] = [
-  { symbol: "USDC", address: "0x3600000000000000000000000000000000000000", color: "#2563eb" },
-  { symbol: "EURC", address: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", color: "#7c3aed" },
-  { symbol: "USYC", address: "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C", color: "#f59e0b" },
-  { symbol: "ARCC", address: "0x215D82093892AA24b2901aeb4fcCca933346De18", color: "#10b981" },
-  { symbol: "cirBTC", address: "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF", color: "#f97316" },
+  { symbol: "USDC", address: USDC_ADDRESS, color: "#2563eb" },
+  { symbol: "EURC", address: EURC_ADDRESS, color: "#7c3aed" },
+  { symbol: "USYC", address: USYC_ADDRESS, color: "#f59e0b" },
+  { symbol: "ARCC", address: ARCC_ADDRESS, color: "#10b981" },
+  { symbol: "cirBTC", address: CIRBTC_ADDRESS, color: "#f97316" },
 ];
 
 // The only pairs FlowFi actually curates and shows on the Pools page —
@@ -29,18 +30,18 @@ const KNOWN_TOKENS: { symbol: string; address: `0x${string}`; color: string }[] 
 // before v4 locked createPool down to onlyOwner) is real on-chain data,
 // just not something we surface in this UI.
 const CURATED_PAIR_LIST: readonly [`0x${string}`, `0x${string}`][] = [
-  ["0x3600000000000000000000000000000000000000", "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a"], // USDC/EURC
-  ["0x3600000000000000000000000000000000000000", "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF"], // USDC/cirBTC
-  ["0x3600000000000000000000000000000000000000", "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C"], // USDC/USYC
-  ["0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C"], // EURC/USYC
-  ["0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF"], // EURC/cirBTC
+  [USDC_ADDRESS, EURC_ADDRESS], // USDC/EURC
+  [USDC_ADDRESS, CIRBTC_ADDRESS], // USDC/cirBTC
+  [USDC_ADDRESS, USYC_ADDRESS], // USDC/USYC
+  [EURC_ADDRESS, USYC_ADDRESS], // EURC/USYC
+  [EURC_ADDRESS, CIRBTC_ADDRESS], // EURC/cirBTC
 ];
 const CURATED_PAIRS = new Set([
-  ["0x3600000000000000000000000000000000000000", "0x89b50855aa3be2f677cd6303cec089b5f319d72a"].sort().join("_"), // USDC/EURC
-  ["0x3600000000000000000000000000000000000000", "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf"].sort().join("_"), // USDC/cirBTC
-  ["0x3600000000000000000000000000000000000000", "0xe9185f0c5f296ed1797aae4238d26ccabeadb86c"].sort().join("_"), // USDC/USYC
-  ["0x89b50855aa3be2f677cd6303cec089b5f319d72a", "0xe9185f0c5f296ed1797aae4238d26ccabeadb86c"].sort().join("_"), // EURC/USYC
-  ["0x89b50855aa3be2f677cd6303cec089b5f319d72a", "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf"].sort().join("_"), // EURC/cirBTC
+  [USDC_ADDRESS.toLowerCase(), EURC_ADDRESS.toLowerCase()].sort().join("_"), // USDC/EURC
+  [USDC_ADDRESS.toLowerCase(), CIRBTC_ADDRESS.toLowerCase()].sort().join("_"), // USDC/cirBTC
+  [USDC_ADDRESS.toLowerCase(), USYC_ADDRESS.toLowerCase()].sort().join("_"), // USDC/USYC
+  [EURC_ADDRESS.toLowerCase(), USYC_ADDRESS.toLowerCase()].sort().join("_"), // EURC/USYC
+  [EURC_ADDRESS.toLowerCase(), CIRBTC_ADDRESS.toLowerCase()].sort().join("_"), // EURC/cirBTC
 ]);
 function isCuratedPair(addrA: string, addrB: string): boolean {
   return CURATED_PAIRS.has([addrA.toLowerCase(), addrB.toLowerCase()].sort().join("_"));
@@ -189,8 +190,6 @@ async function resolveTokenSymbol(addr: string, client: ReturnType<typeof create
   }
 }
 
-const CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
-
 function tokenDecimalsSync(addr: string): number {
   // Arc's USDC has a documented dual-interface quirk: the native/gas
   // representation (eth_getBalance) uses 18 decimals, while the ERC-20
@@ -201,7 +200,7 @@ function tokenDecimalsSync(addr: string): number {
   // any risk of ever reading the native representation's value by mistake,
   // rather than trusting a decimals() call to always land on the right
   // interface.
-  if (addr.toLowerCase() === "0x3600000000000000000000000000000000000000") return 6;
+  if (addr.toLowerCase() === USDC_ADDRESS.toLowerCase()) return 6;
   // Best-guess used only until the real on-chain decimals() resolves (see resolveTokenDecimals
   // below, which is authoritative and always queries the chain — never trust this alone).
   if (addr.toLowerCase() === CIRBTC_ADDRESS.toLowerCase()) return 8; // BTC convention, matches CircleWallet.tsx
@@ -211,7 +210,7 @@ function tokenDecimalsSync(addr: string): number {
 
 async function resolveTokenDecimals(addr: string, client: ReturnType<typeof createPublicClient>): Promise<number> {
   // USDC is hardcoded, never queried — see the note in tokenDecimalsSync above.
-  if (addr.toLowerCase() === "0x3600000000000000000000000000000000000000") return 6;
+  if (addr.toLowerCase() === USDC_ADDRESS.toLowerCase()) return 6;
   // Always ask the contract directly — don't shortcut based on KNOWN_TOKENS membership.
   // A wrong assumption here (e.g. cirBTC previously assumed 6 like the other Circle assets,
   // when CircleWallet.tsx elsewhere correctly treats it as 8) silently breaks reserve display,

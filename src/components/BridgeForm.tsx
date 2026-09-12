@@ -35,9 +35,7 @@ import ConfirmModal from "./ConfirmModal";
 import { useIsMobile } from "../useIsMobile";
 import { getCircleWallet, circleContractCallAndWait, getWalletIdForChain, type CircleWalletInfo, type CircleChain } from "../circleWalletHelpers";
 import { ShieldCheck, Zap, Globe, ChevronDown, ArrowDownUp, ArrowRight, BookOpen, Wallet, CircleDollarSign } from "lucide-react";
-
-const TOKEN_MESSENGER = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa" as `0x${string}`;
-const MESSAGE_TRANSMITTER = "0xe737e5cebeeba77efe34d4aa090756590b1ce275" as `0x${string}`;
+import { CCTP_TOKEN_MESSENGER as TOKEN_MESSENGER, CCTP_MESSAGE_TRANSMITTER as MESSAGE_TRANSMITTER, USDC_ADDRESS, EURC_ADDRESS } from "../contracts";
 
 // EURC (and other non-USDC assets) don't move through the canonical TokenMessengerV2.depositForBurn
 // path at all — that's USDC-only. They go through a separate Circle product, "CCTPx" (Expanded
@@ -139,8 +137,8 @@ async function checkCctpxFastAllowance(tokenId: `0x${string}`, amountUnits: bigi
   }
 }
 
-const CHAINS = {
-  "Arc Testnet": { chain: arcTestnet, domain: 26, usdc: "0x3600000000000000000000000000000000000000" as `0x${string}`, eurc: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}` | null, chainIdHex: ARC_CHAIN_ID_HEX, isArc: true, circleChain: "ARC-TESTNET" as CircleChain, dot: "#6D5EF7" },
+export const CHAINS = {
+  "Arc Testnet": { chain: arcTestnet, domain: 26, usdc: USDC_ADDRESS, eurc: EURC_ADDRESS as `0x${string}` | null, chainIdHex: ARC_CHAIN_ID_HEX, isArc: true, circleChain: "ARC-TESTNET" as CircleChain, dot: "#6D5EF7" },
   "Ethereum Sepolia": { chain: sepoliaReliable, domain: 0, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, eurc: "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4" as `0x${string}` | null, chainIdHex: "0xaa36a7", isArc: false, circleChain: "ETH-SEPOLIA" as CircleChain, dot: "#627eea" },
   "Base Sepolia": { chain: baseSepoliaReliable, domain: 6, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, eurc: "0x808456652fdb597867f38412077A9182bf77359F" as `0x${string}` | null, chainIdHex: "0x14a34", isArc: false, circleChain: "BASE-SEPOLIA" as CircleChain, dot: "#0052ff" },
   "Arbitrum Sepolia": { chain: arbitrumSepoliaReliable, domain: 3, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, eurc: null as `0x${string}` | null, chainIdHex: "0x66eee", isArc: false, circleChain: "ARB-SEPOLIA" as CircleChain, dot: "#28a0f0" },

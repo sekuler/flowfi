@@ -23,11 +23,12 @@ export const arcTestnet = defineChain({
   testnet: true,
 });
 
-export const USDC_ADDRESS_SEPOLIA =
-  "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" as const;
-
-export const ARC_USDC_ADDRESS =
-  "0x3600000000000000000000000000000000000000" as const;
+// Note: token/contract addresses live in src/contracts.ts, not here — this
+// file is chain *definitions* only. USDC_ADDRESS_SEPOLIA and
+// ARC_USDC_ADDRESS used to live here too but were dead exports (nothing
+// imported them; every component just redeclared its own local copy
+// instead), which is exactly the kind of drift src/contracts.ts now exists
+// to prevent.
 
 export const SEPOLIA_CHAIN_ID = 11155111;
 export const ARC_TESTNET_CHAIN_ID = 5042002;

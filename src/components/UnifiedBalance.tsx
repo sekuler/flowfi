@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { sepolia, baseSepolia, arbitrumSepolia } from "viem/chains";
 import { arcTestnet } from "../chains";
+import { CHAINS as BRIDGE_CHAINS } from "./BridgeForm";
 
 interface Props {
   address: string;
@@ -14,11 +15,15 @@ interface ChainBalance {
   explorerTx: string;
 }
 
+// USDC addresses come from BridgeForm.tsx's CHAINS (the single source of
+// truth for these) rather than being redeclared here — this list used to
+// maintain its own independent copy, which is exactly the kind of drift
+// that let stale addresses linger unnoticed elsewhere in the app.
 const CHAINS = [
-  { name: "Arc Testnet", chain: arcTestnet, usdc: "0x3600000000000000000000000000000000000000" as `0x${string}`, color: "#6D5EF7", explorer: "https://testnet.arcscan.app/address/" },
-  { name: "Ethereum Sepolia", chain: sepolia, usdc: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as `0x${string}`, color: "#627eea", explorer: "https://sepolia.etherscan.io/address/" },
-  { name: "Base Sepolia", chain: baseSepolia, usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`, color: "#0052ff", explorer: "https://sepolia.basescan.org/address/" },
-  { name: "Arbitrum Sepolia", chain: arbitrumSepolia, usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`, color: "#28a0f0", explorer: "https://sepolia.arbiscan.io/address/" },
+  { name: "Arc Testnet", chain: arcTestnet, usdc: BRIDGE_CHAINS["Arc Testnet"].usdc, color: "#6D5EF7", explorer: "https://testnet.arcscan.app/address/" },
+  { name: "Ethereum Sepolia", chain: sepolia, usdc: BRIDGE_CHAINS["Ethereum Sepolia"].usdc, color: "#627eea", explorer: "https://sepolia.etherscan.io/address/" },
+  { name: "Base Sepolia", chain: baseSepolia, usdc: BRIDGE_CHAINS["Base Sepolia"].usdc, color: "#0052ff", explorer: "https://sepolia.basescan.org/address/" },
+  { name: "Arbitrum Sepolia", chain: arbitrumSepolia, usdc: BRIDGE_CHAINS["Arbitrum Sepolia"].usdc, color: "#28a0f0", explorer: "https://sepolia.arbiscan.io/address/" },
 ];
 
 export default function UnifiedBalance({ address }: Props) {

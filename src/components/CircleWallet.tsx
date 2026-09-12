@@ -3,10 +3,7 @@ import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
 import { getCircleWallet, saveCircleWallet, forgetCircleWallet, requestCircleWalletCode, verifyCircleWalletCode, type CircleWalletInfo } from "../circleWalletHelpers";
 import { useIsMobile } from "../useIsMobile";
-
-const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
-const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-const CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF" as `0x${string}`;
+import { USDC_ADDRESS, EURC_ADDRESS, CIRBTC_ADDRESS } from "../contracts";
 
 export default function CircleWallet() {
   const isMobile = useIsMobile();

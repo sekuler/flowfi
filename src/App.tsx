@@ -25,6 +25,7 @@ import { getPoints, getNickname, setNickname as saveNickname, clearNickname } fr
 import { getDCAPlan, isDCADue } from "./dca";
 import { getCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
 import { showToast } from "./toast";
+import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./contracts";
 import {
   Home, LayoutGrid, Repeat, Droplet,
   Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
@@ -53,16 +54,16 @@ interface RecentTx {
 
 type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet";
 
-const ARC_USDC = "0x3600000000000000000000000000000000000000" as `0x${string}`;
+const ARC_USDC = USDC_ADDRESS;
 // Guest mode (browsing Pools without a connected wallet) needs *something* to pass as
 // address/provider — a real zero address for read-only reserve/APR lookups, and a stub
 // provider whose request() always rejects, so if a guest somehow reaches an action button,
 // it fails cleanly with a clear message instead of crashing on a missing wallet.
 const GUEST_ADDRESS = "0x0000000000000000000000000000000000000000";
 const GUEST_PROVIDER = { request: async () => { throw new Error("Connect a wallet to do this."); } } as unknown as EIP1193Provider;
-const ARC_EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
-const ARC_USYC = "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" as `0x${string}`;
-const ARC_CIRBTC = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF" as `0x${string}`;
+const ARC_EURC = EURC_ADDRESS;
+const ARC_USYC = USYC_ADDRESS;
+const ARC_CIRBTC = CIRBTC_ADDRESS;
 
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
 const PORTFOLIO_TAB: { id: Tab; label: string; Icon: any } = { id: "portfolio", label: "Portfolio", Icon: LayoutGrid };

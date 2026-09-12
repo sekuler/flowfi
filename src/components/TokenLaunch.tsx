@@ -5,10 +5,12 @@ import { waitForSuccess } from "../txHelpers";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { showToast } from "../toast";
-
-const TOKEN_FACTORY = "0x1Fe800a2663988C043e4a9A393651f18Cd49D998" as `0x${string}`; // ArcTokenFactoryV2 — atomic launch is NOT possible (createPool stays owner-gated on purpose), so this is launch -> (owner creates pool separately) -> lockLaunchLiquidity
-const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
-const POOL_FACTORY_V4C = "0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0" as `0x${string}`; // current curated-pool factory — used only to check whether a pool exists yet for a launched token
+// ArcTokenFactoryV2 (TOKEN_FACTORY) — atomic launch is NOT possible (createPool
+// stays owner-gated on purpose), so this is launch -> (owner creates pool
+// separately) -> lockLaunchLiquidity. POOL_FACTORY_V4C is the current
+// curated-pool factory, used only to check whether a pool exists yet for a
+// launched token.
+import { TOKEN_FACTORY, USDC_ADDRESS, POOL_FACTORY_V4C } from "../contracts";
 
 const TOKEN_FACTORY_ABI = [
   { type: "function", name: "launchToken", stateMutability: "nonpayable", inputs: [{ name: "name", type: "string" }, { name: "symbol", type: "string" }, { name: "supply", type: "uint256" }], outputs: [{ name: "token", type: "address" }] },

@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
-
-// Same pool SwapForm.tsx quotes from — was pointing at the retired ArcSwap
-// contract independently, which is why this panel could show stale/wrong
-// liquidity numbers that didn't match the actual quote being given.
-const POOL_ADDRESS = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`; // ArcFactoryV2 v4c — USDC/EURC (tokenA=USDC, tokenB=EURC)
+import { POOL_USDC_EURC as POOL_ADDRESS } from "../contracts";
 
 const POOL_ABI = [
   { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },

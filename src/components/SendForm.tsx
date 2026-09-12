@@ -7,9 +7,8 @@ import { showToast } from "../toast";
 import { addPoints } from "../gamification";
 import QRScanner from "./QRScanner";
 import { loadContacts, saveContacts, type Contact } from "../contacts";
+import { USDC_ADDRESS, EURC_ADDRESS } from "../contracts";
 
-const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
-const EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as `0x${string}`;
 const TOKENS = ["USDC", "EURC"] as const;
 type Token = (typeof TOKENS)[number];
 const TOKEN_ADDRESSES: Record<Token, `0x${string}`> = { USDC: USDC_ADDRESS, EURC: EURC_ADDRESS };
