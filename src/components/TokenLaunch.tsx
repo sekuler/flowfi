@@ -68,6 +68,29 @@ interface LaunchedToken {
   creator: string;
 }
 
+// Cosmetic-only metadata (never touches the contract) — see api/token-metadata.js.
+interface TokenMetadata {
+  description: string;
+  xHandle: string;
+  telegram: string;
+  imageUrl: string;
+}
+
+async function fetchTokenMetadata(tokens: string[]): Promise<Record<string, TokenMetadata>> {
+  if (tokens.length === 0) return {};
+  try {
+    const res = await fetch("/api/token-metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "getMany", tokens }),
+    });
+    const data = await res.json();
+    return data.success ? data.metadata : {};
+  } catch {
+    return {}; // metadata is purely cosmetic — a failed fetch just means plainer cards, never an error the user sees
+  }
+}
+
 type FlowStep = "form" | "created";
 
 async function switchToArc(provider: EIP1193Provider) {
@@ -85,7 +108,7 @@ async function switchToArc(provider: EIP1193Provider) {
 // live price, and calls buyDuringLaunch() (approve + buy). This is the
 // function's first real caller anywhere in the app; before this it was
 // declared in the ABI but never invoked from any screen.
-function TokenBuyPanel({ token, provider, address }: { token: LaunchedToken; provider: EIP1193Provider; address: string }) {
+function TokenBuyPanel({ token, provider, address }: { token: { address: string; symbol: string }; provider: EIP1193Provider; address: string }) {
   const [open, setOpen] = useState(false);
   const [checking, setChecking] = useState(false);
   const [poolAddress, setPoolAddress] = useState<`0x${string}` | null | "none">(null);
@@ -241,6 +264,11 @@ export default function TokenLaunch({ provider, address }: Props) {
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [supply, setSupply] = useState("1000000");
+  const [showDetails, setShowDetails] = useState(false);
+  const [description, setDescription] = useState("");
+  const [xHandle, setXHandle] = useState("");
+  const [telegram, setTelegram] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [state, setState] = useState<"idle" | "processing" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -256,6 +284,7 @@ export default function TokenLaunch({ provider, address }: Props) {
 
   const [allTokens, setAllTokens] = useState<LaunchedToken[]>([]);
   const [loadingTokens, setLoadingTokens] = useState(true);
+  const [metadata, setMetadata] = useState<Record<string, TokenMetadata>>({});
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<LaunchedToken[]>([]);
@@ -284,6 +313,7 @@ export default function TokenLaunch({ provider, address }: Props) {
           client.readContract({ address: addr, abi: TOKEN_ABI, functionName: "creator" }),
         ]);
         setSearchResults([{ address: addr, name: tName, symbol: tSymbol, supply: Number(formatUnits(supply, 18)).toLocaleString(), creator }]);
+        fetchTokenMetadata([addr]).then((m) => setMetadata((prev) => ({ ...prev, ...m })));
         return;
       }
 
@@ -310,6 +340,7 @@ export default function TokenLaunch({ provider, address }: Props) {
 
       if (matches.length === 0) setSearchError("No tokens matched that name or symbol.");
       setSearchResults(matches);
+      fetchTokenMetadata(matches.map((m) => m.address)).then((m) => setMetadata((prev) => ({ ...prev, ...m })));
     } catch {
       setSearchError("Token not found.");
     } finally {
@@ -361,6 +392,7 @@ export default function TokenLaunch({ provider, address }: Props) {
           /* skip token that fails to resolve */
         }
       }));
+      fetchTokenMetadata(addrs as string[]).then((m) => setMetadata((prev) => ({ ...prev, ...m })));
     } catch {
       setAllTokens([]);
     } finally {
@@ -395,6 +427,26 @@ export default function TokenLaunch({ provider, address }: Props) {
       setState("idle"); setName(""); setSymbol(""); setSupply("1000000");
       showToast("Token launched", "success");
       await loadTokens();
+
+      // Optional metadata (description/socials/image) is purely cosmetic —
+      // save it if the creator filled any of it in, but never let a
+      // failure here affect the "token launched" success state above.
+      if (description.trim() || xHandle.trim() || telegram.trim() || imageUrl.trim()) {
+        try {
+          const message = `Set FlowFi token metadata for ${(newAddr as string).toLowerCase()}`;
+          const signature = await wc.signMessage({ account: address as `0x${string}`, message });
+          const res = await fetch("/api/token-metadata", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "save", token: newAddr, creator: address, signature, description: description.trim(), xHandle: xHandle.trim(), telegram: telegram.trim(), imageUrl: imageUrl.trim() }),
+          });
+          const data = await res.json();
+          if (data.success) setMetadata((prev) => ({ ...prev, [(newAddr as string).toLowerCase()]: data.metadata }));
+        } catch {
+          /* cosmetic metadata save failed — the token itself still launched fine, nothing to surface to the user here */
+        }
+      }
+      setDescription(""); setXHandle(""); setTelegram(""); setImageUrl(""); setShowDetails(false);
     } catch (e: unknown) {
       const err = e as { message?: string };
       setErrorMsg(err.message ?? "Failed to launch token."); setState("error");
@@ -507,6 +559,41 @@ export default function TokenLaunch({ provider, address }: Props) {
             <span>Minted entirely to your wallet: <span style={{ color: "#111827", fontWeight: 700 }}>{supply ? Number(supply).toLocaleString() : "0"} {symbol || "TOKEN"}</span></span>
             <span style={{ color: "#9CA3AF" }}>18 decimals (fixed)</span>
           </div>
+
+          <button type="button" onClick={() => setShowDetails(!showDetails)}
+            style={{ background: "none", border: "none", padding: 0, fontSize: 12.5, color: "#7c3aed", fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+            {showDetails ? "− Hide details" : "+ Add description, socials & image (optional)"}
+          </button>
+          {showDetails && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "#FAFAFA", borderRadius: 10, padding: "0.85rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12, color: "#6B7280" }}>Description</label>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} disabled={isLoading} maxLength={280} rows={2}
+                  placeholder="What is this token for?"
+                  style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none", resize: "vertical", fontFamily: "inherit" }} />
+                <span style={{ fontSize: 10, color: "#9CA3AF", alignSelf: "flex-end" }}>{description.length}/280</span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 12, color: "#6B7280" }}>X handle</label>
+                  <input type="text" value={xHandle} onChange={(e) => setXHandle(e.target.value)} disabled={isLoading} maxLength={60} placeholder="@handle"
+                    style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none" }} />
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 12, color: "#6B7280" }}>Telegram</label>
+                  <input type="text" value={telegram} onChange={(e) => setTelegram(e.target.value)} disabled={isLoading} maxLength={60} placeholder="t.me/community"
+                    style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none" }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12, color: "#6B7280" }}>Image URL</label>
+                <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={isLoading} maxLength={500} placeholder="https://..."
+                  style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none" }} />
+                <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>Link to an already-hosted image (e.g. Imgur) — no upload yet, paste a URL.</span>
+              </div>
+              <p style={{ fontSize: 10.5, color: "#9CA3AF", margin: 0 }}>Saved after launch, tied to your wallet's signature — this never touches the token contract itself.</p>
+            </div>
+          )}
           {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
           <button onClick={doLaunch} disabled={isLoading}
             style={{ width: "100%", padding: "0.9rem", borderRadius: 12, border: "none", background: "#7c3aed", color: "#fff", fontSize: 16, fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1 }}>
@@ -517,9 +604,18 @@ export default function TokenLaunch({ provider, address }: Props) {
 
       {flowStep === "created" && newTokenAddress && (
         <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 16, padding: "1.75rem", textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>🚀</div>
+          {metadata[newTokenAddress.toLowerCase()]?.imageUrl ? (
+            <img src={metadata[newTokenAddress.toLowerCase()].imageUrl} alt="" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", marginBottom: 10 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          ) : (
+            <div style={{ fontSize: 36, marginBottom: 10 }}>🚀</div>
+          )}
           <p style={{ color: "#16A34A", fontWeight: 800, fontSize: 17, margin: "0 0 6px 0" }}>{newTokenSymbol} is live!</p>
           <p style={{ fontSize: 11, color: "#4B5563", fontFamily: "monospace", margin: "0 0 16px 0", wordBreak: "break-all" }}>{newTokenAddress}</p>
+          {metadata[newTokenAddress.toLowerCase()]?.description && (
+            <p style={{ fontSize: 12.5, color: "#374151", margin: "0 0 16px 0", textAlign: "left", background: "#fff", borderRadius: 8, padding: "0.6rem 0.8rem" }}>
+              {metadata[newTokenAddress.toLowerCase()].description}
+            </p>
+          )}
           <button onClick={() => addTokenToWallet(newTokenAddress, newTokenSymbol)}
             style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid rgba(109,94,247,0.15)", background: "rgba(109,94,247,0.05)", color: "#111827", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 8 }}>
             + Add {newTokenSymbol} to Wallet
@@ -533,6 +629,12 @@ export default function TokenLaunch({ provider, address }: Props) {
               style={{ flex: 1, padding: "0.75rem", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #059669, #10b981)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
               Launch Another
             </button>
+          </div>
+
+          <div style={{ marginTop: 16, textAlign: "left", background: "#ffffff", borderRadius: 12, padding: "1rem" }}>
+            <div style={{ fontSize: 12.5, color: "#111827", fontWeight: 700, marginBottom: 4 }}>Want to make the first buy?</div>
+            <p style={{ fontSize: 11.5, color: "#6B7280", margin: "0 0 4px 0" }}>Once a trading pool exists for {newTokenSymbol}, you can buy in here — same anti-snipe protection as anyone else.</p>
+            <TokenBuyPanel token={{ address: newTokenAddress, symbol: newTokenSymbol }} provider={provider} address={address} />
           </div>
 
           {lockState === "checking" && (
@@ -586,24 +688,38 @@ export default function TokenLaunch({ provider, address }: Props) {
         {searchError && <div style={{ fontSize: 12, color: "#DC2626" }}>{searchError}</div>}
         {searchResults.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {searchResults.map((r) => (
-              <div key={r.address} style={{ padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
-                <a href={`https://testnet.arcscan.app/address/${r.address}`} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", textDecoration: "none" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(r.symbol), display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
-                      {r.symbol[0]}
+            {searchResults.map((r) => {
+              const meta = metadata[r.address.toLowerCase()];
+              return (
+                <div key={r.address} style={{ padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                  <a href={`https://testnet.arcscan.app/address/${r.address}`} target="_blank" rel="noopener noreferrer"
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", textDecoration: "none" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {meta?.imageUrl ? (
+                        <img src={meta.imageUrl} alt="" style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      ) : (
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(r.symbol), display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
+                          {r.symbol[0]}
+                        </div>
+                      )}
+                      <div>
+                        <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{r.name}</span>
+                        <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{r.symbol}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{r.name}</span>
-                      <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{r.symbol}</span>
+                    <span style={{ fontSize: 11, color: "#16A34A" }}>{r.supply} supply</span>
+                  </a>
+                  {meta?.description && <p style={{ fontSize: 11, color: "#4B5563", margin: "6px 0 0 0" }}>{meta.description}</p>}
+                  {(meta?.xHandle || meta?.telegram) && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                      {meta.xHandle && <a href={`https://x.com/${meta.xHandle.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10.5, color: "#6D5EF7", textDecoration: "none" }}>𝕏 {meta.xHandle}</a>}
+                      {meta.telegram && <a href={meta.telegram.startsWith("http") ? meta.telegram : `https://t.me/${meta.telegram.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10.5, color: "#6D5EF7", textDecoration: "none" }}>Telegram</a>}
                     </div>
-                  </div>
-                  <span style={{ fontSize: 11, color: "#16A34A" }}>{r.supply} supply</span>
-                </a>
-                <TokenBuyPanel token={r} provider={provider} address={address} />
-              </div>
-            ))}
+                  )}
+                  <TokenBuyPanel token={r} provider={provider} address={address} />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -615,14 +731,19 @@ export default function TokenLaunch({ provider, address }: Props) {
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12 }}>
           {allTokens.map((t) => {
             const color = avatarColor(t.symbol);
+            const meta = metadata[t.address.toLowerCase()];
             return (
               <div key={t.address}
                 style={{ display: "block", padding: "1rem", borderRadius: 16, background: `linear-gradient(160deg, ${color}10, #ffffff)`, border: `1px solid ${color}30`, boxShadow: `0 2px 8px ${color}15` }}>
                 <a href={`https://testnet.arcscan.app/address/${t.address}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", display: "block" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 14, background: `linear-gradient(135deg, ${color}, ${color}AA)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 800, flexShrink: 0, boxShadow: `0 4px 10px ${color}40` }}>
-                      {t.symbol[0]}
-                    </div>
+                    {meta?.imageUrl ? (
+                      <img src={meta.imageUrl} alt="" style={{ width: 44, height: 44, borderRadius: 14, objectFit: "cover", flexShrink: 0, boxShadow: `0 4px 10px ${color}40` }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    ) : (
+                      <div style={{ width: 44, height: 44, borderRadius: 14, background: `linear-gradient(135deg, ${color}, ${color}AA)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 800, flexShrink: 0, boxShadow: `0 4px 10px ${color}40` }}>
+                        {t.symbol[0]}
+                      </div>
+                    )}
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 14, color: "#111827", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
                       <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>${t.symbol}</div>
@@ -633,6 +754,17 @@ export default function TokenLaunch({ provider, address }: Props) {
                     <span className="flowfi-mono" style={{ fontSize: 10, color: "#9CA3AF" }}>{t.address.slice(0, 6)}...{t.address.slice(-4)}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, marginTop: 6 }}>{t.supply} supply</div>
+                  {meta?.description && (
+                    <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
+                      {meta.description}
+                    </div>
+                  )}
+                  {(meta?.xHandle || meta?.telegram) && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                      {meta.xHandle && <span style={{ fontSize: 10, color, fontWeight: 600 }}>𝕏 {meta.xHandle}</span>}
+                      {meta.telegram && <span style={{ fontSize: 10, color, fontWeight: 600 }}>Telegram</span>}
+                    </div>
+                  )}
                 </a>
                 <TokenBuyPanel token={t} provider={provider} address={address} />
               </div>

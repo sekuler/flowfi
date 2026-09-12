@@ -23,7 +23,7 @@ import MarketTicker from "./components/MarketTicker";
 import NotificationCenter from "./components/NotificationCenter";
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
 import { getDCAPlan, isDCADue } from "./dca";
-import { getCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
+import { getCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
 import { showToast } from "./toast";
 import {
   Home, LayoutGrid, Repeat, Droplet,
@@ -674,7 +674,7 @@ function AppInner() {
               </div>
               <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, marginBottom: 8 }}>No seed phrase — some features need a Browser Wallet</div>
               <button onClick={() => setShowConnectModal(true)} style={{ fontSize: 11, color: "#6D5EF7", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", width: "100%" }}>Add Browser Wallet</button>
-              <button onClick={() => { setCirclePrimary(false); setCircleWalletInfo(null); setTab("home"); }} style={{ marginTop: 6, fontSize: 11, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", width: "100%" }}>Disconnect</button>
+              <button onClick={() => { setCirclePrimary(false); forgetCircleWallet(); setTab("home"); }} style={{ marginTop: 6, fontSize: 11, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", width: "100%" }}>Disconnect</button>
             </>
           ) : (
             <>
@@ -732,7 +732,7 @@ function AppInner() {
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                 {circleWalletInfo.address.slice(0, 6)}...{circleWalletInfo.address.slice(-4)}
               </a>
-              <button onClick={() => { setCirclePrimary(false); setCircleWalletInfo(null); setTab("home"); }} title="Disconnect"
+              <button onClick={() => { setCirclePrimary(false); forgetCircleWallet(); setTab("home"); }} title="Disconnect"
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
                 <Power size={14} />
               </button>
