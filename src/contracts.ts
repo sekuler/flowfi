@@ -46,7 +46,7 @@ export const POOL_FACTORY_V4C = "0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0" as 
 // on-chain via its launchedAt() view, not just trusted). Has no owner at
 // all, by design — see contracts/README.md and SECURITY.md. Not yet
 // independently reviewed the way the contracts above were.
-export const LAUNCH_POOL_FACTORY = "0xc72cbFcCf1fB4D84436Db3D8a641d058E53f5c1c" as `0x${string}`;
+export const LAUNCH_POOL_FACTORY = "0x2b3B2E69C14DA2558E3ce6e2d58c04b2147E5ec0" as `0x${string}`;
 
 // ---- Curated pool instances (deployed by ArcFactoryV2 v4c) ----
 export const POOL_USDC_EURC = "0x3F0B83e551e272181e2A42144BB07E68d14bD497" as `0x${string}`;
