@@ -1,34 +1,61 @@
 const { initiateDeveloperControlledWalletsClient } = require('@circle-fin/developer-controlled-wallets');
+const { Ratelimit } = require('@upstash/ratelimit');
+const { Redis } = require('@upstash/redis');
 
 const BRIDGE_CHAINS = ['ARC-TESTNET', 'ETH-SEPOLIA', 'BASE-SEPOLIA', 'ARB-SEPOLIA'];
 
-// Every contract FlowFi's Circle Wallet integration is ever meant to call —
-// checked before any contractCall is forwarded to Circle. This closes an
-// open gap where a client could otherwise ask the backend to execute an
-// arbitrary contract/function using a known walletId. Addresses are the
-// same case-insensitively; compare in lowercase.
-const ALLOWED_CONTRACTS = new Set([
-  // USDC, per chain
-  '0x3600000000000000000000000000000000000000', // Arc Testnet
-  '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238', // Ethereum Sepolia
-  '0x036cbd53842c5426634e7929541ec2318f3dcf7e', // Base Sepolia
-  '0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d', // Arbitrum Sepolia
+// Every contract + function FlowFi's Circle Wallet integration is ever
+// meant to call, checked before any contractCall is forwarded to Circle.
+// This is stricter than an address-only allowlist: a leaked/enumerated
+// walletId still can't be used to call an unexpected function on an
+// otherwise-trusted contract (e.g. transfer() on a token where only
+// approve() should ever be reachable through this endpoint). Audited
+// against every circleContractCallAndWait(...) call site in src/ — this
+// list is exactly what's reachable today, nothing more.
+// Addresses are compared case-insensitively; keys stored lowercase.
+const ALLOWED_CALLS = new Map([
+  // USDC, per chain — approve() feeds the pool/bridge/gateway contracts
+  // below, transfer() is used by SendForm for direct sends.
+  ['0x3600000000000000000000000000000000000000', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])], // Arc Testnet USDC
+  ['0x1c7d4b196cb0c7b01d743fbc6116a902379c7238', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])], // Ethereum Sepolia USDC
+  ['0x036cbd53842c5426634e7929541ec2318f3dcf7e', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])], // Base Sepolia USDC
+  ['0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])], // Arbitrum Sepolia USDC
   // EURC (Arc)
-  '0x89b50855aa3be2f677cd6303cec089b5f319d72a',
-  // FlowFi's own contracts (Arc)
-  '0x3cd201da3dddf2d0e9fcbc606a32e821099deac1', // ArcSwap v5
-  '0x23782643650d73b2bb145b9145d62d743bf25cb0', // ArcFactoryV2 v2 (legacy — existing pools still live here)
-  '0x5ee0c6cc6879728a4835826d87b28702f8993559', // ArcFactoryV2 v3 (legacy)
-  '0x57b451d60f09222c2bb6c828ffe3703069a532ed', // ArcFactoryV2 v4 (createPool is now onlyOwner; new pools go here)
-  '0xddde5a4e691f6ce6826cb85f09466e799fcfabfb', // ArcEscrow v4
-  '0x481e8919f79a4da6446ea78cea70037acb9c85a1', // Token Factory
+  ['0x89b50855aa3be2f677cd6303cec089b5f319d72a', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])],
+  // ArcFactoryV2 v4c pool (USDC/EURC) — the only pool SwapForm's Circle
+  // Wallet path actually calls (contractAddress: POOL_ADDRESS). If a new
+  // curated pool goes live, its address needs adding here too, or Circle
+  // Wallet swaps against it will 403.
+  ['0x3f0b83e551e272181e2a42144bb07e68d14bd497', new Set(['swap(bool,uint256,uint256,uint256)'])],
   // Circle CCTP V2 (same address on every supported chain)
-  '0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa', // TokenMessengerV2
-  '0xe737e5cebeeba77efe34d4aa090756590b1ce275', // MessageTransmitterV2
+  ['0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa', new Set(['depositForBurn(uint256,uint32,bytes32,address,bytes32,uint256,uint32)'])], // TokenMessengerV2
+  ['0xe737e5cebeeba77efe34d4aa090756590b1ce275', new Set(['receiveMessage(bytes,bytes)'])], // MessageTransmitterV2
   // Circle Gateway (same address on every supported chain)
-  '0x0077777d7eba4688bdef3e311b846f25870a19b9', // Gateway Wallet
-  '0x0022222abe238cc2c7bb1f21003f0a260052475b', // Gateway Minter
-].map((a) => a.toLowerCase()));
+  ['0x0077777d7eba4688bdef3e311b846f25870a19b9', new Set(['deposit(address,uint256)'])], // Gateway Wallet
+  ['0x0022222abe238cc2c7bb1f21003f0a260052475b', new Set(['gatewayMint(bytes,bytes)'])], // Gateway Minter
+  // NOTE: the old Token Factory (0x481E8919...) is intentionally not
+  // listed — TokenLaunch.tsx only ever executes via a connected browser
+  // wallet (viem's custom(provider) transport), never through Circle
+  // Wallet, so it was never actually reachable through this endpoint.
+  // ArcSwap v5, ArcFactoryV2 v2/v3, and ArcEscrow v4 are likewise not
+  // listed for the same reason: nothing in src/ calls them through
+  // circleContractCallAndWait today. Add an entry here (with the exact
+  // function signature) the day something actually needs to.
+]);
+
+// Wallet-set creation is meant to happen once per real user. A per-IP
+// limit here isn't identity — it's just a brake on scripted spam (each
+// call creates a real Circle wallet set, which has a cost).
+let createRatelimit = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  createRatelimit = new Ratelimit({
+    redis: new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN }),
+    limiter: Ratelimit.slidingWindow(5, '3600 s'), // 5 wallet-set creations per IP per hour
+    prefix: 'ratelimit:circle-create',
+  });
+} else {
+  console.warn('api/circle-wallet.js: UPSTASH_REDIS_REST_URL/TOKEN not set — wallet-creation rate limiting is OFF.');
+}
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -46,6 +73,14 @@ module.exports = async function handler(req, res) {
     // ---- Create a new wallet across all bridge-supported chains ----
     // EVM wallets in the same wallet set share the same address across chains.
     if (action === 'create') {
+      if (createRatelimit) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+        const { success } = await createRatelimit.limit(ip);
+        if (!success) {
+          return res.status(429).json({ error: 'Too many wallets created from this network — please wait a bit and try again.' });
+        }
+      }
+
       const walletSetResponse = await client.createWalletSet({
         name: 'FlowFi WalletSet ' + Date.now(),
       });
@@ -81,8 +116,9 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'walletId, contractAddress, and abiFunctionSignature are required.' });
       }
 
-      if (!ALLOWED_CONTRACTS.has(String(contractAddress).toLowerCase())) {
-        return res.status(403).json({ error: 'This contract is not on FlowFi\'s allowlist for Circle Wallet execution.' });
+      const allowedFunctions = ALLOWED_CALLS.get(String(contractAddress).toLowerCase());
+      if (!allowedFunctions || !allowedFunctions.has(abiFunctionSignature)) {
+        return res.status(403).json({ error: 'This contract/function is not on FlowFi\'s allowlist for Circle Wallet execution.' });
       }
 
       const response = await client.createContractExecutionTransaction({
@@ -100,20 +136,19 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // ---- List all previously created wallets (for recovering a lost/overwritten one) ----
+    // ---- Wallet "restore by browsing" has been removed ----
+    // This used to list EVERY wallet ever created by ANYONE, with no
+    // ownership check at all — a client could pick any wallet in the
+    // response and the app would treat it as its own from then on, with
+    // full contractCall access to it. There is no safe way to keep a
+    // browse-and-pick recovery flow without proving ownership first, so
+    // it's disabled rather than patched. A real recovery flow (e.g.
+    // email-based, tying a wallet to a verified identity before it can be
+    // reattached) is planned separately, later, not a quick fix here.
     if (action === 'listWallets') {
-      const response = await client.listWallets({ pageSize: 50 });
-      const wallets = response.data?.wallets ?? [];
-
-      // Group by address since EVM wallets in the same set share one address
-      const byAddress = {};
-      for (const w of wallets) {
-        if (!byAddress[w.address]) byAddress[w.address] = { address: w.address, walletsByChain: {}, createDate: w.createDate };
-        byAddress[w.address].walletsByChain[w.blockchain] = { walletId: w.id, address: w.address };
-      }
-
-      const grouped = Object.values(byAddress).sort((a, b) => new Date(b.createDate) - new Date(a.createDate));
-      return res.status(200).json({ success: true, wallets: grouped });
+      return res.status(410).json({
+        error: 'Wallet recovery by browsing has been disabled for security reasons. It previously exposed every wallet in the system with no ownership check.',
+      });
     }
 
     // ---- Poll a transaction's status until it's mined ----
