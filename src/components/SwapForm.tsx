@@ -50,6 +50,25 @@ const POOL_ABI = [
   { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
 ] as const;
 
+// UnitFlow Finance — a real, independently-operated DEX on Arc Testnet
+// (confirmed via Arc's own Builder Spotlight and UnitFlow's public docs).
+// This factory address is publicly documented (used by the ACTFUN launchpad
+// as its graduation venue) and is standard Uniswap V3-compatible
+// infrastructure. UnitFlow's own official SwapRouter address is not yet
+// confirmed, so this is read-only pool detection/display for now — NOT
+// wired to execute trades. Never send a transaction to an unconfirmed
+// router address.
+const UNITFLOW_V3_FACTORY = "0xAb6A8AAb7d490007634ef59d424b5d89688a1971" as `0x${string}`;
+const UNITFLOW_FACTORY_ABI = [
+  { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "tokenA", type: "address" }, { name: "tokenB", type: "address" }, { name: "fee", type: "uint24" }], outputs: [{ name: "pool", type: "address" }] },
+] as const;
+const UNITFLOW_POOL_ABI = [
+  { type: "function", name: "slot0", stateMutability: "view", inputs: [], outputs: [{ name: "sqrtPriceX96", type: "uint160" }, { name: "tick", type: "int24" }, { name: "observationIndex", type: "uint16" }, { name: "observationCardinality", type: "uint16" }, { name: "observationCardinalityNext", type: "uint16" }, { name: "feeProtocol", type: "uint8" }, { name: "unlocked", type: "bool" }] },
+  { type: "function", name: "liquidity", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint128" }] },
+  { type: "function", name: "token0", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+] as const;
+const UNITFLOW_FEE_TIERS = [100, 500, 3000, 10000] as const;
+
 const TOKENS = ["USDC", "EURC"] as const;
 type Token = (typeof TOKENS)[number];
 
@@ -138,6 +157,38 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [marketRate, setMarketRate] = useState<number | null>(null);
   const [poolLiquidity, setPoolLiquidity] = useState<{ usdc: string; eurc: string } | null>(null);
   const [contractTxs, setContractTxs] = useState<ContractTx[]>([]);
+  const [unitflowRoute, setUnitflowRoute] = useState<{ poolAddress: `0x${string}`; fee: number; rate: number } | null>(null);
+  const [unitflowChecked, setUnitflowChecked] = useState(false);
+
+  useEffect(() => {
+    async function checkUnitflow() {
+      try {
+        const client = createPublicClient({ chain: arcTestnet, transport: http() });
+        for (const fee of UNITFLOW_FEE_TIERS) {
+          const poolAddr = await client.readContract({ address: UNITFLOW_V3_FACTORY, abi: UNITFLOW_FACTORY_ABI, functionName: "getPool", args: [USDC_ADDRESS, EURC_ADDRESS, fee] }).catch(() => null);
+          if (!poolAddr || poolAddr === "0x0000000000000000000000000000000000000000") continue;
+          const [liq, slot0, token0] = await Promise.all([
+            client.readContract({ address: poolAddr, abi: UNITFLOW_POOL_ABI, functionName: "liquidity" }),
+            client.readContract({ address: poolAddr, abi: UNITFLOW_POOL_ABI, functionName: "slot0" }),
+            client.readContract({ address: poolAddr, abi: UNITFLOW_POOL_ABI, functionName: "token0" }),
+          ]);
+          if (liq === 0n) continue; // pool exists but nobody's added liquidity — same dust problem, skip
+          // sqrtPriceX96 -> price of token1 in terms of token0 (both USDC/EURC are 6 decimals, so no decimal adjustment needed)
+          const sqrtPriceX96 = slot0[0];
+          const rawPrice = Number(sqrtPriceX96) ** 2 / 2 ** 192;
+          const isUsdcToken0 = token0.toLowerCase() === USDC_ADDRESS.toLowerCase();
+          const rate = isUsdcToken0 ? rawPrice : 1 / rawPrice; // EURC per USDC
+          setUnitflowRoute({ poolAddress: poolAddr, fee, rate });
+          setUnitflowChecked(true);
+          return;
+        }
+        setUnitflowChecked(true);
+      } catch {
+        setUnitflowChecked(true);
+      }
+    }
+    checkUnitflow();
+  }, []);
 
   // The pool has no built-in awareness of the real market price — it only
   // knows the ratio of whatever's actually deposited in it. A small,
@@ -451,7 +502,9 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
             {poolTooThin ? (
               <div style={{ background: "rgba(109,94,247,0.08)", border: "1px solid rgba(109,94,247,0.25)", borderRadius: 10, padding: "0.65rem 0.8rem" }}>
                 <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>
-                  No live on-chain venue for USDC/EURC yet — this pool doesn't hold enough liquidity to execute a real swap. The amount above is an FX estimate only, not an executable quote. Live routing to real liquidity (via Arc mainnet DEXs) is expected after mainnet launch (Sept 16).
+                  FlowFi's own USDC/EURC pool doesn't hold enough liquidity to execute a real swap. The amount above is an FX estimate only, not an executable quote.
+                  {unitflowChecked && !unitflowRoute && " Checked UnitFlow (a real Arc DEX) for a deeper route — none found with active liquidity yet."}
+                  {unitflowRoute && ` A live UnitFlow pool was found (${unitflowRoute.rate.toFixed(4)} EURC/USDC) — execution routing there isn't wired up yet, this is read-only for now.`}
                 </p>
               </div>
             ) : priceStale && (
