@@ -102,7 +102,15 @@ function verifySessionToken(token, expectedEmail) {
   const sigBuf = Buffer.from(sig, 'hex');
   const expectedBuf = Buffer.from(expectedSig, 'hex');
   if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) return false;
-  const [tokenEmail, expiryStr] = payload.split('.');
+  // Split on the LAST dot, not the first — an email address almost always
+  // contains its own dot (e.g. "user@gmail.com"), so a naive split('.')
+  // on "email.expiry" tears the email apart at its domain's dot instead
+  // of at the email/expiry boundary. The expiry is always a plain number
+  // with no dot in it, so splitting from the end is unambiguous.
+  const payloadDot = payload.lastIndexOf('.');
+  if (payloadDot === -1) return false;
+  const tokenEmail = payload.slice(0, payloadDot);
+  const expiryStr = payload.slice(payloadDot + 1);
   if (tokenEmail !== expectedEmail) return false;
   if (Date.now() > Number(expiryStr)) return false;
   return true;
