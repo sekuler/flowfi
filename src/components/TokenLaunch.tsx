@@ -24,6 +24,19 @@ const POOL_FACTORY_ABI = [
   { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
 ] as const;
 
+// Every pool created by ArcFactoryV2 exposes these — used here just to get
+// a live buy quote and figure out which side of the pool is USDC.
+const POOL_QUOTE_ABI = [
+  { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
+  { type: "function", name: "tokenA", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+] as const;
+
+// Anti-snipe window: the contract caps buys during the first 20s after
+// launch (see ArcTokenFactoryV2's own comments on Arcscan). This is just
+// used to show a countdown badge — the contract enforces the real cap
+// regardless of what the UI displays.
+const ANTI_SNIPE_WINDOW_SECONDS = 20;
+
 const ERC20_APPROVE_ABI = [
   { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "", type: "bool" }] },
 ] as const;
@@ -66,6 +79,161 @@ async function switchToArc(provider: EIP1193Provider) {
       await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.testnet.arc.network"], blockExplorerUrls: ["https://testnet.arcscan.app"] }] });
     } else throw e;
   }
+}
+
+// Inline "Buy" flow for a launched token — resolves its pool, quotes a
+// live price, and calls buyDuringLaunch() (approve + buy). This is the
+// function's first real caller anywhere in the app; before this it was
+// declared in the ABI but never invoked from any screen.
+function TokenBuyPanel({ token, provider, address }: { token: LaunchedToken; provider: EIP1193Provider; address: string }) {
+  const [open, setOpen] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [poolAddress, setPoolAddress] = useState<`0x${string}` | null | "none">(null);
+  const [usdcIsTokenA, setUsdcIsTokenA] = useState(true);
+  const [launchedAt, setLaunchedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const [amount, setAmount] = useState("");
+  const [quote, setQuote] = useState<string | null>(null);
+  const [quoting, setQuoting] = useState(false);
+  const [buyState, setBuyState] = useState<"idle" | "approving" | "buying" | "done">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  // Tick every second only while the anti-snipe window could still be
+  // active, so the countdown badge stays accurate without polling forever.
+  useEffect(() => {
+    if (launchedAt === null) return;
+    const secondsLeft = ANTI_SNIPE_WINDOW_SECONDS - (now / 1000 - launchedAt);
+    if (secondsLeft <= 0) return;
+    const t = setTimeout(() => setNow(Date.now()), 1000);
+    return () => clearTimeout(t);
+  }, [now, launchedAt]);
+
+  async function toggleOpen(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    setOpen(true);
+    setError(null);
+    if (poolAddress !== null) return; // already resolved from a previous open
+    setChecking(true);
+    try {
+      const client = createPublicClient({ chain: arcTestnet, transport: http() });
+      const [pool, launchTs] = await Promise.all([
+        client.readContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "tokenPool", args: [token.address as `0x${string}`] }),
+        client.readContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "launchedAt", args: [token.address as `0x${string}`] }),
+      ]);
+      setLaunchedAt(Number(launchTs));
+      if (pool === "0x0000000000000000000000000000000000000000") {
+        setPoolAddress("none");
+      } else {
+        const pTokenA = await client.readContract({ address: pool, abi: POOL_QUOTE_ABI, functionName: "tokenA" });
+        setPoolAddress(pool);
+        setUsdcIsTokenA((pTokenA as string).toLowerCase() === USDC_ADDRESS.toLowerCase());
+      }
+    } catch {
+      setError("Couldn't check whether this token is tradeable yet.");
+      setPoolAddress("none");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!open || !poolAddress || poolAddress === "none" || !amount) { setQuote(null); return; }
+    const num = Number(amount);
+    if (isNaN(num) || num <= 0) { setQuote(null); return; }
+    const handle = setTimeout(async () => {
+      setQuoting(true);
+      try {
+        const client = createPublicClient({ chain: arcTestnet, transport: http() });
+        const out = await client.readContract({ address: poolAddress, abi: POOL_QUOTE_ABI, functionName: "getAmountOut", args: [usdcIsTokenA, parseUnits(amount, 6)] });
+        setQuote(formatUnits(out as bigint, 18));
+      } catch {
+        setQuote(null);
+      } finally {
+        setQuoting(false);
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [amount, poolAddress, usdcIsTokenA, open]);
+
+  async function doBuy(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const num = Number(amount);
+    if (!amount || isNaN(num) || num <= 0) { setError("Enter a USDC amount greater than 0."); return; }
+    if (!quote) { setError("Still fetching a quote — try again in a moment."); return; }
+    setError(null);
+    try {
+      await switchToArc(provider);
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
+      const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const usdcIn = parseUnits(amount, 6);
+      // 5% slippage tolerance off the quote taken moments ago. The
+      // contract's own anti-snipe cap can also reject this outright if
+      // the buy is too large for the launch window — that surfaces as a
+      // plain revert message below, same as any other failed write.
+      const minTokenOut = (parseUnits(quote, 18) * 95n) / 100n;
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+
+      setBuyState("approving");
+      const approveHash = await wc.writeContract({ address: USDC_ADDRESS, abi: ERC20_APPROVE_ABI, functionName: "approve", args: [TOKEN_FACTORY, usdcIn], account: address as `0x${string}` });
+      await waitForSuccess(publicClient, approveHash);
+
+      setBuyState("buying");
+      const buyHash = await wc.writeContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "buyDuringLaunch", args: [token.address as `0x${string}`, usdcIn, minTokenOut, deadline], account: address as `0x${string}` });
+      await waitForSuccess(publicClient, buyHash);
+
+      setBuyState("done");
+      showToast(`Bought ${token.symbol}`, "success");
+      setAmount("");
+    } catch (e2: unknown) {
+      const err = e2 as { message?: string };
+      setError(err.message ?? "Buy failed.");
+      setBuyState("idle");
+    }
+  }
+
+  const secondsLeft = launchedAt !== null ? Math.max(0, Math.ceil(ANTI_SNIPE_WINDOW_SECONDS - (now / 1000 - launchedAt))) : null;
+
+  return (
+    <div onClick={(e) => e.preventDefault()} style={{ marginTop: 8 }}>
+      <button onClick={toggleOpen}
+        style={{ width: "100%", padding: "0.45rem", borderRadius: 8, border: "none", background: open ? "#EDE9FE" : "#7c3aed", color: open ? "#5B21B6" : "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+        {open ? "Cancel" : "Buy"}
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 8, padding: "0.75rem", borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB", display: "flex", flexDirection: "column", gap: 8 }}>
+          {checking && <div style={{ fontSize: 11, color: "#6B7280" }}>Checking pool...</div>}
+
+          {!checking && poolAddress === "none" && (
+            <div style={{ fontSize: 11, color: "#DC2626" }}>Not tradeable yet — no pool exists for this token.</div>
+          )}
+
+          {!checking && poolAddress && poolAddress !== "none" && (
+            <>
+              {secondsLeft !== null && secondsLeft > 0 && (
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#B45309", background: "#FEF3C7", borderRadius: 6, padding: "3px 6px", alignSelf: "flex-start" }}>
+                  Anti-snipe window: {secondsLeft}s left — buy size may be capped
+                </div>
+              )}
+              <input type="number" placeholder="USDC amount" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={buyState !== "idle" && buyState !== "done"}
+                style={{ padding: "0.5rem 0.7rem", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#111827" }} />
+              <div style={{ fontSize: 11, color: "#4B5563" }}>
+                {quoting ? "Quoting..." : quote ? `≈ ${Number(quote).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${token.symbol}` : "Enter an amount for a quote"}
+              </div>
+              {error && <div style={{ fontSize: 11, color: "#DC2626", wordBreak: "break-word" }}>{error}</div>}
+              <button onClick={doBuy} disabled={buyState === "approving" || buyState === "buying" || !amount}
+                style={{ padding: "0.5rem", borderRadius: 8, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: buyState === "approving" || buyState === "buying" ? "not-allowed" : "pointer", opacity: buyState === "approving" || buyState === "buying" ? 0.6 : 1 }}>
+                {buyState === "approving" ? "Approving..." : buyState === "buying" ? "Buying..." : buyState === "done" ? "Bought — buy more?" : "Confirm buy"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function TokenLaunch({ provider, address }: Props) {
@@ -419,19 +587,22 @@ export default function TokenLaunch({ provider, address }: Props) {
         {searchResults.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {searchResults.map((r) => (
-              <a key={r.address} href={`https://testnet.arcscan.app/address/${r.address}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", textDecoration: "none" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(r.symbol), display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
-                    {r.symbol[0]}
+              <div key={r.address} style={{ padding: "0.65rem 0.9rem", borderRadius: 10, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                <a href={`https://testnet.arcscan.app/address/${r.address}`} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", textDecoration: "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(r.symbol), display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
+                      {r.symbol[0]}
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{r.name}</span>
+                      <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{r.symbol}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>{r.name}</span>
-                    <span style={{ fontSize: 11, color: "#4B5563", marginLeft: 6 }}>{r.symbol}</span>
-                  </div>
-                </div>
-                <span style={{ fontSize: 11, color: "#16A34A" }}>{r.supply} supply</span>
-              </a>
+                  <span style={{ fontSize: 11, color: "#16A34A" }}>{r.supply} supply</span>
+                </a>
+                <TokenBuyPanel token={r} provider={provider} address={address} />
+              </div>
             ))}
           </div>
         )}
@@ -445,23 +616,26 @@ export default function TokenLaunch({ provider, address }: Props) {
           {allTokens.map((t) => {
             const color = avatarColor(t.symbol);
             return (
-              <a key={t.address} href={`https://testnet.arcscan.app/address/${t.address}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: "block", padding: "1rem", borderRadius: 16, background: `linear-gradient(160deg, ${color}10, #ffffff)`, border: `1px solid ${color}30`, textDecoration: "none", boxShadow: `0 2px 8px ${color}15` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 14, background: `linear-gradient(135deg, ${color}, ${color}AA)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 800, flexShrink: 0, boxShadow: `0 4px 10px ${color}40` }}>
-                    {t.symbol[0]}
+              <div key={t.address}
+                style={{ display: "block", padding: "1rem", borderRadius: 16, background: `linear-gradient(160deg, ${color}10, #ffffff)`, border: `1px solid ${color}30`, boxShadow: `0 2px 8px ${color}15` }}>
+                <a href={`https://testnet.arcscan.app/address/${t.address}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", display: "block" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 14, background: `linear-gradient(135deg, ${color}, ${color}AA)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 800, flexShrink: 0, boxShadow: `0 4px 10px ${color}40` }}>
+                      {t.symbol[0]}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, color: "#111827", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
+                      <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>${t.symbol}</div>
+                    </div>
                   </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 14, color: "#111827", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
-                    <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>${t.symbol}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}18`, padding: "3px 8px", borderRadius: 6 }}>LAUNCHED</span>
+                    <span className="flowfi-mono" style={{ fontSize: 10, color: "#9CA3AF" }}>{t.address.slice(0, 6)}...{t.address.slice(-4)}</span>
                   </div>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}18`, padding: "3px 8px", borderRadius: 6 }}>LAUNCHED</span>
-                  <span className="flowfi-mono" style={{ fontSize: 10, color: "#9CA3AF" }}>{t.address.slice(0, 6)}...{t.address.slice(-4)}</span>
-                </div>
-                <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, marginTop: 6 }}>{t.supply} supply</div>
-              </a>
+                  <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, marginTop: 6 }}>{t.supply} supply</div>
+                </a>
+                <TokenBuyPanel token={t} provider={provider} address={address} />
+              </div>
             );
           })}
         </div>
