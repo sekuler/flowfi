@@ -1,17 +1,31 @@
 import { useState, useEffect, useCallback } from "react";
 import type { EIP1193Provider } from "viem";
-import { createWalletClient, createPublicClient, custom, http, formatUnits } from "viem";
+import { createWalletClient, createPublicClient, custom, http, formatUnits, parseUnits } from "viem";
 import { waitForSuccess } from "../txHelpers";
 import { arcTestnet, ARC_CHAIN_ID_HEX } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 import { showToast } from "../toast";
 
-const TOKEN_FACTORY = "0x481E8919f79A4DA6446EA78cEa70037acB9c85A1" as `0x${string}`;
+const TOKEN_FACTORY = "0x1Fe800a2663988C043e4a9A393651f18Cd49D998" as `0x${string}`; // ArcTokenFactoryV2 — atomic launch is NOT possible (createPool stays owner-gated on purpose), so this is launch -> (owner creates pool separately) -> lockLaunchLiquidity
+const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
+const POOL_FACTORY_V4C = "0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0" as `0x${string}`; // current curated-pool factory — used only to check whether a pool exists yet for a launched token
 
 const TOKEN_FACTORY_ABI = [
-  { type: "function", name: "launchToken", stateMutability: "nonpayable", inputs: [{ name: "name", type: "string" }, { name: "symbol", type: "string" }], outputs: [{ name: "token", type: "address" }] },
+  { type: "function", name: "launchToken", stateMutability: "nonpayable", inputs: [{ name: "name", type: "string" }, { name: "symbol", type: "string" }, { name: "supply", type: "uint256" }], outputs: [{ name: "token", type: "address" }] },
+  { type: "function", name: "lockLaunchLiquidity", stateMutability: "nonpayable", inputs: [{ name: "token", type: "address" }, { name: "pool", type: "address" }, { name: "tokenAmount", type: "uint256" }, { name: "usdcAmount", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [] },
+  { type: "function", name: "buyDuringLaunch", stateMutability: "nonpayable", inputs: [{ name: "token", type: "address" }, { name: "usdcIn", type: "uint256" }, { name: "minTokenOut", type: "uint256" }, { name: "deadline", type: "uint256" }], outputs: [{ name: "tokenOut", type: "uint256" }] },
+  { type: "function", name: "tokenPool", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
+  { type: "function", name: "launchedAt", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "allTokensLength", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "allTokens", stateMutability: "view", inputs: [{ name: "", type: "uint256" }], outputs: [{ name: "", type: "address" }] },
+] as const;
+
+const POOL_FACTORY_ABI = [
+  { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "address" }] },
+] as const;
+
+const ERC20_APPROVE_ABI = [
+  { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "", type: "bool" }] },
 ] as const;
 
 const TOKEN_ABI = [
@@ -58,8 +72,15 @@ export default function TokenLaunch({ provider, address }: Props) {
   const isMobile = useIsMobile();
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
+  const [supply, setSupply] = useState("1000000");
   const [state, setState] = useState<"idle" | "processing" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [lockState, setLockState] = useState<"idle" | "checking" | "no-pool" | "ready" | "locking" | "locked">("idle");
+  const [lockPoolAddress, setLockPoolAddress] = useState<`0x${string}` | null>(null);
+  const [lockTokenAmount, setLockTokenAmount] = useState("");
+  const [lockUsdcAmount, setLockUsdcAmount] = useState("");
+  const [lockError, setLockError] = useState<string | null>(null);
 
   const [flowStep, setFlowStep] = useState<FlowStep>("form");
   const [newTokenAddress, setNewTokenAddress] = useState<string | null>(null);
@@ -184,6 +205,8 @@ export default function TokenLaunch({ provider, address }: Props) {
   async function doLaunch() {
     if (!name.trim() || !symbol.trim()) { setErrorMsg("Enter both a name and symbol."); return; }
     if (symbol.length > 10) { setErrorMsg("Symbol must be 10 characters or fewer."); return; }
+    const supplyNum = Number(supply);
+    if (!supply || isNaN(supplyNum) || supplyNum <= 0) { setErrorMsg("Enter a supply greater than 0."); return; }
     setErrorMsg(null);
     try {
       await switchToArc(provider);
@@ -191,7 +214,8 @@ export default function TokenLaunch({ provider, address }: Props) {
       const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
 
       setState("processing");
-      const hash = await wc.writeContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "launchToken", args: [name.trim(), symbol.trim().toUpperCase()], account: address as `0x${string}` });
+      const supplyUnits = parseUnits(supply, 18);
+      const hash = await wc.writeContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "launchToken", args: [name.trim(), symbol.trim().toUpperCase(), supplyUnits], account: address as `0x${string}` });
       await waitForSuccess(publicClient, hash);
 
       const count = await publicClient.readContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "allTokensLength" });
@@ -200,12 +224,72 @@ export default function TokenLaunch({ provider, address }: Props) {
       setNewTokenAddress(newAddr);
       setNewTokenSymbol(symbol.trim().toUpperCase());
       setFlowStep("created");
-      setState("idle"); setName(""); setSymbol("");
+      setState("idle"); setName(""); setSymbol(""); setSupply("1000000");
       showToast("Token launched", "success");
       await loadTokens();
     } catch (e: unknown) {
       const err = e as { message?: string };
       setErrorMsg(err.message ?? "Failed to launch token."); setState("error");
+    }
+  }
+
+  // After launch, check whether a pool exists yet for this token (owner
+  // creates it separately, via the Pools page — see the contract's top
+  // comment for why). If one exists and liquidity hasn't been locked yet,
+  // the creator can lock it below.
+  useEffect(() => {
+    if (flowStep !== "created" || !newTokenAddress) { setLockState("idle"); return; }
+    async function checkPool() {
+      setLockState("checking");
+      try {
+        const client = createPublicClient({ chain: arcTestnet, transport: http() });
+        const alreadyLocked = await client.readContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "tokenPool", args: [newTokenAddress as `0x${string}`] });
+        if (alreadyLocked !== "0x0000000000000000000000000000000000000000") {
+          setLockState("locked");
+          return;
+        }
+        const poolAddr = await client.readContract({ address: POOL_FACTORY_V4C, abi: POOL_FACTORY_ABI, functionName: "getPool", args: [newTokenAddress as `0x${string}`, USDC_ADDRESS] });
+        if (poolAddr === "0x0000000000000000000000000000000000000000") {
+          setLockState("no-pool");
+        } else {
+          setLockPoolAddress(poolAddr);
+          setLockState("ready");
+        }
+      } catch {
+        setLockState("no-pool");
+      }
+    }
+    checkPool();
+  }, [flowStep, newTokenAddress]);
+
+  async function doLockLiquidity() {
+    if (!newTokenAddress || !lockPoolAddress) return;
+    const tokenNum = Number(lockTokenAmount);
+    const usdcNum = Number(lockUsdcAmount);
+    if (!lockTokenAmount || isNaN(tokenNum) || tokenNum <= 0) { setLockError("Enter a token amount greater than 0."); return; }
+    if (!lockUsdcAmount || isNaN(usdcNum) || usdcNum <= 0) { setLockError("Enter a USDC amount greater than 0."); return; }
+    setLockError(null);
+    try {
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
+      const wc = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+      const tokenAmountUnits = parseUnits(lockTokenAmount, 18);
+      const usdcAmountUnits = parseUnits(lockUsdcAmount, 6);
+
+      setLockState("locking");
+      const approve1 = await wc.writeContract({ address: newTokenAddress as `0x${string}`, abi: ERC20_APPROVE_ABI, functionName: "approve", args: [TOKEN_FACTORY, tokenAmountUnits], account: address as `0x${string}` });
+      await waitForSuccess(publicClient, approve1);
+      const approve2 = await wc.writeContract({ address: USDC_ADDRESS, abi: ERC20_APPROVE_ABI, functionName: "approve", args: [TOKEN_FACTORY, usdcAmountUnits], account: address as `0x${string}` });
+      await waitForSuccess(publicClient, approve2);
+
+      const hash = await wc.writeContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "lockLaunchLiquidity", args: [newTokenAddress as `0x${string}`, lockPoolAddress, tokenAmountUnits, usdcAmountUnits, deadline], account: address as `0x${string}` });
+      await waitForSuccess(publicClient, hash);
+
+      setLockState("locked");
+      showToast("Liquidity locked permanently", "success");
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setLockError(err.message ?? "Failed to lock liquidity."); setLockState("ready");
     }
   }
 
@@ -222,7 +306,7 @@ export default function TokenLaunch({ provider, address }: Props) {
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: isMobile ? 460 : 640, margin: isMobile ? undefined : "0 auto" }}>
       <div style={{ background: "rgba(124,58,237,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
         <p style={{ fontSize: 12, color: "#5B21B6", margin: 0 }}>
-          Deploy your own ERC20 on Arc. Supply is fixed at 1,000,000 tokens per launch, minted entirely to your wallet. Trading pools are set up by the FlowFi team for major assets — this just mints your token.
+          Deploy your own ERC20 on Arc with a supply you choose, minted entirely to your wallet. Once the FlowFi team sets up a trading pool for it, you can permanently lock your own launch liquidity — nobody, including FlowFi, can ever withdraw it afterward.
         </p>
       </div>
 
@@ -246,8 +330,13 @@ export default function TokenLaunch({ provider, address }: Props) {
               <span style={{ fontSize: 12.5, color: "#4B5563" }}>{name || "Your token"} <span style={{ fontFamily: "ui-monospace, monospace", color: "#111827", fontWeight: 700 }}>{symbol}</span></span>
             </div>
           )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 13, color: "#6B7280", fontWeight: 500 }}>Initial Supply</label>
+            <input type="number" placeholder="1000000" value={supply} onChange={(e) => setSupply(e.target.value)} disabled={isLoading} min="1"
+              style={{ background: "#f5f3ff", border: "none", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 15, color: "#111827", outline: "none" }} />
+          </div>
           <div style={{ background: "#f5f3ff", borderRadius: 10, padding: "0.7rem 0.9rem", fontSize: 12, color: "#4B5563", display: "flex", justifyContent: "space-between" }}>
-            <span>Initial supply: <span style={{ color: "#111827", fontWeight: 700 }}>1,000,000 {symbol || "TOKEN"}</span> — minted entirely to your wallet</span>
+            <span>Minted entirely to your wallet: <span style={{ color: "#111827", fontWeight: 700 }}>{supply ? Number(supply).toLocaleString() : "0"} {symbol || "TOKEN"}</span></span>
             <span style={{ color: "#9CA3AF" }}>18 decimals (fixed)</span>
           </div>
           {errorMsg && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 13 }}>{errorMsg}</div>}
@@ -277,6 +366,41 @@ export default function TokenLaunch({ provider, address }: Props) {
               Launch Another
             </button>
           </div>
+
+          {lockState === "checking" && (
+            <div style={{ marginTop: 16, fontSize: 12, color: "#6B7280" }}>Checking whether a trading pool exists yet...</div>
+          )}
+          {lockState === "no-pool" && (
+            <div style={{ marginTop: 16, background: "rgba(109,94,247,0.08)", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 12, color: "#5B21B6" }}>
+              No trading pool yet for {newTokenSymbol}. Once the FlowFi team creates one, come back here to permanently lock your launch liquidity.
+            </div>
+          )}
+          {lockState === "locked" && (
+            <div style={{ marginTop: 16, background: "rgba(16,185,129,0.1)", borderRadius: 10, padding: "0.75rem 1rem", fontSize: 12, color: "#16A34A", fontWeight: 700 }}>
+              ✓ Liquidity locked permanently — nobody, including FlowFi, can withdraw it.
+            </div>
+          )}
+          {(lockState === "ready" || lockState === "locking") && (
+            <div style={{ marginTop: 16, textAlign: "left", background: "#ffffff", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 12.5, color: "#111827", fontWeight: 700 }}>Lock launch liquidity</div>
+              <p style={{ fontSize: 11.5, color: "#6B7280", margin: 0 }}>This is a one-time, permanent deposit — the resulting pool shares can never be withdrawn by anyone, including FlowFi.</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12, color: "#6B7280" }}>{newTokenSymbol} amount</label>
+                <input type="number" placeholder="0.0" value={lockTokenAmount} onChange={(e) => setLockTokenAmount(e.target.value)} disabled={lockState === "locking"}
+                  style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#111827", outline: "none" }} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12, color: "#6B7280" }}>USDC amount</label>
+                <input type="number" placeholder="0.0" value={lockUsdcAmount} onChange={(e) => setLockUsdcAmount(e.target.value)} disabled={lockState === "locking"}
+                  style={{ background: "#f5f3ff", border: "none", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 14, color: "#111827", outline: "none" }} />
+              </div>
+              {lockError && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "0.6rem 0.8rem", color: "#DC2626", fontSize: 12 }}>{lockError}</div>}
+              <button onClick={doLockLiquidity} disabled={lockState === "locking"}
+                style={{ width: "100%", padding: "0.8rem", borderRadius: 10, border: "none", background: "#7c3aed", color: "#fff", fontSize: 14, fontWeight: 700, cursor: lockState === "locking" ? "not-allowed" : "pointer", opacity: lockState === "locking" ? 0.6 : 1 }}>
+                {lockState === "locking" ? "Locking..." : "Lock Liquidity Permanently"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
