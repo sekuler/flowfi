@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { EIP1193Provider } from "viem";
 import { Wallet, CircleDollarSign } from "lucide-react";
 import WalletConnect from "./WalletConnect";
-import { saveCircleWallet, type CircleWalletInfo } from "../circleWalletHelpers";
+import { saveCircleWallet, requestCircleWalletCode, verifyCircleWalletCode, type CircleWalletInfo } from "../circleWalletHelpers";
 
 interface Props {
   onClose: () => void;
@@ -12,22 +12,31 @@ interface Props {
 
 export default function ConnectModal({ onClose, onConnected, onCircleConnected }: Props) {
   const [tab, setTab] = useState<"browser" | "circle">("browser");
+  const [circleStep, setCircleStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [creating, setCreating] = useState(false);
   const [circleError, setCircleError] = useState<string | null>(null);
 
-  async function createCircleWallet() {
+  async function sendCode() {
     setCreating(true);
     setCircleError(null);
     try {
-      const res = await fetch("/api/circle-wallet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create" }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error ?? "Failed to create wallet.");
-      const info: CircleWalletInfo = { address: data.address, walletsByChain: data.walletsByChain };
+      await requestCircleWalletCode(email.trim());
+      setCircleStep("code");
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setCircleError(err.message ?? "Unexpected error.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function confirmCode() {
+    setCreating(true);
+    setCircleError(null);
+    try {
+      const info = await verifyCircleWalletCode(email.trim(), code.trim());
       saveCircleWallet(info);
       onCircleConnected(info);
     } catch (e: unknown) {
@@ -68,14 +77,37 @@ export default function ConnectModal({ onClose, onConnected, onCircleConnected }
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ background: "rgba(52,211,153,0.1)", borderRadius: 10, padding: "0.75rem 1rem" }}>
               <p style={{ fontSize: 12, color: "#16A34A", margin: 0 }}>
-                No extension, no seed phrase. Circle creates and manages the wallet for you, in one click.
+                No extension, no seed phrase. Sign in with your email and Circle creates and manages the wallet for you.
               </p>
             </div>
             {circleError && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 12, wordBreak: "break-word" }}>{circleError}</div>}
-            <button onClick={createCircleWallet} disabled={creating}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 15, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: creating ? "not-allowed" : "pointer", opacity: creating ? 0.6 : 1 }}>
-              {creating ? "Creating wallet..." : "Create Circle Wallet"}
-            </button>
+
+            {circleStep === "email" ? (
+              <>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
+                  onKeyDown={(e) => { if (e.key === "Enter" && email.trim() && !creating) sendCode(); }}
+                  style={{ width: "100%", padding: "0.9rem 1rem", borderRadius: 14, border: "1px solid #E5E7EB", fontSize: 14, color: "#111827", boxSizing: "border-box" }} />
+                <button onClick={sendCode} disabled={creating || !email.trim()}
+                  style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 15, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: creating || !email.trim() ? "not-allowed" : "pointer", opacity: creating || !email.trim() ? 0.6 : 1 }}>
+                  {creating ? "Sending code..." : "Send verification code"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <p style={{ fontSize: 12.5, color: "#6B7280", margin: 0 }}>Code sent to <strong>{email.trim()}</strong></p>
+                  <button onClick={() => { setCircleStep("email"); setCircleError(null); }} style={{ background: "none", border: "none", color: "#4B5563", fontSize: 12, cursor: "pointer" }}>Back</button>
+                </div>
+                <input type="text" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6}
+                  onKeyDown={(e) => { if (e.key === "Enter" && code.trim() && !creating) confirmCode(); }}
+                  style={{ width: "100%", padding: "0.9rem 1rem", borderRadius: 14, border: "1px solid #E5E7EB", fontSize: 20, letterSpacing: 6, textAlign: "center", color: "#111827", fontFamily: "ui-monospace, monospace", boxSizing: "border-box" }} />
+                <button onClick={confirmCode} disabled={creating || !code.trim()}
+                  style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 15, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: creating || !code.trim() ? "not-allowed" : "pointer", opacity: creating || !code.trim() ? 0.6 : 1 }}>
+                  {creating ? "Verifying..." : "Verify & continue"}
+                </button>
+              </>
+            )}
+
             <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0, textAlign: "center" }}>
               Note: some features (AI Copilot, Token Launch, and pool actions) currently require a Browser Wallet.
             </p>
