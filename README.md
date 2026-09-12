@@ -6,6 +6,8 @@ FlowFi treats Arc as the destination, not just another chain to bridge into. USD
 
 **Live:** [flowfi.finance](https://flowfi.finance) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
+> **Testnet.** Everything below runs on Arc Testnet with testnet USDC/EURC — no real funds are involved. Mainnet transition is in progress; see [SECURITY.md](./SECURITY.md) for what's still open before that happens.
+
 ---
 
 ## Why FlowFi is different
@@ -14,7 +16,7 @@ FlowFi treats Arc as the destination, not just another chain to bridge into. USD
 - ✓ **Real CCTP V2** — Circle's actual burn/attest/mint protocol, not a synthetic bridge
 - ✓ **AI executes transactions** — natural language in, signed on-chain transaction out
 - ✓ **AI market analysis** — real RSI/EMA/MACD/support-resistance computed server-side from live data, not AI-generated numbers
-- ✓ **Curated liquidity pools** — FlowFi creates pools for major assets (USDC, EURC, cirBTC, and more); anyone can add/remove liquidity or swap against any of them
+- ✓ **Testnet liquidity showcase** — a curated USDC/EURC pool demonstrates the swap rail end-to-end; FlowFi isn't a market maker — mainnet swaps will route to external deep liquidity instead of FlowFi-operated pools
 - ✓ **Seedless wallets** — Circle Developer-Controlled Wallets, no browser extension required
 - ✓ **Built specifically for Arc** — not a multi-chain app with Arc bolted on
 
@@ -25,7 +27,7 @@ FlowFi treats Arc as the destination, not just another chain to bridge into. USD
 | | |
 |---|---|
 | **1** settlement flow | **4** connected chains |
-| Native USDC — no wrapped assets | **8** contracts security-reviewed |
+| Native USDC — no wrapped assets | Every live contract security-reviewed — see [SECURITY.md](./SECURITY.md) |
 | **100%** on-chain execution | Circle-signed, seedless |
 
 ---
@@ -49,7 +51,7 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | **Bridge & Gateway** | One page, two modes. Bridge: genuine cross-chain USDC transfer via Circle's official burn/attest/mint CCTP V2 protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia. Gateway: a unified USDC balance via Circle's Gateway protocol — deposit once, held as one pooled balance instead of four separate on-chain balances. Both work from either a browser wallet or the Circle Wallet |
 | **Circle Wallet** | FlowFi provisions a Developer-Controlled Wallet and tracks its per-chain wallet IDs — no seed phrase, no browser extension, one consistent address surfaced across all four supported chains. Can be used as your only login, or alongside a browser wallet |
 | **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
-| **Liquidity Pools** | FlowFi creates pools for major assets (USDC, EURC, cirBTC, and more) — anyone can add/remove liquidity or swap against any of them |
+| **Liquidity Pools** | Testnet-only showcase pool (USDC/EURC) demonstrating the swap rail — anyone can add/remove liquidity or swap against it. Not FlowFi's mainnet product surface; mainnet swaps route to external liquidity instead |
 | **Token Launch** | Deploy your own ERC-20 on Arc — fixed 1,000,000 supply, minted to your wallet |
 | **Stablecoin Analytics** | Live, on-chain TVL and distribution across every FlowFi contract |
 | **AI Copilot** | Type what you want — "swap 10 USDC to EURC", "send 20 USDC to 0x..." — Copilot parses it and executes the on-chain transaction. An interface over the settlement rail above, not the product itself |
@@ -115,7 +117,7 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | Pool Factory v3 *(legacy — same reasoning as v2)* | `0x5ee0c6cc6879728a4835826D87b28702f8993559` |
 | Pool Factory v4 | `0x57B451D60F09222C2bb6c828FFE3703069A532Ed` |
 | Escrow v4 *(deployed and verified, not yet wired to the app)* | `0xDDDe5a4E691F6ce6826CB85F09466E799FCFabfB` |
-| Token Factory | `0x481E8919f79A4DA6446EA78cEa70037acB9c85A1` |
+| Token Factory (v2) | `0x1Fe800a2663988C043e4a9A393651f18Cd49D998` |
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
 | EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 

@@ -213,7 +213,7 @@
   <div class="wrap">
     <div class="eyebrow"><span class="dot"></span> Where cross-chain USDC becomes productive</div>
     <h1>Arc is the <span class="accent">destination</span>, not just another chain to bridge into.</h1>
-    <p class="lede">USDC is Arc's native gas asset, not a wrapped placeholder — so funds arriving via CCTP V2 through a Circle Developer-Controlled Wallet are immediately usable for swaps, lending, and payments, with no synthetic-asset risk in between. Swap, lending, and token tools are built around that arrival point, not bolted onto it.</p>
+    <p class="lede">USDC is Arc's native gas asset, not a wrapped placeholder — so funds arriving via CCTP V2 through a Circle Developer-Controlled Wallet are immediately usable for swaps and payments, with no synthetic-asset risk in between. Swap and token tools are built around that arrival point, not bolted onto it.</p>
     <div class="cta-row">
       <a class="btn-primary" href="https://flowfi.finance" target="_blank" rel="noopener">Launch FlowFi →</a>
       <a class="btn-secondary" href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener">View source on GitHub</a>
@@ -227,33 +227,23 @@
       </div>
       <div class="ledger-row">
         <span class="name">Swap</span>
-        <span class="addr">0x6eA72BC3...E3e1</span>
+        <span class="addr">0x3CD201DA...EAC1</span>
         <span class="status">✓ Verified</span>
       </div>
       <div class="ledger-row">
-        <span class="name">Lending</span>
-        <span class="addr">0xD3e0171C...d225ab</span>
-        <span class="status">✓ Verified</span>
-      </div>
-      <div class="ledger-row">
-        <span class="name">Pool Factory</span>
-        <span class="addr">0xE610D2f7...eCDf8</span>
+        <span class="name">Pool Factory (v4)</span>
+        <span class="addr">0x57B451D6...32Ed</span>
         <span class="status">✓ Verified</span>
       </div>
       <div class="ledger-row">
         <span class="name">Token Factory</span>
-        <span class="addr">0x481E8919...c85A1</span>
+        <span class="addr">0x1Fe800a2...D998</span>
         <span class="status">✓ Verified</span>
-      </div>
-      <div class="ledger-row">
-        <span class="name">Perpetuals</span>
-        <span class="addr">0x3B4cE173...E4B20</span>
-        <span class="status">✓ Verified <span style="color:#B45309">(Experimental)</span></span>
       </div>
     </div>
 
     <div class="stats">
-      <div class="stat"><div class="num">7</div><div class="label">Verified contracts</div></div>
+      <div class="stat"><div class="num">8</div><div class="label">Verified contracts</div></div>
       <div class="stat"><div class="num">4</div><div class="label">Supported chains</div></div>
       <div class="stat"><div class="num">100%</div><div class="label">On-chain execution</div></div>
       <div class="stat"><div class="num">1</div><div class="label">Address, every chain</div></div>
@@ -300,7 +290,7 @@
       </div>
       <div class="why-card">
         <div class="check">✓</div>
-        <h3>Swap, lending, and token tools — built on the same rail</h3>
+        <h3>Swap and token tools — built on the same rail</h3>
         <p>Not separate features bolted on. Everything here settles through the same native-USDC, CCTP V2 path.</p>
       </div>
     </div>
@@ -327,12 +317,8 @@
         <div class="fdesc">USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much.</div>
       </div>
       <div class="feature-row">
-        <div class="fname">Lending &amp; Borrowing</div>
-        <div class="fdesc">Supply USDC to earn interest, or post EURC as collateral to borrow — 75% max LTV, liquidation at 85%.</div>
-      </div>
-      <div class="feature-row">
         <div class="fname">Liquidity Pools</div>
-        <div class="fdesc">Permissionless AMM — create a pool for any token pair, add or remove liquidity, swap directly against it.</div>
+        <div class="fdesc">Testnet-only showcase pool (USDC/EURC) — add or remove liquidity, swap directly against it. FlowFi doesn't operate as a market maker on mainnet; new pools are created by FlowFi, not permissionlessly.</div>
       </div>
       <div class="feature-row">
         <div class="fname">Token Launch</div>
@@ -360,7 +346,6 @@
       <div class="shot"><img src="./screenshots/2%20-%20Home.png" alt="FlowFi Home"><div class="cap">Home</div></div>
       <div class="shot"><img src="./screenshots/5%20-%20Swap.png" alt="FlowFi Swap"><div class="cap">Swap</div></div>
       <div class="shot"><img src="./screenshots/6%20-%20Bridge.png" alt="FlowFi Bridge"><div class="cap">Bridge</div></div>
-      <div class="shot"><img src="./screenshots/8%20-%20Lending.png" alt="FlowFi Lending"><div class="cap">Lending</div></div>
       <div class="shot"><img src="./screenshots/3%20-%20Dashboard.png" alt="FlowFi Dashboard"><div class="cap">Dashboard</div></div>
       <div class="shot"><img src="./screenshots/12%20-%20Circle%20wallet.png" alt="FlowFi Circle Wallet"><div class="cap">Circle Wallet</div></div>
     </div>
@@ -378,16 +363,17 @@
     </div>
     <table class="source-table">
       <tr><th>Contract</th><th>Address</th></tr>
-      <tr><td class="data">Swap v2 (fixed-rate USDC/EURC)</td><td><code class="pill">0x13bD5D32509bC5D03811B3e5F86952a8C2BD0521</code></td></tr>
-      <tr><td class="data">Lending v2</td><td><code class="pill">0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a</code></td></tr>
-      <tr><td class="data">Pool Factory v2</td><td><code class="pill">0x23782643650D73b2Bb145B9145D62D743bF25CB0</code></td></tr>
-      <tr><td class="data">Escrow v3 (deployed, not yet wired to app)</td><td><code class="pill">0xCe6c2B0EAbC86974c653020467c05Ce5e1eB418C</code></td></tr>
-      <tr><td class="data">Token Factory</td><td><code class="pill">0x481E8919f79A4DA6446EA78cEa70037acB9c85A1</code></td></tr>
-      <tr><td class="data">Perpetuals (disabled, code retained)</td><td><code class="pill">0x3B4cE1734087e1c67474Ff42982063febE3E4B20</code></td></tr>
+      <tr><td class="data">Swap v5</td><td><code class="pill">0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1</code></td></tr>
+      <tr><td class="data">Pool Factory v2 (legacy, still live)</td><td><code class="pill">0x23782643650D73b2Bb145B9145D62D743bF25CB0</code></td></tr>
+      <tr><td class="data">Pool Factory v3 (legacy, still live)</td><td><code class="pill">0x5ee0c6cc6879728a4835826D87b28702f8993559</code></td></tr>
+      <tr><td class="data">Pool Factory v4 (current — createPool is owner-only)</td><td><code class="pill">0x57B451D60F09222C2bb6c828FFE3703069A532Ed</code></td></tr>
+      <tr><td class="data">Escrow v4</td><td><code class="pill">0xDDDe5a4E691F6ce6826CB85F09466E799FCFabfB</code></td></tr>
+      <tr><td class="data">Token Factory (v2)</td><td><code class="pill">0x1Fe800a2663988C043e4a9A393651f18Cd49D998</code></td></tr>
       <tr><td class="data">USDC (Arc native)</td><td><code class="pill">0x3600000000000000000000000000000000000000</code></td></tr>
       <tr><td class="data">EURC</td><td><code class="pill">0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a</code></td></tr>
     </table>
     <p style="margin-top:18px; font-size:14px; color:var(--ink-soft);">All contracts verified and viewable on <a href="https://testnet.arcscan.app" target="_blank" rel="noopener" style="color:var(--violet); font-weight:600;">Arcscan →</a></p>
+    <p style="margin-top:10px; font-size:13px; color:var(--ink-faint);">Lending and Perpetuals were built, reviewed, and later removed from the app entirely (no nav entry, no Copilot action) — their contracts stay deployed and verified for historical/audit reference only, not as live features. See <a href="https://github.com/sekuler/flowfi/blob/main/SECURITY.md" target="_blank" rel="noopener" style="color:var(--violet); font-weight:600;">SECURITY.md</a> for the full list, including two earlier deployments (a Swap and an Escrow version) with known, since-fixed issues that should not be used.</p>
   </div>
 </section>
 
