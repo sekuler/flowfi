@@ -93,7 +93,7 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 
 | | |
 |---|---|
-| **Landing** | ![Landing](./screenshots/1%20-%20Landing.png) |
+| **Home** | ![Landing](./screenshots/1%20-%20Landing.png) |
 | **Portfolio** | ![Portfolio](./screenshots/2%20-%20Portfolio.png) |
 | **Swap** | ![Swap](./screenshots/3%20-%20Swap.png) |
 | **Bridge** | ![Bridge](./screenshots/4%20-%20Bridge.png) |
