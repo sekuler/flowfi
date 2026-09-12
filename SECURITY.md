@@ -6,6 +6,8 @@ Manual review by the project's own developer — not a certified third-party aud
 
 Every `onlyOwner` contract in the table below — ArcSwap v5 and all four Pool Factory versions (v4, v4b, v4c; v2/v3 predate the `onlyOwner` restriction) — is owned by a 2-of-3 Safe multisig (`0xa50FFedfC93eDB81F8Bcc23507db8aDdE7EE8Be0` on Arc Testnet), not a single EOA. A single compromised key can no longer call `createPool()`, `setRate()`, `pause()`, or transfer ownership again on any of these.
 
+One exception, by design: `ArcLaunchPoolFactory` (see [`contracts/README.md`](./contracts/README.md)) has no owner at all — `createLaunchPool()` is permissionless for anyone, gated only by the target token actually being one minted through Token Factory. This isn't an oversight; it's the whole point of that contract (new token creators shouldn't need the Safe's approval to get a pool). It has not been through the same review pass as the contracts below.
+
 ## Contracts reviewed and redeployed
 
 All addresses below are live on Arc Testnet and verified on [Arcscan](https://testnet.arcscan.app).
