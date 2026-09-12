@@ -1,6 +1,7 @@
 const { initiateDeveloperControlledWalletsClient } = require('@circle-fin/developer-controlled-wallets');
 const { Ratelimit } = require('@upstash/ratelimit');
 const { Redis } = require('@upstash/redis');
+const crypto = require('crypto');
 
 const BRIDGE_CHAINS = ['ARC-TESTNET', 'ETH-SEPOLIA', 'BASE-SEPOLIA', 'ARB-SEPOLIA'];
 
@@ -43,18 +44,99 @@ const ALLOWED_CALLS = new Map([
   // function signature) the day something actually needs to.
 ]);
 
-// Wallet-set creation is meant to happen once per real user. A per-IP
-// limit here isn't identity — it's just a brake on scripted spam (each
-// call creates a real Circle wallet set, which has a cost).
-let createRatelimit = null;
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  createRatelimit = new Ratelimit({
-    redis: new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN }),
-    limiter: Ratelimit.slidingWindow(5, '3600 s'), // 5 wallet-set creations per IP per hour
-    prefix: 'ratelimit:circle-create',
+// ---- Email-based identity layer ----
+// Wallets are no longer created anonymously with no ownership check. A
+// user proves control of an email address (via a one-time code) before a
+// wallet is created for, or reattached to, them. This is what replaced
+// the old "browse every wallet ever created and pick one" restore flow —
+// a wallet can only ever be reached again through the same verified
+// email, never by knowing/guessing a walletId.
+//
+// Requires UPSTASH_REDIS_REST_URL/TOKEN. Unlike the plain per-IP rate
+// limiting used elsewhere in this file (which degrades gracefully to "off"
+// if unset), this is identity infrastructure — the OTP store and the
+// email→wallet mapping both live here — so these actions fail loudly
+// (500) rather than silently skipping auth. Also requires
+// WALLET_AUTH_SECRET (any long random string, used to sign session
+// tokens) and RESEND_API_KEY (to actually send the code).
+const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+  : null;
+
+const OTP_TTL_SECONDS = 600; // 10 minutes
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// Session token = base64url(email + "." + expiryMs) + "." + HMAC-SHA256(that
+// payload). Stateless — anyone holding WALLET_AUTH_SECRET can verify it
+// with no DB lookup, but forging one without the secret is infeasible.
+// verifySessionToken() also checks the token's email matches the email the
+// caller is claiming, so a token can't be replayed against a different
+// account even if somehow intercepted.
+function issueSessionToken(email) {
+  const expiry = Date.now() + SESSION_TTL_MS;
+  const payload = `${email}.${expiry}`;
+  const sig = crypto.createHmac('sha256', process.env.WALLET_AUTH_SECRET).update(payload).digest('hex');
+  return `${Buffer.from(payload).toString('base64url')}.${sig}`;
+}
+
+function verifySessionToken(token, expectedEmail) {
+  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  const dot = token.lastIndexOf('.');
+  const payloadB64 = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  let payload;
+  try {
+    payload = Buffer.from(payloadB64, 'base64url').toString();
+  } catch {
+    return false;
+  }
+  const expectedSig = crypto.createHmac('sha256', process.env.WALLET_AUTH_SECRET).update(payload).digest('hex');
+  const sigBuf = Buffer.from(sig, 'hex');
+  const expectedBuf = Buffer.from(expectedSig, 'hex');
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) return false;
+  const [tokenEmail, expiryStr] = payload.split('.');
+  if (tokenEmail !== expectedEmail) return false;
+  if (Date.now() > Number(expiryStr)) return false;
+  return true;
+}
+
+async function sendVerificationEmail(email, code) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('Server misconfigured: RESEND_API_KEY not set');
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM_EMAIL || 'FlowFi <onboarding@resend.dev>',
+      to: email,
+      subject: `${code} is your FlowFi verification code`,
+      html: `<p>Your FlowFi verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:4px;">${code}</p><p>This code expires in 10 minutes. If you didn't request this, you can ignore this email.</p>`,
+    }),
   });
-} else {
-  console.warn('api/circle-wallet.js: UPSTASH_REDIS_REST_URL/TOKEN not set — wallet-creation rate limiting is OFF.');
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Failed to send verification email (${response.status}): ${body}`);
+  }
+}
+
+let otpRatelimit = null;
+let verifyRatelimit = null;
+if (redis) {
+  // 5 code *requests* per email/IP per hour — this sends a real email each time.
+  otpRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, '3600 s'), prefix: 'ratelimit:circle-otp-request' });
+  // 10 verify *attempts* per email per 10 minutes — a 6-digit code has only
+  // 1,000,000 combinations, so this needs its own (tighter, time-boxed) limit
+  // separate from the request limit above, or it could be brute-forced
+  // within the OTP's 10-minute lifetime.
+  verifyRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '600 s'), prefix: 'ratelimit:circle-otp-verify' });
 }
 
 module.exports = async function handler(req, res) {
@@ -70,48 +152,100 @@ module.exports = async function handler(req, res) {
 
     const { action } = req.body;
 
-    // ---- Create a new wallet across all bridge-supported chains ----
-    // EVM wallets in the same wallet set share the same address across chains.
-    if (action === 'create') {
-      if (createRatelimit) {
-        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
-        const { success } = await createRatelimit.limit(ip);
-        if (!success) {
-          return res.status(429).json({ error: 'Too many wallets created from this network — please wait a bit and try again.' });
+    // ---- Step 1: request a one-time code by email ----
+    // Body: { action: "requestCode", email }
+    if (action === 'requestCode') {
+      const normEmail = normalizeEmail(req.body.email);
+      if (!isValidEmail(normEmail)) {
+        return res.status(400).json({ error: 'A valid email address is required.' });
+      }
+      if (!redis) {
+        return res.status(500).json({ error: 'Server misconfigured: this requires Upstash Redis (UPSTASH_REDIS_REST_URL/TOKEN).' });
+      }
+
+      const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+      if (otpRatelimit) {
+        const [byEmail, byIp] = await Promise.all([
+          otpRatelimit.limit(`email:${normEmail}`),
+          otpRatelimit.limit(`ip:${ip}`),
+        ]);
+        if (!byEmail.success || !byIp.success) {
+          return res.status(429).json({ error: 'Too many code requests — please wait a bit and try again.' });
         }
       }
 
-      const walletSetResponse = await client.createWalletSet({
-        name: 'FlowFi WalletSet ' + Date.now(),
-      });
-      const walletSetId = walletSetResponse.data?.walletSet?.id;
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      await redis.set(`circle-otp:${normEmail}`, code, { ex: OTP_TTL_SECONDS });
+      await sendVerificationEmail(normEmail, code);
 
-      const walletsResponse = await client.createWallets({
-        blockchains: BRIDGE_CHAINS,
-        count: 1,
-        walletSetId,
-      });
+      return res.status(200).json({ success: true });
+    }
 
-      const wallets = walletsResponse.data?.wallets ?? [];
-      const walletsByChain = {};
-      for (const w of wallets) {
-        walletsByChain[w.blockchain] = { walletId: w.id, address: w.address };
+    // ---- Step 2: verify the code, create-or-reattach the wallet, issue a session ----
+    // Body: { action: "verifyCode", email, code }
+    if (action === 'verifyCode') {
+      const normEmail = normalizeEmail(req.body.email);
+      const code = String(req.body.code || '').trim();
+      if (!isValidEmail(normEmail) || !code) {
+        return res.status(400).json({ error: 'email and code are required.' });
+      }
+      if (!redis) {
+        return res.status(500).json({ error: 'Server misconfigured: this requires Upstash Redis (UPSTASH_REDIS_REST_URL/TOKEN).' });
       }
 
-      const address = wallets[0]?.address ?? null;
+      if (verifyRatelimit) {
+        const { success } = await verifyRatelimit.limit(normEmail);
+        if (!success) {
+          return res.status(429).json({ error: 'Too many attempts — please request a new code.' });
+        }
+      }
 
+      const storedCode = await redis.get(`circle-otp:${normEmail}`);
+      if (!storedCode || String(storedCode) !== code) {
+        return res.status(401).json({ error: 'Invalid or expired code.' });
+      }
+      await redis.del(`circle-otp:${normEmail}`);
+
+      let walletRecord;
+      const existing = await redis.get(`circle-wallet:${normEmail}`);
+      if (existing) {
+        walletRecord = typeof existing === 'string' ? JSON.parse(existing) : existing;
+      } else {
+        // First time this email has ever verified — provision a real
+        // wallet set for it now (same Circle calls the old 'create'
+        // action used to make directly, no ownership check).
+        const walletSetResponse = await client.createWalletSet({ name: 'FlowFi WalletSet ' + Date.now() });
+        const walletSetId = walletSetResponse.data?.walletSet?.id;
+        const walletsResponse = await client.createWallets({ blockchains: BRIDGE_CHAINS, count: 1, walletSetId });
+        const wallets = walletsResponse.data?.wallets ?? [];
+        const walletsByChain = {};
+        for (const w of wallets) walletsByChain[w.blockchain] = { walletId: w.id, address: w.address };
+        walletRecord = { address: wallets[0]?.address ?? null, walletsByChain };
+        await redis.set(`circle-wallet:${normEmail}`, JSON.stringify(walletRecord));
+      }
+
+      const token = issueSessionToken(normEmail);
       return res.status(200).json({
         success: true,
-        address,
-        walletsByChain,
+        address: walletRecord.address,
+        walletsByChain: walletRecord.walletsByChain,
+        email: normEmail,
+        token,
       });
     }
 
     // ---- Execute a contract call (approve, swap, bridge burn/mint, transfer, etc.) ----
-    // Body: { action: "contractCall", walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel? }
+    // Body: { action: "contractCall", email, token, walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel? }
     if (action === 'contractCall') {
-      const { walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel } = req.body;
+      const { email, token, walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel } = req.body;
+      const normEmail = normalizeEmail(email);
 
+      if (!redis) {
+        return res.status(500).json({ error: 'Server misconfigured: this requires Upstash Redis (UPSTASH_REDIS_REST_URL/TOKEN).' });
+      }
+      if (!verifySessionToken(token, normEmail)) {
+        return res.status(401).json({ error: 'Session expired or invalid. Please sign in again with your email.' });
+      }
       if (!walletId || !contractAddress || !abiFunctionSignature) {
         return res.status(400).json({ error: 'walletId, contractAddress, and abiFunctionSignature are required.' });
       }
@@ -119,6 +253,16 @@ module.exports = async function handler(req, res) {
       const allowedFunctions = ALLOWED_CALLS.get(String(contractAddress).toLowerCase());
       if (!allowedFunctions || !allowedFunctions.has(abiFunctionSignature)) {
         return res.status(403).json({ error: 'This contract/function is not on FlowFi\'s allowlist for Circle Wallet execution.' });
+      }
+
+      // A valid session proves *an* email, but walletId is still
+      // client-supplied — confirm this specific walletId actually belongs
+      // to that email's own wallet record before forwarding to Circle.
+      const stored = await redis.get(`circle-wallet:${normEmail}`);
+      const walletRecord = typeof stored === 'string' ? JSON.parse(stored) : stored;
+      const ownedWalletIds = walletRecord ? Object.values(walletRecord.walletsByChain).map((w) => w.walletId) : [];
+      if (!ownedWalletIds.includes(walletId)) {
+        return res.status(403).json({ error: 'This wallet does not belong to the signed-in account.' });
       }
 
       const response = await client.createContractExecutionTransaction({
@@ -136,25 +280,14 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // ---- Wallet "restore by browsing" has been removed ----
-    // This used to list EVERY wallet ever created by ANYONE, with no
-    // ownership check at all — a client could pick any wallet in the
-    // response and the app would treat it as its own from then on, with
-    // full contractCall access to it. There is no safe way to keep a
-    // browse-and-pick recovery flow without proving ownership first, so
-    // it's disabled rather than patched. A real recovery flow (e.g.
-    // email-based, tying a wallet to a verified identity before it can be
-    // reattached) is planned separately, later, not a quick fix here.
-    if (action === 'listWallets') {
-      return res.status(410).json({
-        error: 'Wallet recovery by browsing has been disabled for security reasons. It previously exposed every wallet in the system with no ownership check.',
-      });
-    }
-
     // ---- Poll a transaction's status until it's mined ----
-    // Body: { action: "getTransaction", transactionId }
+    // Body: { action: "getTransaction", email, token, transactionId }
     if (action === 'getTransaction') {
-      const { transactionId } = req.body;
+      const { email, token, transactionId } = req.body;
+      const normEmail = normalizeEmail(email);
+      if (!verifySessionToken(token, normEmail)) {
+        return res.status(401).json({ error: 'Session expired or invalid. Please sign in again with your email.' });
+      }
       if (!transactionId) {
         return res.status(400).json({ error: 'transactionId is required.' });
       }
@@ -171,15 +304,30 @@ module.exports = async function handler(req, res) {
     }
 
     // ---- Sign EIP-712 typed data (e.g. a Circle Gateway burn intent) ----
-    // Body: { action: "signTypedData", walletId, data }
+    // Body: { action: "signTypedData", email, token, walletId, data }
     // `data` must be the full { domain, types, primaryType, message } object —
     // it's JSON.stringify'd here since Circle's API expects a JSON string, not
     // a raw object. entitySecretCiphertext is generated fresh by the SDK
     // internally, same as every other authenticated call on this client.
     if (action === 'signTypedData') {
-      const { walletId, data } = req.body;
+      const { email, token, walletId, data } = req.body;
+      const normEmail = normalizeEmail(email);
+
+      if (!redis) {
+        return res.status(500).json({ error: 'Server misconfigured: this requires Upstash Redis (UPSTASH_REDIS_REST_URL/TOKEN).' });
+      }
+      if (!verifySessionToken(token, normEmail)) {
+        return res.status(401).json({ error: 'Session expired or invalid. Please sign in again with your email.' });
+      }
       if (!walletId || !data) {
         return res.status(400).json({ error: 'walletId and data are required.' });
+      }
+
+      const stored = await redis.get(`circle-wallet:${normEmail}`);
+      const walletRecord = typeof stored === 'string' ? JSON.parse(stored) : stored;
+      const ownedWalletIds = walletRecord ? Object.values(walletRecord.walletsByChain).map((w) => w.walletId) : [];
+      if (!ownedWalletIds.includes(walletId)) {
+        return res.status(403).json({ error: 'This wallet does not belong to the signed-in account.' });
       }
 
       const response = await client.signTypedData({

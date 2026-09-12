@@ -8,6 +8,8 @@ export type CircleChain = "ARC-TESTNET" | "ETH-SEPOLIA" | "BASE-SEPOLIA" | "ARB-
 export interface CircleWalletInfo {
   address: string;
   walletsByChain: Record<string, { walletId: string; address: string }>;
+  email: string;
+  token: string;
 }
 
 const STORAGE_KEY = "flowfi_circle_wallet";
@@ -17,13 +19,12 @@ export function getCircleWallet(): CircleWalletInfo | null {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return null;
     const parsed = JSON.parse(saved);
-    // Backward-compat: older saved wallets only had { walletId, address, blockchain }
-    if (parsed && !parsed.walletsByChain && parsed.walletId) {
-      return {
-        address: parsed.address,
-        walletsByChain: { [parsed.blockchain ?? "ARC-TESTNET"]: { walletId: parsed.walletId, address: parsed.address } },
-      };
-    }
+    // Wallets saved before the email-based login (no email/token) can't be
+    // used with the backend anymore — every action now requires a session
+    // tied to a verified email. Treat them as signed out rather than
+    // partially working; the user re-signs-in with the same email and
+    // gets the same wallet back (it's keyed by email server-side).
+    if (!parsed?.email || !parsed?.token) return null;
     return parsed;
   } catch {
     return null;
@@ -47,6 +48,33 @@ export function getWalletIdForChain(info: CircleWalletInfo | null, chain: Circle
   return info?.walletsByChain?.[chain]?.walletId ?? null;
 }
 
+// ---- Email-based sign-in (replaces the old no-auth "create wallet" button) ----
+
+export async function requestCircleWalletCode(email: string): Promise<void> {
+  const res = await fetch("/api/circle-wallet", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "requestCode", email }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error ?? "Failed to send the verification code.");
+  }
+}
+
+export async function verifyCircleWalletCode(email: string, code: string): Promise<CircleWalletInfo> {
+  const res = await fetch("/api/circle-wallet", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "verifyCode", email, code }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error ?? "That code didn't work — check it and try again.");
+  }
+  return { address: data.address, walletsByChain: data.walletsByChain, email: data.email, token: data.token };
+}
+
 interface ContractCallParams {
   walletId: string;
   contractAddress: string;
@@ -61,10 +89,14 @@ interface ContractCallResult {
 }
 
 export async function circleContractCall(params: ContractCallParams): Promise<ContractCallResult> {
+  const wallet = getCircleWallet();
+  if (!wallet) {
+    throw new Error("No active Circle Wallet session — please sign in with your email again.");
+  }
   const res = await fetch("/api/circle-wallet", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "contractCall", ...params }),
+    body: JSON.stringify({ action: "contractCall", email: wallet.email, token: wallet.token, ...params }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -80,10 +112,14 @@ interface TransactionStatus {
 }
 
 async function getCircleTransaction(transactionId: string): Promise<TransactionStatus> {
+  const wallet = getCircleWallet();
+  if (!wallet) {
+    throw new Error("No active Circle Wallet session — please sign in with your email again.");
+  }
   const res = await fetch("/api/circle-wallet", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "getTransaction", transactionId }),
+    body: JSON.stringify({ action: "getTransaction", email: wallet.email, token: wallet.token, transactionId }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -127,10 +163,17 @@ export async function signTypedDataWithCircleWallet(
   walletId: string,
   data: { domain: unknown; types: unknown; primaryType: string; message: unknown }
 ): Promise<`0x${string}`> {
+  const wallet = getCircleWallet();
+  if (!wallet) {
+    throw new Error("No active Circle Wallet session — please sign in with your email again.");
+  }
   const res = await fetch("/api/circle-wallet", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "signTypedData", walletId, data }, (_key, value) => (typeof value === "bigint" ? value.toString() : value)),
+    body: JSON.stringify(
+      { action: "signTypedData", email: wallet.email, token: wallet.token, walletId, data },
+      (_key, value) => (typeof value === "bigint" ? value.toString() : value)
+    ),
   });
   const result = await res.json();
   if (!res.ok || !result.success || !result.signature) {

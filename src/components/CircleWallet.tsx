@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet } from "../chains";
-import { getCircleWallet, saveCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "../circleWalletHelpers";
+import { getCircleWallet, saveCircleWallet, forgetCircleWallet, requestCircleWalletCode, verifyCircleWalletCode, type CircleWalletInfo } from "../circleWalletHelpers";
 import { useIsMobile } from "../useIsMobile";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000" as `0x${string}`;
@@ -11,6 +11,9 @@ const CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF" as `0x${stri
 export default function CircleWallet() {
   const isMobile = useIsMobile();
   const [wallet, setWallet] = useState<CircleWalletInfo | null>(null);
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balances, setBalances] = useState<{ usdc: string; eurc: string; cirbtc: string } | null>(null);
@@ -48,22 +51,25 @@ export default function CircleWallet() {
     }
   }
 
-  async function createWallet() {
+  async function sendCode() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/circle-wallet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create" }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text);
-      }
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error ?? "Failed to create wallet.");
-      const newWallet: CircleWalletInfo = { address: data.address, walletsByChain: data.walletsByChain };
+      await requestCircleWalletCode(email.trim());
+      setStep("code");
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setError(err.message ?? "Unexpected error.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function confirmCode() {
+    setLoading(true);
+    setError(null);
+    try {
+      const newWallet = await verifyCircleWalletCode(email.trim(), code.trim());
       setWallet(newWallet);
       saveCircleWallet(newWallet);
     } catch (e: unknown) {
@@ -79,6 +85,9 @@ export default function CircleWallet() {
     setWallet(null);
     setError(null);
     setBalances(null);
+    setStep("email");
+    setEmail("");
+    setCode("");
   }
 
   const chainList = wallet ? Object.keys(wallet.walletsByChain) : [];
@@ -92,27 +101,47 @@ export default function CircleWallet() {
       </div>
 
       <div style={{ background: "#ffffff", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" , boxShadow: "0 1px 3px rgba(124,58,237,0.08)" }}>
-        {!wallet && (
+        {!wallet && step === "email" && (
           <>
             <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>
-              Create a Circle-managed wallet in one click. No extension, no private key to store. This wallet is yours — it stays linked to your browser, works across four testnets, and holds real testnet balances.
+              Sign in with your email — no extension, no private key to store. We'll send a 6-digit code; your wallet is tied to your email, not just this browser, so signing in again from anywhere gets you back to the same one.
             </p>
             {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
-            <button onClick={createWallet} disabled={loading}
-              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
-              {loading ? "Creating wallet..." : "Create Circle Wallet"}
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
+              onKeyDown={(e) => { if (e.key === "Enter" && email.trim() && !loading) sendCode(); }}
+              style={{ width: "100%", padding: "0.9rem 1rem", borderRadius: 14, border: "1px solid #E5E7EB", fontSize: 14, color: "#111827", boxSizing: "border-box" }} />
+            <button onClick={sendCode} disabled={loading || !email.trim()}
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: loading || !email.trim() ? "not-allowed" : "pointer", opacity: loading || !email.trim() ? 0.6 : 1 }}>
+              {loading ? "Sending code..." : "Send verification code"}
             </button>
-            <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0, textAlign: "center" }}>
-              This wallet is tied to this browser only — clearing site data or switching browsers loses access to it. Account-based recovery is planned for later.
-            </p>
+          </>
+        )}
+
+        {!wallet && step === "code" && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Enter the code sent to <strong>{email.trim()}</strong>:</p>
+              <button onClick={() => { setStep("email"); setError(null); }} style={{ background: "none", border: "none", color: "#4B5563", fontSize: 12, cursor: "pointer" }}>Back</button>
+            </div>
+            {error && <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 12, wordBreak: "break-word" }}>{error}</div>}
+            <input type="text" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6}
+              onKeyDown={(e) => { if (e.key === "Enter" && code.trim() && !loading) confirmCode(); }}
+              style={{ width: "100%", padding: "0.9rem 1rem", borderRadius: 14, border: "1px solid #E5E7EB", fontSize: 20, letterSpacing: 6, textAlign: "center", color: "#111827", fontFamily: "ui-monospace, monospace", boxSizing: "border-box" }} />
+            <button onClick={confirmCode} disabled={loading || !code.trim()}
+              style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#16A34A", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(22,163,74,0.35)", cursor: loading || !code.trim() ? "not-allowed" : "pointer", opacity: loading || !code.trim() ? 0.6 : 1 }}>
+              {loading ? "Verifying..." : "Verify & continue"}
+            </button>
+            <button onClick={sendCode} disabled={loading} style={{ background: "none", border: "none", color: "#5B21B6", fontSize: 12, cursor: "pointer", padding: 0, alignSelf: "center" }}>
+              Resend code
+            </button>
           </>
         )}
 
         {wallet && (
           <>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              <p style={{ fontSize: 14, color: "#16A34A", fontWeight: 700, margin: 0 }}>This is your wallet</p>
-              <p style={{ fontSize: 12, color: "#4B5563", margin: 0, textAlign: "center" }}>Saved in this browser — same address on every supported chain.</p>
+              <p style={{ fontSize: 14, color: "#16A34A", fontWeight: 700, margin: 0 }}>Signed in as {wallet.email}</p>
+              <p style={{ fontSize: 12, color: "#4B5563", margin: 0, textAlign: "center" }}>Same address on every supported chain — sign in with this email from anywhere to get it back.</p>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8 }}>
@@ -163,7 +192,7 @@ export default function CircleWallet() {
             </a>
             <button onClick={forgetWallet}
               style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "none", background: "transparent", color: "#4B5563", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-              Create Another
+              Sign out
             </button>
           </>
         )}
