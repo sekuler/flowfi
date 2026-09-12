@@ -54,10 +54,26 @@ const POOL_ABI = [
 // (confirmed via Arc's own Builder Spotlight and UnitFlow's public docs).
 // This factory address is publicly documented (used by the ACTFUN launchpad
 // as its graduation venue) and is standard Uniswap V3-compatible
-// infrastructure. UnitFlow's own official SwapRouter address is not yet
-// confirmed, so this is read-only pool detection/display for now — NOT
-// wired to execute trades. Never send a transaction to an unconfirmed
-// router address.
+// infrastructure.
+//
+// UnitFlow's official V3 Router is now confirmed too, straight from their
+// own docs site (docs.unitflow.finance/docs/dev/contracts):
+//   Router: 0xB0Ba24f9C49D933523219e92528E7e5db93e9AFc
+// That page's Factory address matches UNITFLOW_V3_FACTORY below exactly,
+// which is a strong cross-check since the factory address here was sourced
+// independently (Arc's Builder Spotlight) before this docs page was found.
+// There's also a UniversalRouter (0xEaF3195bE51861632cd32850973C9515DA48e76F)
+// that routes across their V2.5/V3/V4 pools via command encoding, which
+// would be the better long-term choice once FlowFi actually starts routing
+// real swaps there.
+//
+// Deliberately still NOT wired to execute trades. Per the mainnet-transition
+// plan, FlowFi is becoming a pure interface/aggregator — it won't hold or
+// provide liquidity itself, only route to external venues like this one.
+// Wiring real execution against a third-party contract FlowFi doesn't
+// control/audit is exactly the kind of thing to do carefully, after Arc
+// mainnet (Sept 16, 2026+), not squeezed in beforehand. Until then this
+// stays read-only pool detection/display, same as before.
 const UNITFLOW_V3_FACTORY = "0xAb6A8AAb7d490007634ef59d424b5d89688a1971" as `0x${string}`;
 const UNITFLOW_FACTORY_ABI = [
   { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "tokenA", type: "address" }, { name: "tokenB", type: "address" }, { name: "fee", type: "uint24" }], outputs: [{ name: "pool", type: "address" }] },
