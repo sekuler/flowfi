@@ -110,12 +110,16 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 
 ## Smart contracts (Arc Testnet)
 
+Every `onlyOwner` contract below (all four Pool Factory versions, plus Swap v5) is owned by a 2-of-3 Safe multisig, not a single wallet — see [`SECURITY.md`](./SECURITY.md).
+
 | Contract | Address |
 |---|---|
-| Swap v5 (fixed-rate USDC/EURC) | `0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1` |
+| Swap v5 (fixed-rate USDC/EURC) *(deprecated — kept for the app's read-only price reference only; the live Swap UI trades against Pool Factory v4c below, not this contract)* | `0x3CD201DA3DdDF2d0E9fcBC606a32E821099dEAC1` |
 | Pool Factory v2 *(legacy — pools created here keep working, but no new pools are created here)* | `0x23782643650D73b2Bb145B9145D62D743bF25CB0` |
 | Pool Factory v3 *(legacy — same reasoning as v2)* | `0x5ee0c6cc6879728a4835826D87b28702f8993559` |
-| Pool Factory v4 | `0x57B451D60F09222C2bb6c828FFE3703069A532Ed` |
+| Pool Factory v4 *(legacy — superseded by v4b, then v4c; kept scanned only so liquidity still sitting in these pools stays visible/withdrawable)* | `0x57B451D60F09222C2bb6c828FFE3703069A532Ed` |
+| Pool Factory v4b *(legacy — same reasoning as v4)* | `0xa42c3bDcd385350880165120fE7E72e43733f70B` |
+| Pool Factory v4c *(current — this is where new pools actually get created; addLiquidity gained slippage protection over v4/v4b)* | `0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0` |
 | Escrow v4 *(deployed and verified, not yet wired to the app)* | `0xDDDe5a4E691F6ce6826CB85F09466E799FCFabfB` |
 | Token Factory (v2) | `0x1Fe800a2663988C043e4a9A393651f18Cd49D998` |
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
