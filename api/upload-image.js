@@ -43,7 +43,12 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  // Two valid ways this can be configured: the older static
+  // BLOB_READ_WRITE_TOKEN, or the newer OIDC connection (Vercel injects
+  // BLOB_STORE_ID + a short-lived token per request, never a stored env
+  // var for the token itself) — @vercel/blob's put() picks whichever is
+  // present automatically. Only fail if NEITHER is configured.
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
     return res.status(500).json({ error: 'Server misconfigured: no Blob store linked to this project (Storage tab → Create → Blob in the Vercel dashboard).' });
   }
 
