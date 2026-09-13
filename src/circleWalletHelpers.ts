@@ -9,7 +9,6 @@ export interface CircleWalletInfo {
   address: string;
   walletsByChain: Record<string, { walletId: string; address: string }>;
   email: string;
-  token: string;
 }
 
 const STORAGE_KEY = "flowfi_circle_wallet";
@@ -19,12 +18,18 @@ export function getCircleWallet(): CircleWalletInfo | null {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return null;
     const parsed = JSON.parse(saved);
-    // Wallets saved before the email-based login (no email/token) can't be
-    // used with the backend anymore — every action now requires a session
-    // tied to a verified email. Treat them as signed out rather than
-    // partially working; the user re-signs-in with the same email and
-    // gets the same wallet back (it's keyed by email server-side).
-    if (!parsed?.email || !parsed?.token) return null;
+    // Wallets saved before the email-based login (no email) can't be used
+    // with the backend anymore — every action now requires a session tied
+    // to a verified email. Treat them as signed out rather than partially
+    // working; the user re-signs-in with the same email and gets the same
+    // wallet back (it's keyed by email server-side). Note: the actual
+    // session secret is no longer stored here at all — it lives only in an
+    // httpOnly cookie the browser attaches automatically, which is why
+    // this object no longer has a `token` field. A script running on this
+    // page (including an XSS payload) can read this localStorage entry,
+    // but all that's in it is an email and a public wallet address —
+    // there's nothing here that lets it act as the user.
+    if (!parsed?.email) return null;
     return parsed;
   } catch {
     return null;
@@ -42,6 +47,17 @@ export function saveCircleWallet(info: CircleWalletInfo) {
 export function forgetCircleWallet() {
   localStorage.removeItem(STORAGE_KEY);
   window.dispatchEvent(new Event("circle-wallet-changed"));
+  // Best-effort — clears the httpOnly session cookie server-side. Clearing
+  // localStorage alone isn't enough to actually sign out anymore: the real
+  // session secret lives in the cookie, not here, so without this call the
+  // cookie would keep working (e.g. if forgetCircleWallet() is ever called
+  // without a full page reload, or from a second tab) even though the UI
+  // says signed out.
+  fetch("/api/circle-wallet", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "logout" }),
+  }).catch(() => {});
 }
 
 export function getWalletIdForChain(info: CircleWalletInfo | null, chain: CircleChain): string | null {
@@ -72,7 +88,11 @@ export async function verifyCircleWalletCode(email: string, code: string): Promi
   if (!res.ok || !data.success) {
     throw new Error(data.error ?? "That code didn't work — check it and try again.");
   }
-  return { address: data.address, walletsByChain: data.walletsByChain, email: data.email, token: data.token };
+  // No token in this response — the backend set it as an httpOnly cookie
+  // instead (see Set-Cookie in api/circle-wallet.js), which the browser
+  // now attaches automatically to every same-origin request. There's
+  // nothing secret left for this client-side object to carry.
+  return { address: data.address, walletsByChain: data.walletsByChain, email: data.email };
 }
 
 interface ContractCallParams {
@@ -93,10 +113,13 @@ export async function circleContractCall(params: ContractCallParams): Promise<Co
   if (!wallet) {
     throw new Error("No active Circle Wallet session — please sign in with your email again.");
   }
+  // No email/token in the body anymore — same-origin fetch() sends the
+  // httpOnly session cookie automatically, and the backend reads the
+  // account from that, not from anything the client asserts.
   const res = await fetch("/api/circle-wallet", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "contractCall", email: wallet.email, token: wallet.token, ...params }),
+    body: JSON.stringify({ action: "contractCall", ...params }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -119,7 +142,7 @@ async function getCircleTransaction(transactionId: string): Promise<TransactionS
   const res = await fetch("/api/circle-wallet", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "getTransaction", email: wallet.email, token: wallet.token, transactionId }),
+    body: JSON.stringify({ action: "getTransaction", transactionId }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -171,7 +194,7 @@ export async function signTypedDataWithCircleWallet(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(
-      { action: "signTypedData", email: wallet.email, token: wallet.token, walletId, data },
+      { action: "signTypedData", walletId, data },
       (_key, value) => (typeof value === "bigint" ? value.toString() : value)
     ),
   });
