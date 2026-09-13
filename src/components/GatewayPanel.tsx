@@ -101,9 +101,11 @@ export default function GatewayPanel({ provider, address }: Props) {
   const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [byChain, setByChain] = useState<Record<string, number>>({});
+  const [pendingByChain, setPendingByChain] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositChain, setDepositChain] = useState<GatewayChainKey>("Arc Testnet");
+  const [walletBalanceOnDepositChain, setWalletBalanceOnDepositChain] = useState<number | null>(null);
   const [depositing, setDepositing] = useState(false);
   const [waitingForBalance, setWaitingForBalance] = useState(false);
 
@@ -136,11 +138,12 @@ export default function GatewayPanel({ provider, address }: Props) {
   }, []);
 
   async function refresh() {
-    if (!activeAddress) { setTotal(0); setByChain({}); setLoading(false); return; }
+    if (!activeAddress) { setTotal(0); setByChain({}); setPendingByChain({}); setLoading(false); return; }
     setLoading(true);
     const result = await getUnifiedGatewayBalance(activeAddress);
     setTotal(result.total);
     setByChain(result.byChain);
+    setPendingByChain(result.pendingByChain);
     setLoading(false);
   }
 
@@ -148,6 +151,31 @@ export default function GatewayPanel({ provider, address }: Props) {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAddress]);
+
+  // Deposit pulls from the connected wallet's OWN on-chain USDC balance on
+  // the selected chain — a completely different number from the Gateway
+  // "unified balance" above. Showing it here directly heads off the exact
+  // confusion that caused a failed deposit: the unified balance being
+  // nonzero (elsewhere) says nothing about whether this wallet actually
+  // holds USDC on this specific chain to deposit in the first place.
+  useEffect(() => {
+    let cancelled = false;
+    async function checkWalletBalance() {
+      if (!activeAddress) { setWalletBalanceOnDepositChain(null); return; }
+      setWalletBalanceOnDepositChain(null);
+      try {
+        const client = createPublicClient({ chain: CHAIN_OBJECT[depositChain], transport: http() });
+        const raw = await client.readContract({
+          address: CHAIN_USDC[depositChain], abi: erc20Abi, functionName: "balanceOf", args: [activeAddress as `0x${string}`],
+        });
+        if (!cancelled) setWalletBalanceOnDepositChain(Number(raw) / 1e6);
+      } catch {
+        if (!cancelled) setWalletBalanceOnDepositChain(null);
+      }
+    }
+    checkWalletBalance();
+    return () => { cancelled = true; };
+  }, [depositChain, activeAddress]);
 
   // After a deposit, the on-chain tx confirms quickly but Gateway's own
   // backend needs additional time (source-chain finality + its own
@@ -203,6 +231,15 @@ export default function GatewayPanel({ provider, address }: Props) {
     }
     if (walletMode === "circle" && !circleWallet) {
       showToast("No Circle Wallet found — create one on the Circle Wallet tab first", "error");
+      return;
+    }
+    // Deposit pulls from this wallet's own on-chain USDC balance on
+    // depositChain — a different number from the Gateway unified balance
+    // shown above. Catching a shortfall here avoids a confusing Circle API
+    // error for what's really just "this wallet has no USDC on this chain
+    // yet" (fix: fund it from a faucet first, then deposit).
+    if (walletBalanceOnDepositChain !== null && Number(depositAmount) > walletBalanceOnDepositChain) {
+      showToast(`Your wallet only has ${walletBalanceOnDepositChain.toFixed(2)} USDC on ${depositChain} — fund it (e.g. from a testnet faucet) before depositing more than that.`, "error");
       return;
     }
     setDepositing(true);
@@ -275,11 +312,16 @@ export default function GatewayPanel({ provider, address }: Props) {
     // that specific source chain (Circle's own API rejects it otherwise,
     // with a raw message that doesn't explain why). Checking this before
     // signing turns a confusing after-the-fact API error into a clear
-    // upfront one.
+    // upfront one. The fee (same ~1%, floor 0.01 USDC as the actual burn
+    // intent below) has to be included here too — Circle needs
+    // amount + fee available, not just amount, and a request for exactly
+    // your full available balance would otherwise pass this check and
+    // still get rejected by Gateway.
     const requestedAmount = Number(transferAmount);
     const availableOnSource = byChain[transferSource] ?? 0;
-    if (!isNaN(requestedAmount) && requestedAmount > availableOnSource) {
-      showToast(`Only ${availableOnSource.toFixed(2)} USDC is actually available to spend from ${transferSource} (deposited there, minus anything still tied up in a pending transfer) — a transfer can only draw from the chain you pick as the source, even though the total shown includes deposits made on other chains too.`, "error");
+    const estimatedFee = Math.max(requestedAmount * 0.01, 0.01);
+    if (!isNaN(requestedAmount) && requestedAmount + estimatedFee > availableOnSource) {
+      showToast(`Only ${availableOnSource.toFixed(2)} USDC is actually available to spend from ${transferSource} (deposited there, minus anything still tied up in a pending transfer), and Gateway's own fee (~${estimatedFee.toFixed(2)} USDC) comes out of that too — try a slightly smaller amount.`, "error");
       return;
     }
     setTransferring(true);
@@ -335,11 +377,24 @@ export default function GatewayPanel({ provider, address }: Props) {
         // lag behind the real on-chain result, but Gateway's balance ledger
         // updates as soon as the mint is actually mined. Watching the balance
         // directly is the accurate signal here, not Circle's "COMPLETE" state.
-        await circleContractCall({
-          walletId: destWalletId, contractAddress: GATEWAY_MINTER_ADDRESS,
-          abiFunctionSignature: "gatewayMint(bytes,bytes)",
-          abiParameters: [attestation, attestationSignature],
-        });
+        //
+        // This call is wrapped separately from the signing/attestation steps
+        // above: by this point, Gateway has already attested the burn is
+        // valid — a failure here is a DIFFERENT kind of problem (most likely
+        // the destination Circle Wallet has no native gas token on
+        // {transferDest} to execute the mint transaction with), not a sign
+        // that the transfer itself was invalid. Saying "failed" the same way
+        // as an earlier-stage rejection would be misleading.
+        try {
+          await circleContractCall({
+            walletId: destWalletId, contractAddress: GATEWAY_MINTER_ADDRESS,
+            abiFunctionSignature: "gatewayMint(bytes,bytes)",
+            abiParameters: [attestation, attestationSignature],
+          });
+        } catch (mintErr: unknown) {
+          const mintMsg = (mintErr as { message?: string })?.message ?? "unknown reason";
+          throw new Error(`Gateway approved the transfer (attestation received) — the mint on ${transferDest} didn't go through (${mintMsg}). This is most likely the destination Circle Wallet needing a small amount of native gas token on ${transferDest}. Your funds aren't lost; check back or retry once that's funded.`);
+        }
         setTransferAmount("");
         setShowTransferConfirm(false);
         setTransferring(false);
@@ -467,6 +522,11 @@ export default function GatewayPanel({ provider, address }: Props) {
             <p style={{ fontSize: 11, color: "#9CA3AF", margin: "-4px 0 0 2px" }}>
               {(byChain[transferSource] ?? 0).toFixed(2)} USDC available to spend from {transferSource} — a transfer can only draw from this, not your full unified total.
             </p>
+            {(pendingByChain[transferSource] ?? 0) > 0 && (
+              <p style={{ fontSize: 11, color: "#B45309", margin: "-6px 0 0 2px" }}>
+                {(pendingByChain[transferSource] ?? 0).toFixed(2)} USDC on {transferSource} is currently locked in an unresolved transfer (likely from an earlier failed attempt) — it should clear on its own; try again in a bit if a transfer keeps failing here.
+              </p>
+            )}
             <div style={{ display: "flex", justifyContent: "center", marginTop: -4, marginBottom: -4 }}>
               <button onClick={() => { const s = transferSource; setTransferSource(transferDest); setTransferDest(s); }} disabled={transferring}
                 style={{ width: 28, height: 28, borderRadius: 8, background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#3B82F6", cursor: transferring ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -496,6 +556,11 @@ export default function GatewayPanel({ provider, address }: Props) {
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, alignItems: "start" }}>
         <div style={{ background: "#F9FAFB", borderRadius: 14, padding: isMobile ? "1rem" : "1.5rem" }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Deposit into unified balance</div>
+          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "-6px 0 10px 0" }}>
+            {walletBalanceOnDepositChain === null
+              ? "Checking your wallet's USDC balance on this chain..."
+              : `${walletBalanceOnDepositChain.toFixed(2)} USDC in your wallet on ${depositChain}, available to deposit. This is separate from the unified balance above — deposit pulls from this wallet's own on-chain USDC, not from any balance already in Gateway.`}
+          </p>
           <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10, alignItems: isMobile ? "stretch" : "flex-start" }}>
             <div style={{ flex: 1 }}>
               <GatewayChainSelect value={depositChain} onChange={setDepositChain} open={depositChainOpen} setOpen={setDepositChainOpen} label="CHAIN" disabled={depositing} />
