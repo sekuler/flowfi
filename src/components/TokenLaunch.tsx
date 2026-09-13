@@ -11,6 +11,7 @@ import { showToast } from "../toast";
 // curated-pool factory, used only to check whether a pool exists yet for a
 // launched token.
 import { TOKEN_FACTORY, USDC_ADDRESS, POOL_FACTORY_V4C, LAUNCH_POOL_FACTORY } from "../contracts";
+import { fetchRecentTrades, type RecentTrade } from "../swapHistory";
 
 const TOKEN_FACTORY_ABI = [
   { type: "function", name: "launchToken", stateMutability: "nonpayable", inputs: [{ name: "name", type: "string" }, { name: "symbol", type: "string" }, { name: "supply", type: "uint256" }], outputs: [{ name: "token", type: "address" }] },
@@ -39,6 +40,7 @@ const LAUNCH_POOL_FACTORY_ABI = [
 const POOL_QUOTE_ABI = [
   { type: "function", name: "getAmountOut", stateMutability: "view", inputs: [{ name: "aToB", type: "bool" }, { name: "amountIn", type: "uint256" }], outputs: [{ name: "amountOut", type: "uint256" }] },
   { type: "function", name: "tokenA", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+  { type: "function", name: "getReserves", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }] },
 ] as const;
 
 // Anti-snipe window: the contract caps buys during the first 20s after
@@ -130,6 +132,9 @@ function TokenBuyPanel({ token, provider, address }: { token: { address: string;
   const [quoting, setQuoting] = useState(false);
   const [buyState, setBuyState] = useState<"idle" | "approving" | "buying" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [priceUsd, setPriceUsd] = useState<number | null>(null);
+  const [trades, setTrades] = useState<RecentTrade[]>([]);
+  const [loadingTrades, setLoadingTrades] = useState(false);
 
   // Tick every second only while the anti-snipe window could still be
   // active, so the countdown badge stays accurate without polling forever.
@@ -161,7 +166,23 @@ function TokenBuyPanel({ token, provider, address }: { token: { address: string;
       } else {
         const pTokenA = await client.readContract({ address: pool, abi: POOL_QUOTE_ABI, functionName: "tokenA" });
         setPoolAddress(pool);
-        setUsdcIsTokenA((pTokenA as string).toLowerCase() === USDC_ADDRESS.toLowerCase());
+        const isUsdcA = (pTokenA as string).toLowerCase() === USDC_ADDRESS.toLowerCase();
+        setUsdcIsTokenA(isUsdcA);
+
+        // Price + recent trades are both purely cosmetic (never block the
+        // buy flow itself if either fails) — a simple spot price derived
+        // from the pool's own reserves, same math as getAmountOut for a
+        // tiny trade, cheap and accurate enough for a display figure.
+        client.readContract({ address: pool, abi: POOL_QUOTE_ABI, functionName: "getReserves" })
+          .then(([reserveA, reserveB]) => {
+            const reserveUsdc = Number(formatUnits(isUsdcA ? reserveA : reserveB, 6));
+            const reserveToken = Number(formatUnits(isUsdcA ? reserveB : reserveA, 18));
+            if (reserveToken > 0) setPriceUsd(reserveUsdc / reserveToken);
+          })
+          .catch(() => {});
+
+        setLoadingTrades(true);
+        fetchRecentTrades(pool, 8).then(setTrades).finally(() => setLoadingTrades(false));
       }
     } catch {
       setError("Couldn't check whether this token is tradeable yet.");
@@ -246,6 +267,11 @@ function TokenBuyPanel({ token, provider, address }: { token: { address: string;
 
           {!checking && poolAddress && poolAddress !== "none" && (
             <>
+              {priceUsd !== null && (
+                <div style={{ fontSize: 12, color: "#111827", fontWeight: 700 }}>
+                  ${priceUsd < 0.01 ? priceUsd.toExponential(2) : priceUsd.toFixed(4)} <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 500 }}>per {token.symbol}</span>
+                </div>
+              )}
               {secondsLeft !== null && secondsLeft > 0 && (
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#B45309", background: "#FEF3C7", borderRadius: 6, padding: "3px 6px", alignSelf: "flex-start" }}>
                   Anti-snipe window: {secondsLeft}s left — buy size may be capped
@@ -261,6 +287,28 @@ function TokenBuyPanel({ token, provider, address }: { token: { address: string;
                 style={{ padding: "0.5rem", borderRadius: 8, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: buyState === "approving" || buyState === "buying" ? "not-allowed" : "pointer", opacity: buyState === "approving" || buyState === "buying" ? 0.6 : 1 }}>
                 {buyState === "approving" ? "Approving..." : buyState === "buying" ? "Buying..." : buyState === "done" ? "Bought — buy more?" : "Confirm buy"}
               </button>
+
+              {loadingTrades ? (
+                <div style={{ fontSize: 10.5, color: "#9CA3AF" }}>Loading recent trades...</div>
+              ) : trades.length > 0 ? (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", marginBottom: 4 }}>RECENT TRADES</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 140, overflowY: "auto" }}>
+                    {trades.map((t) => {
+                      const isBuy = t.aToB === usdcIsTokenA; // buying the token means going FROM usdc TO token
+                      const tokenAmount = formatUnits(isBuy ? t.amountOut : t.amountIn, 18);
+                      return (
+                        <a key={t.txHash} href={`https://testnet.arcscan.app/tx/${t.txHash}`} target="_blank" rel="noopener noreferrer"
+                          style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, textDecoration: "none", padding: "2px 0" }}>
+                          <span style={{ color: isBuy ? "#16A34A" : "#DC2626", fontWeight: 700 }}>{isBuy ? "Buy" : "Sell"}</span>
+                          <span style={{ color: "#4B5563" }}>{Number(tokenAmount).toLocaleString(undefined, { maximumFractionDigits: 2 })} {token.symbol}</span>
+                          <span style={{ color: "#9CA3AF", fontFamily: "ui-monospace, monospace" }}>{t.trader.slice(0, 6)}...{t.trader.slice(-4)}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </>
           )}
         </div>
