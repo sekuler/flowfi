@@ -74,12 +74,43 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+const SESSION_COOKIE_NAME = 'flowfi_circle_session';
+
+// Cookie replaces the old body-supplied { email, token } pair entirely.
+// Previously this session token lived in the JSON response body, which the
+// frontend then stored in localStorage — readable by any script on the
+// page, including an XSS payload. An httpOnly cookie can't be read by
+// JavaScript at all (XSS or not), so this is the actual secret now; email/
+// address/walletsByChain (never secret — just identifying info) still
+// travel in the JSON response and get cached in localStorage exactly as
+// before, which is why no other file needs to change how it checks
+// "is a wallet connected".
+function setSessionCookie(res, token) {
+  const maxAgeSeconds = Math.floor(SESSION_TTL_MS / 1000);
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''; // omitted outside production so local http:// dev still works
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE_NAME}=${token}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=${maxAgeSeconds}`);
+}
+
+function clearSessionCookie(res) {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE_NAME}=; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=0`);
+}
+
+function parseCookies(req) {
+  const header = req.headers.cookie;
+  if (!header) return {};
+  const out = {};
+  for (const pair of header.split(';')) {
+    const idx = pair.indexOf('=');
+    if (idx === -1) continue;
+    out[pair.slice(0, idx).trim()] = decodeURIComponent(pair.slice(idx + 1).trim());
+  }
+  return out;
+}
+
 // Session token = base64url(email + "." + expiryMs) + "." + HMAC-SHA256(that
 // payload). Stateless — anyone holding WALLET_AUTH_SECRET can verify it
 // with no DB lookup, but forging one without the secret is infeasible.
-// verifySessionToken() also checks the token's email matches the email the
-// caller is claiming, so a token can't be replayed against a different
-// account even if somehow intercepted.
 function issueSessionToken(email) {
   const expiry = Date.now() + SESSION_TTL_MS;
   const payload = `${email}.${expiry}`;
@@ -87,8 +118,14 @@ function issueSessionToken(email) {
   return `${Buffer.from(payload).toString('base64url')}.${sig}`;
 }
 
-function verifySessionToken(token, expectedEmail) {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+// Verifies the cookie's signature + expiry and returns the email it was
+// issued for (or null if missing/invalid/expired/tampered). There's no
+// separate "expected email" argument anymore — the whole point of moving
+// to a cookie is that the client no longer asserts which account it's
+// acting as; the cookie itself, tamper-evident via the HMAC, is the only
+// source of truth for that.
+function verifyAndDecodeSessionToken(token) {
+  if (!token || typeof token !== 'string' || !token.includes('.')) return null;
   const dot = token.lastIndexOf('.');
   const payloadB64 = token.slice(0, dot);
   const sig = token.slice(dot + 1);
@@ -96,24 +133,23 @@ function verifySessionToken(token, expectedEmail) {
   try {
     payload = Buffer.from(payloadB64, 'base64url').toString();
   } catch {
-    return false;
+    return null;
   }
   const expectedSig = crypto.createHmac('sha256', process.env.WALLET_AUTH_SECRET).update(payload).digest('hex');
   const sigBuf = Buffer.from(sig, 'hex');
   const expectedBuf = Buffer.from(expectedSig, 'hex');
-  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) return false;
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
   // Split on the LAST dot, not the first — an email address almost always
   // contains its own dot (e.g. "user@gmail.com"), so a naive split('.')
   // on "email.expiry" tears the email apart at its domain's dot instead
   // of at the email/expiry boundary. The expiry is always a plain number
   // with no dot in it, so splitting from the end is unambiguous.
   const payloadDot = payload.lastIndexOf('.');
-  if (payloadDot === -1) return false;
-  const tokenEmail = payload.slice(0, payloadDot);
+  if (payloadDot === -1) return null;
+  const email = payload.slice(0, payloadDot);
   const expiryStr = payload.slice(payloadDot + 1);
-  if (tokenEmail !== expectedEmail) return false;
-  if (Date.now() > Number(expiryStr)) return false;
-  return true;
+  if (Date.now() > Number(expiryStr)) return null;
+  return email;
 }
 
 async function sendVerificationEmail(email, code) {
@@ -233,25 +269,34 @@ module.exports = async function handler(req, res) {
       }
 
       const token = issueSessionToken(normEmail);
+      setSessionCookie(res, token);
       return res.status(200).json({
         success: true,
         address: walletRecord.address,
         walletsByChain: walletRecord.walletsByChain,
         email: normEmail,
-        token,
       });
     }
 
+    // ---- Sign out — clears the session cookie server-side ----
+    // Body: { action: "logout" }
+    if (action === 'logout') {
+      clearSessionCookie(res);
+      return res.status(200).json({ success: true });
+    }
+
     // ---- Execute a contract call (approve, swap, bridge burn/mint, transfer, etc.) ----
-    // Body: { action: "contractCall", email, token, walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel? }
+    // Body: { action: "contractCall", walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel? }
+    // email/session no longer come from the body — the httpOnly cookie is
+    // the only source for those now (see SESSION_COOKIE_NAME above).
     if (action === 'contractCall') {
-      const { email, token, walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel } = req.body;
-      const normEmail = normalizeEmail(email);
+      const { walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel } = req.body;
 
       if (!redis) {
         return res.status(500).json({ error: 'Server misconfigured: this requires Upstash Redis (UPSTASH_REDIS_REST_URL/TOKEN).' });
       }
-      if (!verifySessionToken(token, normEmail)) {
+      const normEmail = verifyAndDecodeSessionToken(parseCookies(req)[SESSION_COOKIE_NAME]);
+      if (!normEmail) {
         return res.status(401).json({ error: 'Session expired or invalid. Please sign in again with your email.' });
       }
       if (!walletId || !contractAddress || !abiFunctionSignature) {
@@ -289,11 +334,11 @@ module.exports = async function handler(req, res) {
     }
 
     // ---- Poll a transaction's status until it's mined ----
-    // Body: { action: "getTransaction", email, token, transactionId }
+    // Body: { action: "getTransaction", transactionId }
     if (action === 'getTransaction') {
-      const { email, token, transactionId } = req.body;
-      const normEmail = normalizeEmail(email);
-      if (!verifySessionToken(token, normEmail)) {
+      const { transactionId } = req.body;
+      const normEmail = verifyAndDecodeSessionToken(parseCookies(req)[SESSION_COOKIE_NAME]);
+      if (!normEmail) {
         return res.status(401).json({ error: 'Session expired or invalid. Please sign in again with your email.' });
       }
       if (!transactionId) {
@@ -312,19 +357,19 @@ module.exports = async function handler(req, res) {
     }
 
     // ---- Sign EIP-712 typed data (e.g. a Circle Gateway burn intent) ----
-    // Body: { action: "signTypedData", email, token, walletId, data }
+    // Body: { action: "signTypedData", walletId, data }
     // `data` must be the full { domain, types, primaryType, message } object —
     // it's JSON.stringify'd here since Circle's API expects a JSON string, not
     // a raw object. entitySecretCiphertext is generated fresh by the SDK
     // internally, same as every other authenticated call on this client.
     if (action === 'signTypedData') {
-      const { email, token, walletId, data } = req.body;
-      const normEmail = normalizeEmail(email);
+      const { walletId, data } = req.body;
 
       if (!redis) {
         return res.status(500).json({ error: 'Server misconfigured: this requires Upstash Redis (UPSTASH_REDIS_REST_URL/TOKEN).' });
       }
-      if (!verifySessionToken(token, normEmail)) {
+      const normEmail = verifyAndDecodeSessionToken(parseCookies(req)[SESSION_COOKIE_NAME]);
+      if (!normEmail) {
         return res.status(401).json({ error: 'Session expired or invalid. Please sign in again with your email.' });
       }
       if (!walletId || !data) {
