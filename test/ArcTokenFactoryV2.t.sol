@@ -8,7 +8,13 @@ import "../contracts/ArcTokenFactoryV2.sol";
 // amountAMin, amountBMin, deadline) that ArcTokenFactoryV2.lockLaunchLiquidity()
 // actually calls. v4's ArcPool only has the older 3-argument version — using
 // it here would test against an interface this contract doesn't really use.
-import "../contracts/ArcLaunchPoolFactory.sol";
+// Named import — only pulls in ArcPool, not this file's own IERC20/
+// SafeERC20/IArcTokenFactory interfaces, which would otherwise collide
+// with the separately-declared (but same-named) IERC20 already imported
+// from ArcTokenFactoryV2.sol above. Both contracts define their own
+// minimal IERC20 independently — harmless normally, but a real compile
+// error once both files land in the same compilation unit like this one.
+import { ArcPool } from "../contracts/ArcLaunchPoolFactory.sol";
 import "./mocks/MockERC20.sol";
 
 contract ArcTokenFactoryV2Test is Test {
