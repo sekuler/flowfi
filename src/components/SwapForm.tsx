@@ -128,6 +128,23 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [tokenInOpen, setTokenInOpen] = useState(false);
   const [tokenOutOpen, setTokenOutOpen] = useState(false);
+  // User-adjustable slippage tolerance, in percent. Was hardcoded to 1%
+  // everywhere in this file — fine most of the time, but a real problem in
+  // both directions: too loose during real volatility (bigger loss than
+  // necessary on a bad fill) and too tight for a legitimately thin/quiet
+  // pool (perfectly good swaps failing for no reason). Persisted so it
+  // carries across visits rather than silently resetting to 1% every time.
+  const [slippagePct, setSlippagePct] = useState<number>(() => {
+    const saved = Number(localStorage.getItem("flowfi_slippage_pct"));
+    return saved > 0 && saved <= 50 ? saved : 1;
+  });
+  const [showSlippageEdit, setShowSlippageEdit] = useState(false);
+
+  function updateSlippage(pct: number) {
+    const clamped = Math.min(Math.max(pct, 0.1), 50);
+    setSlippagePct(clamped);
+    localStorage.setItem("flowfi_slippage_pct", String(clamped));
+  }
 
   const [circleWallet, setCircleWallet] = useState<CircleWalletInfo | null>(null);
   const [dcaPlan, setDcaPlanState] = useState<DCAPlan | null>(null);
@@ -312,7 +329,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
     setErrorMsg(null); setTxHash(null);
     const amountIn = parseUnits(amount, 6);
     const tokenAddress = tokenIn === "USDC" ? USDC_ADDRESS : EURC_ADDRESS;
-    const minOut = (parseUnits(estimatedOut, 6) * 99n) / 100n; // 1% slippage tolerance
+    const slippageBps = BigInt(Math.round(slippagePct * 100));
+    const minOut = (parseUnits(estimatedOut, 6) * (10000n - slippageBps)) / 10000n; // user-set slippage tolerance
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
 
     if (useCircle && circleWallet) {
@@ -395,7 +413,8 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
       await waitForSuccess(publicClient, approveHash);
 
       const freshQuote = await publicClient.readContract({ address: POOL_ADDRESS, abi: POOL_ABI, functionName: "getAmountOut", args: [true, amountIn] }) as bigint;
-      const minOutForDCA = (freshQuote * 99n) / 100n; // 1% slippage tolerance
+      const dcaSlippageBps = BigInt(Math.round(slippagePct * 100));
+      const minOutForDCA = (freshQuote * (10000n - dcaSlippageBps)) / 10000n; // user-set slippage tolerance
       const dcaDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
       const hash = await wc.writeContract({ address: POOL_ADDRESS, abi: POOL_ABI, functionName: "swap", args: [true, amountIn, minOutForDCA, dcaDeadline], account: address as `0x${string}` });
       await waitForSuccess(publicClient, hash);
@@ -545,7 +564,28 @@ export default function SwapForm({ provider, address, balances, onRefresh }: Pro
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#4B5563" }}>Minimum received</span>
-                  <span style={{ color: "#111827", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{(Number(estimatedOut) * 0.99).toFixed(4)} {tokenOut}</span>
+                  <span style={{ color: "#111827", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{(Number(estimatedOut) * (1 - slippagePct / 100)).toFixed(4)} {tokenOut}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                  <span style={{ color: "#4B5563" }}>Slippage tolerance</span>
+                  {!showSlippageEdit ? (
+                    <button onClick={() => setShowSlippageEdit(true)} style={{ background: "none", border: "none", padding: 0, color: "#6D5EF7", fontWeight: 600, cursor: "pointer", fontFamily: "ui-monospace, monospace" }}>
+                      {slippagePct}% ✎
+                    </button>
+                  ) : (
+                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                      {[0.5, 1, 2].map((preset) => (
+                        <button key={preset} onClick={() => updateSlippage(preset)}
+                          style={{ padding: "2px 7px", borderRadius: 6, border: "1px solid #E5E7EB", background: slippagePct === preset ? "#6D5EF7" : "#fff", color: slippagePct === preset ? "#fff" : "#4B5563", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                          {preset}%
+                        </button>
+                      ))}
+                      <input type="number" step="0.1" min="0.1" max="50" value={slippagePct}
+                        onChange={(e) => updateSlippage(Number(e.target.value))}
+                        style={{ width: 44, padding: "2px 4px", borderRadius: 6, border: "1px solid #E5E7EB", fontSize: 11, textAlign: "center" }} />
+                      <button onClick={() => setShowSlippageEdit(false)} style={{ background: "none", border: "none", color: "#4B5563", fontSize: 11, cursor: "pointer" }}>✓</button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
