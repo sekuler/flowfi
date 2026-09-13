@@ -242,6 +242,27 @@ export default function GatewayPanel({ provider, address }: Props) {
       showToast(`Your wallet only has ${walletBalanceOnDepositChain.toFixed(2)} USDC on ${depositChain} — fund it (e.g. from a testnet faucet) before depositing more than that.`, "error");
       return;
     }
+    // Circle Developer-Controlled Wallets need the chain's own native gas
+    // token to execute ANY transaction (approve, deposit, ...) unless gas
+    // sponsorship is separately configured — it isn't here. Arc is the one
+    // chain this never bites on, because Arc's native gas token IS USDC
+    // (the same balance just checked above). Elsewhere, a wallet with zero
+    // native balance doesn't get a clean error back from Circle — the
+    // transaction just sits unmined until it eventually times out. Checking
+    // this upfront turns that silent hang into an immediate, clear message.
+    if (walletMode === "circle" && depositChain !== "Arc Testnet") {
+      try {
+        const gasClient = createPublicClient({ chain: CHAIN_OBJECT[depositChain], transport: http() });
+        const walletAddr = getWalletIdForChain(circleWallet, CIRCLE_CHAIN_FOR[depositChain]) ? circleWallet!.address : null;
+        const nativeBalance = walletAddr ? await gasClient.getBalance({ address: walletAddr as `0x${string}` }) : 0n;
+        if (nativeBalance === 0n) {
+          showToast(`Your Circle Wallet has no native gas token on ${depositChain} (e.g. Sepolia ETH) — it needs a small amount to execute the deposit transaction. Get some from a testnet faucet first, then try again.`, "error");
+          return;
+        }
+      } catch {
+        /* if the gas check itself fails, don't block the deposit on it — just proceed and let the real attempt surface whatever actually goes wrong */
+      }
+    }
     setDepositing(true);
     try {
       const usdcAddress = CHAIN_USDC[depositChain];
