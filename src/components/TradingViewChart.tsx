@@ -42,7 +42,7 @@ async function fetchFromBinance(symbol: string, interval: string, limit: number)
 
 async function fetchFromCoinGecko(symbol: string, days: string): Promise<Candle[]> {
   const id = COINGECKO_ID[symbol];
-  const res = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/ohlc?vs_currency=usd&days=${days}`);
+  const res = await fetch(`/api/coingecko-proxy?path=${encodeURIComponent(`/coins/${id}/ohlc?vs_currency=usd&days=${days}`)}`);
   if (!res.ok) throw new Error("CoinGecko request failed");
   const raw = await res.json();
   if (!Array.isArray(raw) || raw.length === 0) throw new Error("CoinGecko returned no data");

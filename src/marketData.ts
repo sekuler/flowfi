@@ -108,7 +108,7 @@ async function resolveCoinId(question: string): Promise<string | null> {
   const extracted = await extractCoinQuery(question);
   const searchTerm = extracted ?? question;
   try {
-    const searchRes = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(searchTerm)}`);
+    const searchRes = await fetch(`/api/coingecko-proxy?path=${encodeURIComponent(`/search?query=${encodeURIComponent(searchTerm)}`)}`);
     const searchData = await searchRes.json();
     return searchData.coins?.[0]?.id ?? null;
   } catch {

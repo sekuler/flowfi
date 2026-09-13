@@ -20,7 +20,7 @@ export default function MarketTicker() {
     async function load() {
       try {
         const res = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${TRACKED_COINS.join(",")}&vs_currencies=usd&include_24hr_change=true`
+          `/api/coingecko-proxy?path=${encodeURIComponent(`/simple/price?ids=${TRACKED_COINS.join(",")}&vs_currencies=usd&include_24hr_change=true`)}`
         );
         const data = await res.json();
         if (cancelled) return;
