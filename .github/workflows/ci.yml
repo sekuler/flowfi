@@ -40,3 +40,14 @@ jobs:
 
       - name: Type-check
         run: npx tsc --noEmit
+
+      - name: Lint (non-blocking for now)
+        # continue-on-error rather than a hard gate: this is the lint
+        # setup's first time in CI, and the existing codebase has ~15
+        # pre-existing findings (mostly minor) that predate this workflow
+        # step. Failing the build on those right now would block unrelated
+        # PRs on cleanup that has nothing to do with them. Once those are
+        # addressed, drop continue-on-error here so lint actually gates
+        # merges instead of just reporting.
+        run: npm run lint
+        continue-on-error: true
