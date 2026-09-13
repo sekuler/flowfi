@@ -4,7 +4,19 @@ test = "test"
 out = "out"
 libs = ["lib"]
 solc = "0.8.19"
-optimizer = false
+# Was false — meaning every contract in this repo has only ever been
+# *tested* unoptimized, while (per SECURITY.md) the actually-deployed
+# bytecode on Arc Testnet may have been compiled differently depending on
+# how each deploy was actually run. Tests should compile with the same
+# settings real deployments use, or a test passing/failing here doesn't
+# reliably predict what the deployed contract does — optimizer settings
+# can change gas costs enough to flip an edge-case revert.
+optimizer = true
+optimizer_runs = 200
 
 [fuzz]
-runs = 256
+# Was 256 — enough to catch obvious breaks but thin for anything involving
+# the AMM math (integer division, reserve ratios) where the interesting
+# failures tend to show up only in less-common input combinations. 1000 is
+# a common real-world baseline for contracts actually handling funds.
+runs = 1000
