@@ -2,6 +2,17 @@
 
 Manual review by the project's own developer — not a certified third-party audit. Not a substitute for professional audit before mainnet or real-funds use.
 
+## Deprecated — live on-chain, unreachable from the app
+
+An auditor scoping this repo should treat these as **out of scope for the live product**, but they're real, verified, deployed contracts — not hypothetical. No UI, no Copilot action, no route in this app can reach either of them; interaction is only possible by calling the contract directly (Arcscan's "Write Contract" tab or similar).
+
+| Contract | Address | Why it's out of scope |
+|---|---|---|
+| ArcLending v2 | `0x5d52D4c13FBEBB7FCd4852bD4876D2A12a7B100a` | No price oracle — assumes USDC/EURC hold peg. Removed from the app's navigation and Copilot action set entirely. No test coverage (the feature was retired before a dedicated test file was written for it). |
+| ArcPerps | `0x3B4cE1734087e1c67474Ff42982063febE3E4B20` | `entryPrice`/`exitPrice` are caller-declared, no oracle. Removed from the app the same way as Lending; `Perpetuals.tsx`/`PnlHistory.tsx` were deleted outright, not just unlinked. |
+
+Full detail on both is under "Not fixed, by design" below.
+
 ## Ownership
 
 Every `onlyOwner` contract in the table below — ArcSwap v5 and all four Pool Factory versions (v4, v4b, v4c; v2/v3 predate the `onlyOwner` restriction) — is owned by a 2-of-3 Safe multisig (`0xa50FFedfC93eDB81F8Bcc23507db8aDdE7EE8Be0` on Arc Testnet), not a single EOA. A single compromised key can no longer call `createPool()`, `setRate()`, `pause()`, or transfer ownership again on any of these.
