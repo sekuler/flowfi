@@ -135,7 +135,7 @@ export default function CopilotHome({ address, balances, onNavigate }: Props) {
 
   const [btcUsd, setBtcUsd] = useState<number | null>(null);
   useEffect(() => {
-    fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
+    fetch("/api/coingecko-proxy?path=" + encodeURIComponent("/simple/price?ids=bitcoin&vs_currencies=usd"))
       .then(r => r.json())
       .then(d => setBtcUsd(d?.bitcoin?.usd ?? null))
       .catch(() => setBtcUsd(null));

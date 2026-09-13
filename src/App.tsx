@@ -347,7 +347,7 @@ function AppInner() {
 
   async function loadBtcRate() {
     try {
-      const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd");
+      const res = await fetch("/api/coingecko-proxy?path=" + encodeURIComponent("/simple/price?ids=bitcoin&vs_currencies=usd"));
       const data = await res.json();
       if (data?.bitcoin?.usd) setBtcUsdRate(data.bitcoin.usd);
     } catch {

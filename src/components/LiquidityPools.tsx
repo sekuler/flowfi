@@ -586,7 +586,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
       fetch("https://api.frankfurter.dev/v1/latest?from=EUR&to=USD").then(r => r.json()).then(d => { if (d.rates?.USD) setEurUsdRate(d.rates.USD); }).catch(() => {});
     }
     if (needsBtc) {
-      fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd").then(r => r.json()).then(d => { if (d?.bitcoin?.usd) setBtcUsdRate(d.bitcoin.usd); }).catch(() => {});
+      fetch("/api/coingecko-proxy?path=" + encodeURIComponent("/simple/price?ids=bitcoin&vs_currencies=usd")).then(r => r.json()).then(d => { if (d?.bitcoin?.usd) setBtcUsdRate(d.bitcoin.usd); }).catch(() => {});
     }
   }, [resolvedSymbolA, resolvedSymbolB]);
 
