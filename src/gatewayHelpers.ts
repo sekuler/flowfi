@@ -82,7 +82,18 @@ export async function getUnifiedGatewayBalance(address: string): Promise<{ total
   const entries = await Promise.all(
     (Object.entries(GATEWAY_DOMAINS) as [GatewayChainKey, number][]).map(async ([chainName, domain]) => {
       const result = await getGatewayBalance(address, domain);
-      return [chainName, result ? parseFloat(result.balance) : 0] as const;
+      if (!result) return [chainName, 0] as const;
+      // `balance` alone includes any amount currently tied up in an
+      // in-flight/unresolved burn intent (`pendingBatch`) — every failed
+      // transfer attempt can leave some USDC stuck there until it clears.
+      // Subtracting it is what actually matches what Circle's attestation
+      // endpoint will accept for a NEW burn. Showing raw `balance` (as this
+      // used to) let the UI claim more was spendable than Circle would
+      // actually honor — which is exactly why "Only 2.99 USDC available"
+      // still got rejected as insufficient for a 1 USDC transfer: the real
+      // spendable amount, net of a stuck pendingBatch, was lower.
+      const available = Math.max(0, parseFloat(result.balance) - parseFloat(result.pendingBatch));
+      return [chainName, available] as const;
     })
   );
   const byChain = Object.fromEntries(entries);

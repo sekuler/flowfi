@@ -279,7 +279,7 @@ export default function GatewayPanel({ provider, address }: Props) {
     const requestedAmount = Number(transferAmount);
     const availableOnSource = byChain[transferSource] ?? 0;
     if (!isNaN(requestedAmount) && requestedAmount > availableOnSource) {
-      showToast(`Only ${availableOnSource.toFixed(2)} USDC of your unified balance was actually deposited from ${transferSource} — a transfer can only draw from the chain you pick as the source, even though the total shown includes deposits made on other chains too.`, "error");
+      showToast(`Only ${availableOnSource.toFixed(2)} USDC is actually available to spend from ${transferSource} (deposited there, minus anything still tied up in a pending transfer) — a transfer can only draw from the chain you pick as the source, even though the total shown includes deposits made on other chains too.`, "error");
       return;
     }
     setTransferring(true);
@@ -465,7 +465,7 @@ export default function GatewayPanel({ provider, address }: Props) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <GatewayChainSelect value={transferSource} onChange={setTransferSource} open={transferSourceOpen} setOpen={setTransferSourceOpen} label="FROM" disabled={transferring} />
             <p style={{ fontSize: 11, color: "#9CA3AF", margin: "-4px 0 0 2px" }}>
-              {(byChain[transferSource] ?? 0).toFixed(2)} USDC actually deposited from {transferSource} — a transfer can only draw from this, not your full unified total.
+              {(byChain[transferSource] ?? 0).toFixed(2)} USDC available to spend from {transferSource} — a transfer can only draw from this, not your full unified total.
             </p>
             <div style={{ display: "flex", justifyContent: "center", marginTop: -4, marginBottom: -4 }}>
               <button onClick={() => { const s = transferSource; setTransferSource(transferDest); setTransferDest(s); }} disabled={transferring}
