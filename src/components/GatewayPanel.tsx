@@ -270,6 +270,18 @@ export default function GatewayPanel({ provider, address }: Props) {
       showToast("No Circle Wallet found — create one on the Circle Wallet tab first", "error");
       return;
     }
+    // Gateway's unified balance is a display sum, not a single pooled
+    // account — a burn can only draw from what was actually deposited on
+    // that specific source chain (Circle's own API rejects it otherwise,
+    // with a raw message that doesn't explain why). Checking this before
+    // signing turns a confusing after-the-fact API error into a clear
+    // upfront one.
+    const requestedAmount = Number(transferAmount);
+    const availableOnSource = byChain[transferSource] ?? 0;
+    if (!isNaN(requestedAmount) && requestedAmount > availableOnSource) {
+      showToast(`Only ${availableOnSource.toFixed(2)} USDC of your unified balance was actually deposited from ${transferSource} — a transfer can only draw from the chain you pick as the source, even though the total shown includes deposits made on other chains too.`, "error");
+      return;
+    }
     setTransferring(true);
     setTransferStatus("Signing burn intent...");
     try {
@@ -452,6 +464,9 @@ export default function GatewayPanel({ provider, address }: Props) {
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <GatewayChainSelect value={transferSource} onChange={setTransferSource} open={transferSourceOpen} setOpen={setTransferSourceOpen} label="FROM" disabled={transferring} />
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "-4px 0 0 2px" }}>
+              {(byChain[transferSource] ?? 0).toFixed(2)} USDC actually deposited from {transferSource} — a transfer can only draw from this, not your full unified total.
+            </p>
             <div style={{ display: "flex", justifyContent: "center", marginTop: -4, marginBottom: -4 }}>
               <button onClick={() => { const s = transferSource; setTransferSource(transferDest); setTransferDest(s); }} disabled={transferring}
                 style={{ width: 28, height: 28, borderRadius: 8, background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#3B82F6", cursor: transferring ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>

@@ -3,15 +3,21 @@
 // same CORS wall and solved it the same way: fetch server-side instead.
 //
 // Seven different pages (History, Dashboard, Home, Swap, Send, ...) all call this
-// same endpoint, previously with zero caching — every navigation re-fetched the same
-// data fresh, and a burst of legitimate traffic could trip Arcscan's own rate limit
-// (confirmed: "Explorer API error (429)"). Two real mitigations, not just a nicer
-// error message:
-//   1. A short in-memory cache, keyed by the exact query — identical requests within
-//      the cache window are served from memory instead of hitting Arcscan again.
-//      (Per-instance only, like any in-memory cache on Vercel — still cuts real load
-//      meaningfully within a warm instance's lifetime, and unlike a rate-limit counter,
-//      a cache doesn't need to be globally exact to be useful.)
+// same endpoint. The recurring "Explorer API error (429)" users kept hitting — every
+// single time they opened History, days in a row — traces to the cache that was
+// supposed to prevent this: it lived in a plain in-memory Map, which is per-serverless-
+// instance on Vercel. Each invocation can land on a different (or freshly cold) instance
+// with its own empty Map, so the cache frequently did nothing at all — every request
+// looked like a first request to Arcscan, and retries from concurrent invocations
+// compounded the load rather than reducing it. Moved to Upstash Redis (already used
+// elsewhere in this app) specifically because it's shared across every instance —
+// this is the actual fix, not just a longer TTL or more retries on top of the same
+// broken cache.
+//
+// Two real mitigations:
+//   1. A short shared cache, keyed by the exact query — identical requests within the
+//      cache window are served from Redis instead of hitting Arcscan again, regardless
+//      of which serverless instance handles the request.
 //   2. Automatic retries with short backoff specifically on 429, since explorer rate
 //      limits are typically a short rolling window — often gone within a second or two.
 //
@@ -19,13 +25,39 @@
 // endpoint) as a fallback source for event logs when eth_getLogs on the RPC itself is
 // unreliable (a real, confirmed issue on Arc Testnet's public RPC) — this reads from
 // Arcscan's own indexed database instead, same query shape, no extra code needed here.
+const { Redis } = require('@upstash/redis');
+
 const ARCSCAN_ORIGIN = 'https://testnet.arcscan.app';
-const CACHE_TTL_MS = 30 * 1000; // bumped from 20s — real usage today (more pools, more activity) showed 20s wasn't cutting enough repeat calls
-const cache = new Map(); // key -> { status, contentType, body, expiresAt }
-const RETRY_DELAYS_MS = [0, 600, 1500, 3000, 5000]; // more attempts, longer max wait — 3 tries wasn't enough under today's real traffic
+const CACHE_TTL_SECONDS = 30;
+const RETRY_DELAYS_MS = [0, 600, 1500, 3000, 5000];
+
+const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+  : null;
+
+// Falls back to a plain in-memory Map if Redis isn't configured — still better than
+// nothing within a single warm instance, but this is the degraded path, not the fix.
+const memCache = new Map();
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getCached(key) {
+  if (redis) {
+    const val = await redis.get(`arcscan-cache:${key}`);
+    return val ? (typeof val === 'string' ? JSON.parse(val) : val) : null;
+  }
+  const entry = memCache.get(key);
+  return entry && entry.expiresAt > Date.now() ? entry : null;
+}
+
+async function setCached(key, entry) {
+  if (redis) {
+    await redis.set(`arcscan-cache:${key}`, JSON.stringify(entry), { ex: CACHE_TTL_SECONDS });
+    return;
+  }
+  memCache.set(key, { ...entry, expiresAt: Date.now() + CACHE_TTL_SECONDS * 1000 });
 }
 
 module.exports = async function handler(req, res) {
@@ -46,8 +78,8 @@ module.exports = async function handler(req, res) {
     }
     const cacheKey = params.toString();
 
-    const cached = cache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
+    const cached = await getCached(cacheKey);
+    if (cached) {
       res.status(cached.status);
       res.setHeader('Content-Type', cached.contentType);
       return res.send(cached.body);
@@ -72,7 +104,7 @@ module.exports = async function handler(req, res) {
     // Only cache genuine successes — never cache a 429/5xx, or a real fix would
     // get masked behind a stale error for the rest of the cache window.
     if (response.status >= 200 && response.status < 300) {
-      cache.set(cacheKey, { status: response.status, contentType, body: text, expiresAt: Date.now() + CACHE_TTL_MS });
+      await setCached(cacheKey, { status: response.status, contentType, body: text });
     }
 
     res.status(response.status);
