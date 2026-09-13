@@ -327,6 +327,7 @@ export default function TokenLaunch({ provider, address }: Props) {
   const [xHandle, setXHandle] = useState("");
   const [telegram, setTelegram] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [state, setState] = useState<"idle" | "processing" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -459,6 +460,30 @@ export default function TokenLaunch({ provider, address }: Props) {
   }, []);
 
   useEffect(() => { loadTokens(); }, [loadTokens]);
+
+  async function doUploadImage(file: File) {
+    if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) {
+      showToast("Use PNG, JPEG, WebP, or GIF.", "error");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("File too large — 5MB max.", "error");
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const res = await fetch("/api/upload-image", { method: "POST", headers: { "Content-Type": file.type }, body: file });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error ?? "Upload failed.");
+      setImageUrl(data.url);
+      showToast("Image uploaded", "success");
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      showToast(err.message ?? "Upload failed.", "error");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
 
   async function doLaunch() {
     if (!name.trim() || !symbol.trim()) { setErrorMsg("Enter both a name and symbol."); return; }
@@ -676,10 +701,20 @@ export default function TokenLaunch({ provider, address }: Props) {
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 12, color: "#6B7280" }}>Image URL</label>
-                <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={isLoading} maxLength={500} placeholder="https://..."
+                <label style={{ fontSize: 12, color: "#6B7280" }}>Image</label>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {imageUrl && (
+                    <img src={imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  )}
+                  <label style={{ padding: "0.5rem 0.8rem", borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", fontSize: 12.5, fontWeight: 600, color: uploadingImage ? "#9CA3AF" : "#5B21B6", cursor: uploadingImage ? "not-allowed" : "pointer" }}>
+                    {uploadingImage ? "Uploading..." : imageUrl ? "Change image" : "Choose image"}
+                    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={isLoading || uploadingImage} onChange={(e) => { const f = e.target.files?.[0]; if (f) doUploadImage(f); e.target.value = ""; }}
+                      style={{ display: "none" }} />
+                  </label>
+                </div>
+                <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={isLoading} maxLength={500} placeholder="or paste an already-hosted image URL"
                   style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, padding: "0.6rem 0.8rem", fontSize: 13, color: "#111827", outline: "none" }} />
-                <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>Link to an already-hosted image (e.g. Imgur) — no upload yet, paste a URL.</span>
+                <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>PNG, JPEG, WebP, or GIF — 5MB max.</span>
               </div>
               <p style={{ fontSize: 10.5, color: "#9CA3AF", margin: 0 }}>Saved after launch, tied to your wallet's signature — this never touches the token contract itself.</p>
             </div>
