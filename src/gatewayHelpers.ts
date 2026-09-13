@@ -78,11 +78,12 @@ export async function getGatewayBalance(address: string, domain: number): Promis
  * summed — this is what "one balance across 4 chains" actually looks like
  * in practice, not just a marketing line.
  */
-export async function getUnifiedGatewayBalance(address: string): Promise<{ total: number; byChain: Record<string, number> }> {
+export async function getUnifiedGatewayBalance(address: string): Promise<{ total: number; byChain: Record<string, number>; pendingByChain: Record<string, number> }> {
   const entries = await Promise.all(
     (Object.entries(GATEWAY_DOMAINS) as [GatewayChainKey, number][]).map(async ([chainName, domain]) => {
       const result = await getGatewayBalance(address, domain);
-      if (!result) return [chainName, 0] as const;
+      if (!result) return [chainName, 0, 0] as const;
+      const pending = parseFloat(result.pendingBatch);
       // `balance` alone includes any amount currently tied up in an
       // in-flight/unresolved burn intent (`pendingBatch`) — every failed
       // transfer attempt can leave some USDC stuck there until it clears.
@@ -92,11 +93,12 @@ export async function getUnifiedGatewayBalance(address: string): Promise<{ total
       // actually honor — which is exactly why "Only 2.99 USDC available"
       // still got rejected as insufficient for a 1 USDC transfer: the real
       // spendable amount, net of a stuck pendingBatch, was lower.
-      const available = Math.max(0, parseFloat(result.balance) - parseFloat(result.pendingBatch));
-      return [chainName, available] as const;
+      const available = Math.max(0, parseFloat(result.balance) - pending);
+      return [chainName, available, pending] as const;
     })
   );
-  const byChain = Object.fromEntries(entries);
+  const byChain = Object.fromEntries(entries.map(([c, a]) => [c, a]));
+  const pendingByChain = Object.fromEntries(entries.map(([c, , p]) => [c, p]));
   const total = entries.reduce((sum, [, val]) => sum + val, 0);
-  return { total, byChain };
+  return { total, byChain, pendingByChain };
 }
