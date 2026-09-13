@@ -68,10 +68,14 @@ contract ArcTokenFactoryV2Test is Test {
 
         assertEq(factory.tokenPool(launchedToken), address(pool));
         assertGt(pool.totalShares(), 0);
-        // The factory holds ALL minted shares itself — no removeLiquidity
-        // function exists anywhere in the contract, which is the actual
-        // lock mechanism (structural, not a revocable flag).
-        assertEq(pool.shares(address(factory)), pool.totalShares());
+        // The factory holds all minted shares EXCEPT the MINIMUM_SHARES
+        // (1000 units) that ArcPool permanently burns to address(0) on the
+        // very first deposit — a standard anti-first-depositor-
+        // manipulation safeguard, not something specific to launches. No
+        // removeLiquidity function exists anywhere in this contract, which
+        // is what actually makes the factory's own share of it a lock
+        // (structural, not a revocable flag).
+        assertEq(pool.shares(address(factory)), pool.totalShares() - 1000);
     }
 
     function test_LockLaunchLiquidity_RevertsIfAlreadyLocked() public {
