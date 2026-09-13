@@ -139,4 +139,96 @@ contract ArcSwapTest is Test {
         swapContract.acceptOwnership();
         assertEq(swapContract.owner(), newOwner);
     }
+
+    // ─── swapEurcToUsdc — the other swap direction, previously untested ────
+    // (setUp() only gives `user` USDC/USDC-approval, not EURC — minted and
+    // approved directly in each test below rather than touching the shared
+    // setUp() and risking an unrelated effect on every other test in this file.)
+
+    function test_SwapEurcToUsdc_HappyPath() public {
+        uint256 amountIn = 100e6;
+        uint256 expectedOut = (amountIn * 1e6) / INITIAL_RATE;
+
+        eurc.mint(user, amountIn);
+        vm.prank(user);
+        eurc.approve(address(swapContract), amountIn);
+
+        uint256 usdcBefore = usdc.balanceOf(user);
+        vm.prank(user);
+        swapContract.swapEurcToUsdc(amountIn, expectedOut);
+
+        assertEq(usdc.balanceOf(user), usdcBefore + expectedOut);
+        assertEq(eurc.balanceOf(address(swapContract)), 10_000e6 + amountIn); // pool's EURC side grew by exactly amountIn
+    }
+
+    function test_SwapEurcToUsdc_RevertsOnSlippage() public {
+        uint256 amountIn = 100e6;
+        uint256 actualOut = (amountIn * 1e6) / INITIAL_RATE;
+
+        eurc.mint(user, amountIn);
+        vm.prank(user);
+        eurc.approve(address(swapContract), amountIn);
+
+        vm.prank(user);
+        vm.expectRevert("Slippage too high");
+        swapContract.swapEurcToUsdc(amountIn, actualOut + 1); // demand more than possible
+    }
+
+    function test_SwapEurcToUsdc_RevertsWhenPaused() public {
+        eurc.mint(user, 100e6);
+        vm.prank(user);
+        eurc.approve(address(swapContract), 100e6);
+
+        swapContract.pause();
+        vm.prank(user);
+        vm.expectRevert("Swaps are paused");
+        swapContract.swapEurcToUsdc(100e6, 0);
+    }
+
+    function test_SwapEurcToUsdc_RevertsOnZeroAmount() public {
+        vm.prank(user);
+        vm.expectRevert("Amount must be > 0");
+        swapContract.swapEurcToUsdc(0, 0);
+    }
+
+    // ─── ArcSwap's own addLiquidity — previously only ever called in setUp(),
+    // never actually tested for its own access control or correctness ──────
+
+    function test_AddLiquidity_OnlyOwner() public {
+        usdc.mint(user, 100e6);
+        vm.prank(user);
+        usdc.approve(address(swapContract), 100e6);
+
+        vm.prank(user);
+        vm.expectRevert("Not owner");
+        swapContract.addLiquidity(100e6, 0);
+    }
+
+    function test_AddLiquidity_ActuallyMovesFunds() public {
+        usdc.mint(address(this), 500e6);
+        eurc.mint(address(this), 300e6);
+        usdc.approve(address(swapContract), 500e6);
+        eurc.approve(address(swapContract), 300e6);
+
+        uint256 usdcBefore = usdc.balanceOf(address(swapContract));
+        uint256 eurcBefore = eurc.balanceOf(address(swapContract));
+
+        swapContract.addLiquidity(500e6, 300e6);
+
+        assertEq(usdc.balanceOf(address(swapContract)), usdcBefore + 500e6);
+        assertEq(eurc.balanceOf(address(swapContract)), eurcBefore + 300e6);
+    }
+
+    function test_AddLiquidity_ZeroOnOneSideIsFine() public {
+        // Both params are independently optional (`if (usdcAmount > 0)` /
+        // `if (eurcAmount > 0)` in the contract) — topping up only one side
+        // shouldn't revert or touch the other token at all.
+        usdc.mint(address(this), 200e6);
+        usdc.approve(address(swapContract), 200e6);
+        uint256 eurcBefore = eurc.balanceOf(address(swapContract));
+
+        swapContract.addLiquidity(200e6, 0);
+
+        assertEq(eurc.balanceOf(address(swapContract)), eurcBefore); // untouched
+    }
 }
