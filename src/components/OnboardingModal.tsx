@@ -6,7 +6,7 @@ const STEPS = [
   {
     icon: "✦",
     title: "Welcome to FlowFi",
-    body: "An AI-powered stablecoin operating system on Arc Testnet. Swap, bridge, lend, and get real market analysis — all in one place.",
+    body: "Built around Circle's full stack on Arc Testnet — sign in with just your email (no seed phrase), move USDC across 4 chains instantly with Gateway, and swap, bridge, or launch tokens, all in one place.",
   },
   {
     icon: "💰",
