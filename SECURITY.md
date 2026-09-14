@@ -1,6 +1,6 @@
 # Security notes
 
-Manual review by the project's own developer — not a certified third-party audit. Not a substitute for professional audit before mainnet or real-funds use.
+Self-review by the project's own developer. No third-party audit. Every `onlyOwner` contract's owner is a 2-of-3 Safe multisig, not a single wallet — see "Ownership" below.
 
 ## Deprecated — live on-chain, unreachable from the app
 
