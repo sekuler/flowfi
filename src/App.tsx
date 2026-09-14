@@ -29,7 +29,7 @@ import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./cont
 import {
   Home, LayoutGrid, Repeat, Droplet,
   Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
-  Sparkles, Moon, Power, Copy, Check, RefreshCw, Lock,
+  Sparkles, Moon, Power, Copy, Check, RefreshCw, Lock, Mail, Zap,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -107,13 +107,18 @@ const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: 
 },
 ];
 
-const LANDING_FEATURE_ICONS = [Sparkles, Repeat, Hexagon, Rocket];
+const LANDING_FEATURE_ICONS = [Mail, Zap, Sparkles, Hexagon, Rocket, Repeat];
 
+// Circle Wallet and Gateway lead — genuinely rare in the Arc ecosystem
+// (most projects here use browser-wallet-only onboarding and one-off CCTP
+// bridging), not just "we have a swap page too" features every DEX has.
 const LANDING_FEATURES = [
+  { title: "Circle Wallet, No Seed Phrase", desc: "Sign in with just your email. Circle creates and manages a real, self-custodial wallet for you — nothing to write down, nothing to lose." },
+  { title: "Gateway: Instant Cross-Chain", desc: "Deposit USDC once, then move it across 4 chains in under 500ms — no repeated bridging, no waiting for confirmations each time." },
   { title: "AI Copilot", desc: "Type what you want — swap, send, bridge, or launch a token — and Copilot executes it for you." },
-  { title: "Smart Swap", desc: "On-chain swap with an AI advisor that reads real pool liquidity before you trade." },
   { title: "Real CCTP Bridge", desc: "Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol." },
-  { title: "Token Launch", desc: "Deploy your own ERC20 token on Arc — fixed supply, minted to your wallet, live in seconds." },
+  { title: "Permissionless Token Launch", desc: "Deploy your own ERC20 on Arc and open its trading pool yourself — no waiting on anyone's approval." },
+  { title: "Smart Swap", desc: "On-chain swap with an AI advisor that reads real pool liquidity before you trade." },
 ];
 
 function timeAgo(sec: number) {
@@ -461,7 +466,7 @@ function AppInner() {
           Tell FlowFi what you want.<br />It handles the rest.
         </h1>
         <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 560, margin: "0 auto 32px" }}>
-          Swap, bridge, launch tokens, and manage your stablecoins — all through one intelligent Copilot on Arc.
+          Built around Circle's full stack — sign in with just your email, then swap, bridge, launch tokens, and move USDC across chains instantly, all through one intelligent Copilot.
         </p>
      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
   <button onClick={() => setShowConnectModal(true)}
@@ -482,7 +487,7 @@ function AppInner() {
         <p style={{ fontSize: 12, color: "#6B7280", marginBottom: 28 }}>Real wallet signatures. No seed phrase ever requested. Arc Testnet only.</p>
 
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px 20px" }}>
-          {["Native USDC", "CCTP V2", "AI Copilot", "Token Launch"].map((f) => (
+          {["Circle Wallet", "Gateway", "Native USDC", "CCTP V2", "AI Copilot", "Token Launch"].map((f) => (
             <div key={f} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4B5563" }}>
               <span style={{ color: "#22C55E", fontWeight: 800 }}>✓</span>
               {f}
@@ -516,7 +521,7 @@ function AppInner() {
               <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>FlowFi</span>
             </div>
             <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
-              An AI-powered DeFi platform built on Arc Testnet, Circle's stablecoin-native Layer-1. Swap, bridge, and provide liquidity through one intelligent Copilot.
+              Built around Circle's full stack on Arc Testnet — Circle Wallet, Gateway, and CCTP — plus swap, bridge, and token launch through one intelligent Copilot.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <a href="https://x.com/flowfiarc" target="_blank" rel="noopener noreferrer"
