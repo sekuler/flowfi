@@ -43,7 +43,6 @@ The live product surface only — every `onlyOwner` contract here is owned by a 
 | Pool Factory v4c *(current — where new pools actually get created)* | `0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0` |
 | Launch Pool Factory *(permissionless, but only for tokens minted through Token Factory below — see [`contracts/README.md`](./contracts/README.md); not yet independently reviewed)* | `0x2b3B2E69C14DA2558E3ce6e2d58c04b2147E5ec0` |
 | Token Factory (v2) | `0x1Fe800a2663988C043e4a9A393651f18Cd49D998` |
-| Escrow v4 *(deployed and verified, not yet wired to the app)* | `0xDDDe5a4E691F6ce6826CB85F09466E799FCFabfB` |
 | USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
 | EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 | CCTP V2 TokenMessengerV2 *(Circle-official)* | `0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA` |
@@ -52,6 +51,8 @@ The live product surface only — every `onlyOwner` contract here is owned by a 
 | Gateway Minter *(Circle-official)* | `0x0022222ABE238Cc2C7Bb1f21003F0a260052475B` |
 
 All verified and viewable on [Arcscan](https://testnet.arcscan.app). Full security review: [`SECURITY.md`](./SECURITY.md). CCTP/Gateway addresses confirmed against [Arc's official contract addresses page](https://docs.arc.io/arc/references/contract-addresses) and [Circle Gateway docs](https://developers.circle.com/gateway).
+
+One more deployed and verified contract, Escrow v4, isn't in the table above because it isn't wired into the app yet — see [`contracts/README.md`](./contracts/README.md) for it.
 
 ---
 
