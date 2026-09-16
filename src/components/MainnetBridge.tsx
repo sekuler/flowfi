@@ -1,4 +1,4 @@
-import { LiFiWidget, type WidgetConfig } from "@lifi/widget";
+import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 
 // Arc mainnet — chain ID and USDC address confirmed against Circle's own
@@ -27,8 +27,14 @@ const widgetConfig: WidgetConfig = {
   providers: [EthereumProvider()],
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_USDC,
-  fromChain: 8453,
-fromToken: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  // FlowFi is EVM-only — restricting the widget's own chain/token fetch to
+  // EVM avoids it also pulling Solana/Bitcoin/Sui/etc. data it will never
+  // use. This also meaningfully shrinks a very large default request
+  // (chainTypes=EVM,SVM,UTXO,MVM,TVM,CSTL&limit=1000) that was timing out
+  // in testing on Arc's mainnet-launch-day token list.
+  chains: {
+    types: { allow: [ChainType.EVM] },
+  },
   feeConfig: {
     name: "FlowFi fee",
     fee: 0.001, // 0.10% — kept low at launch to encourage early usage; can raise later once there's real volume
