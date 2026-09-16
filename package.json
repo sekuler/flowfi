@@ -15,6 +15,7 @@
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@lifi/widget": "^4.6.0",
     "@lifi/widget-provider-ethereum": "^4.1.4",
+    "@relayprotocol/relay-sdk": "^8.0.1",
     "@tanstack/react-query": "^5.103.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.4",
@@ -25,8 +26,8 @@
     "lightweight-charts": "^5.2.0",
     "lucide-react": "^1.28.0",
     "qrcode": "^1.5.4",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "viem": "^2.55.11",
     "wagmi": "^3.7.7"
   },
