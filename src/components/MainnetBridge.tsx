@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import RelaySwap from "./RelaySwap";
@@ -65,7 +66,11 @@ const lifiWidgetConfig: WidgetConfig = {
   appearance: "light",
 };
 
+type Provider = "lifi" | "relay";
+
 export default function MainnetBridge() {
+  const [provider, setProvider] = useState<Provider>("lifi");
+
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0.5rem" }}>
       <div style={{ marginBottom: 16 }}>
@@ -75,11 +80,58 @@ export default function MainnetBridge() {
         <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", margin: "0 0 4px 0" }}>Bridge &amp; Swap to Arc</h2>
       </div>
 
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", margin: "0 0 6px 2px" }}>VIA LI.FI</div>
-      <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
+      {/* Provider selector */}
+      <div
+        style={{
+          display: "flex",
+          background: "#F3F4F6",
+          borderRadius: 12,
+          padding: 4,
+          gap: 4,
+          marginBottom: 14,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setProvider("lifi")}
+          style={{
+            flex: 1,
+            padding: "8px 12px",
+            borderRadius: 9,
+            border: "none",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 700,
+            background: provider === "lifi" ? "#FFFFFF" : "transparent",
+            color: provider === "lifi" ? "#111827" : "#6B7280",
+            boxShadow: provider === "lifi" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+            transition: "all 0.15s ease",
+          }}
+        >
+          LI.FI
+        </button>
+        <button
+          type="button"
+          onClick={() => setProvider("relay")}
+          style={{
+            flex: 1,
+            padding: "8px 12px",
+            borderRadius: 9,
+            border: "none",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 700,
+            background: provider === "relay" ? "#FFFFFF" : "transparent",
+            color: provider === "relay" ? "#111827" : "#6B7280",
+            boxShadow: provider === "relay" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+            transition: "all 0.15s ease",
+          }}
+        >
+          Relay
+        </button>
+      </div>
 
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", margin: "20px 0 6px 2px" }}>VIA RELAY</div>
-      <RelaySwap />
+      {provider === "lifi" ? <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} /> : <RelaySwap />}
     </div>
   );
 }
