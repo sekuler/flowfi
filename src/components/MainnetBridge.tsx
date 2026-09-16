@@ -54,7 +54,6 @@ const lifiWidgetConfig: WidgetConfig = {
   // Intents side by side) -- this replaces the old manual LI.FI/Relay tab
   // switcher entirely.
   variant: "wide",
-  subvariant: "default",
   // FlowFi is EVM-only -- restricting the widget's own chain/token fetch to
   // EVM avoids it also pulling Solana/Bitcoin/Sui/etc. data it will never
   // use. This also meaningfully shrinks a very large default request
