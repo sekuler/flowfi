@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Skeleton from "./components/Skeleton";
 import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHome from "./components/CopilotHome";
@@ -60,6 +61,7 @@ const ARC_USDC = USDC_ADDRESS;
 // address/provider — a real zero address for read-only reserve/APR lookups, and a stub
 // provider whose request() always rejects, so if a guest somehow reaches an action button,
 // it fails cleanly with a clear message instead of crashing on a missing wallet.
+const queryClient = new QueryClient();
 const GUEST_ADDRESS = "0x0000000000000000000000000000000000000000";
 const GUEST_PROVIDER = { request: async () => { throw new Error("Connect a wallet to do this."); } } as unknown as EIP1193Provider;
 const ARC_EURC = EURC_ADDRESS;
@@ -979,8 +981,10 @@ function AppInner() {
 
 export default function App() {
   return (
-    <AppErrorBoundary>
-      <AppInner />
-    </AppErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AppErrorBoundary>
+        <AppInner />
+      </AppErrorBoundary>
+    </QueryClientProvider>
   );
 }
