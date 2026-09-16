@@ -27,6 +27,8 @@ const widgetConfig: WidgetConfig = {
   providers: [EthereumProvider()],
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_USDC,
+  fromChain: 8453,
+fromToken: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
   feeConfig: {
     name: "FlowFi fee",
     fee: 0.001, // 0.10% — kept low at launch to encourage early usage; can raise later once there's real volume
