@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, createPublicClient, custom, http, erc20Abi, parseUnits } from "viem";
