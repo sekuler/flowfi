@@ -21,6 +21,7 @@ import AiCopilot from "./components/AiCopilot";
 import ToastContainer from "./components/ToastContainer";
 import MarketTicker from "./components/MarketTicker";
 import NotificationCenter from "./components/NotificationCenter";
+import MainnetBridge from "./components/MainnetBridge";
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
 import { getDCAPlan, isDCADue } from "./dca";
 import { getCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
@@ -52,7 +53,7 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet";
+type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge";
 
 const ARC_USDC = USDC_ADDRESS;
 // Guest mode (browsing Pools without a connected wallet) needs *something* to pass as
@@ -67,16 +68,23 @@ const ARC_CIRBTC = CIRBTC_ADDRESS;
 
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
 const PORTFOLIO_TAB: { id: Tab; label: string; Icon: any } = { id: "portfolio", label: "Portfolio", Icon: LayoutGrid };
-const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics"];
+const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge"];
 // Bridge/Swap/History already read their own Circle Wallet from localStorage
 // internally (independent of the provider/address props) — so a Circle-primary
 // session can use them today. Portfolio only ever does read-only balance
 // lookups (no signing), so it works for any address. Home/Dashboard/Launch and
 // the AI Copilot all assume a real browser-wallet signer and don't
 // have a Circle-Wallet code path yet — those stay locked until that's built.
-const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet"];
+const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet", "mainnetbridge"];
 
-const TAB_GROUPS: { group: string; variant?: "testnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
+const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
+ {
+  group: "⚡ MAINNET",
+  variant: "mainnet",
+  tabs: [
+    { id: "mainnetbridge", label: "Bridge & Swap", Icon: Zap },
+  ],
+},
  {
   group: "📈 TRADE",
   tabs: [
@@ -621,7 +629,7 @@ function AppInner() {
           </div>
           {TAB_GROUPS.map(({ group, variant, tabs }) => (
             <div key={group} style={{ marginBottom: 4 }}>
-              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : "#6D5EF7", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem" }}>{group}</div>
+              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : variant === "mainnet" ? "#DC2626" : "#6D5EF7", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem" }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 const locked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(id) : !GUEST_SAFE_TABS.includes(id));
@@ -876,6 +884,7 @@ function AppInner() {
               );
             })()}
 
+            {tab === "mainnetbridge" && <MainnetBridge />}
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
             {tab === "analytics" && <StablecoinAnalytics onNavigate={(t) => setTab(t)} />}
             {tab === "history" && (wallet || (circlePrimary && circleWalletInfo)) && <TxHistory address={wallet ? wallet.address : circleWalletInfo!.address} />}
