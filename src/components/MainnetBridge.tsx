@@ -27,6 +27,12 @@ const widgetConfig: WidgetConfig = {
   providers: [EthereumProvider()],
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_USDC,
+  // Default route ranking is CHEAPEST, not fastest — on a brand-new chain
+  // like Arc, the cheapest available route can be a much slower bridge
+  // (e.g. Polymer, ~15-20 min) when a faster one (e.g. CCTP-based) exists
+  // but costs slightly more. FASTEST prioritizes speed instead — more
+  // in line with what a "move USDC to Arc" flow should feel like.
+  routePriority: "FASTEST",
   // FlowFi is EVM-only — restricting the widget's own chain/token fetch to
   // EVM avoids it also pulling Solana/Bitcoin/Sui/etc. data it will never
   // use. This also meaningfully shrinks a very large default request
@@ -66,9 +72,6 @@ export default function MainnetBridge() {
           ⚡ MAINNET — real funds, real fees
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", margin: "0 0 4px 0" }}>Bridge &amp; Swap to Arc</h2>
-        <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>
-          Routed through LI.FI across 60+ chains and DEXs — not FlowFi's own contracts. FlowFi takes a small fee (shown before you confirm); everything else goes to network/bridge costs.
-        </p>
       </div>
       <LiFiWidget integrator="flowfi" config={widgetConfig} />
     </div>
