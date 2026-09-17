@@ -8,6 +8,37 @@ import { showToast } from "../toast";
 // -- it hard-requires wagmi v2 while other widgets on this page require
 // wagmi v3. This talks to Relay's raw SDK/API directly instead.
 //
+// Relay's API sometimes returns a structured error body (an object, not a
+// plain string). If that object ends up passed straight into `new
+// Error(...)`, JS silently stringifies it to the literal text
+// "[object Object]" -- a real string, so our old `typeof === "string"`
+// check let it through, but a useless one. This digs through the common
+// places the real detail could be hiding (response body, .data, nested
+// .message) and falls back to JSON so we at least see the raw shape
+// instead of that placeholder.
+function extractErrorMessage(e: unknown): string {
+  const anyE = e as Record<string, unknown> | undefined;
+  const candidates = [
+    anyE?.message,
+    (anyE?.response as Record<string, unknown> | undefined)?.data,
+    anyE?.data,
+    anyE?.error,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c && c !== "[object Object]") return c;
+    if (c && typeof c === "object") {
+      const nested = (c as Record<string, unknown>).message ?? (c as Record<string, unknown>).error;
+      if (typeof nested === "string" && nested) return nested;
+      try {
+        return JSON.stringify(c);
+      } catch {
+        // fall through
+      }
+    }
+  }
+  return "Couldn't get a quote.";
+}
+
 // Chain + token data is fetched live from Relay's own GET /chains
 // endpoint rather than hand-maintained, so the picker mirrors relay.link's
 // real, current universe (hundreds of tokens) instead of a small
@@ -449,8 +480,7 @@ export default function RelaySwap({
       setTxSteps(rawSteps.map((s) => ({ id: s.id, label: s.action ?? s.id, status: "pending" as const })));
     } catch (e: unknown) {
       if (requestIdRef.current !== myRequestId) return;
-      const err = e as { message?: unknown };
-      setError(typeof err?.message === "string" ? err.message : "Couldn't get a quote.");
+      setError(extractErrorMessage(e));
       setStep("idle");
     }
   }
@@ -496,8 +526,7 @@ export default function RelaySwap({
       setStep("done");
       showToast("Swap complete", "success");
     } catch (e: unknown) {
-      const err = e as { message?: unknown };
-      setError(typeof err?.message === "string" ? err.message : "Execution failed.");
+      setError(extractErrorMessage(e));
       setStep("quoted");
       setShowModal(false);
     }
