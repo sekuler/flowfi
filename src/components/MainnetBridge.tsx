@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
+import RelaySwap from "./RelaySwap";
 
 // Arc mainnet -- chain ID and USDC address confirmed against Circle's own
 // docs.arc.io on 2026-09-16 (mainnet launch day), and Arc's presence on
@@ -28,12 +30,6 @@ const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 // FlowFi's own cut of the percentage; LI.FI separately adds its own
 // platform fee (visible in the portal's Fees tab) on top of this, so the
 // actual total a user pays is higher than just this number.
-//
-// Relay is NOT integrated separately -- LI.FI already aggregates it
-// (confirmed live: a Base -> Arc USDC quote surfaced "Relay" as one of the
-// listed routes alongside AcrossV4, Polymer, and LI.FI's own Intents).
-// Running our own parallel Relay widget just duplicated a route LI.FI
-// already offers, so it's been removed.
 const lifiWidgetConfig: WidgetConfig = {
   integrator: "flowfi",
   apiKey: import.meta.env.VITE_LIFI_API_KEY,
@@ -51,8 +47,7 @@ const lifiWidgetConfig: WidgetConfig = {
   routePriority: "FASTEST",
   // 'wide' variant shows the full route comparison panel next to the main
   // form once an amount is entered (Across / Polymer / Relay / LI.FI
-  // Intents side by side) -- this replaces the old manual LI.FI/Relay tab
-  // switcher entirely.
+  // Intents side by side).
   variant: "wide",
   // FlowFi is EVM-only -- restricting the widget's own chain/token fetch to
   // EVM avoids it also pulling Solana/Bitcoin/Sui/etc. data it will never
@@ -78,7 +73,21 @@ const lifiWidgetConfig: WidgetConfig = {
   appearance: "light",
 };
 
+// LI.FI aggregates Across, Polymer, Relay, and its own Intents for routes
+// INTO Arc, so the 'wide' widget above covers that direction well. But as
+// of Arc's mainnet launch day, LI.FI does not yet surface ANY route OUT of
+// Arc (confirmed live: Arc -> Base returns no routes via LI.FI, Gaszip, or
+// any aggregator we tried -- except Relay's own SDK/site, which supports
+// it directly). So instead of a brand-based LI.FI-vs-Relay switcher, this
+// is a direction-based one: LI.FI handles "To Arc" (it has more routes
+// there), Relay's own SDK handles "From Arc" (it's the only one that
+// currently works). Revisit once LI.FI indexes Arc-outbound routes -- at
+// that point "From Arc" can likely move to the LI.FI widget too.
+type Direction = "toArc" | "fromArc";
+
 export default function MainnetBridge() {
+  const [direction, setDirection] = useState<Direction>("toArc");
+
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 0.5rem" }}>
       <div style={{ marginBottom: 16 }}>
@@ -88,10 +97,66 @@ export default function MainnetBridge() {
         <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", margin: "0 0 4px 0" }}>Bridge to Arc</h2>
       </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#B91C1C", fontWeight: 600, margin: "0 2px 8px" }}>
+      <div
+        style={{
+          display: "flex",
+          background: "#F3F4F6",
+          borderRadius: 12,
+          padding: 4,
+          gap: 4,
+          marginBottom: 14,
+          maxWidth: 320,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setDirection("toArc")}
+          style={{
+            flex: 1,
+            padding: "8px 12px",
+            borderRadius: 9,
+            border: "none",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 700,
+            background: direction === "toArc" ? "#FFFFFF" : "transparent",
+            color: direction === "toArc" ? "#111827" : "#6B7280",
+            boxShadow: direction === "toArc" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+            transition: "all 0.15s ease",
+          }}
+        >
+          To Arc
+        </button>
+        <button
+          type="button"
+          onClick={() => setDirection("fromArc")}
+          style={{
+            flex: 1,
+            padding: "8px 12px",
+            borderRadius: 9,
+            border: "none",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 700,
+            background: direction === "fromArc" ? "#FFFFFF" : "transparent",
+            color: direction === "fromArc" ? "#111827" : "#6B7280",
+            boxShadow: direction === "fromArc" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+            transition: "all 0.15s ease",
+          }}
+        >
+          From Arc
+        </button>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#B91C1C", fontWeight: 600, margin: "0 2px 8px" }}>
         ⚠ Real funds — transactions go to Arc Mainnet and can't be reversed.
       </div>
-      <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
+
+      {direction === "toArc" ? (
+        <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
+      ) : (
+        <RelaySwap direction="fromArc" />
+      )}
     </div>
   );
 }

@@ -32,15 +32,91 @@ createClient({
 });
 
 type Step = "idle" | "quoting" | "quoted" | "executing" | "done";
+export type RelayDirection = "toArc" | "fromArc";
 
-export default function RelaySwap() {
+// LI.FI does not yet surface Relay's Arc-outbound route (confirmed live:
+// Arc -> Base works directly on relay.link, but LI.FI's aggregator returns
+// no routes for that direction as of Arc's mainnet launch day). This
+// component covers BOTH directions itself via Relay's own SDK, so it
+// remains the only working path out of Arc until LI.FI indexes it.
+const ROUTES: Record<RelayDirection, { fromChainId: number; fromCurrency: string; toChainId: number; toCurrency: string; label: string }> = {
+  toArc: { fromChainId: BASE_CHAIN_ID, fromCurrency: BASE_USDC, toChainId: ARC_MAINNET_CHAIN_ID, toCurrency: ARC_MAINNET_USDC, label: "USDC on Base \u2192 USDC on Arc" },
+  fromArc: { fromChainId: ARC_MAINNET_CHAIN_ID, fromCurrency: ARC_MAINNET_USDC, toChainId: BASE_CHAIN_ID, toCurrency: BASE_USDC, label: "USDC on Arc \u2192 USDC on Base" },
+};
+
+type TxStep = { id: string; label: string; status: "pending" | "current" | "done" };
+
+function TransactionModal({
+  direction,
+  amount,
+  outAmount,
+  steps,
+  onClose,
+}: {
+  direction: RelayDirection;
+  amount: string;
+  outAmount: string | undefined;
+  steps: TxStep[];
+  onClose: () => void;
+}) {
+  const route = ROUTES[direction];
+  const fromLabel = direction === "toArc" ? "Base" : "Arc";
+  const toLabel = direction === "toArc" ? "Arc" : "Base";
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: "1.25rem", width: 340, maxWidth: "90vw" }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#111827" }}>Transaction Details</div>
+          <button onClick={onClose} style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 16, color: "#9CA3AF" }}>&times;</button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
+            <div style={{ fontSize: 11, color: "#6B7280" }}>{fromLabel}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{amount} USDC</div>
+          </div>
+          <div style={{ color: "#9CA3AF" }}>&rarr;</div>
+          <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
+            <div style={{ fontSize: 11, color: "#6B7280" }}>{toLabel}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{outAmount ? `${outAmount} ${route.toCurrency === ARC_MAINNET_USDC || route.toCurrency === BASE_USDC ? "USDC" : ""}` : "..."}</div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {steps.map((s, i) => (
+            <div key={s.id} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: s.status === "done" ? "#DCFCE7" : s.status === "current" ? "#EDE9FE" : "#F3F4F6",
+                color: s.status === "done" ? "#16A34A" : s.status === "current" ? "#6D5EF7" : "#9CA3AF",
+                fontSize: 12, fontWeight: 700,
+              }}>
+                {s.status === "done" ? "\u2713" : i + 1}
+              </div>
+              <div style={{ paddingTop: 3 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: s.status === "pending" ? "#9CA3AF" : "#111827" }}>{s.label}</div>
+                {s.status === "current" && <div style={{ fontSize: 11, color: "#6D5EF7" }}>In progress...</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function RelaySwap({ direction }: { direction: RelayDirection }) {
+  const route = ROUTES[direction];
   const [address, setAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [amount, setAmount] = useState("5");
   const [quote, setQuote] = useState<Execute | null>(null);
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [progressLabel, setProgressLabel] = useState("");
+  const [txSteps, setTxSteps] = useState<TxStep[]>([]);
+  const [showModal, setShowModal] = useState(false);
 
   async function connectWallet() {
     const eth = (window as unknown as { ethereum?: EIP1193Provider }).ethereum;
@@ -80,10 +156,10 @@ export default function RelaySwap() {
     try {
       const wallet = await getWalletClient();
       const result = await getQuote({
-        chainId: BASE_CHAIN_ID,
-        currency: BASE_USDC,
-        toChainId: ARC_MAINNET_CHAIN_ID,
-        toCurrency: ARC_MAINNET_USDC,
+        chainId: route.fromChainId,
+        currency: route.fromCurrency,
+        toChainId: route.toChainId,
+        toCurrency: route.toCurrency,
         tradeType: "EXACT_INPUT",
         amount: String(Math.round(num * 1e6)), // USDC has 6 decimals
         wallet,
@@ -94,6 +170,11 @@ export default function RelaySwap() {
       });
       setQuote(result);
       setStep("quoted");
+
+      // Pre-populate the step list from the quote so the modal shows the
+      // full plan immediately, before execution starts.
+      const rawSteps = (result as unknown as { steps?: { id: string; action?: string }[] }).steps ?? [];
+      setTxSteps(rawSteps.map((s) => ({ id: s.id, label: s.action ?? s.id, status: "pending" as const })));
     } catch (e: unknown) {
       const err = e as { message?: string };
       setError(err.message ?? "Couldn't get a quote.");
@@ -105,22 +186,32 @@ export default function RelaySwap() {
     if (!quote || !address) return;
     setStep("executing");
     setError(null);
+    setShowModal(true);
     try {
       const wallet = await getWalletClient();
       await execute({
         quote,
         wallet,
         onProgress: (data) => {
-          const step = data.currentStep;
-          if (step?.action) setProgressLabel(step.action);
+          const currentId = data.currentStep?.id;
+          setTxSteps((prev) => {
+            if (prev.length === 0) return prev;
+            const currentIdx = prev.findIndex((s) => s.id === currentId);
+            return prev.map((s, i) => ({
+              ...s,
+              status: currentIdx === -1 ? s.status : i < currentIdx ? "done" : i === currentIdx ? "current" : "pending",
+            }));
+          });
         },
       });
+      setTxSteps((prev) => prev.map((s) => ({ ...s, status: "done" })));
       setStep("done");
       showToast("Bridge complete", "success");
     } catch (e: unknown) {
       const err = e as { message?: string };
       setError(err.message ?? "Execution failed.");
       setStep("quoted");
+      setShowModal(false);
     }
   }
 
@@ -128,7 +219,7 @@ export default function RelaySwap() {
 
   return (
     <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 16, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ fontSize: 12, color: "#6B7280" }}>USDC on Base &rarr; USDC on Arc</div>
+      <div style={{ fontSize: 12, color: "#6B7280" }}>{route.label}</div>
 
       {!address ? (
         <button onClick={connectWallet} disabled={connecting}
@@ -142,12 +233,11 @@ export default function RelaySwap() {
 
           {step === "quoted" && outAmount && (
             <div style={{ fontSize: 12, color: "#374151", background: "#fff", borderRadius: 8, padding: "0.5rem 0.7rem" }}>
-              You'll receive ≈ <strong>{outAmount} USDC</strong> on Arc
+              You'll receive &asymp; <strong>{outAmount} USDC</strong> on {direction === "toArc" ? "Arc" : "Base"}
             </div>
           )}
 
           {error && <div style={{ fontSize: 11, color: "#DC2626", wordBreak: "break-word" }}>{error}</div>}
-          {step === "executing" && progressLabel && <div style={{ fontSize: 11, color: "#6B7280" }}>{progressLabel}...</div>}
 
           {step === "idle" || step === "quoting" ? (
             <button onClick={doGetQuote} disabled={step === "quoting"}
@@ -161,6 +251,16 @@ export default function RelaySwap() {
             </button>
           )}
         </>
+      )}
+
+      {showModal && (
+        <TransactionModal
+          direction={direction}
+          amount={amount}
+          outAmount={outAmount}
+          steps={txSteps}
+          onClose={() => setShowModal(false)}
+        />
       )}
     </div>
   );
