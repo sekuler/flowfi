@@ -14,10 +14,9 @@ export default function MainnetBridge() {
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0.5rem" }}>
       <div style={{ marginBottom: 16 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FEF3C7", color: "#92400E", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, marginBottom: 10 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FEF3C7", color: "#92400E", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999 }}>
           ⚡ MAINNET — real funds, real fees
         </div>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", margin: "0 0 4px 0" }}>Bridge to Arc</h2>
       </div>
 
       <RelaySwap
