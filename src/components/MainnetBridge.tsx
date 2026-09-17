@@ -20,13 +20,10 @@ const lifiWidgetConfig: WidgetConfig = {
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_USDC,
   routePriority: "FASTEST",
-  // 'wide' variant shows the full route comparison panel (Across / Polymer
-  // / Relay / LI.FI Intents side by side) once an amount is entered.
   variant: "wide",
   // Arc isn't selectable as a source chain inside LI.FI -- LI.FI doesn't
-  // reliably support routes OUT of Arc yet (confirmed live: false
-  // "insufficient funds" errors even with a funded wallet). Arc-outbound
-  // goes through the Relay card below instead, which we've tested working.
+  // reliably support routes OUT of Arc yet. Arc-outbound goes through the
+  // Relay tab instead.
   chains: {
     types: { allow: [ChainType.EVM] },
     from: { deny: [ARC_MAINNET_CHAIN_ID] },
