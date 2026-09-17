@@ -1,72 +1,105 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { EIP1193Provider, Chain } from "viem";
-import { createWalletClient, custom } from "viem";
-import { arc, arbitrum, base, mainnet } from "viem/chains";
+import { createWalletClient, custom, defineChain } from "viem";
 import { createClient, getQuote, execute, type Execute } from "@relayprotocol/relay-sdk";
 import { showToast } from "../toast";
 
 // Deliberately NOT using @relayprotocol/relay-kit-ui's pre-built SwapWidget
-// here -- it hard-requires wagmi v2, while LI.FI's widget (elsewhere on
-// this page) hard-requires wagmi v3. Both can't be satisfied by a single
-// installed wagmi version at once. This talks to Relay's raw SDK directly
-// (getQuote + execute) via the same EIP-1193-provider pattern already used
-// elsewhere in this app, instead of wagmi.
+// -- it hard-requires wagmi v2 while other widgets on this page require
+// wagmi v3. This talks to Relay's raw SDK/API directly instead.
 //
-// Chain/token addresses below are all independently verified against
-// official sources (Circle's own USDC contract docs, Etherscan/Arbiscan)
-// on 2026-09-17, not guessed -- wrong addresses here mean lost funds.
-const NATIVE = "0x0000000000000000000000000000000000000000";
-
-const CHAINS = [
-  { id: 5042, name: "Arc", badgeBg: "#111827", badgeText: "A" },
-  { id: 8453, name: "Base", badgeBg: "#2563EB", badgeText: "B" },
-  { id: 42161, name: "Arbitrum", badgeBg: "#28A0F0", badgeText: "AR" },
-  { id: 1, name: "Ethereum", badgeBg: "#627EEA", badgeText: "E" },
-] as const;
-
-type TokenDef = { symbol: string; address: string; decimals: number };
-
-// USDC addresses verified: Arc (Circle's own docs.arc.io), Base
-// (Circle's official USDC contract list), Arbitrum (Circle's "USDC on
-// Arbitrum Now Available" announcement -- native USDC, not the old
-// bridged USDC.e), Ethereum (Etherscan-verified Circle contract).
-const TOKENS_BY_CHAIN: Record<number, TokenDef[]> = {
-  5042: [{ symbol: "USDC", address: "0x3600000000000000000000000000000000000000", decimals: 6 }],
-  8453: [
-    { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 },
-    { symbol: "ETH", address: NATIVE, decimals: 18 },
-  ],
-  42161: [
-    { symbol: "USDC", address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
-    { symbol: "ETH", address: NATIVE, decimals: 18 },
-  ],
-  1: [
-    { symbol: "USDC", address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals: 6 },
-    { symbol: "ETH", address: NATIVE, decimals: 18 },
-  ],
+// Chain + token data is fetched live from Relay's own GET /chains
+// endpoint rather than hand-maintained, so the picker mirrors relay.link's
+// real, current universe (hundreds of tokens) instead of a small
+// hardcoded list -- and it also means we're never trusting a
+// hand-typed contract address: whatever Relay's own API returns is what
+// gets used, exactly as relay.link itself does.
+type RelayCurrency = { address: string; symbol: string; name: string; decimals: number; metadata?: { logoURI?: string } };
+type RelayChain = {
+  id: number;
+  name: string;
+  displayName: string;
+  httpRpcUrl: string;
+  vmType: string;
+  disabled?: boolean;
+  iconUrl?: string | null;
+  currency: RelayCurrency;
+  featuredTokens?: RelayCurrency[];
+  erc20Currencies?: RelayCurrency[];
 };
+
+type TokenDef = { symbol: string; address: string; decimals: number; logoURI?: string };
+type Side = { chainId: number; token: TokenDef };
+
+// Pin a few common chains to the top of the picker for convenience; the
+// full list (fetched live) still has everything else below, searchable.
+const PINNED_CHAIN_IDS = [5042, 8453, 42161, 1];
+
+function useRelayChains() {
+  const [chains, setChains] = useState<RelayChain[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/relay-proxy/chains")
+      .then((r) => r.json())
+      .then((data: { chains: RelayChain[] }) => {
+        if (cancelled) return;
+        const evmChains = (data.chains ?? []).filter((c) => c.vmType === "evm" && !c.disabled);
+        evmChains.sort((a, b) => {
+          const ai = PINNED_CHAIN_IDS.indexOf(a.id);
+          const bi = PINNED_CHAIN_IDS.indexOf(b.id);
+          if (ai !== -1 || bi !== -1) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+          return a.displayName.localeCompare(b.displayName);
+        });
+        setChains(evmChains);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Couldn't load the chain list from Relay.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { chains, error };
+}
+
+function tokensForChain(chain: RelayChain): TokenDef[] {
+  const seen = new Map<string, TokenDef>();
+  const add = (c: RelayCurrency | undefined) => {
+    if (!c) return;
+    const key = c.address.toLowerCase();
+    if (!seen.has(key)) {
+      seen.set(key, { symbol: c.symbol, address: c.address, decimals: c.decimals, logoURI: c.metadata?.logoURI });
+    }
+  };
+  add(chain.currency);
+  chain.featuredTokens?.forEach(add);
+  chain.erc20Currencies?.forEach(add);
+  return Array.from(seen.values());
+}
 
 // Arc's native gas token is USDC, but represented with 18 decimals at the
 // protocol/native-balance level (wei-style) -- NOT the 6 decimals the USDC
-// ERC-20 contract itself uses. Without an explicit chain object, viem
-// misreads the wallet's actual gas balance by a factor of 10^12 and throws
-// a false "insufficient gas" error even when well-funded. viem ships
-// Arc's correct definition natively, so this just needs importing.
-const CHAIN_BY_ID: Record<number, Chain> = {
-  5042: arc,
-  8453: base,
-  42161: arbitrum,
-  1: mainnet,
-};
-
-function chainInfo(id: number) {
-  return CHAINS.find((c) => c.id === id)!;
+// ERC-20 contract uses. Without an explicit chain object, viem misreads
+// the wallet's real gas balance by 10^12 and throws a false
+// "insufficient gas" error. Building the viem Chain from Relay's own
+// /chains response (which already carries the correct native-currency
+// decimals per chain) fixes this generically for every chain, not just
+// Arc -- no per-chain hardcoding needed.
+function toViemChain(rc: RelayChain): Chain {
+  return defineChain({
+    id: rc.id,
+    name: rc.displayName || rc.name,
+    nativeCurrency: { name: rc.currency.name, symbol: rc.currency.symbol, decimals: rc.currency.decimals },
+    rpcUrls: { default: { http: [rc.httpRpcUrl] } },
+  });
 }
 
 // No FlowFi fee on this route -- bridging is free for the user (Relay's
 // own network fee still applies, same as using relay.link directly).
-// Monetization moved to Token Launch / Liquidity Pools instead of
-// competing on price with Relay itself.
+// Monetization moved to Token Launch / Liquidity Pools.
 
 // Relay's own docs warn against sending their API key from the browser --
 // baseApiUrl points at FlowFi's own proxy (api/relay-proxy/[...path].js),
@@ -77,89 +110,149 @@ createClient({
 });
 
 type Step = "idle" | "quoting" | "quoted" | "executing" | "done";
-type Side = { chainId: number; token: TokenDef };
 type TxStep = { id: string; label: string; status: "pending" | "current" | "done" };
 
-function TokenBadge({ side, onClick }: { side: Side; onClick: () => void }) {
-  const chain = chainInfo(side.chainId);
+function ChainBadge({ chain, size = 24 }: { chain: RelayChain | undefined; size?: number }) {
+  if (chain?.iconUrl) {
+    return <img src={chain.iconUrl} alt="" width={size} height={size} style={{ borderRadius: "50%", flexShrink: 0 }} />;
+  }
+  return (
+    <div style={{ width: size, height: size, borderRadius: "50%", background: "#6B7280", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.42, fontWeight: 800, flexShrink: 0 }}>
+      {(chain?.displayName ?? "?").slice(0, 1)}
+    </div>
+  );
+}
+
+function TokenBadge({ side, chain, onClick }: { side: Side; chain: RelayChain | undefined; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       style={{ display: "flex", alignItems: "center", gap: 8, background: "#F3F4F6", borderRadius: 999, padding: "0.4rem 0.6rem 0.4rem 0.4rem", border: "none", cursor: "pointer" }}
     >
-      <div style={{ width: 24, height: 24, borderRadius: "50%", background: chain.badgeBg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 800, flexShrink: 0 }}>
-        {chain.badgeText}
-      </div>
+      {side.token.logoURI ? (
+        <img src={side.token.logoURI} alt="" width={24} height={24} style={{ borderRadius: "50%", flexShrink: 0 }} />
+      ) : (
+        <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#EEF2FF", color: "#4338CA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, flexShrink: 0 }}>
+          {side.token.symbol.slice(0, 2)}
+        </div>
+      )}
       <div style={{ textAlign: "left" }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", lineHeight: 1.1 }}>{side.token.symbol}</div>
-        <div style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.1 }}>{chain.name}</div>
+        <div style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.1 }}>{chain?.displayName ?? "..."}</div>
       </div>
       <span style={{ color: "#9CA3AF", fontSize: 11, marginLeft: 2 }}>&#9662;</span>
     </button>
   );
 }
 
-// "Select Token" picker -- chains on the left, tokens for the selected
-// chain on the right. Scoped to the 4 chains/tokens we've verified above;
-// this is smaller than relay.link's full universe on purpose, since a
-// wrong contract address here costs someone real money.
+// "Select Token" picker, mirroring relay.link's own: a searchable chain
+// list on the left, a searchable token list (for the selected chain) on
+// the right -- backed by Relay's live /chains data.
 function SelectTokenModal({
+  chains,
+  loadError,
   onPick,
   onClose,
 }: {
+  chains: RelayChain[] | null;
+  loadError: string | null;
   onPick: (side: Side) => void;
   onClose: () => void;
 }) {
-  const [chainId, setChainId] = useState<number>(CHAINS[0].id);
-  const tokens = TOKENS_BY_CHAIN[chainId] ?? [];
+  const [chainQuery, setChainQuery] = useState("");
+  const [tokenQuery, setTokenQuery] = useState("");
+  const [chainId, setChainId] = useState<number | null>(null);
+
+  const filteredChains = useMemo(() => {
+    if (!chains) return [];
+    const q = chainQuery.trim().toLowerCase();
+    return q ? chains.filter((c) => c.displayName.toLowerCase().includes(q)) : chains;
+  }, [chains, chainQuery]);
+
+  const activeChain = chains?.find((c) => c.id === (chainId ?? chains?.[0]?.id));
+  const tokens = activeChain ? tokensForChain(activeChain) : [];
+  const filteredTokens = useMemo(() => {
+    const q = tokenQuery.trim().toLowerCase();
+    return q ? tokens.filter((t) => t.symbol.toLowerCase().includes(q) || t.address.toLowerCase().includes(q)) : tokens;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens, tokenQuery]);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
-      <div style={{ background: "#fff", borderRadius: 16, width: 420, maxWidth: "92vw", maxHeight: "80vh", display: "flex", flexDirection: "column", overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ background: "#fff", borderRadius: 16, width: 460, maxWidth: "92vw", maxHeight: "80vh", display: "flex", flexDirection: "column", overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.1rem 0.75rem" }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "#111827" }}>Select Token</div>
           <button onClick={onClose} style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 16, color: "#9CA3AF" }}>&times;</button>
         </div>
-        <div style={{ display: "flex", borderTop: "1px solid #F3F4F6", flex: 1, minHeight: 0 }}>
-          <div style={{ width: 130, borderRight: "1px solid #F3F4F6", padding: "0.6rem", overflowY: "auto" }}>
-            {CHAINS.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setChainId(c.id)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
-                  padding: "0.5rem 0.5rem", borderRadius: 8, border: "none", cursor: "pointer", marginBottom: 2,
-                  background: chainId === c.id ? "#F3F4F6" : "transparent", fontSize: 12.5, fontWeight: 700, color: "#111827",
-                }}
-              >
-                <div style={{ width: 20, height: 20, borderRadius: "50%", background: c.badgeBg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9.5, fontWeight: 800, flexShrink: 0 }}>
-                  {c.badgeText}
-                </div>
-                {c.name}
-              </button>
-            ))}
+
+        {loadError && <div style={{ padding: "0 1.1rem 0.75rem", fontSize: 12, color: "#DC2626" }}>{loadError}</div>}
+        {!chains && !loadError && <div style={{ padding: "0 1.1rem 1.1rem", fontSize: 13, color: "#6B7280" }}>Loading chains...</div>}
+
+        {chains && (
+          <div style={{ display: "flex", borderTop: "1px solid #F3F4F6", flex: 1, minHeight: 0 }}>
+            <div style={{ width: 140, borderRight: "1px solid #F3F4F6", display: "flex", flexDirection: "column", minHeight: 0 }}>
+              <div style={{ padding: "0.6rem 0.6rem 0.4rem" }}>
+                <input
+                  value={chainQuery}
+                  onChange={(e) => setChainQuery(e.target.value)}
+                  placeholder="Search chains"
+                  style={{ width: "100%", fontSize: 12, padding: "0.4rem 0.5rem", borderRadius: 8, border: "1px solid #E5E7EB", outline: "none" }}
+                />
+              </div>
+              <div style={{ overflowY: "auto", padding: "0 0.6rem 0.6rem" }}>
+                {filteredChains.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setChainId(c.id); setTokenQuery(""); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
+                      padding: "0.45rem 0.4rem", borderRadius: 8, border: "none", cursor: "pointer", marginBottom: 2,
+                      background: (chainId ?? chains[0]?.id) === c.id ? "#F3F4F6" : "transparent", fontSize: 12, fontWeight: 700, color: "#111827",
+                    }}
+                  >
+                    <ChainBadge chain={c} size={20} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.displayName}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+              <div style={{ padding: "0.6rem 0.6rem 0.4rem" }}>
+                <input
+                  value={tokenQuery}
+                  onChange={(e) => setTokenQuery(e.target.value)}
+                  placeholder="Search for a token or paste address"
+                  style={{ width: "100%", fontSize: 12.5, padding: "0.5rem 0.6rem", borderRadius: 8, border: "1px solid #E5E7EB", outline: "none" }}
+                />
+              </div>
+              <div style={{ overflowY: "auto", padding: "0 0.6rem 0.6rem" }}>
+                {filteredTokens.map((t) => (
+                  <button
+                    key={t.address}
+                    type="button"
+                    onClick={() => onPick({ chainId: activeChain!.id, token: t })}
+                    style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "0.55rem 0.5rem", borderRadius: 8, border: "none", cursor: "pointer", background: "transparent" }}
+                  >
+                    {t.logoURI ? (
+                      <img src={t.logoURI} alt="" width={28} height={28} style={{ borderRadius: "50%", flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#EEF2FF", color: "#4338CA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 800, flexShrink: 0 }}>
+                        {t.symbol.slice(0, 2)}
+                      </div>
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{t.symbol}</div>
+                      <div style={{ fontSize: 10.5, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeChain?.displayName}</div>
+                    </div>
+                  </button>
+                ))}
+                {filteredTokens.length === 0 && <div style={{ padding: "1rem 0.5rem", fontSize: 12.5, color: "#9CA3AF" }}>No tokens found.</div>}
+              </div>
+            </div>
           </div>
-          <div style={{ flex: 1, padding: "0.6rem", overflowY: "auto" }}>
-            {tokens.map((t) => (
-              <button
-                key={t.address}
-                type="button"
-                onClick={() => onPick({ chainId, token: t })}
-                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "0.6rem 0.5rem", borderRadius: 8, border: "none", cursor: "pointer", background: "transparent" }}
-              >
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#EEF2FF", color: "#4338CA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>
-                  {t.symbol.slice(0, 2)}
-                </div>
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{t.symbol}</div>
-                  <div style={{ fontSize: 11, color: "#6B7280" }}>{chainInfo(chainId).name}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -168,6 +261,8 @@ function SelectTokenModal({
 function TransactionModal({
   sell,
   buy,
+  sellChain,
+  buyChain,
   amount,
   outAmount,
   steps,
@@ -175,6 +270,8 @@ function TransactionModal({
 }: {
   sell: Side;
   buy: Side;
+  sellChain: RelayChain | undefined;
+  buyChain: RelayChain | undefined;
   amount: string;
   outAmount: string | undefined;
   steps: TxStep[];
@@ -190,12 +287,12 @@ function TransactionModal({
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
           <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
-            <div style={{ fontSize: 11, color: "#6B7280" }}>{chainInfo(sell.chainId).name}</div>
+            <div style={{ fontSize: 11, color: "#6B7280" }}>{sellChain?.displayName ?? "..."}</div>
             <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{amount} {sell.token.symbol}</div>
           </div>
           <div style={{ color: "#9CA3AF" }}>&rarr;</div>
           <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
-            <div style={{ fontSize: 11, color: "#6B7280" }}>{chainInfo(buy.chainId).name}</div>
+            <div style={{ fontSize: 11, color: "#6B7280" }}>{buyChain?.displayName ?? "..."}</div>
             <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{outAmount ? `${outAmount} ${buy.token.symbol}` : "..."}</div>
           </div>
         </div>
@@ -231,9 +328,14 @@ export default function RelaySwap({
   defaultSell?: Side;
   defaultBuy?: Side;
 } = {}) {
-  const [sell, setSell] = useState<Side>(defaultSell ?? { chainId: 8453, token: TOKENS_BY_CHAIN[8453][0] });
-  const [buy, setBuy] = useState<Side>(defaultBuy ?? { chainId: 5042, token: TOKENS_BY_CHAIN[5042][0] });
+  const { chains, error: chainsError } = useRelayChains();
+
+  const [sell, setSell] = useState<Side>(defaultSell ?? { chainId: 8453, token: { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 } });
+  const [buy, setBuy] = useState<Side>(defaultBuy ?? { chainId: 5042, token: { symbol: "USDC", address: "0x3600000000000000000000000000000000000000", decimals: 6 } });
   const [pickerSide, setPickerSide] = useState<"sell" | "buy" | null>(null);
+
+  const sellChain = chains?.find((c) => c.id === sell.chainId);
+  const buyChain = chains?.find((c) => c.id === buy.chainId);
 
   const [address, setAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -261,16 +363,17 @@ export default function RelaySwap({
     }
   }
 
-  async function getWalletClient(forChainId: number) {
+  async function getWalletClient() {
     const eth = (window as unknown as { ethereum?: EIP1193Provider }).ethereum;
     if (!eth || !address) throw new Error("Connect a wallet first.");
-    return createWalletClient({ transport: custom(eth), account: address as `0x${string}`, chain: CHAIN_BY_ID[forChainId] });
+    if (!sellChain) throw new Error("Chain list still loading -- try again in a moment.");
+    return createWalletClient({ transport: custom(eth), account: address as `0x${string}`, chain: toViemChain(sellChain) });
   }
 
   const requestIdRef = useRef(0);
 
   async function doGetQuote() {
-    if (!address) return;
+    if (!address || !sellChain) return;
     const num = Number(amount);
     if (!amount || isNaN(num) || num <= 0) {
       setStep("idle");
@@ -280,7 +383,7 @@ export default function RelaySwap({
     setError(null);
     setStep("quoting");
     try {
-      const wallet = await getWalletClient(sell.chainId);
+      const wallet = await getWalletClient();
       const result = await getQuote({
         chainId: sell.chainId,
         currency: sell.token.address,
@@ -305,9 +408,8 @@ export default function RelaySwap({
     }
   }
 
-  // Auto-quote as soon as a valid amount is entered (debounced).
   useEffect(() => {
-    if (!address) return;
+    if (!address || !sellChain) return;
     const num = Number(amount);
     if (!amount || isNaN(num) || num <= 0) {
       setQuote(null);
@@ -319,7 +421,7 @@ export default function RelaySwap({
     }, 450);
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, sell.chainId, sell.token.address, buy.chainId, buy.token.address, address]);
+  }, [amount, sell.chainId, sell.token.address, buy.chainId, buy.token.address, address, !!sellChain]);
 
   async function doExecute() {
     if (!quote || !address) return;
@@ -327,7 +429,7 @@ export default function RelaySwap({
     setError(null);
     setShowModal(true);
     try {
-      const wallet = await getWalletClient(sell.chainId);
+      const wallet = await getWalletClient();
       await execute({
         quote,
         wallet,
@@ -384,7 +486,6 @@ export default function RelaySwap({
   return (
     <div style={{ maxWidth: 440, margin: "0 auto" }}>
       <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 20, padding: "1.1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-        {/* Sell panel */}
         <div style={{ background: "#F9FAFB", borderRadius: 14, padding: "0.9rem 1rem", marginBottom: 6 }}>
           <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 6 }}>Sell</div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -396,11 +497,10 @@ export default function RelaySwap({
               placeholder="0"
               style={{ border: "none", background: "transparent", outline: "none", fontSize: 32, fontWeight: 800, color: "#111827", width: "55%", minWidth: 0 }}
             />
-            <TokenBadge side={sell} onClick={() => setPickerSide("sell")} />
+            <TokenBadge side={sell} chain={sellChain} onClick={() => setPickerSide("sell")} />
           </div>
         </div>
 
-        {/* Direction flip -- swaps Sell and Buy sides entirely (chain + token) */}
         <div style={{ display: "flex", justifyContent: "center", margin: "-4px 0" }}>
           <button
             type="button"
@@ -412,14 +512,13 @@ export default function RelaySwap({
           </button>
         </div>
 
-        {/* Buy panel */}
         <div style={{ background: "#F9FAFB", borderRadius: 14, padding: "0.9rem 1rem", marginTop: 6, marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 6 }}>Buy</div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div style={{ fontSize: 32, fontWeight: 800, color: outAmount ? "#111827" : "#D1D5DB" }}>
               {outAmount ?? "0"}
             </div>
-            <TokenBadge side={buy} onClick={() => setPickerSide("buy")} />
+            <TokenBadge side={buy} chain={buyChain} onClick={() => setPickerSide("buy")} />
           </div>
         </div>
 
@@ -430,6 +529,7 @@ export default function RelaySwap({
         )}
 
         {error && <div style={{ fontSize: 11.5, color: "#DC2626", wordBreak: "break-word", marginBottom: 10 }}>{error}</div>}
+        {chainsError && <div style={{ fontSize: 11.5, color: "#DC2626", marginBottom: 10 }}>{chainsError}</div>}
 
         <button
           onClick={handleMainButton}
@@ -447,6 +547,8 @@ export default function RelaySwap({
 
       {pickerSide && (
         <SelectTokenModal
+          chains={chains}
+          loadError={chainsError}
           onClose={() => setPickerSide(null)}
           onPick={(side) => {
             if (pickerSide === "sell") setSell(side);
@@ -462,6 +564,8 @@ export default function RelaySwap({
         <TransactionModal
           sell={sell}
           buy={buy}
+          sellChain={sellChain}
+          buyChain={buyChain}
           amount={amount}
           outAmount={outAmount}
           steps={txSteps}
