@@ -130,11 +130,12 @@ function TransactionModal({
   );
 }
 
-export default function RelaySwap() {
-  // Direction is owned here now (not passed in as a prop from a tab
-  // switcher) -- the little arrow between the Sell/Buy panels flips it,
-  // same as relay.link's own UI, instead of two separate tabs.
-  const [direction, setDirection] = useState<RelayDirection>("toArc");
+export default function RelaySwap({ fixedDirection }: { fixedDirection?: RelayDirection } = {}) {
+  // Direction is normally owned here (the arrow between Sell/Buy flips it).
+  // But when a parent (e.g. an outer "To Arc" / "From Arc" tab) already
+  // decided the direction, fixedDirection locks it and hides the arrow.
+  const [internalDirection, setInternalDirection] = useState<RelayDirection>(fixedDirection ?? "toArc");
+  const direction = fixedDirection ?? internalDirection;
   const route = ROUTES[direction];
   const [address, setAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -297,23 +298,25 @@ export default function RelaySwap() {
           </div>
         </div>
 
-        {/* Direction divider -- click to flip Sell/Buy */}
-        <div style={{ display: "flex", justifyContent: "center", margin: "-4px 0" }}>
-          <button
-            type="button"
-            onClick={() => {
-              if (step === "executing") return;
-              setDirection((d) => (d === "toArc" ? "fromArc" : "toArc"));
-              setQuote(null);
-              setStep("idle");
-              setError(null);
-            }}
-            disabled={step === "executing"}
-            style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, color: "#6B7280", fontSize: 14, cursor: step === "executing" ? "not-allowed" : "pointer" }}
-          >
-            &darr;
-          </button>
-        </div>
+        {/* Direction divider -- click to flip Sell/Buy (hidden when a parent tab already fixed the direction) */}
+        {!fixedDirection && (
+          <div style={{ display: "flex", justifyContent: "center", margin: "-4px 0" }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (step === "executing") return;
+                setInternalDirection((d) => (d === "toArc" ? "fromArc" : "toArc"));
+                setQuote(null);
+                setStep("idle");
+                setError(null);
+              }}
+              disabled={step === "executing"}
+              style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, color: "#6B7280", fontSize: 14, cursor: step === "executing" ? "not-allowed" : "pointer" }}
+            >
+              &darr;
+            </button>
+          </div>
+        )}
 
         {/* Buy panel */}
         <div style={{ background: "#F9FAFB", borderRadius: 14, padding: "0.9rem 1rem", marginTop: 6, marginBottom: 12 }}>
