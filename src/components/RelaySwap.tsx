@@ -480,6 +480,7 @@ export default function RelaySwap({
       setTxSteps(rawSteps.map((s) => ({ id: s.id, label: s.action ?? s.id, status: "pending" as const })));
     } catch (e: unknown) {
       if (requestIdRef.current !== myRequestId) return;
+      console.error("RelaySwap getQuote error:", e);
       setError(extractErrorMessage(e));
       setStep("idle");
     }
