@@ -102,7 +102,10 @@ export default function MainnetBridge() {
       {direction === "toArc" ? (
         <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
       ) : (
-        <RelaySwap fixedDirection="fromArc" />
+        <RelaySwap
+          defaultSell={{ chainId: 5042, token: { symbol: "USDC", address: "0x3600000000000000000000000000000000000000", decimals: 6 } }}
+          defaultBuy={{ chainId: 8453, token: { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 } }}
+        />
       )}
     </div>
   );
