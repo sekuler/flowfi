@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { EIP1193Provider } from "viem";
+import type { EIP1193Provider, Chain } from "viem";
 import { createWalletClient, custom } from "viem";
+import { arc, base } from "viem/chains";
 import { createClient, getQuote, execute, type Execute } from "@relayprotocol/relay-sdk";
 import { showToast } from "../toast";
 
@@ -18,6 +19,18 @@ const ARC_MAINNET_CHAIN_ID = 5042;
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
 const BASE_CHAIN_ID = 8453;
 const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+
+// Arc's native gas token is USDC, but represented with 18 decimals at the
+// protocol/native-balance level (wei-style) -- NOT the 6 decimals the USDC
+// ERC-20 contract itself uses. Without an explicit chain object, viem
+// falls back to guessing, which misreads the wallet's actual gas balance
+// by a factor of 10^12 and throws a false "insufficient gas" error even
+// when the wallet is well-funded. viem ships Arc's correct definition
+// natively (since v2.55), so this just needs importing, not hand-writing.
+const CHAIN_BY_ID: Record<number, Chain> = {
+  [BASE_CHAIN_ID]: base,
+  [ARC_MAINNET_CHAIN_ID]: arc,
+};
 
 // No FlowFi fee on this route anymore -- bridging is now free for the
 // user (Relay's own network fee still applies, same as using relay.link
@@ -166,7 +179,7 @@ export default function RelaySwap({ fixedDirection }: { fixedDirection?: RelayDi
   async function getWalletClient() {
     const eth = (window as unknown as { ethereum?: EIP1193Provider }).ethereum;
     if (!eth || !address) throw new Error("Connect a wallet first.");
-    return createWalletClient({ transport: custom(eth), account: address as `0x${string}` });
+    return createWalletClient({ transport: custom(eth), account: address as `0x${string}`, chain: CHAIN_BY_ID[route.fromChainId] });
   }
 
   // Bumped on every new quote attempt so a slow, now-stale response can't
