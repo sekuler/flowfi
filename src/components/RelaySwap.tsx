@@ -111,7 +111,7 @@ function SelectTokenModal({
   onPick: (side: Side) => void;
   onClose: () => void;
 }) {
-  const [chainId, setChainId] = useState(CHAINS[0].id);
+  const [chainId, setChainId] = useState<number>(CHAINS[0].id);
   const tokens = TOKENS_BY_CHAIN[chainId] ?? [];
 
   return (
