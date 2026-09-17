@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LiFiWidget, ChainType, HiddenUI, type WidgetConfig } from "@lifi/widget";
+import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import RelaySwap from "./RelaySwap";
 
@@ -40,7 +40,7 @@ const lifiWidgetConfig: WidgetConfig = {
   // through our own tested RelaySwap instead (the outer Base/Arc toggle).
   // hiddenUI only removes the one-click reverse shortcut; the from-side
   // deny is what actually closes the loophole of picking Arc manually.
-  hiddenUI: [HiddenUI.ReverseTokensButton],
+  hiddenUI: { reverseTokensButton: true },
   chains: {
     from: { deny: [ARC_MAINNET_CHAIN_ID] },
     types: { allow: [ChainType.EVM] },
@@ -72,7 +72,7 @@ export default function MainnetBridge() {
   const [direction, setDirection] = useState<Direction>("toArc");
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 0.5rem" }}>
+    <div style={{ maxWidth: 1100, margin: "0", padding: "0 0.5rem" }}>
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FEF3C7", color: "#92400E", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, marginBottom: 10 }}>
           ⚡ MAINNET — real funds, real fees
