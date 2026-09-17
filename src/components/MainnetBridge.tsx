@@ -9,18 +9,12 @@ import RelaySwap from "./RelaySwap";
 // GET https://li.quest/v1/chains (returns "arc", id: 5042, mainnet: true).
 const ARC_MAINNET_CHAIN_ID = 5042;
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
-
-// Base mainnet -- default source chain for the "To Arc" side.
 const BASE_CHAIN_ID = 8453;
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-// FlowFi's own registration on portal.li.fi ("FlowFi Mainnet", integration
-// string "flowfi"). The API key is read from a client-exposed Vite env var
-// (LI.FI's documented way to supply it for a browser widget).
-//
-// No FlowFi feeConfig here anymore -- bridging is free for the user on
-// both LI.FI and Relay now (see RelaySwap.tsx). Monetization moved to
-// Token Launch / Liquidity Pools instead of competing on bridge pricing.
+// No FlowFi feeConfig here -- bridging is free for the user on both
+// LI.FI and Relay. Monetization moved to Token Launch / Liquidity Pools
+// instead of competing on bridge pricing.
 const lifiWidgetConfig: WidgetConfig = {
   integrator: "flowfi",
   apiKey: import.meta.env.VITE_LIFI_API_KEY,
@@ -29,19 +23,15 @@ const lifiWidgetConfig: WidgetConfig = {
   fromToken: NATIVE_TOKEN_ADDRESS,
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_USDC,
-  // Default route ranking is CHEAPEST, not fastest -- on a brand-new chain
-  // like Arc, the cheapest available route can be a much slower bridge
-  // when a faster one exists but costs slightly more. FASTEST prioritizes
+  // Default route ranking is CHEAPEST, not fastest -- FASTEST prioritizes
   // speed instead. Users can still open the full route list ('wide'
-  // variant below) and pick a different one themselves if they want.
+  // variant below) and pick a different one themselves.
   routePriority: "FASTEST",
   // 'wide' variant shows the full route comparison panel next to the main
   // form once an amount is entered (Across / Polymer / Relay / LI.FI
-  // Intents side by side).
+  // Intents side by side) -- this is the reason LI.FI stays for this
+  // direction specifically.
   variant: "wide",
-  // FlowFi is EVM-only -- restricting the widget's own chain/token fetch to
-  // EVM avoids it also pulling Solana/Bitcoin/Sui/etc. data it will never
-  // use.
   chains: {
     types: { allow: [ChainType.EVM] },
   },
@@ -55,16 +45,17 @@ const lifiWidgetConfig: WidgetConfig = {
   appearance: "light",
 };
 
-// LI.FI aggregates Across, Polymer, Relay, and its own Intents for routes
-// INTO Arc, so the 'wide' widget below is worth keeping for that direction
-// -- it genuinely offers more choice. But as of Arc's mainnet launch day,
-// LI.FI does not yet surface ANY route OUT of Arc (confirmed live: Arc ->
-// Base returns no routes via LI.FI or any aggregator tried, except
-// Relay's own SDK/site, which supports it directly). So this is a
-// direction-based split, not a brand-based one: LI.FI handles "To Arc"
-// (more routes, real choice), Relay's own SDK handles "From Arc" (the
-// only thing that currently works). Revisit once LI.FI indexes
-// Arc-outbound routes.
+// Not a brand choice (LI.FI vs Relay) and not two separate tabs anymore --
+// just one bridge with a direction flip, same interaction as relay.link's
+// own swap arrow. Which ENGINE renders underneath is an implementation
+// detail the user never has to think about:
+//   - Base -> Arc: LI.FI ('wide' variant), because it genuinely offers
+//     route choice here (Across, Polymer, Relay, LI.FI Intents).
+//   - Arc -> Base: Relay's own SDK, because LI.FI does not yet surface ANY
+//     route out of Arc (confirmed live, Arc's mainnet launch day) --
+//     Relay is the only thing that works in this direction right now,
+//     not a design choice. Revisit once LI.FI indexes Arc-outbound routes;
+//     at that point this direction can show a route panel too.
 type Direction = "toArc" | "fromArc";
 
 export default function MainnetBridge() {
@@ -79,59 +70,23 @@ export default function MainnetBridge() {
         <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", margin: "0 0 4px 0" }}>Bridge to Arc</h2>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          background: "#F3F4F6",
-          borderRadius: 12,
-          padding: 4,
-          gap: 4,
-          marginBottom: 14,
-          maxWidth: 320,
-        }}
-      >
+      {/* Single direction control -- not a tab pair. A label plus one
+          small arrow button that flips it, same as relay.link's own UI. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+          {direction === "toArc" ? "Base" : "Arc"}
+        </span>
         <button
           type="button"
-          onClick={() => setDirection("toArc")}
-          style={{
-            flex: 1,
-            padding: "8px 12px",
-            borderRadius: 9,
-            border: "none",
-            cursor: "pointer",
-            fontSize: 13,
-            fontWeight: 700,
-            background: direction === "toArc" ? "#FFFFFF" : "transparent",
-            color: direction === "toArc" ? "#111827" : "#6B7280",
-            boxShadow: direction === "toArc" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-            transition: "all 0.15s ease",
-          }}
+          onClick={() => setDirection((d) => (d === "toArc" ? "fromArc" : "toArc"))}
+          aria-label="Reverse direction"
+          style={{ width: 26, height: 26, borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", fontSize: 13, cursor: "pointer" }}
         >
-          To Arc
+          &#8646;
         </button>
-        <button
-          type="button"
-          onClick={() => setDirection("fromArc")}
-          style={{
-            flex: 1,
-            padding: "8px 12px",
-            borderRadius: 9,
-            border: "none",
-            cursor: "pointer",
-            fontSize: 13,
-            fontWeight: 700,
-            background: direction === "fromArc" ? "#FFFFFF" : "transparent",
-            color: direction === "fromArc" ? "#111827" : "#6B7280",
-            boxShadow: direction === "fromArc" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-            transition: "all 0.15s ease",
-          }}
-        >
-          From Arc
-        </button>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#B91C1C", fontWeight: 600, margin: "0 2px 12px" }}>
-        ⚠ Real funds — transactions go to Arc Mainnet and can't be reversed.
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+          {direction === "toArc" ? "Arc" : "Base"}
+        </span>
       </div>
 
       {direction === "toArc" ? (
