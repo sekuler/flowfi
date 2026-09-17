@@ -88,6 +88,9 @@ export default function MainnetBridge() {
         <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", margin: "0 0 4px 0" }}>Bridge to Arc</h2>
       </div>
 
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#B91C1C", fontWeight: 600, margin: "0 2px 8px" }}>
+        ⚠ Real funds — transactions go to Arc Mainnet and can't be reversed.
+      </div>
       <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
     </div>
   );
