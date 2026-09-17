@@ -146,9 +146,58 @@ function TokenBadge({ side, chain, onClick }: { side: Side; chain: RelayChain | 
   );
 }
 
+function useTokenSearch(chainId: number | undefined, term: string, fallback: TokenDef[]) {
+  const [results, setResults] = useState<TokenDef[] | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    if (!chainId || !term.trim()) {
+      setResults(null);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    const handle = setTimeout(() => {
+      fetch("/api/relay-proxy/currencies/v2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chainIds: [chainId], term: term.trim(), useExternalSearch: true, limit: 30 }),
+      })
+        .then((r) => r.json())
+        .then((data: RelayCurrency[]) => {
+          if (cancelled) return;
+          setResults(
+            (Array.isArray(data) ? data : []).map((t) => ({
+              symbol: t.symbol,
+              address: t.address,
+              decimals: t.decimals,
+              logoURI: t.metadata?.logoURI,
+            }))
+          );
+        })
+        .catch(() => {
+          if (!cancelled) setResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [chainId, term]);
+
+  if (!term.trim()) return { tokens: fallback, searching: false };
+  return { tokens: results ?? [], searching };
+}
+
 // "Select Token" picker, mirroring relay.link's own: a searchable chain
 // list on the left, a searchable token list (for the selected chain) on
-// the right -- backed by Relay's live /chains data.
+// the right -- backed by Relay's live /chains data, with the search box
+// hitting Relay's currencies/v2 endpoint (useExternalSearch: true) so it
+// finds the same broader token universe relay.link's own site shows, not
+// just the curated "bridgeable" set from /chains.
 function SelectTokenModal({
   chains,
   loadError,
@@ -171,12 +220,8 @@ function SelectTokenModal({
   }, [chains, chainQuery]);
 
   const activeChain = chains?.find((c) => c.id === (chainId ?? chains?.[0]?.id));
-  const tokens = activeChain ? tokensForChain(activeChain) : [];
-  const filteredTokens = useMemo(() => {
-    const q = tokenQuery.trim().toLowerCase();
-    return q ? tokens.filter((t) => t.symbol.toLowerCase().includes(q) || t.address.toLowerCase().includes(q)) : tokens;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokens, tokenQuery]);
+  const curatedTokens = activeChain ? tokensForChain(activeChain) : [];
+  const { tokens: filteredTokens, searching } = useTokenSearch(activeChain?.id, tokenQuery, curatedTokens);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
@@ -228,7 +273,8 @@ function SelectTokenModal({
                 />
               </div>
               <div style={{ overflowY: "auto", padding: "0 0.6rem 0.6rem" }}>
-                {filteredTokens.map((t) => (
+                {searching && <div style={{ padding: "1rem 0.5rem", fontSize: 12.5, color: "#9CA3AF" }}>Searching...</div>}
+                {!searching && filteredTokens.map((t) => (
                   <button
                     key={t.address}
                     type="button"
@@ -248,7 +294,7 @@ function SelectTokenModal({
                     </div>
                   </button>
                 ))}
-                {filteredTokens.length === 0 && <div style={{ padding: "1rem 0.5rem", fontSize: 12.5, color: "#9CA3AF" }}>No tokens found.</div>}
+                {!searching && filteredTokens.length === 0 && <div style={{ padding: "1rem 0.5rem", fontSize: 12.5, color: "#9CA3AF" }}>No tokens found.</div>}
               </div>
             </div>
           </div>
@@ -403,8 +449,8 @@ export default function RelaySwap({
       setTxSteps(rawSteps.map((s) => ({ id: s.id, label: s.action ?? s.id, status: "pending" as const })));
     } catch (e: unknown) {
       if (requestIdRef.current !== myRequestId) return;
-      const err = e as { message?: string };
-      setError(err.message ?? "Couldn't get a quote.");
+      const err = e as { message?: unknown };
+      setError(typeof err?.message === "string" ? err.message : "Couldn't get a quote.");
       setStep("idle");
     }
   }
@@ -450,8 +496,8 @@ export default function RelaySwap({
       setStep("done");
       showToast("Swap complete", "success");
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setError(err.message ?? "Execution failed.");
+      const err = e as { message?: unknown };
+      setError(typeof err?.message === "string" ? err.message : "Execution failed.");
       setStep("quoted");
       setShowModal(false);
     }
