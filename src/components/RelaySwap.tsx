@@ -12,6 +12,8 @@ import { showToast } from "../toast";
 // widget, this talks to Relay's raw SDK directly (getQuote + execute),
 // using the same EIP-1193-provider pattern already used everywhere else
 // in this app (TokenBuyPanel, SwapForm, etc.) instead of wagmi at all.
+// The layout below is a hand-built approximation of relay.link's own
+// Sell/Buy card, since we can't use their pre-built widget component.
 const ARC_MAINNET_CHAIN_ID = 5042;
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
 const BASE_CHAIN_ID = 8453;
@@ -34,35 +36,57 @@ createClient({
 type Step = "idle" | "quoting" | "quoted" | "executing" | "done";
 export type RelayDirection = "toArc" | "fromArc";
 
+type TokenInfo = { symbol: string; chainLabel: string; badgeBg: string; badgeText: string };
+
 // LI.FI does not yet surface Relay's Arc-outbound route (confirmed live:
 // Arc -> Base works directly on relay.link, but LI.FI's aggregator returns
 // no routes for that direction as of Arc's mainnet launch day). This
 // component covers BOTH directions itself via Relay's own SDK, so it
 // remains the only working path out of Arc until LI.FI indexes it.
-const ROUTES: Record<RelayDirection, { fromChainId: number; fromCurrency: string; toChainId: number; toCurrency: string; label: string }> = {
-  toArc: { fromChainId: BASE_CHAIN_ID, fromCurrency: BASE_USDC, toChainId: ARC_MAINNET_CHAIN_ID, toCurrency: ARC_MAINNET_USDC, label: "USDC on Base \u2192 USDC on Arc" },
-  fromArc: { fromChainId: ARC_MAINNET_CHAIN_ID, fromCurrency: ARC_MAINNET_USDC, toChainId: BASE_CHAIN_ID, toCurrency: BASE_USDC, label: "USDC on Arc \u2192 USDC on Base" },
+const ROUTES: Record<RelayDirection, { fromChainId: number; fromCurrency: string; toChainId: number; toCurrency: string; from: TokenInfo; to: TokenInfo }> = {
+  toArc: {
+    fromChainId: BASE_CHAIN_ID, fromCurrency: BASE_USDC, toChainId: ARC_MAINNET_CHAIN_ID, toCurrency: ARC_MAINNET_USDC,
+    from: { symbol: "USDC", chainLabel: "Base", badgeBg: "#2563EB", badgeText: "B" },
+    to: { symbol: "USDC", chainLabel: "Arc", badgeBg: "#111827", badgeText: "A" },
+  },
+  fromArc: {
+    fromChainId: ARC_MAINNET_CHAIN_ID, fromCurrency: ARC_MAINNET_USDC, toChainId: BASE_CHAIN_ID, toCurrency: BASE_USDC,
+    from: { symbol: "USDC", chainLabel: "Arc", badgeBg: "#111827", badgeText: "A" },
+    to: { symbol: "USDC", chainLabel: "Base", badgeBg: "#2563EB", badgeText: "B" },
+  },
 };
 
 type TxStep = { id: string; label: string; status: "pending" | "current" | "done" };
 
+function TokenBadge({ token }: { token: TokenInfo }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F3F4F6", borderRadius: 999, padding: "0.4rem 0.7rem 0.4rem 0.4rem" }}>
+      <div style={{ width: 24, height: 24, borderRadius: "50%", background: token.badgeBg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>
+        {token.badgeText}
+      </div>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", lineHeight: 1.1 }}>{token.symbol}</div>
+        <div style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.1 }}>{token.chainLabel}</div>
+      </div>
+    </div>
+  );
+}
+
 function TransactionModal({
-  direction,
+  from,
+  to,
   amount,
   outAmount,
   steps,
   onClose,
 }: {
-  direction: RelayDirection;
+  from: TokenInfo;
+  to: TokenInfo;
   amount: string;
   outAmount: string | undefined;
   steps: TxStep[];
   onClose: () => void;
 }) {
-  const route = ROUTES[direction];
-  const fromLabel = direction === "toArc" ? "Base" : "Arc";
-  const toLabel = direction === "toArc" ? "Arc" : "Base";
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
       <div style={{ background: "#fff", borderRadius: 16, padding: "1.25rem", width: 340, maxWidth: "90vw" }} onClick={(e) => e.stopPropagation()}>
@@ -73,13 +97,13 @@ function TransactionModal({
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
           <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
-            <div style={{ fontSize: 11, color: "#6B7280" }}>{fromLabel}</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{amount} USDC</div>
+            <div style={{ fontSize: 11, color: "#6B7280" }}>{from.chainLabel}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{amount} {from.symbol}</div>
           </div>
           <div style={{ color: "#9CA3AF" }}>&rarr;</div>
           <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
-            <div style={{ fontSize: 11, color: "#6B7280" }}>{toLabel}</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{outAmount ? `${outAmount} ${route.toCurrency === ARC_MAINNET_USDC || route.toCurrency === BASE_USDC ? "USDC" : ""}` : "..."}</div>
+            <div style={{ fontSize: 11, color: "#6B7280" }}>{to.chainLabel}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{outAmount ? `${outAmount} ${to.symbol}` : "..."}</div>
           </div>
         </div>
 
@@ -111,7 +135,7 @@ export default function RelaySwap({ direction }: { direction: RelayDirection }) 
   const route = ROUTES[direction];
   const [address, setAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const [amount, setAmount] = useState("5");
+  const [amount, setAmount] = useState("1");
   const [quote, setQuote] = useState<Execute | null>(null);
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -171,8 +195,6 @@ export default function RelaySwap({ direction }: { direction: RelayDirection }) 
       setQuote(result);
       setStep("quoted");
 
-      // Pre-populate the step list from the quote so the modal shows the
-      // full plan immediately, before execution starts.
       const rawSteps = (result as unknown as { steps?: { id: string; action?: string }[] }).steps ?? [];
       setTxSteps(rawSteps.map((s) => ({ id: s.id, label: s.action ?? s.id, status: "pending" as const })));
     } catch (e: unknown) {
@@ -216,46 +238,87 @@ export default function RelaySwap({ direction }: { direction: RelayDirection }) 
   }
 
   const outAmount = quote?.details?.currencyOut?.amountFormatted;
+  const rate = quote?.details?.rate;
+
+  const buttonLabel = !address
+    ? connecting ? "Connecting..." : "Connect wallet"
+    : step === "quoting" ? "Getting quote..."
+    : step === "executing" ? "Bridging..."
+    : step === "done" ? "Done"
+    : step === "quoted" ? "Confirm bridge"
+    : "Get quote";
+
+  const buttonDisabled = connecting || step === "quoting" || step === "executing" || step === "done";
+
+  function handleMainButton() {
+    if (!address) return connectWallet();
+    if (step === "quoted") return doExecute();
+    return doGetQuote();
+  }
 
   return (
-    <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 16, padding: "1rem", display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ fontSize: 12, color: "#6B7280" }}>{route.label}</div>
+    <div style={{ maxWidth: 440, margin: "0 auto" }}>
+      <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 20, padding: "1.1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        {/* Sell panel */}
+        <div style={{ background: "#F9FAFB", borderRadius: 14, padding: "0.9rem 1rem", marginBottom: 6 }}>
+          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 6 }}>Sell</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => { setAmount(e.target.value); setQuote(null); setStep("idle"); }}
+              disabled={step === "executing"}
+              placeholder="0"
+              style={{ border: "none", background: "transparent", outline: "none", fontSize: 32, fontWeight: 800, color: "#111827", width: "60%", minWidth: 0 }}
+            />
+            <TokenBadge token={route.from} />
+          </div>
+        </div>
 
-      {!address ? (
-        <button onClick={connectWallet} disabled={connecting}
-          style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "#111827", color: "#fff", fontSize: 13, fontWeight: 700, cursor: connecting ? "not-allowed" : "pointer", opacity: connecting ? 0.6 : 1 }}>
-          {connecting ? "Connecting..." : "Connect wallet"}
-        </button>
-      ) : (
-        <>
-          <input type="number" value={amount} onChange={(e) => { setAmount(e.target.value); setQuote(null); setStep("idle"); }} disabled={step === "executing"}
-            placeholder="USDC amount" style={{ padding: "0.6rem 0.8rem", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }} />
+        {/* Direction divider */}
+        <div style={{ display: "flex", justifyContent: "center", margin: "-4px 0" }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, color: "#6B7280", fontSize: 14 }}>
+            &darr;
+          </div>
+        </div>
 
-          {step === "quoted" && outAmount && (
-            <div style={{ fontSize: 12, color: "#374151", background: "#fff", borderRadius: 8, padding: "0.5rem 0.7rem" }}>
-              You'll receive &asymp; <strong>{outAmount} USDC</strong> on {direction === "toArc" ? "Arc" : "Base"}
+        {/* Buy panel */}
+        <div style={{ background: "#F9FAFB", borderRadius: 14, padding: "0.9rem 1rem", marginTop: 6, marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 6 }}>Buy</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: outAmount ? "#111827" : "#D1D5DB" }}>
+              {outAmount ?? "0"}
             </div>
-          )}
+            <TokenBadge token={route.to} />
+          </div>
+        </div>
 
-          {error && <div style={{ fontSize: 11, color: "#DC2626", wordBreak: "break-word" }}>{error}</div>}
+        {rate && (
+          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 10, padding: "0 2px" }}>
+            1 {route.from.symbol} &asymp; {rate} {route.to.symbol}
+          </div>
+        )}
 
-          {step === "idle" || step === "quoting" ? (
-            <button onClick={doGetQuote} disabled={step === "quoting"}
-              style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: step === "quoting" ? "not-allowed" : "pointer", opacity: step === "quoting" ? 0.6 : 1 }}>
-              {step === "quoting" ? "Getting quote..." : "Get quote"}
-            </button>
-          ) : (
-            <button onClick={doExecute} disabled={step === "executing" || step === "done"}
-              style={{ padding: "0.6rem", borderRadius: 8, border: "none", background: "#16A34A", color: "#fff", fontSize: 13, fontWeight: 700, cursor: step === "executing" || step === "done" ? "not-allowed" : "pointer", opacity: step === "executing" || step === "done" ? 0.6 : 1 }}>
-              {step === "executing" ? "Bridging..." : step === "done" ? "Done" : "Confirm bridge"}
-            </button>
-          )}
-        </>
-      )}
+        {error && <div style={{ fontSize: 11.5, color: "#DC2626", wordBreak: "break-word", marginBottom: 10 }}>{error}</div>}
+
+        <button
+          onClick={handleMainButton}
+          disabled={buttonDisabled}
+          style={{
+            width: "100%", padding: "0.95rem", borderRadius: 14, border: "none",
+            background: buttonDisabled ? "#C4B5FD" : "#6D5EF7",
+            color: "#fff", fontSize: 15, fontWeight: 800, letterSpacing: "0.3px",
+            cursor: buttonDisabled ? "not-allowed" : "pointer",
+          }}
+        >
+          {buttonLabel.toUpperCase()}
+        </button>
+      </div>
 
       {showModal && (
         <TransactionModal
-          direction={direction}
+          from={route.from}
+          to={route.to}
           amount={amount}
           outAmount={outAmount}
           steps={txSteps}
