@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EIP1193Provider } from "viem";
 import { createWalletClient, custom } from "viem";
 import { createClient, getQuote, execute, type Execute } from "@relayprotocol/relay-sdk";
@@ -19,11 +19,10 @@ const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
 const BASE_CHAIN_ID = 8453;
 const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
-// FlowFi's dedicated fee-receiving wallet -- same address registered as the
-// default EVM receiver on LI.FI's side; passed explicitly here since
-// Relay's appFees takes the recipient directly in the quote request, not
-// via a portal-side setting.
-const FEE_WALLET = "0x530Af0a7E1A702E8C23C8449Df61733C1B174cc8";
+// No FlowFi fee on this route anymore -- bridging is now free for the
+// user (Relay's own network fee still applies, same as using relay.link
+// directly). Monetization moved to Token Launch / Liquidity Pools instead
+// of competing on price with Relay itself, which nobody wins.
 
 // Relay's own docs warn against sending their API key from the browser --
 // baseApiUrl points at FlowFi's own proxy (api/relay-proxy/[...path].js),
@@ -131,7 +130,11 @@ function TransactionModal({
   );
 }
 
-export default function RelaySwap({ direction }: { direction: RelayDirection }) {
+export default function RelaySwap() {
+  // Direction is owned here now (not passed in as a prop from a tab
+  // switcher) -- the little arrow between the Sell/Buy panels flips it,
+  // same as relay.link's own UI, instead of two separate tabs.
+  const [direction, setDirection] = useState<RelayDirection>("toArc");
   const route = ROUTES[direction];
   const [address, setAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -165,16 +168,19 @@ export default function RelaySwap({ direction }: { direction: RelayDirection }) 
     return createWalletClient({ transport: custom(eth), account: address as `0x${string}` });
   }
 
+  // Bumped on every new quote attempt so a slow, now-stale response can't
+  // overwrite a newer one (e.g. user typed a new amount while the first
+  // quote was still in flight).
+  const requestIdRef = useRef(0);
+
   async function doGetQuote() {
-    if (!address) {
-      showToast("Connect a wallet first.", "error");
-      return;
-    }
+    if (!address) return;
     const num = Number(amount);
     if (!amount || isNaN(num) || num <= 0) {
-      showToast("Enter a USDC amount greater than 0.", "error");
+      setStep("idle");
       return;
     }
+    const myRequestId = ++requestIdRef.current;
     setError(null);
     setStep("quoting");
     try {
@@ -188,21 +194,38 @@ export default function RelaySwap({ direction }: { direction: RelayDirection }) 
         amount: String(Math.round(num * 1e6)), // USDC has 6 decimals
         wallet,
         recipient: address,
-        options: {
-          appFees: [{ recipient: FEE_WALLET, fee: "10" }], // 10 bps = 0.10%, matches the LI.FI side
-        },
       });
+      if (requestIdRef.current !== myRequestId) return; // a newer request superseded this one
       setQuote(result);
       setStep("quoted");
 
       const rawSteps = (result as unknown as { steps?: { id: string; action?: string }[] }).steps ?? [];
       setTxSteps(rawSteps.map((s) => ({ id: s.id, label: s.action ?? s.id, status: "pending" as const })));
     } catch (e: unknown) {
+      if (requestIdRef.current !== myRequestId) return;
       const err = e as { message?: string };
       setError(err.message ?? "Couldn't get a quote.");
       setStep("idle");
     }
   }
+
+  // Auto-quote as soon as a valid amount is entered (debounced) -- no more
+  // separate "Get quote" click. Skips entirely until a wallet is connected,
+  // since Relay's quote needs a wallet client.
+  useEffect(() => {
+    if (!address) return;
+    const num = Number(amount);
+    if (!amount || isNaN(num) || num <= 0) {
+      setQuote(null);
+      setStep("idle");
+      return;
+    }
+    const handle = setTimeout(() => {
+      doGetQuote();
+    }, 450);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount, direction, address]);
 
   async function doExecute() {
     if (!quote || !address) return;
@@ -242,18 +265,17 @@ export default function RelaySwap({ direction }: { direction: RelayDirection }) 
 
   const buttonLabel = !address
     ? connecting ? "Connecting..." : "Connect wallet"
-    : step === "quoting" ? "Getting quote..."
+    : step === "quoting" ? "Fetching quote..."
     : step === "executing" ? "Bridging..."
     : step === "done" ? "Done"
-    : step === "quoted" ? "Confirm bridge"
-    : "Get quote";
+    : step === "quoted" ? "Approve & swap"
+    : "Enter an amount";
 
-  const buttonDisabled = connecting || step === "quoting" || step === "executing" || step === "done";
+  const buttonDisabled = connecting || step === "quoting" || step === "executing" || step === "done" || (!!address && step === "idle");
 
   function handleMainButton() {
     if (!address) return connectWallet();
     if (step === "quoted") return doExecute();
-    return doGetQuote();
   }
 
   return (
@@ -275,11 +297,22 @@ export default function RelaySwap({ direction }: { direction: RelayDirection }) 
           </div>
         </div>
 
-        {/* Direction divider */}
+        {/* Direction divider -- click to flip Sell/Buy */}
         <div style={{ display: "flex", justifyContent: "center", margin: "-4px 0" }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, color: "#6B7280", fontSize: 14 }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (step === "executing") return;
+              setDirection((d) => (d === "toArc" ? "fromArc" : "toArc"));
+              setQuote(null);
+              setStep("idle");
+              setError(null);
+            }}
+            disabled={step === "executing"}
+            style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, color: "#6B7280", fontSize: 14, cursor: step === "executing" ? "not-allowed" : "pointer" }}
+          >
             &darr;
-          </div>
+          </button>
         </div>
 
         {/* Buy panel */}
