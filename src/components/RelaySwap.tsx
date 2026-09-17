@@ -392,6 +392,7 @@ export default function RelaySwap({
         tradeType: "EXACT_INPUT",
         amount: String(Math.round(num * 10 ** sell.token.decimals)),
         wallet,
+        user: address,
         recipient: address,
       });
       if (requestIdRef.current !== myRequestId) return;
