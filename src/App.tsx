@@ -604,7 +604,14 @@ function AppInner() {
             <div style={{ width: 32, height: 32, borderRadius: 11, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(109,94,247,0.35)" }}>◈</div>
             <div>
               <div className="flowfi-display" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>FlowFi</div>
-              <div style={{ fontSize: 9, color: "#6D5EF7", fontWeight: 700, letterSpacing: "2px" }}>TESTNET</div>
+              {(() => {
+                const activeVariant = TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet";
+                return (
+                  <div style={{ fontSize: 9, color: activeVariant === "mainnet" ? "#DC2626" : "#6D5EF7", fontWeight: 700, letterSpacing: "2px" }}>
+                    {activeVariant === "mainnet" ? "MAINNET" : "TESTNET"}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
