@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
+import { LiFiWidget, ChainType, HiddenUI, type WidgetConfig } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import RelaySwap from "./RelaySwap";
 
@@ -32,7 +32,17 @@ const lifiWidgetConfig: WidgetConfig = {
   // Intents side by side) -- this is the reason LI.FI stays for this
   // direction specifically.
   variant: "wide",
+  // Locks Arc out of the "From" side only -- users can still pick ANY
+  // source chain they want (Arbitrum, Ethereum, whatever) to bridge INTO
+  // Arc, full flexibility there. What's blocked is Arc being selectable
+  // as the SOURCE inside this widget, because that path is currently
+  // broken on LI.FI's side (see note above) -- Arc -> anywhere goes
+  // through our own tested RelaySwap instead (the outer Base/Arc toggle).
+  // hiddenUI only removes the one-click reverse shortcut; the from-side
+  // deny is what actually closes the loophole of picking Arc manually.
+  hiddenUI: [HiddenUI.ReverseTokensButton],
   chains: {
+    from: { deny: [ARC_MAINNET_CHAIN_ID] },
     types: { allow: [ChainType.EVM] },
   },
   theme: {
