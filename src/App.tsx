@@ -95,10 +95,12 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     { id: "mainnetbridge", label: "Bridge", Icon: Zap },
     { id: "mainnetswap", label: "Swap", Icon: Repeat },
     { id: "dashboardmainnet", label: "Dashboard", Icon: LayoutDashboard },
-    // "circlewalletmainnet" nav entry paused (2026-09-18) -- Circle's
-    // production API requires KYB (a registered business), which isn't in
-    // place yet. The component, route, and access-list entries are left
-    // as-is so this is a one-line re-add once that's sorted, not a rebuild.
+    { id: "circlewalletmainnet", label: "Circle Wallet", Icon: CircleDollarSign },
+    // Re-added 2026-09-18 -- no longer blocked by Circle's KYB requirement:
+    // the "buy with card" flow now uses a plain Relay onramp deep link
+    // (relay.link/onramp/base) instead of an embedded, signed MoonPay
+    // integration, so there's no partner API/business-verification
+    // dependency left on this page.
   ],
 },
  {
