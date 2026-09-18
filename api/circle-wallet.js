@@ -3,7 +3,16 @@ const { Ratelimit } = require('@upstash/ratelimit');
 const { Redis } = require('@upstash/redis');
 const crypto = require('crypto');
 
-const BRIDGE_CHAINS = ['ARC-TESTNET', 'ETH-SEPOLIA', 'BASE-SEPOLIA', 'ARB-SEPOLIA', 'BASE'];
+const BRIDGE_CHAINS = ['ARC-TESTNET', 'ETH-SEPOLIA', 'BASE-SEPOLIA', 'ARB-SEPOLIA'];
+// NOTE (2026-09-18): 'BASE' (mainnet) was briefly added here for the
+// mainnet Circle Wallet work, but Circle's sandbox (TEST_API_KEY) and
+// production (LIVE_API_KEY) keys can't be mixed in one createWallets
+// call -- doing so broke testnet sign-ups entirely ("TEST_API key cannot
+// be used with blockchain mainnets..."). Production access requires
+// Circle's KYB approval first (business docs, a few business days) and a
+// separate LIVE_API_KEY + its own registered entity secret. Reverted
+// until that's in place -- see CircleWalletMainnet.tsx for the mainnet
+// side, which will need its own Circle client once the live key exists.
 
 // Every contract + function FlowFi's Circle Wallet integration is ever
 // meant to call, checked before any contractCall is forwarded to Circle.
