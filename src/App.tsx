@@ -17,6 +17,7 @@ import TxHistory from "./components/TxHistory";
 import Dashboard from "./components/Dashboard";
 import UnifiedBalance from "./components/UnifiedBalance";
 import CircleWallet from "./components/CircleWallet";
+import CircleWalletMainnet from "./components/CircleWalletMainnet";
 import LiquidityPools from "./components/LiquidityPools";
 import AiCopilot from "./components/AiCopilot";
 import ToastContainer from "./components/ToastContainer";
@@ -54,7 +55,7 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge";
+type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "circlewalletmainnet";
 
 const ARC_USDC = USDC_ADDRESS;
 // Guest mode (browsing Pools without a connected wallet) needs *something* to pass as
@@ -70,14 +71,14 @@ const ARC_CIRBTC = CIRBTC_ADDRESS;
 
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
 const PORTFOLIO_TAB: { id: Tab; label: string; Icon: any } = { id: "portfolio", label: "Portfolio", Icon: LayoutGrid };
-const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge"];
+const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "circlewalletmainnet"];
 // Bridge/Swap/History already read their own Circle Wallet from localStorage
 // internally (independent of the provider/address props) — so a Circle-primary
 // session can use them today. Portfolio only ever does read-only balance
 // lookups (no signing), so it works for any address. Home/Dashboard/Launch and
 // the AI Copilot all assume a real browser-wallet signer and don't
 // have a Circle-Wallet code path yet — those stay locked until that's built.
-const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet", "mainnetbridge"];
+const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet", "mainnetbridge", "circlewalletmainnet"];
 
 const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
@@ -85,6 +86,7 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
   variant: "mainnet",
   tabs: [
     { id: "mainnetbridge", label: "Bridge & Swap", Icon: Zap },
+    { id: "circlewalletmainnet", label: "Circle Wallet", Icon: CircleDollarSign },
   ],
 },
  {
@@ -772,10 +774,10 @@ function AppInner() {
           <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 28, fontWeight: 800, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
+                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : tab === "circlewalletmainnet" ? "Circle Wallet" : "Bridge"}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
+               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : tab === "circlewalletmainnet" ? "Sign in with email, buy USDC with a card" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
               {tab === "portfolio" && balances.usdc !== null && (
                 <div style={{ marginTop: 14 }}>
@@ -914,6 +916,7 @@ function AppInner() {
               />
             )}
             {tab === "circlewallet" && <CircleWallet />}
+            {tab === "circlewalletmainnet" && <CircleWalletMainnet />}
             {tab === "pools" && (
               <LiquidityPools
                 provider={wallet ? wallet.provider : GUEST_PROVIDER}
