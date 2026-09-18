@@ -4,23 +4,23 @@ import { base } from "viem/chains";
 import { getCircleWallet, saveCircleWallet, forgetCircleWallet, requestCircleWalletCode, verifyCircleWalletCode, type CircleWalletInfo } from "../circleWalletHelpers";
 
 // Mainnet counterpart to CircleWallet.tsx (which stays as-is, pointed at
-// Arc Testnet -- see /areas/flowfi.md for why the two are kept separate).
-// This one shows the wallet's Base mainnet USDC balance specifically,
-// because:
-//   - Circle's Developer-Controlled Wallets API does not support Arc
-//     mainnet at all (confirmed against their own docs, 2026-09-18) --
-//     only ARC-TESTNET. Base mainnet IS supported, so that's the chain
-//     this wallet actually operates on.
-//   - The wallet's address is the same across every EVM chain it's
-//     provisioned on (confirmed: api/circle-wallet.js creates all
-//     BRIDGE_CHAINS wallets in one createWallets call under one
-//     walletSetId), so this same address would also receive funds sent
-//     directly to it on Arc -- but Circle can't SIGN transactions on Arc
-//     mainnet (not in their supported-blockchain enum), so anything that
-//     lands there today can't be moved again. Base is the only mainnet
-//     chain this wallet can safely both receive AND act on right now.
-//   - Getting Base -> Arc actually moving (the "1c" bridge-execution
-//     piece) is separate follow-up work, not yet wired here.
+// Arc Testnet). Shows the wallet's Base mainnet USDC balance and a
+// "buy with card" link, powered by Circle Developer-Controlled Wallets
+// for the email sign-in / no-seed-phrase part.
+//
+// Earlier version of this file gated everything behind a check for a
+// "BASE" entry in wallet.walletsByChain, assuming Circle needed to have
+// explicitly provisioned Base for the address to be usable there. That
+// check was wrong and has been removed: the wallet's address is a
+// standard EOA, valid on every EVM chain regardless of which chains
+// Circle's backend was told to create it on (BRIDGE_CHAINS in
+// api/circle-wallet.js is currently testnet-only, since adding 'BASE'
+// there requires a Circle LIVE_API_KEY -- production access gated behind
+// KYB, not available yet). Since nothing here asks Circle to SIGN a
+// transaction on Base (reading the balance is a public RPC call, and the
+// "buy with card" flow is an outbound Relay onramp link, not a
+// Circle-signed action), none of that matters for this page -- the
+// address just needs to be valid on Base, which it always is.
 const BASE_MAINNET_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // verified 2026-09-17 against Circle's own USDC contract list
 
 export default function CircleWalletMainnet() {
@@ -32,7 +32,6 @@ export default function CircleWalletMainnet() {
   const [error, setError] = useState<string | null>(null);
   const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
-  const [baseWalletMissing, setBaseWalletMissing] = useState(false);
 
   useEffect(() => {
     setWallet(getCircleWallet());
@@ -40,14 +39,6 @@ export default function CircleWalletMainnet() {
 
   useEffect(() => {
     if (!wallet) { setUsdcBalance(null); return; }
-    // Accounts created before "BASE" was added to BRIDGE_CHAINS won't have
-    // a Base entry yet -- flag that plainly instead of silently showing a
-    // stale/wrong balance or a confusing error.
-    if (!wallet.walletsByChain?.["BASE"]) {
-      setBaseWalletMissing(true);
-      return;
-    }
-    setBaseWalletMissing(false);
     loadBalance(wallet.address);
     const interval = setInterval(() => loadBalance(wallet.address), 15000);
     return () => clearInterval(interval);
@@ -155,16 +146,7 @@ export default function CircleWalletMainnet() {
           </>
         )}
 
-        {wallet && baseWalletMissing && (
-          <div style={{ background: "rgba(239,68,68,0.12)", borderRadius: 10, padding: "0.75rem 1rem", color: "#DC2626", fontSize: 12.5 }}>
-            This account was created before mainnet support was added and doesn't have a Base wallet yet. Sign out and verify again to get one (dev note: a proper migration path is still on the to-do list).
-            <button onClick={forgetWallet} style={{ display: "block", marginTop: 8, background: "none", border: "none", color: "#DC2626", fontWeight: 700, fontSize: 12.5, cursor: "pointer", padding: 0 }}>
-              Sign out
-            </button>
-          </div>
-        )}
-
-        {wallet && !baseWalletMissing && (
+        {wallet && (
           <>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <p style={{ fontSize: 14, color: "#7B3FE4", fontWeight: 700, margin: 0 }}>Signed in as {wallet.email}</p>
