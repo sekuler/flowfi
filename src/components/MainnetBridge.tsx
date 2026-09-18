@@ -25,6 +25,16 @@ const lifiWidgetConfig: WidgetConfig = {
       borderRadius: 16,
       boxShadow: "none",
     },
+    components: {
+      MuiInputCard: {
+        styleOverrides: {
+          root: {
+            border: "none",
+            boxShadow: "none",
+          },
+        },
+      },
+    },
   },
   appearance: "light",
 };
