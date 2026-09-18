@@ -86,7 +86,10 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
   variant: "mainnet",
   tabs: [
     { id: "mainnetbridge", label: "Bridge & Swap", Icon: Zap },
-    { id: "circlewalletmainnet", label: "Circle Wallet", Icon: CircleDollarSign },
+    // "circlewalletmainnet" nav entry paused (2026-09-18) -- Circle's
+    // production API requires KYB (a registered business), which isn't in
+    // place yet. The component, route, and access-list entries are left
+    // as-is so this is a one-line re-add once that's sorted, not a rebuild.
   ],
 },
  {
