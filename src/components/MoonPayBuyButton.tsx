@@ -1,13 +1,15 @@
 import { useState } from "react";
 
-// Delivers USDC straight onto Arc mainnet via MoonPay's own "usdc_arc"
-// currency (confirmed live via GET /v3/currencies on 2026-09-18 --
-// contractAddress 0x3600...0000, chainId 5042, isSuspended: false). No
-// separate bridge step needed: Circle's wallet UI already states its
-// address is the same across every supported EVM chain, so the same
-// address this component receives for "Base" also works as the Arc
-// destination -- MoonPay just needs to be told the destination currency
-// is usdc_arc, not usdc_base.
+// Delivers USDC to Base mainnet via MoonPay's "usdc_base" currency.
+//
+// Deliberately NOT "usdc_arc", even though MoonPay supports it directly:
+// Circle's Developer-Controlled Wallets API doesn't support signing
+// transactions on Arc mainnet (only ARC-TESTNET is in their supported
+// blockchain list) -- USDC landing straight on Arc would sit in the
+// wallet with no way to move it again, since Circle can't sign there and
+// this wallet type never exposes a private key to fall back on. Base is
+// fully supported, so funds land somewhere this wallet can actually act
+// on. Moving Base -> Arc is a separate bridge-execution step.
 const MOONPAY_WIDGET_BASE = "https://buy.moonpay.com"; // sandbox: https://buy-sandbox.moonpay.com
 
 export default function MoonPayBuyButton({ walletAddress }: { walletAddress: string }) {
@@ -20,7 +22,7 @@ export default function MoonPayBuyButton({ walletAddress }: { walletAddress: str
     try {
       const params = new URLSearchParams({
         apiKey: import.meta.env.VITE_MOONPAY_PUBLISHABLE_KEY,
-        currencyCode: "usdc_arc",
+        currencyCode: "usdc_base",
         walletAddress,
         baseCurrencyCode: "try",
         redirectURL: window.location.href,
