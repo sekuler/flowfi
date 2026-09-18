@@ -1,8 +1,13 @@
-// Proxies JSON-RPC calls to Arc Testnet. Two problems this solves at once:
+// Proxies JSON-RPC calls to Arc Testnet, and now Arc MAINNET too via an
+// opt-in ?network=mainnet query param (default stays testnet, so nothing
+// existing changes). Two problems this solves at once, for either network:
 //
-// 1. Arc's own public RPC (rpc.testnet.arc.network) doesn't return CORS headers,
-//    so calling it directly from a browser fails (confirmed: circlefin/arc-node#90).
-//    A backend proxy sidesteps that entirely — the request never leaves our server.
+// 1. Arc's own public RPC doesn't return CORS headers, so calling it
+//    directly from a browser fails (confirmed for testnet:
+//    circlefin/arc-node#90; confirmed for mainnet 2026-09-18 -- a Node
+//    script reading the same address's balance worked instantly while the
+//    browser read 0.00 for the same call, the classic CORS signature: it
+//    works server-side/Node but silently fails from a page).
 // 2. The app was previously calling a *keyed* provider (Alchemy) directly from the
 //    browser, with the key hardcoded in client-side source. That key is now
 //    server-side only, read from an environment variable never bundled into the
@@ -18,11 +23,13 @@
 // never meant to be public. eth_getLogs stays allowed — LiquidityPools.tsx
 // genuinely uses it for swap history — but debug_*/trace_*/admin_*/
 // personal_*/txpool_*/miner_* namespaces, which nothing in this app calls,
-// are blocked outright.
+// are blocked outright. Same allowlist and rate limit apply to both networks.
 const { Ratelimit } = require('@upstash/ratelimit');
 const { Redis } = require('@upstash/redis');
 
-const ARC_RPC_URL = process.env.ARC_RPC_URL || 'https://rpc.testnet.arc.network';
+const ARC_TESTNET_RPC_URL = process.env.ARC_RPC_URL || 'https://rpc.testnet.arc.network';
+// Matches viem's own built-in `arc` chain definition's primary RPC.
+const ARC_MAINNET_RPC_URL = process.env.ARC_MAINNET_RPC_URL || 'https://rpc.mainnet.arc.io';
 
 const ALLOWED_METHODS = new Set([
   'eth_chainId', 'eth_blockNumber', 'eth_gasPrice', 'eth_maxPriorityFeePerGas', 'eth_feeHistory',
@@ -72,8 +79,10 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  const targetUrl = req.query?.network === 'mainnet' ? ARC_MAINNET_RPC_URL : ARC_TESTNET_RPC_URL;
+
   try {
-    const response = await fetch(ARC_RPC_URL, {
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body ?? {}),
