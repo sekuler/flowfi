@@ -1,6 +1,19 @@
-// Proxies Arcscan's (Blockscout-style) explorer API. Calling testnet.arcscan.app/api
-// directly from the browser is unreliable — other Arc Testnet projects have hit the
-// same CORS wall and solved it the same way: fetch server-side instead.
+// Proxies Arcscan's (Blockscout-style) TESTNET explorer API, and now also
+// Arc MAINNET's explorer -- which is a completely different service:
+// Etherscan itself launched "ArcScan" at arc.etherscan.io for mainnet
+// (confirmed 2026-09-18), using Etherscan's own unified V2 API
+// (api.etherscan.io/v2/api?chainid=5042&...) rather than the
+// unauthenticated Blockscout-style API testnet.arcscan.app uses. That
+// means mainnet calls need an API key (ETHERSCAN_API_KEY) and a
+// different origin/param shape -- added here as an opt-in `network=mainnet`
+// query param rather than a new file, to stay under Vercel's Hobby-plan
+// 12-serverless-function cap (already hit twice). Default behavior
+// (no `network` param) is untouched testnet, so the seven existing
+// pages calling this stay exactly as they were.
+//
+// Calling either explorer directly from the browser is unreliable — other
+// Arc projects have hit the same CORS wall and solved it the same way:
+// fetch server-side instead.
 //
 // Seven different pages (History, Dashboard, Home, Swap, Send, ...) all call this
 // same endpoint. The recurring "Explorer API error (429)" users kept hitting — every
@@ -15,9 +28,9 @@
 // broken cache.
 //
 // Two real mitigations:
-//   1. A short shared cache, keyed by the exact query — identical requests within the
-//      cache window are served from Redis instead of hitting Arcscan again, regardless
-//      of which serverless instance handles the request.
+//   1. A short shared cache, keyed by the exact query (network included) — identical
+//      requests within the cache window are served from Redis instead of hitting the
+//      explorer again, regardless of which serverless instance handles the request.
 //   2. Automatic retries with short backoff specifically on 429, since explorer rate
 //      limits are typically a short rolling window — often gone within a second or two.
 //
@@ -27,7 +40,9 @@
 // Arcscan's own indexed database instead, same query shape, no extra code needed here.
 const { Redis } = require('@upstash/redis');
 
-const ARCSCAN_ORIGIN = 'https://testnet.arcscan.app';
+const ARCSCAN_TESTNET_ORIGIN = 'https://testnet.arcscan.app';
+const ETHERSCAN_V2_ORIGIN = 'https://api.etherscan.io';
+const ARC_MAINNET_CHAIN_ID = 5042;
 const CACHE_TTL_SECONDS = 30;
 const RETRY_DELAYS_MS = [0, 600, 1500, 3000, 5000];
 
@@ -67,8 +82,11 @@ module.exports = async function handler(req, res) {
 
   try {
     const query = req.query || {};
+    const isMainnet = query.network === 'mainnet';
+
     const params = new URLSearchParams();
     for (const key of Object.keys(query)) {
+      if (key === 'network') continue; // routing flag only, not forwarded
       const value = query[key];
       if (Array.isArray(value)) {
         params.set(key, value[0]);
@@ -76,7 +94,22 @@ module.exports = async function handler(req, res) {
         params.set(key, value);
       }
     }
-    const cacheKey = params.toString();
+
+    let targetUrl;
+    if (isMainnet) {
+      if (!process.env.ETHERSCAN_API_KEY) {
+        return res.status(500).json({ error: 'Server misconfigured: ETHERSCAN_API_KEY is not set.' });
+      }
+      params.set('chainid', String(ARC_MAINNET_CHAIN_ID));
+      params.set('apikey', process.env.ETHERSCAN_API_KEY);
+      targetUrl = `${ETHERSCAN_V2_ORIGIN}/v2/api?${params.toString()}`;
+    } else {
+      targetUrl = `${ARCSCAN_TESTNET_ORIGIN}/api?${params.toString()}`;
+    }
+
+    // Cache key includes which network this is, so testnet and mainnet
+    // results for the same module/action/address never collide.
+    const cacheKey = `${isMainnet ? 'mainnet' : 'testnet'}:${params.toString()}`;
 
     const cached = await getCached(cacheKey);
     if (cached) {
@@ -89,7 +122,7 @@ module.exports = async function handler(req, res) {
     let text = '';
     for (let attempt = 0; attempt < RETRY_DELAYS_MS.length; attempt++) {
       if (RETRY_DELAYS_MS[attempt] > 0) await sleep(RETRY_DELAYS_MS[attempt]);
-      response = await fetch(`${ARCSCAN_ORIGIN}/api?${params.toString()}`, {
+      response = await fetch(targetUrl, {
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
