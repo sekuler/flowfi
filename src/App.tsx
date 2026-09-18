@@ -361,10 +361,10 @@ function AppInner() {
   // assuming one, so this is visible instead of guessed at.
   async function loadMainnetBalances(address: string) {
     try {
-      const client = createPublicClient({ chain: arcMainnet, transport: http() });
+      const client = createPublicClient({ chain: arcMainnet, transport: http("/api/rpc-proxy?network=mainnet") });
       const [usdcErc20, nativeBal] = await Promise.all([
-        client.readContract({ address: ARC_MAINNET_USDC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n),
-        client.getBalance({ address: address as `0x${string}` }).catch(() => 0n),
+        client.readContract({ address: ARC_MAINNET_USDC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch((e) => { console.error("Mainnet USDC balanceOf failed:", e); return 0n; }),
+        client.getBalance({ address: address as `0x${string}` }).catch((e) => { console.error("Mainnet native getBalance failed:", e); return 0n; }),
       ]);
       setMainnetBalances({
         usdc: Number(formatUnits(usdcErc20 as bigint, 6)).toFixed(2),
