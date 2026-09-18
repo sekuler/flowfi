@@ -352,19 +352,29 @@ function AppInner() {
   // EVM chains) -- only USDC has a confirmed mainnet contract address
   // today, so that's the only real figure here; the rest are left at 0
   // rather than guessing addresses that could be wrong.
+  // Arc represents USDC two separate ways: a native/protocol balance
+  // (18 decimals, what a plain wallet-to-wallet "send" moves, since USDC
+  // is the gas token) and a separate ERC-20 contract at 0x3600...
+  // (6 decimals, what dApp/contract interactions use). A transfer showing
+  // complete on arc.etherscan.io but reading as 0 here almost certainly
+  // means it landed as native, not ERC-20 -- fetching both rather than
+  // assuming one, so this is visible instead of guessed at.
   async function loadMainnetBalances(address: string) {
     try {
       const client = createPublicClient({ chain: arcMainnet, transport: http() });
-      const usdc = await client.readContract({ address: ARC_MAINNET_USDC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n);
+      const [usdcErc20, nativeBal] = await Promise.all([
+        client.readContract({ address: ARC_MAINNET_USDC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n),
+        client.getBalance({ address: address as `0x${string}` }).catch(() => 0n),
+      ]);
       setMainnetBalances({
-        usdc: Number(formatUnits(usdc as bigint, 6)).toFixed(2),
+        usdc: Number(formatUnits(usdcErc20 as bigint, 6)).toFixed(2),
         eurc: null,
         usyc: null,
         cirbtc: null,
-        native: null,
+        native: Number(formatUnits(nativeBal as bigint, 18)).toFixed(2),
       });
     } catch {
-      setMainnetBalances({ usdc: "—", eurc: null, usyc: null, cirbtc: null, native: null });
+      setMainnetBalances({ usdc: "—", eurc: null, usyc: null, cirbtc: null, native: "—" });
     }
   }
 

@@ -170,10 +170,11 @@ export default function DashboardMainnet({ address, balances }: Props) {
   }, []);
 
   const usdcVal = Number(balances.usdc ?? 0);
+  const nativeVal = Number(balances.native ?? 0);
   const eurcVal = Number(balances.eurc ?? 0);
   const usycVal = Number(balances.usyc ?? 0);
   const cirbtcVal = btcUsd !== null ? Number(balances.cirbtc ?? 0) * btcUsd : 0;
-  const total = usdcVal + eurcVal + usycVal + cirbtcVal;
+  const total = usdcVal + nativeVal + eurcVal + usycVal + cirbtcVal;
 
   useEffect(() => {
     if (!address || total === 0) return;
@@ -211,7 +212,8 @@ export default function DashboardMainnet({ address, balances }: Props) {
   }, [address, total]);
 
   const distribution = [
-    { label: "USDC", value: usdcVal, color: "#3B82F6" },
+    { label: "USDC (ERC-20)", value: usdcVal, color: "#3B82F6" },
+    { label: "USDC (Native)", value: nativeVal, color: "#F59E0B" },
     { label: "EURC", value: eurcVal, color: "#22C55E" },
     { label: "USYC", value: usycVal, color: "#F59E0B" },
     { label: "cirBTC", value: cirbtcVal, color: "#C2410C" },
@@ -265,12 +267,12 @@ export default function DashboardMainnet({ address, balances }: Props) {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 18 }}>
           <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
-            <div style={{ fontSize: 10, color: "#3B82F6", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE USDC</div>
+            <div style={{ fontSize: 10, color: "#3B82F6", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>USDC (ERC-20)</div>
             <div className="flowfi-mono" style={{ fontSize: 18, color: "#111827", fontWeight: 800 }}>{balances.usdc ?? "..."}</div>
           </div>
           <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
-            <div style={{ fontSize: 10, color: "#22C55E", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE EURC</div>
-            <div className="flowfi-mono" style={{ fontSize: 18, color: "#111827", fontWeight: 800 }}>{balances.eurc ?? "..."}</div>
+            <div style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>USDC (NATIVE/GAS)</div>
+            <div className="flowfi-mono" style={{ fontSize: 18, color: "#111827", fontWeight: 800 }}>{balances.native ?? "..."}</div>
           </div>
           <div style={{ background: "#ffffff", borderRadius: 14, padding: "0.85rem 1rem" }}>
             <div style={{ fontSize: 10, color: "#C2410C", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>AVAILABLE CIRBTC</div>
