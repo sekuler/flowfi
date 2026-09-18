@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { base } from "viem/chains";
 import { getCircleWallet, saveCircleWallet, forgetCircleWallet, requestCircleWalletCode, verifyCircleWalletCode, type CircleWalletInfo } from "../circleWalletHelpers";
-import MoonPayBuyButton from "./MoonPayBuyButton";
 
 // Mainnet counterpart to CircleWallet.tsx (which stays as-is, pointed at
 // Arc Testnet -- see /areas/flowfi.md for why the two are kept separate).
@@ -178,7 +177,14 @@ export default function CircleWalletMainnet() {
               </div>
             </div>
 
-            <MoonPayBuyButton walletAddress={wallet.address} />
+            <a
+              href={`https://relay.link/onramp/base?toAddress=${wallet.address}&toCurrency=${BASE_MAINNET_USDC}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "block", textAlign: "center", width: "100%", padding: "0.9rem", borderRadius: 14, border: "none", background: "#7B3FE4", color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none", boxSizing: "border-box" }}
+            >
+              Buy USDC with card ↗
+            </a>
 
             <div style={{ background: "#f5f3ff", borderRadius: 14, padding: "1rem" }}>
               <div style={{ fontSize: 11, color: "#4B5563", fontWeight: 600, letterSpacing: "0.5px", marginBottom: 6 }}>ADDRESS</div>
