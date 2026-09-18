@@ -6,6 +6,7 @@ import TokenLaunch from "./components/TokenLaunch";
 import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
+import { arc as arcMainnet } from "viem/chains";
 import { arcTestnet } from "./chains";
 import { discoverWallets } from "./components/WalletConnect";
 import ConnectModal from "./components/ConnectModal";
@@ -15,6 +16,7 @@ import TransferHub from "./components/TransferHub";
 import SwapForm from "./components/SwapForm";
 import TxHistory from "./components/TxHistory";
 import Dashboard from "./components/Dashboard";
+import DashboardMainnet from "./components/DashboardMainnet";
 import UnifiedBalance from "./components/UnifiedBalance";
 import CircleWallet from "./components/CircleWallet";
 import CircleWalletMainnet from "./components/CircleWalletMainnet";
@@ -55,9 +57,13 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "circlewalletmainnet";
+type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "circlewalletmainnet" | "dashboardmainnet";
 
 const ARC_USDC = USDC_ADDRESS;
+// Arc mainnet USDC -- the only mainnet stablecoin address confirmed so
+// far (EURC/USYC/cirBTC mainnet addresses aren't verified yet, so
+// DashboardMainnet only ever gets a real USDC figure; the rest stay 0).
+const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000" as const;
 // Guest mode (browsing Pools without a connected wallet) needs *something* to pass as
 // address/provider — a real zero address for read-only reserve/APR lookups, and a stub
 // provider whose request() always rejects, so if a guest somehow reaches an action button,
@@ -78,7 +84,7 @@ const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "circlewa
 // lookups (no signing), so it works for any address. Home/Dashboard/Launch and
 // the AI Copilot all assume a real browser-wallet signer and don't
 // have a Circle-Wallet code path yet — those stay locked until that's built.
-const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet", "mainnetbridge", "circlewalletmainnet"];
+const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet", "mainnetbridge", "circlewalletmainnet", "dashboardmainnet"];
 
 const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
@@ -86,6 +92,7 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
   variant: "mainnet",
   tabs: [
     { id: "mainnetbridge", label: "Bridge & Swap", Icon: Zap },
+    { id: "dashboardmainnet", label: "Dashboard", Icon: LayoutDashboard },
     // "circlewalletmainnet" nav entry paused (2026-09-18) -- Circle's
     // production API requires KYB (a registered business), which isn't in
     // place yet. The component, route, and access-list entries are left
@@ -212,6 +219,7 @@ function AppInner() {
   }, []);
   const [tab, setTab] = useState<Tab>("home");
   const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
+  const [mainnetBalances, setMainnetBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
@@ -340,6 +348,26 @@ function AppInner() {
     }
   }
 
+  // Same EOA address works on Arc mainnet as on testnet (both are just
+  // EVM chains) -- only USDC has a confirmed mainnet contract address
+  // today, so that's the only real figure here; the rest are left at 0
+  // rather than guessing addresses that could be wrong.
+  async function loadMainnetBalances(address: string) {
+    try {
+      const client = createPublicClient({ chain: arcMainnet, transport: http() });
+      const usdc = await client.readContract({ address: ARC_MAINNET_USDC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n);
+      setMainnetBalances({
+        usdc: Number(formatUnits(usdc as bigint, 6)).toFixed(2),
+        eurc: null,
+        usyc: null,
+        cirbtc: null,
+        native: null,
+      });
+    } catch {
+      setMainnetBalances({ usdc: "—", eurc: null, usyc: null, cirbtc: null, native: null });
+    }
+  }
+
   async function loadRecentTxs(address: string) {
     try {
       const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${address}&limit=3`);
@@ -378,11 +406,13 @@ function AppInner() {
   useEffect(() => {
     if (wallet) {
       loadBalances(wallet.address);
+      loadMainnetBalances(wallet.address);
       loadRecentTxs(wallet.address);
       loadEurRate();
       loadBtcRate();
     } else if (circlePrimary && circleWalletInfo) {
       loadBalances(circleWalletInfo.address);
+      loadMainnetBalances(circleWalletInfo.address);
       loadRecentTxs(circleWalletInfo.address);
       loadEurRate();
       loadBtcRate();
@@ -774,13 +804,13 @@ function AppInner() {
         </header>
 
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
-          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" ? 900 : 520), margin: "0 auto" }}>
+          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 28, fontWeight: 800, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : tab === "circlewalletmainnet" ? "Circle Wallet" : "Bridge"}
+                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "dashboardmainnet" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : tab === "circlewalletmainnet" ? "Circle Wallet" : "Bridge"}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : tab === "circlewalletmainnet" ? "Sign in with email, buy USDC with a card" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
+               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : tab === "circlewalletmainnet" ? "Sign in with email, buy USDC with a card" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
               {tab === "portfolio" && balances.usdc !== null && (
                 <div style={{ marginTop: 14 }}>
@@ -900,6 +930,7 @@ function AppInner() {
 
             {tab === "mainnetbridge" && <MainnetBridge />}
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
+            {tab === "dashboardmainnet" && (wallet || (circlePrimary && circleWalletInfo)) && <DashboardMainnet address={wallet ? wallet.address : circleWalletInfo!.address} balances={mainnetBalances} />}
             {tab === "analytics" && <StablecoinAnalytics onNavigate={(t) => setTab(t)} />}
             {tab === "history" && (wallet || (circlePrimary && circleWalletInfo)) && <TxHistory address={wallet ? wallet.address : circleWalletInfo!.address} />}
             {tab === "bridge" && (wallet || (circlePrimary && circleWalletInfo)) && (
