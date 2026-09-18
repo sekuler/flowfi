@@ -48,7 +48,19 @@ export default function MainnetBridge() {
         </div>
       </div>
 
-      <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
+      {/* The amount input's focus outline turned out to be the browser's
+          own default :focus ring, not a MUI component -- theme.components
+          (MuiInputCard above) can't reach that, so it's force-removed here
+          with plain CSS scoped to this wrapper only. */}
+      <style>{`
+        .lifi-widget-wrap input:focus {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+      `}</style>
+      <div className="lifi-widget-wrap">
+        <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
+      </div>
     </div>
   );
 }
