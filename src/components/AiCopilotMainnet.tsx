@@ -30,14 +30,14 @@ function renderMessageContent(content: string | undefined, expanded: boolean) {
     i = 1;
   }
   if (lines[1] && lines[1].startsWith("$")) {
-    nodes.push(<div key="price" style={{ fontSize: expanded ? 22 : 16, fontWeight: 800, color: "#92400E", fontFamily: "ui-monospace, monospace", marginBottom: 2 }}>{lines[1]}</div>);
+    nodes.push(<div key="price" style={{ fontSize: expanded ? 22 : 16, fontWeight: 800, color: "#6D5EF7", fontFamily: "ui-monospace, monospace", marginBottom: 2 }}>{lines[1]}</div>);
     i = 2;
   }
   for (; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
     if (ANALYSIS_SECTION_HEADERS.has(trimmed)) {
-      nodes.push(<div key={i} style={{ marginTop: 10, marginBottom: 2, paddingTop: 8, borderTop: "1px solid #FDE68A", fontSize: expanded ? 12 : 11, fontWeight: 800, letterSpacing: 0.6, color: "#92400E", textTransform: "uppercase" }}>{trimmed}</div>);
+      nodes.push(<div key={i} style={{ marginTop: 10, marginBottom: 2, paddingTop: 8, borderTop: "1px solid #FDE68A", fontSize: expanded ? 12 : 11, fontWeight: 800, letterSpacing: 0.6, color: "#6D5EF7", textTransform: "uppercase" }}>{trimmed}</div>);
     } else if (trimmed.startsWith("⚠️")) {
       nodes.push(<div key={i} style={{ marginTop: 10, fontSize: expanded ? 12 : 10, color: "#9CA3AF", lineHeight: 1.4 }}>{line}</div>);
     } else if (trimmed.length > 0) {
@@ -154,16 +154,16 @@ export default function AiCopilotMainnet({ onNavigate }: Props) {
         : { position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
       {open && (
         <div style={expanded
-          ? { width: "min(560px, calc(100vw - 32px))", height: "100%", background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 20, boxShadow: "-16px 0 48px rgba(146,64,14,0.16)", display: "flex", flexDirection: "column", overflow: "hidden" }
-          : { width: 360, maxHeight: 480, background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 20, boxShadow: "0 16px 48px rgba(217,119,6,0.2)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: expanded ? "1.1rem 1.4rem" : "0.9rem 1.1rem", background: "linear-gradient(135deg, #FEF3C7, #FDE68A)" }}>
+          ? { width: "min(560px, calc(100vw - 32px))", height: "100%", background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "-16px 0 48px rgba(109,94,247,0.16)", display: "flex", flexDirection: "column", overflow: "hidden" }
+          : { width: 360, maxHeight: 480, background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, boxShadow: "0 16px 48px rgba(217,119,6,0.2)", display: "flex", flexDirection: "column", marginBottom: 12, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: expanded ? "1.1rem 1.4rem" : "0.9rem 1.1rem", background: "linear-gradient(135deg, #EDE9FE, #FDE68A)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: expanded ? 30 : 24, height: expanded ? 30 : 24, borderRadius: 8, background: "#92400E", display: "flex", alignItems: "center", justifyContent: "center", fontSize: expanded ? 15 : 12, color: "#fff" }}>⚡</div>
+              <div style={{ width: expanded ? 30 : 24, height: expanded ? 30 : 24, borderRadius: 8, background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: expanded ? 15 : 12, color: "#fff" }}>⚡</div>
               <span style={{ fontSize: expanded ? 16 : 13, fontWeight: 800, color: "#111827" }}>FlowFi Copilot — Mainnet</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <button onClick={() => setExpanded(!expanded)} title={expanded ? "Shrink" : "Expand"}
-                style={{ background: "rgba(146,64,14,0.1)", border: "none", borderRadius: 8, color: "#92400E", cursor: "pointer", fontSize: 13, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                style={{ background: "rgba(109,94,247,0.1)", border: "none", borderRadius: 8, color: "#6D5EF7", cursor: "pointer", fontSize: 13, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {expanded ? "⤡" : "⤢"}
               </button>
               <button onClick={() => { setOpen(false); setExpanded(false); }} style={{ background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 16 }}>✕</button>
@@ -179,15 +179,15 @@ export default function AiCopilotMainnet({ onNavigate }: Props) {
             {messages.map((m, i) => (
               <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: m.role === "user" ? "90%" : "100%" }}>
                 <div style={{
-                  background: m.role === "user" ? "#92400E" : "#FFFBEB",
+                  background: m.role === "user" ? "#6D5EF7" : "#F5F3FF",
                   borderRadius: 12, padding: expanded ? "0.9rem 1.1rem" : "0.6rem 0.8rem", color: m.role === "user" ? "#ffffff" : "#374151",
                 }}>
                   {m.role === "assistant" ? renderMessageContent(m.content, expanded) : <span style={{ fontSize: expanded ? 15 : 13 }}>{m.content}</span>}
                 </div>
                 {m.intent && m.intent.action !== "unknown" && !m.confirmed && (
-                  <div style={{ marginTop: 6, background: "#FFFBEB", borderRadius: 12, padding: "0.7rem 0.8rem" }}>
+                  <div style={{ marginTop: 6, background: "#F5F3FF", borderRadius: 12, padding: "0.7rem 0.8rem" }}>
                     <button onClick={() => goToPage(m.intent!, i)}
-                      style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#92400E", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                       Take me there
                     </button>
                   </div>
@@ -200,14 +200,14 @@ export default function AiCopilotMainnet({ onNavigate }: Props) {
             {loading && <div style={{ fontSize: 12, color: "#6B7280" }}>Thinking...</div>}
           </div>
 
-          <div style={{ display: "flex", gap: 8, padding: expanded ? "1.2rem 1.4rem" : "0.9rem", borderTop: "1px solid #FCD34D" }}>
+          <div style={{ display: "flex", gap: 8, padding: expanded ? "1.2rem 1.4rem" : "0.9rem", borderTop: "1px solid #D4C9FA" }}>
             <input type="text" placeholder="Tell me what to do..." value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
               disabled={loading}
-              style={{ flex: 1, background: "#FFFBEB", border: "none", borderRadius: 12, padding: expanded ? "0.9rem 1.1rem" : "0.6rem 0.8rem", fontSize: expanded ? 15 : 13, color: "#111827", outline: "none" }} />
+              style={{ flex: 1, background: "#F5F3FF", border: "none", borderRadius: 12, padding: expanded ? "0.9rem 1.1rem" : "0.6rem 0.8rem", fontSize: expanded ? 15 : 13, color: "#111827", outline: "none" }} />
             <button onClick={handleSend} disabled={loading || !input.trim()}
-              style={{ padding: expanded ? "0.9rem 1.4rem" : "0.6rem 1rem", borderRadius: 12, border: "none", background: "#92400E", color: "#fff", fontSize: expanded ? 15 : 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
+              style={{ padding: expanded ? "0.9rem 1.4rem" : "0.6rem 1rem", borderRadius: 12, border: "none", background: "#6D5EF7", color: "#fff", fontSize: expanded ? 15 : 13, fontWeight: 700, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
               Send
             </button>
           </div>
@@ -218,8 +218,8 @@ export default function AiCopilotMainnet({ onNavigate }: Props) {
         <button onClick={() => setOpen(!open)}
           style={{
             width: 58, height: 58, borderRadius: "50%", border: "none",
-            background: "#92400E", color: "#fff", fontSize: 22, cursor: "pointer",
-            boxShadow: "0 8px 24px rgba(146,64,14,0.45)", display: "flex", alignItems: "center", justifyContent: "center",
+            background: "#6D5EF7", color: "#fff", fontSize: 22, cursor: "pointer",
+            boxShadow: "0 8px 24px rgba(109,94,247,0.45)", display: "flex", alignItems: "center", justifyContent: "center",
           }}>
           {open ? "✕" : "⚡"}
         </button>

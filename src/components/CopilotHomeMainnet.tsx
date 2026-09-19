@@ -75,22 +75,22 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate }: Pr
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FEF3C7", color: "#92400E", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, alignSelf: "flex-start" }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#EDE9FE", color: "#6D5EF7", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, alignSelf: "flex-start" }}>
         ⚡ MAINNET — real funds, self-custody
       </div>
 
-      <div style={{ background: "linear-gradient(135deg, #FEF3C7, #FDE68A)", border: "1px solid #FCD34D", borderRadius: 20, padding: "1.5rem" }}>
-        <div style={{ fontSize: 13, color: "#92400E", marginBottom: 8 }}>Net Worth (Arc Mainnet)</div>
+      <div style={{ background: "linear-gradient(135deg, #EDE9FE, #FDE68A)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem" }}>
+        <div style={{ fontSize: 13, color: "#6D5EF7", marginBottom: 8 }}>Net Worth (Arc Mainnet)</div>
         <div className="flowfi-mono" style={{ fontSize: 32, fontWeight: 800, color: "#111827" }}>
           {loading && !balances.usdc ? "..." : `$${usdcVal.toFixed(2)}`}
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.3fr) minmax(0, 1fr)", gap: "1rem", alignItems: "start" }}>
-        <div style={{ background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Your Assets</div>
-            <button onClick={() => onNavigate("mainnetbridge")} style={{ background: "none", border: "none", color: "#92400E", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+            <button onClick={() => onNavigate("mainnetbridge")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
               Bridge more <ArrowUpRight size={13} />
             </button>
           </div>
@@ -109,15 +109,15 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate }: Pr
           </div>
         </div>
 
-        <div style={{ background: "linear-gradient(135deg, #FFFBEB, #FEF3C7)", border: "1px solid #FCD34D", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
+        <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-            <Sparkles size={16} color="#92400E" />
+            <Sparkles size={16} color="#6D5EF7" />
             <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>AI Advisor</div>
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#92400E", background: "#ffffff", padding: "2px 7px", borderRadius: 999 }}>BETA</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: "#6D5EF7", background: "#ffffff", padding: "2px 7px", borderRadius: 999 }}>BETA</span>
           </div>
           <div style={{ background: "#ffffff", borderRadius: 16, padding: "1rem", textAlign: "center" }}>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(146,64,14,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
-              <Sparkles size={18} color="#92400E" />
+            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
+              <Sparkles size={18} color="#6D5EF7" />
             </div>
             <p style={{ fontSize: 13, color: "#4B5563" }}>Use the FlowFi Copilot in the corner to bridge or swap in plain language — it takes you to the right page to confirm with your own wallet.</p>
           </div>
@@ -125,7 +125,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate }: Pr
         </div>
       </div>
 
-      <div style={{ background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Recent Activity</div>
         </div>
@@ -141,8 +141,8 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate }: Pr
         </div>
       </div>
 
-      <div style={{ background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
-        <ShieldCheck size={18} color="#92400E" />
+      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+        <ShieldCheck size={18} color="#6D5EF7" />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Self-custody, always</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>Every mainnet transaction is signed by your own wallet — FlowFi never holds your keys or your funds.</div>

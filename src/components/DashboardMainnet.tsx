@@ -239,14 +239,14 @@ export default function DashboardMainnet({ address, balances }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <div style={{ position: "relative", overflow: "hidden", background: "linear-gradient(135deg, #FEF3C7, #FDE68A)", border: "1px solid #FCD34D", borderRadius: 20, padding: "1.75rem" }}>
+      <div style={{ position: "relative", overflow: "hidden", background: "linear-gradient(135deg, #EDE9FE, #FDE68A)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.75rem" }}>
         <div style={{ position: "relative" }}>
-        <div style={{ fontSize: 11, color: "#92400E", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 8 }}>⚡ NET WORTH — MAINNET</div>
+        <div style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 8 }}>⚡ NET WORTH — MAINNET</div>
         <div className="flowfi-mono" style={{ fontSize: 42, fontWeight: 800, color: "#111827", marginBottom: 8 }}>${total.toFixed(2)}</div>
 
         <div style={{ display: "flex", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontSize: 11, color: "#92400E" }}>Today</span>
+            <span style={{ fontSize: 11, color: "#6D5EF7" }}>Today</span>
             {dailyChange.hasData ? (
               <span style={{ fontSize: 12, fontWeight: 700, color: dailyChange.pct >= 0 ? "#16A34A" : "#DC2626" }}>
                 {dailyChange.pct >= 0 ? "▲" : "▼"} {Math.abs(dailyChange.pct).toFixed(1)}%
@@ -256,7 +256,7 @@ export default function DashboardMainnet({ address, balances }: Props) {
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontSize: 11, color: "#92400E" }}>This Week</span>
+            <span style={{ fontSize: 11, color: "#6D5EF7" }}>This Week</span>
             {weeklyChange.hasData ? (
               <span style={{ fontSize: 12, fontWeight: 700, color: weeklyChange.pct >= 0 ? "#16A34A" : "#DC2626" }}>
                 {weeklyChange.pct >= 0 ? "▲" : "▼"} {Math.abs(weeklyChange.pct).toFixed(1)}%
@@ -280,7 +280,7 @@ export default function DashboardMainnet({ address, balances }: Props) {
         </div>
       </div>
 
-      <div style={{ background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>PORTFOLIO ALLOCATION</div>
         {total === 0 ? (
           <EmptyState icon="💰" title="No balances yet" subtitle="Bridge USDC to Arc or buy with a card to get started" />
@@ -307,7 +307,7 @@ export default function DashboardMainnet({ address, balances }: Props) {
       </div>
 
       {activityBreakdown.length > 0 && (
-        <div style={{ background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>ACTIVITY BREAKDOWN</div>
           <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
             {activityBreakdown.map((b) => (
@@ -330,21 +330,21 @@ export default function DashboardMainnet({ address, balances }: Props) {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "0.75rem" }}>
-        <div style={{ background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#16A34A" }}>{loading ? "..." : incomingCount}</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>Incoming (recent)</div>
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#DC2626" }}>{loading ? "..." : outgoingCount}</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>Sent (recent)</div>
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div className="flowfi-mono" style={{ fontSize: 19, fontWeight: 800, color: "#111827" }}>{loading ? "..." : txCount ?? 0}</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>All-time transactions</div>
         </div>
       </div>
 
-      <div style={{ background: "#ffffff", border: "1px solid #FCD34D", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(146,64,14,0.06)" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, letterSpacing: "1px", marginBottom: 12 }}>RECENT ACTIVITY</div>
         {loading && <div style={{ fontSize: 12, color: "#6B7280" }}>Loading...</div>}
         {!loading && recentActivity.length === 0 && <EmptyState icon="📭" title="No transactions yet" subtitle="Your recent activity will show up here" />}
@@ -353,7 +353,7 @@ export default function DashboardMainnet({ address, balances }: Props) {
             const meta = CATEGORY_META[tx.category];
             return (
               <a key={tx.hash} href={`https://arc.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.8rem", borderRadius: 12, background: "#FFFBEB", textDecoration: "none" }}>
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.8rem", borderRadius: 12, background: "#F5F3FF", textDecoration: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: meta.color, background: meta.bg, padding: "2px 8px", borderRadius: 6 }}>{meta.label}</span>
                   {tx.amount && <span style={{ fontSize: 12, color: "#374151" }}>${tx.amount}</span>}
