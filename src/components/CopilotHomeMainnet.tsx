@@ -4,7 +4,7 @@ import { TokenIcon } from "./TokenIcon";
 import NetworkGuard from "./NetworkGuard";
 import { useIsMobile } from "../useIsMobile";
 import { getFormattedMarketAnalysis } from "../marketData";
-import { Sparkles, ArrowUpRight, ShieldCheck, Zap, Repeat, Wallet, Plus, Box, Send, CheckCircle2 } from "lucide-react";
+import { ArrowUpRight, ShieldCheck, Zap, Repeat, Wallet, Plus, Box, Send, CheckCircle2 } from "lucide-react";
 
 // Mainnet counterpart to CopilotHome.tsx (which stays as-is, Arc Testnet
 // only). Visual pass 2026-09-19 to close the "unfinished/empty shop" gap
@@ -92,11 +92,6 @@ const SUGGESTED_QUESTIONS = [
   "How much USDC do I have?",
   "Find my last transaction",
   "How much have I sent in total?",
-];
-
-const ADVISOR_SUGGESTIONS = [
-  { label: "Bridge USDC to another chain", target: "mainnetbridge" as const },
-  { label: "Swap a portion to another token", target: "mainnetswap" as const },
 ];
 
 export default function CopilotHomeMainnet({ address, balances, onNavigate, provider }: Props) {
@@ -210,7 +205,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr)", gap: "1rem", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) minmax(0,1.3fr)", gap: "1rem", alignItems: "start" }}>
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Your Assets</div>
@@ -235,26 +230,6 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
             style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "0.65rem 0.25rem", border: "none", background: "none", color: "#9CA3AF", fontSize: 12.5, fontWeight: 600, cursor: "pointer", marginTop: 4 }}>
             <Plus size={14} /> Add token
           </button>
-        </div>
-
-        <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-            <Sparkles size={16} color="#6D5EF7" />
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>AI Advisor</div>
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#6D5EF7", background: "#ffffff", padding: "2px 7px", borderRadius: 999 }}>BETA</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {ADVISOR_SUGGESTIONS.map((s) => (
-              <button key={s.label} onClick={() => onNavigate(s.target)}
-                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: "#ffffff", border: "none", borderRadius: 12, padding: "0.7rem 0.9rem", cursor: "pointer", textAlign: "left" }}>
-                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Sparkles size={12} color="#6D5EF7" />
-                </div>
-                <span style={{ fontSize: 12.5, color: "#374151", fontWeight: 600 }}>{s.label}</span>
-              </button>
-            ))}
-          </div>
-          <p style={{ fontSize: 10, color: "#6B7280", textAlign: "center", marginTop: 10, marginBottom: 0 }}>AI suggestions are for reference only, not financial advice.</p>
         </div>
 
         <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", gap: 10 }}>
