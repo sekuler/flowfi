@@ -20,7 +20,6 @@ import DashboardMainnet from "./components/DashboardMainnet";
 import MainnetSwap from "./components/MainnetSwap";
 import UnifiedBalance from "./components/UnifiedBalance";
 import CircleWallet from "./components/CircleWallet";
-import CircleWalletMainnet from "./components/CircleWalletMainnet";
 import LiquidityPools from "./components/LiquidityPools";
 import AiCopilot from "./components/AiCopilot";
 import AiCopilotMainnet from "./components/AiCopilotMainnet";
@@ -59,7 +58,7 @@ interface RecentTx {
   age: string;
 }
 
-type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "circlewalletmainnet" | "dashboardmainnet" | "mainnetswap";
+type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "dashboardmainnet" | "mainnetswap";
 
 const ARC_USDC = USDC_ADDRESS;
 // Arc mainnet USDC -- the only mainnet stablecoin address confirmed so
@@ -79,14 +78,14 @@ const ARC_CIRBTC = CIRBTC_ADDRESS;
 
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
 const PORTFOLIO_TAB: { id: Tab; label: string; Icon: any } = { id: "portfolio", label: "Portfolio", Icon: LayoutGrid };
-const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnetswap", "circlewalletmainnet"];
+const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnetswap"];
 // Bridge/Swap/History already read their own Circle Wallet from localStorage
 // internally (independent of the provider/address props) — so a Circle-primary
 // session can use them today. Portfolio only ever does read-only balance
 // lookups (no signing), so it works for any address. Home/Dashboard/Launch and
 // the AI Copilot all assume a real browser-wallet signer and don't
 // have a Circle-Wallet code path yet — those stay locked until that's built.
-const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet", "mainnetbridge", "mainnetswap", "circlewalletmainnet", "dashboardmainnet"];
+const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet", "mainnetbridge", "mainnetswap", "dashboardmainnet"];
 
 const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
@@ -96,22 +95,26 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     { id: "mainnetbridge", label: "Bridge", Icon: Zap },
     { id: "mainnetswap", label: "Swap", Icon: Repeat },
     { id: "dashboardmainnet", label: "Dashboard", Icon: LayoutDashboard },
-    // "circlewalletmainnet" removed for good (2026-09-18) -- not a pause
-    // this time. Turkish law (7518 sayılı Kanun, SPK's 02.07.2024
-    // announcement) brings anyone managing users' private keys ("kripto
-    // varlıklara ilişkin cüzdandan transfer hakkı sağlayan özel
-    // anahtarların saklanması ve yönetimi") under SPK licensing, with
-    // both administrative and criminal penalties for operating unlicensed.
+    // Circle Wallet on mainnet was fully removed (2026-09-18), not just
+    // hidden from nav -- component file, Tab union entry, and safe-tab
+    // list entries are all gone (an earlier pass only removed the nav
+    // item, leaving the tab reachable via any lingering setTab() call).
+    // Turkish law (7518 sayılı Kanun, SPK's 02.07.2024 announcement)
+    // brings anyone managing users' private keys ("kripto varlıklara
+    // ilişkin cüzdandan transfer hakkı sağlayan özel anahtarların
+    // saklanması ve yönetimi") under SPK licensing, with both
+    // administrative and criminal penalties for operating unlicensed.
     // Circle Developer-Controlled Wallets does exactly that (FlowFi's
     // backend holds the signing authority, not the user), so it's the
     // wrong shape for mainnet real funds -- self-custody only from here:
-    // Bridge and Swap already sign entirely through the user's own
-    // browser wallet (LI.FI's EthereumProvider, no backend key/entity
-    // secret involved), which sits in a very different, much lower-risk
-    // legal category (a frontend to public infra, not a custodian).
-    // Circle Wallet stays as-is on Testnet (no real funds, no risk) --
-    // see CircleWallet.tsx, untouched. Token Launch also stays
-    // Testnet-only per the same reasoning -- never started a mainnet port.
+    // Bridge and Swap sign entirely through the user's own browser
+    // wallet (LI.FI's EthereumProvider, no backend key/entity secret
+    // involved), a very different, much lower-risk legal category (a
+    // frontend to public infra, not a custodian). Circle Wallet stays as
+    // -is on Testnet (no real funds, no risk) -- see CircleWallet.tsx,
+    // untouched. Token Launch and Liquidity Pools stay Testnet-only for
+    // the same reasoning -- never ported to mainnet, and won't be until
+    // both a professional audit and the licensing question are settled.
   ],
 },
  {
@@ -832,10 +835,10 @@ function AppInner() {
           <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 28, fontWeight: 800, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "dashboardmainnet" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "mainnetswap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : tab === "circlewalletmainnet" ? "Circle Wallet" : "Bridge"}
+                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "dashboardmainnet" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "mainnetswap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : tab === "circlewalletmainnet" ? "Sign in with email, buy USDC with a card" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
+               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
               {tab === "portfolio" && balances.usdc !== null && (
                 <div style={{ marginTop: 14 }}>
@@ -976,7 +979,6 @@ function AppInner() {
               />
             )}
             {tab === "circlewallet" && <CircleWallet />}
-            {tab === "circlewalletmainnet" && <CircleWalletMainnet />}
             {tab === "pools" && (
               <LiquidityPools
                 provider={wallet ? wallet.provider : GUEST_PROVIDER}
