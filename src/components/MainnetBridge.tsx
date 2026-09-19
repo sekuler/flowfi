@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import NetworkGuard from "./NetworkGuard";
-import NativeCctpBridge from "./NativeCctpBridge";
+import NativeCctpBridge, { SOURCE_CHAINS } from "./NativeCctpBridge";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
@@ -45,6 +45,12 @@ const lifiWidgetConfig: WidgetConfig = {
 
 export default function MainnetBridge({ address, provider }: { address?: string; provider?: EIP1193Provider }) {
   const [mode, setMode] = useState<"cctp" | "lifi">("lifi");
+  const [rotatingIdx, setRotatingIdx] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setRotatingIdx((i) => (i + 1) % SOURCE_CHAINS.length), 2200);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 0.5rem" }}>
@@ -53,6 +59,20 @@ export default function MainnetBridge({ address, provider }: { address?: string;
           ⚡ MAINNET — real funds, real fees
         </div>
       </div>
+
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#EDE9FE", padding: "5px 12px", borderRadius: 999, marginBottom: 14 }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E" }} />
+        <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.3px" }}>Arc Mainnet · Circle CCTP V2 · LI.FI</span>
+      </div>
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111827", margin: "0 0 6px", lineHeight: 1.15 }}>
+        Bridge to Arc from{" "}
+        <span key={rotatingIdx} className="flowfi-mono" style={{ color: "#6D5EF7", display: "inline-block" }}>{SOURCE_CHAINS[rotatingIdx].name}</span>
+      </h1>
+      <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 20 }}>
+        {mode === "cctp"
+          ? "Bridge USDC to Arc natively with Circle CCTP V2 — burn on the source chain, mint native USDC on Arc. Any other token or chain routes through LI.FI's Swap."
+          : "Bridge any token to Arc through LI.FI's aggregated routing — swap and bridge in one step. For a plain USDC transfer, Circle's native CCTP V2 is the direct path."}
+      </p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button onClick={() => setMode("lifi")}

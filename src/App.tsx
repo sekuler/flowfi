@@ -142,16 +142,17 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
 
 const LANDING_FEATURE_ICONS = [Mail, Zap, Sparkles, Hexagon, Rocket, Repeat];
 
-// Circle Wallet and Gateway lead — genuinely rare in the Arc ecosystem
-// (most projects here use browser-wallet-only onboarding and one-off CCTP
-// bridging), not just "we have a swap page too" features every DEX has.
+// Self-custody leads — genuinely rare in most bridge/swap aggregator
+// frontends (many quietly route through a hosted signer or custodial
+// step somewhere). Every card below describes what's actually live on
+// Arc Mainnet today, nothing from the Testnet showcase.
 const LANDING_FEATURES = [
-  { title: "Circle Wallet, No Seed Phrase", desc: "Sign in with just your email. Circle creates and manages a real, self-custodial wallet for you — nothing to write down, nothing to lose." },
-  { title: "Gateway: Instant Cross-Chain", desc: "Deposit USDC once, then move it across 4 chains in under 500ms — no repeated bridging, no waiting for confirmations each time." },
-  { title: "AI Copilot", desc: "Type what you want — swap, send, bridge, or launch a token — and Copilot executes it for you." },
-  { title: "Real CCTP Bridge", desc: "Genuine cross-chain USDC transfer via Circle's official burn/attest/mint protocol." },
-  { title: "Permissionless Token Launch", desc: "Deploy your own ERC20 on Arc and open its trading pool yourself — no waiting on anyone's approval." },
-  { title: "Smart Swap", desc: "On-chain swap with an AI advisor that reads real pool liquidity before you trade." },
+  { title: "Self-Custody, Always", desc: "Every transaction is signed by your own connected wallet. FlowFi never holds a key, a balance, or signing authority over your funds." },
+  { title: "Circle CCTP V2", desc: "Genuine native USDC bridging via Circle's own official burn/attest/mint protocol — not a wrapped-asset bridge." },
+  { title: "LI.FI Aggregation", desc: "Bridge or swap any token across Arc and dozens of other chains, routed through the best available rate." },
+  { title: "AI Copilot", desc: "Tell it what you want in plain language — it takes you straight to the right page to confirm with your own wallet." },
+  { title: "Native USDC on Arc", desc: "USDC is Arc's actual gas token, not a wrapped placeholder — funds are productive the moment they land." },
+  { title: "Real-Time Activity", desc: "Balances and transaction history read live from Arc's own official explorer — nothing cached or FlowFi-side." },
 ];
 
 /* ---------- Soft pastel blob background ---------- */
@@ -455,13 +456,13 @@ function AppInner() {
       <div style={{ position: "relative", zIndex: 1, maxWidth: 760, margin: "0 auto", textAlign: "center", padding: "3.5rem 2rem 2.5rem" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 30, background: "rgba(109,94,247,0.1)", fontSize: 12, fontWeight: 700, color: "#6D5EF7", marginBottom: 24 }}>
           <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#6D5EF7" }} />
-          LIVE ON ARC MAINNET · FULL SHOWCASE ON TESTNET
+          LIVE ON ARC MAINNET
         </div>
         <h1 className="flowfi-display" style={{ fontSize: 46, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-1.5px", marginBottom: 20, color: "#111827" }}>
           Bridge and swap real USDC on Arc.<br />Your wallet, your keys, always.
         </h1>
         <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 560, margin: "0 auto 32px" }}>
-          Connect your own wallet to bridge and swap real USDC on Arc Mainnet — every transaction signed by you, never by FlowFi. Prefer to explore first? A full showcase (email-based wallets, token launches, liquidity pools) is live on Testnet with zero-value test assets.
+          Connect your own wallet and move real USDC on Arc Mainnet in seconds — every transaction signed by you, never by FlowFi.
         </p>
      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
   <button onClick={() => setShowConnectModal(true)}
@@ -469,7 +470,7 @@ function AppInner() {
     Connect Wallet
   </button>
   <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-    <button onClick={() => { setGuestMode(true); setTab("pools"); }}
+    <button onClick={() => { setGuestMode(true); setTab("mainnetbridge"); }}
       style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
       Explore without connecting →
     </button>
@@ -479,10 +480,10 @@ function AppInner() {
     </a>
   </div>
 </div>
-        <p style={{ fontSize: 12, color: "#6B7280", marginBottom: 28 }}>Real wallet signatures. No seed phrase ever requested. Arc Testnet only.</p>
+        <p style={{ fontSize: 12, color: "#6B7280", marginBottom: 28 }}>Real wallet signatures. Your keys never leave your wallet.</p>
 
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px 20px" }}>
-          {["Circle Wallet", "Gateway", "Native USDC", "CCTP V2", "AI Copilot", "Token Launch"].map((f) => (
+          {["Self-Custody", "Circle CCTP V2", "LI.FI Aggregation", "Native USDC", "AI Copilot", "Zero Platform Fees"].map((f) => (
             <div key={f} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4B5563" }}>
               <span style={{ color: "#22C55E", fontWeight: 800 }}>✓</span>
               {f}
@@ -516,7 +517,7 @@ function AppInner() {
               <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>FlowFi</span>
             </div>
             <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
-              Built around Circle's full stack on Arc Testnet — Circle Wallet, Gateway, and CCTP — plus swap, bridge, and token launch through one intelligent Copilot.
+              Self-custodial bridging and swapping on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Every transaction signed by your own wallet, never by FlowFi.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <a href="https://x.com/flowfiarc" target="_blank" rel="noopener noreferrer"
@@ -535,8 +536,8 @@ function AppInner() {
             <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
               {[
                 { label: "Live App", href: "#top" },
-                { label: "Faucet", href: "https://faucet.circle.com" },
-                { label: "Explorer", href: "https://testnet.arcscan.app" },
+                { label: "Explorer", href: "https://arc.etherscan.io" },
+                { label: "Docs", href: "https://github.com/sekuler/flowfi" },
                 { label: "Watch Demo", href: "https://x.com/flowfiarc/status/2078926068485173522" },
               ].map(({ label, href }) => (
                 <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>{label}</a>
