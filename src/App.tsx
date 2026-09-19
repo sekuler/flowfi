@@ -5,7 +5,7 @@ import TokenLaunch from "./components/TokenLaunch";
 import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
-import { arcTestnet, arcMainnet } from "./chains";
+import { arcTestnet, arcMainnet, formatUsdcErc20, formatArcNative } from "./chains";
 import { discoverWallets } from "./components/WalletConnect";
 import ConnectModal from "./components/ConnectModal";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
@@ -73,7 +73,7 @@ const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnets
 // lookups (no signing), so it works for any address. Home/Dashboard/Launch and
 // the AI Copilot all assume a real browser-wallet signer and don't
 // have a Circle-Wallet code path yet — those stay locked until that's built.
-const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "circlewallet", "mainnetbridge", "mainnetswap", "dashboardmainnet"];
+const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "circlewallet"];
 
 const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
@@ -318,11 +318,11 @@ function AppInner() {
         client.getBalance({ address: address as `0x${string}` }).catch(() => 0n),
       ]);
       setBalances({
-        usdc: Number(formatUnits(usdc as bigint, 6)).toFixed(2),
+        usdc: formatUsdcErc20(usdc as bigint).toFixed(2),
         eurc: Number(formatUnits(eurc as bigint, 6)).toFixed(2),
         usyc: Number(formatUnits(usyc as bigint, 6)).toFixed(2),
         cirbtc: Number(formatUnits(cirbtc as bigint, 8)).toFixed(6),
-        native: Number(formatUnits(native as bigint, 18)).toFixed(4),
+        native: formatArcNative(native as bigint).toFixed(4),
       });
     } catch {
       setBalances({ usdc: "—", eurc: "—", usyc: "—", cirbtc: "—", native: "—" });
@@ -348,11 +348,11 @@ function AppInner() {
         client.getBalance({ address: address as `0x${string}` }).catch((e) => { console.error("Mainnet native getBalance failed:", e); return 0n; }),
       ]);
       setMainnetBalances({
-        usdc: Number(formatUnits(usdcErc20 as bigint, 6)).toFixed(2),
+        usdc: formatUsdcErc20(usdcErc20 as bigint).toFixed(2),
         eurc: null,
         usyc: null,
         cirbtc: null,
-        native: Number(formatUnits(nativeBal as bigint, 18)).toFixed(2),
+        native: formatArcNative(nativeBal as bigint).toFixed(2),
       });
     } catch {
       setMainnetBalances({ usdc: "—", eurc: null, usyc: null, cirbtc: null, native: "—" });
@@ -682,6 +682,19 @@ function AppInner() {
             </>
           )}
         </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 10px", padding: "0.6rem 0.9rem 0", justifyContent: "center" }}>
+          {[
+            { label: "Terms", file: "TERMS.md" },
+            { label: "Privacy", file: "PRIVACY.md" },
+            { label: "Risk", file: "RISK.md" },
+            { label: "Security", file: "SECURITY.md" },
+          ].map((doc) => (
+            <a key={doc.file} href={`https://github.com/sekuler/flowfi/blob/main/${doc.file}`} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 9.5, color: "#9CA3AF", textDecoration: "none" }}>
+              {doc.label}
+            </a>
+          ))}
+        </div>
       </aside>
 
       <main style={{ flex: 1, minHeight: "100vh", position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
@@ -707,13 +720,15 @@ function AppInner() {
             <span style={{ position: "absolute", top: -7, right: -9, fontSize: 7, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 4px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
           </button>
           <div style={{ width: 1, height: 18, background: "rgba(109,94,247,0.12)" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(34,197,94,0.1)" }}>
-            <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E" }} />
-            <span style={{ fontSize: 11, fontWeight: 800, color: "#16A34A" }}>Arc Testnet</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: (TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "rgba(109,94,247,0.1)" : "rgba(34,197,94,0.1)" }}>
+            <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: (TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "#6D5EF7" : "#22C55E" }} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: (TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "#6D5EF7" : "#16A34A" }}>
+              {(TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "Arc Mainnet" : "Arc Testnet"}
+            </span>
           </div>
           {wallet ? (
             <>
-              <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
+              <a href={`${(TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "https://arc.etherscan.io" : "https://testnet.arcscan.app"}/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
                 className="flowfi-mono"
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                 {shortAddr}
@@ -758,7 +773,7 @@ function AppInner() {
             {tab === "mainnetbridge" && <MainnetBridge provider={wallet?.provider} />}
             {tab === "mainnetswap" && <MainnetSwap provider={wallet?.provider} />}
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
-            {tab === "dashboardmainnet" && (wallet || (circlePrimary && circleWalletInfo)) && <DashboardMainnet address={wallet ? wallet.address : circleWalletInfo!.address} balances={mainnetBalances} provider={wallet?.provider} />}
+            {tab === "dashboardmainnet" && wallet && <DashboardMainnet address={wallet.address} balances={mainnetBalances} provider={wallet.provider} />}
             {tab === "analytics" && <StablecoinAnalytics onNavigate={(t) => setTab(t)} />}
             {tab === "history" && (wallet || (circlePrimary && circleWalletInfo)) && <TxHistory address={wallet ? wallet.address : circleWalletInfo!.address} />}
             {tab === "bridge" && (wallet || (circlePrimary && circleWalletInfo)) && (
