@@ -23,6 +23,7 @@ import CircleWallet from "./components/CircleWallet";
 import CircleWalletMainnet from "./components/CircleWalletMainnet";
 import LiquidityPools from "./components/LiquidityPools";
 import AiCopilot from "./components/AiCopilot";
+import AiCopilotMainnet from "./components/AiCopilotMainnet";
 import ToastContainer from "./components/ToastContainer";
 import MarketTicker from "./components/MarketTicker";
 import NotificationCenter from "./components/NotificationCenter";
@@ -1041,7 +1042,11 @@ function AppInner() {
         )}
       </main>
 
-      {wallet && <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />}
+      {wallet && (tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet") ? (
+        <AiCopilotMainnet onNavigate={(t) => setTab(t)} />
+      ) : (
+        wallet && <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
+      )}
       {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
       {showConnectModal && <ConnectModal onClose={() => setShowConnectModal(false)} onConnected={handleConnected} onCircleConnected={handleCircleConnected} />}
     </div>
