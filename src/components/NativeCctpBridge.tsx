@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { createWalletClient, createPublicClient, custom, http, encodeFunctionData, erc20Abi, parseUnits } from "viem";
-import type { EIP1193Provider } from "viem";
+import { createWalletClient, createPublicClient, custom, http, encodeFunctionData, parseUnits } from "viem";
+import type { EIP1193Provider, Chain } from "viem";
 import { mainnet, base, arbitrum, optimism, polygon, avalanche } from "viem/chains";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 
@@ -31,13 +31,12 @@ import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../ch
 const CCTP_TOKEN_MESSENGER_V2 = "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d" as const;
 const CCTP_MESSAGE_TRANSMITTER_V2 = "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64" as const;
 const ARC_DOMAIN = 26;
-const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000" as const;
 const IRIS_API = "https://iris-api.circle.com";
 
 interface SourceChain {
   key: string;
   name: string;
-  chain: typeof mainnet;
+  chain: Chain;
   domain: number;
   usdc: `0x${string}`;
 }
