@@ -31,7 +31,7 @@ import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./cont
 import {
   Home, Repeat, Droplet,
   Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
-  Sparkles, Moon, Power, Copy, Check, Lock, Mail, Zap,
+  Sparkles, Moon, Power, Copy, Check, Lock, Mail, Zap, ShieldCheck as ShieldCheckIcon,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -434,59 +434,71 @@ function AppInner() {
       {sharedStyle}
       <PastelBackground />
 
-      <header style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 3rem", maxWidth: 1100, margin: "0 auto" }}>
+      <header style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 3rem", maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 34, height: 34, borderRadius: 12, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(109,94,247,0.35)" }}>◈</div>
-          <div>
-            <div className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.1, color: "#111827" }}>FlowFi</div>
-            <div style={{ fontSize: 9, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1.5px" }}>CIRCLE-NATIVE ON ARC</div>
-          </div>
+          <div className="flowfi-display" style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1, color: "#111827" }}>FlowFi</div>
         </div>
-        <div style={{ display: "flex", gap: 24 }}>
-          {[
-            { label: "Faucet", href: "https://faucet.circle.com" },
-            { label: "Explorer", href: "https://testnet.arcscan.app" },
-            { label: "Docs", href: "https://docs.arc.io" },
-          ].map(({ label, href }) => (
-            <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#4B5563", fontSize: 13, textDecoration: "none", fontWeight: 500 }}>{label}</a>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 14px", borderRadius: 999, border: "1px solid #E5DEFA", fontSize: 11.5, fontWeight: 700, color: "#374151" }}>
+            <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E" }} />
+            ARC MAINNET LIVE
+          </div>
+          <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener noreferrer" style={{ color: "#4B5563", fontSize: 14, textDecoration: "none", fontWeight: 600 }}>Explore</a>
         </div>
       </header>
 
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 760, margin: "0 auto", textAlign: "center", padding: "3.5rem 2rem 2.5rem" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 30, background: "rgba(109,94,247,0.1)", fontSize: 12, fontWeight: 700, color: "#6D5EF7", marginBottom: 24 }}>
-          <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#6D5EF7" }} />
-          LIVE ON ARC MAINNET
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "3rem 3rem 2rem", display: "flex", alignItems: "center", gap: "3rem", flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 460px", minWidth: 320 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", padding: "6px 16px", borderRadius: 30, background: "rgba(109,94,247,0.1)", fontSize: 12, fontWeight: 700, color: "#6D5EF7", marginBottom: 24, letterSpacing: "0.4px" }}>
+            ON ARC MAINNET
+          </div>
+          <h1 className="flowfi-display" style={{ fontSize: 52, fontWeight: 800, lineHeight: 1.1, letterSpacing: "-1.5px", marginBottom: 20, color: "#111827" }}>
+            Do more with USDC.<br />
+            <span style={{ background: "linear-gradient(90deg, #7C3AED, #3B82F6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>All in one flow.</span>
+          </h1>
+          <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 460, marginBottom: 32 }}>
+            Send, bridge, and swap your USDC on Arc Mainnet with FlowFi — manage everything from one fast, secure platform. Every transaction signed by your own wallet, never by FlowFi.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 14, marginBottom: 28 }}>
+            <button onClick={() => setShowConnectModal(true)}
+              style={{ padding: "1rem 2rem", borderRadius: 16, border: "none", background: "linear-gradient(90deg, #7C3AED, #3B82F6)", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+              Connect Wallet <span>→</span>
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <button onClick={() => { setGuestMode(true); setTab("mainnetbridge"); }}
+                style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
+                Explore without connecting →
+              </button>
+              <a href="https://x.com/flowfiarc/status/2078926068485173522" target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: 6, color: "#6D5EF7", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                <span style={{ fontSize: 11 }}>▶</span> Watch Demo
+              </a>
+            </div>
+          </div>
         </div>
-        <h1 className="flowfi-display" style={{ fontSize: 46, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-1.5px", marginBottom: 20, color: "#111827" }}>
-          Bridge and swap real USDC on Arc.<br />Your wallet, your keys, always.
-        </h1>
-        <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 560, margin: "0 auto 32px" }}>
-          Connect your own wallet and move real USDC on Arc Mainnet in seconds — every transaction signed by you, never by FlowFi.
-        </p>
-     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
-  <button onClick={() => setShowConnectModal(true)}
-    style={{ maxWidth: 420, width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: "#7c3aed", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: "pointer" }}>
-    Connect Wallet
-  </button>
-  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-    <button onClick={() => { setGuestMode(true); setTab("mainnetbridge"); }}
-      style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
-      Explore without connecting →
-    </button>
-    <a href="https://x.com/flowfiarc/status/2078926068485173522" target="_blank" rel="noopener noreferrer"
-      style={{ display: "flex", alignItems: "center", gap: 6, color: "#6D5EF7", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-      <span style={{ fontSize: 11 }}>▶</span> Watch Demo
-    </a>
-  </div>
-</div>
-        <p style={{ fontSize: 12, color: "#6B7280", marginBottom: 28 }}>Real wallet signatures. Your keys never leave your wallet.</p>
 
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px 20px" }}>
-          {["Self-Custody", "Circle CCTP V2", "LI.FI Aggregation", "Native USDC", "AI Copilot", "Zero Platform Fees"].map((f) => (
-            <div key={f} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4B5563" }}>
-              <span style={{ color: "#22C55E", fontWeight: 800 }}>✓</span>
-              {f}
+        <div style={{ flex: "1 1 380px", minWidth: 280, display: "flex", justifyContent: "center" }}>
+          <img src="/usdc-hero.jpg" alt="USDC on Arc" style={{ width: "100%", maxWidth: 460, height: "auto", borderRadius: 24 }} />
+        </div>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "0 3rem 3.5rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "2.5rem 3rem", paddingTop: 24, borderTop: "1px solid #E5DEFA" }}>
+          {[
+            { title: "Fast Transactions", sub: "Seconds, not minutes", Icon: Zap },
+            { title: "Multi-Route Aggregation", sub: "LI.FI + Circle CCTP V2", Icon: Repeat },
+            { title: "Secure & Transparent", sub: "Self-custody, always", Icon: ShieldCheckIcon },
+            { title: "Easy to Use", sub: "DeFi for everyone", Icon: Sparkles },
+          ].map((f) => (
+            <div key={f.title} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(109,94,247,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <f.Icon size={19} color="#6D5EF7" />
+              </div>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{f.title}</div>
+                <div style={{ fontSize: 12, color: "#6B7280" }}>{f.sub}</div>
+              </div>
             </div>
           ))}
         </div>
