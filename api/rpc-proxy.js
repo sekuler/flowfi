@@ -53,13 +53,26 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
     limiter: Ratelimit.slidingWindow(120, '60 s'),
     prefix: 'ratelimit:rpc-proxy',
   });
+} else if (process.env.NODE_ENV === 'production') {
+  // Hard requirement in production (2026-09-19): this endpoint forwards
+  // to a real RPC provider that can be metered/rate-limited on Circle's
+  // or Arc's end, and previously just logged a warning and kept serving
+  // unprotected requests if Redis wasn't configured -- an easy way to
+  // silently ship with zero abuse protection. Local dev without Redis
+  // still works (degraded, unprotected) so it's not required to run the
+  // app locally, but production refuses to serve without it.
+  console.error('api/rpc-proxy.js: UPSTASH_REDIS_REST_URL/TOKEN not set in production — refusing to serve unprotected.');
 } else {
-  console.warn('api/rpc-proxy.js: UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting is OFF.');
+  console.warn('api/rpc-proxy.js: UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting is OFF (dev only).');
 }
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!ratelimit && process.env.NODE_ENV === 'production') {
+    return res.status(503).json({ error: 'Service temporarily unavailable — rate limiting is not configured.' });
   }
 
   if (ratelimit) {

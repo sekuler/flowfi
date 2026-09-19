@@ -455,13 +455,13 @@ function AppInner() {
       <div style={{ position: "relative", zIndex: 1, maxWidth: 760, margin: "0 auto", textAlign: "center", padding: "3.5rem 2rem 2.5rem" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 30, background: "rgba(109,94,247,0.1)", fontSize: 12, fontWeight: 700, color: "#6D5EF7", marginBottom: 24 }}>
           <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#6D5EF7" }} />
-          LIVE ON ARC TESTNET
+          LIVE ON ARC MAINNET · FULL SHOWCASE ON TESTNET
         </div>
         <h1 className="flowfi-display" style={{ fontSize: 46, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-1.5px", marginBottom: 20, color: "#111827" }}>
-          Tell FlowFi what you want.<br />It handles the rest.
+          Bridge and swap real USDC on Arc.<br />Your wallet, your keys, always.
         </h1>
         <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 560, margin: "0 auto 32px" }}>
-          Built around Circle's full stack — sign in with just your email, then swap, bridge, launch tokens, and move USDC across chains instantly, all through one intelligent Copilot.
+          Connect your own wallet to bridge and swap real USDC on Arc Mainnet — every transaction signed by you, never by FlowFi. Prefer to explore first? A full showcase (email-based wallets, token launches, liquidity pools) is live on Testnet with zero-value test assets.
         </p>
      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 20 }}>
   <button onClick={() => setShowConnectModal(true)}
@@ -770,7 +770,7 @@ function AppInner() {
             </div>
 {tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} provider={wallet.provider} />}
 
-            {tab === "mainnetbridge" && <MainnetBridge provider={wallet?.provider} />}
+            {tab === "mainnetbridge" && <MainnetBridge address={wallet?.address} provider={wallet?.provider} />}
             {tab === "mainnetswap" && <MainnetSwap provider={wallet?.provider} />}
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
             {tab === "dashboardmainnet" && wallet && <DashboardMainnet address={wallet.address} balances={mainnetBalances} provider={wallet.provider} />}

@@ -263,6 +263,17 @@ FlowFi's own Testnet contracts have been through a manual security review, not a
 
 ---
 
+## Legal
+
+- [`TERMS.md`](./TERMS.md) — what you're agreeing to by using FlowFi
+- [`PRIVACY.md`](./PRIVACY.md) — what data is collected, by whom, and why
+- [`RISK.md`](./RISK.md) — mainnet-specific risks (wrong network, third-party routing, no undo)
+- [`SECURITY.md`](./SECURITY.md) — the security self-review and mainnet trust model
+
+These are also linked from the app itself (sidebar footer).
+
+---
+
 ## Disclaimer
 
-Arc Mainnet features (Bridge, Swap, Dashboard) move real USDC and other assets — every transaction is signed by the user's own connected wallet, at the user's own discretion; FlowFi never holds a key, a balance, or signing authority over mainnet funds. Everything else in this README (Circle Wallet, Token Launch, Liquidity Pools, CCTP, Gateway) runs on Arc Testnet with test assets that carry no monetary value. An earlier Perpetuals contract remains deployed and verified on Arcscan for historical reference — it was fully removed from the app and isn't reachable through the product; if you interact with its bytecode directly, be aware its pricing was client-submitted with no decentralized oracle behind it.
+Arc Mainnet features (Bridge, Swap, Dashboard) move real USDC and other assets — every transaction is signed by the user's own connected wallet, at the user's own discretion; FlowFi never holds a key, a balance, or signing authority over mainnet funds. Everything else in this README (Circle Wallet, Token Launch, Liquidity Pools, CCTP, Gateway) runs on Arc Testnet with test assets that carry no monetary value. An earlier Perpetuals contract remains deployed and verified on Arcscan for historical reference — it was fully removed from the app and isn't reachable through the product; if you interact with its bytecode directly, be aware its pricing was client-submitted with no decentralized oracle behind it. See [`TERMS.md`](./TERMS.md), [`PRIVACY.md`](./PRIVACY.md), and [`RISK.md`](./RISK.md) for the full terms.
