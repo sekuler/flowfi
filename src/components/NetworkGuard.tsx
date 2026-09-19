@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
+import { ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 
 // Shared "wrong network" warning + one-click "Add/Switch to Arc Mainnet"
 // bar, used across every mainnet page (Bridge, Swap, Dashboard, Home).
@@ -7,7 +8,6 @@ import type { EIP1193Provider } from "viem";
 // wallet_switchEthereumChain / wallet_addEthereumChain pattern already
 // proven in AiCopilot.tsx's switchToArc() (for Arc Testnet) -- this is
 // the mainnet equivalent.
-const ARC_MAINNET_CHAIN_ID_HEX = "0x13B2"; // 5042
 const ARC_MAINNET_PARAMS = {
   chainId: ARC_MAINNET_CHAIN_ID_HEX,
   chainName: "Arc",
