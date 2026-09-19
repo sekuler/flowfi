@@ -51,12 +51,6 @@ interface Balances {
   native: string | null;
 }
 
-interface RecentTx {
-  hash: string;
-  method: string;
-  age: string;
-}
-
 type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "dashboardmainnet" | "mainnetswap";
 
 const ARC_USDC = USDC_ADDRESS;
@@ -164,14 +158,6 @@ const LANDING_FEATURES = [
   { title: "Smart Swap", desc: "On-chain swap with an AI advisor that reads real pool liquidity before you trade." },
 ];
 
-function timeAgo(sec: number) {
-  const diff = Math.floor(Date.now() / 1000) - sec;
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
 /* ---------- Soft pastel blob background ---------- */
 function PastelBackground() {
   return (
@@ -241,14 +227,9 @@ function AppInner() {
   const [tab, setTab] = useState<Tab>("home");
   const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
   const [mainnetBalances, setMainnetBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
-  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
-  const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
-  const [eurUsdRate, setEurUsdRate] = useState<number | null>(null);
-  const [btcUsdRate, setBtcUsdRate] = useState<number | null>(null);
   const [nickname, setNicknameState] = useState<string | null>(null);
   const [circleWalletInfo, setCircleWalletInfo] = useState<CircleWalletInfo | null>(null);
-  const [circleBalances, setCircleBalances] = useState<{ usdc: string; eurc: string } | null>(null);
   const [points, setPoints] = useState(0);
 
   useEffect(() => {
@@ -285,29 +266,13 @@ function AppInner() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    async function loadCircleBalances(info: CircleWalletInfo) {
-      try {
-        const client = createPublicClient({ chain: arcTestnet, transport: http() });
-        const [usdc, eurc] = await Promise.all([
-          client.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: "balanceOf", args: [info.address as `0x${string}`] }),
-          client.readContract({ address: ARC_EURC, abi: erc20Abi, functionName: "balanceOf", args: [info.address as `0x${string}`] }),
-        ]);
-        if (!cancelled) setCircleBalances({ usdc: Number(formatUnits(usdc as bigint, 6)).toFixed(2), eurc: Number(formatUnits(eurc as bigint, 6)).toFixed(2) });
-      } catch {
-        if (!cancelled) setCircleBalances({ usdc: "—", eurc: "—" });
-      }
-    }
     function refresh() {
-      const info = getCircleWallet();
-      setCircleWalletInfo(info);
-      if (info) loadCircleBalances(info);
-      else setCircleBalances(null);
+      setCircleWalletInfo(getCircleWallet());
     }
     refresh();
     const interval = setInterval(refresh, 15000);
     window.addEventListener("circle-wallet-changed", refresh);
-    return () => { cancelled = true; clearInterval(interval); window.removeEventListener("circle-wallet-changed", refresh); };
+    return () => { clearInterval(interval); window.removeEventListener("circle-wallet-changed", refresh); };
   }, []);
 
  function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
@@ -363,7 +328,6 @@ function AppInner() {
         cirbtc: Number(formatUnits(cirbtc as bigint, 8)).toFixed(6),
         native: Number(formatUnits(native as bigint, 18)).toFixed(4),
       });
-      setLastUpdated(Math.floor(Date.now() / 1000));
     } catch {
       setBalances({ usdc: "—", eurc: "—", usyc: "—", cirbtc: "—", native: "—" });
     }
@@ -399,54 +363,13 @@ function AppInner() {
     }
   }
 
-  async function loadRecentTxs(address: string) {
-    try {
-      const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${address}&limit=3`);
-      const data = await res.json();
-      const items: RecentTx[] = (data.result ?? []).slice(0, 3).map((tx: any) => ({
-        hash: tx.hash,
-        method: tx.methodId === "0x" ? "Contract Deploy" : (tx.methodId && tx.methodId !== "0x" ? "Transaction" : "Transfer"),
-        age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—",
-      }));
-      setRecentTxs(items);
-    } catch {
-      setRecentTxs([]);
-    }
-  }
-
-  async function loadEurRate() {
-    try {
-      const res = await fetch("https://api.frankfurter.dev/v1/latest?from=EUR&to=USD");
-      const data = await res.json();
-      if (data.rates?.USD) setEurUsdRate(data.rates.USD);
-    } catch {
-      /* ignore */
-    }
-  }
-
-  async function loadBtcRate() {
-    try {
-      const res = await fetch("/api/coingecko-proxy?path=" + encodeURIComponent("/simple/price?ids=bitcoin&vs_currencies=usd"));
-      const data = await res.json();
-      if (data?.bitcoin?.usd) setBtcUsdRate(data.bitcoin.usd);
-    } catch {
-      /* ignore */
-    }
-  }
-
   useEffect(() => {
     if (wallet) {
       loadBalances(wallet.address);
       loadMainnetBalances(wallet.address);
-      loadRecentTxs(wallet.address);
-      loadEurRate();
-      loadBtcRate();
     } else if (circlePrimary && circleWalletInfo) {
       loadBalances(circleWalletInfo.address);
       loadMainnetBalances(circleWalletInfo.address);
-      loadRecentTxs(circleWalletInfo.address);
-      loadEurRate();
-      loadBtcRate();
     }
   }, [wallet, circlePrimary, circleWalletInfo]);
 
