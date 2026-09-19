@@ -95,12 +95,22 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     { id: "mainnetbridge", label: "Bridge", Icon: Zap },
     { id: "mainnetswap", label: "Swap", Icon: Repeat },
     { id: "dashboardmainnet", label: "Dashboard", Icon: LayoutDashboard },
-    { id: "circlewalletmainnet", label: "Circle Wallet", Icon: CircleDollarSign },
-    // Re-added 2026-09-18 -- no longer blocked by Circle's KYB requirement:
-    // the "buy with card" flow now uses a plain Relay onramp deep link
-    // (relay.link/onramp/base) instead of an embedded, signed MoonPay
-    // integration, so there's no partner API/business-verification
-    // dependency left on this page.
+    // "circlewalletmainnet" removed for good (2026-09-18) -- not a pause
+    // this time. Turkish law (7518 sayılı Kanun, SPK's 02.07.2024
+    // announcement) brings anyone managing users' private keys ("kripto
+    // varlıklara ilişkin cüzdandan transfer hakkı sağlayan özel
+    // anahtarların saklanması ve yönetimi") under SPK licensing, with
+    // both administrative and criminal penalties for operating unlicensed.
+    // Circle Developer-Controlled Wallets does exactly that (FlowFi's
+    // backend holds the signing authority, not the user), so it's the
+    // wrong shape for mainnet real funds -- self-custody only from here:
+    // Bridge and Swap already sign entirely through the user's own
+    // browser wallet (LI.FI's EthereumProvider, no backend key/entity
+    // secret involved), which sits in a very different, much lower-risk
+    // legal category (a frontend to public infra, not a custodian).
+    // Circle Wallet stays as-is on Testnet (no real funds, no risk) --
+    // see CircleWallet.tsx, untouched. Token Launch also stays
+    // Testnet-only per the same reasoning -- never started a mainnet port.
   ],
 },
  {
