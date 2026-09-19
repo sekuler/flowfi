@@ -30,7 +30,9 @@ const ALLOWED_CALLS = new Map([
   ['0x1c7d4b196cb0c7b01d743fbc6116a902379c7238', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])], // Ethereum Sepolia USDC
   ['0x036cbd53842c5426634e7929541ec2318f3dcf7e', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])], // Base Sepolia USDC
   ['0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])], // Arbitrum Sepolia USDC
-  ['0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])], // Base MAINNET USDC -- verified 2026-09-17 against Circle's own USDC contract list, matches BASE_USDC used elsewhere (MainnetBridge.tsx, RelaySwap.tsx)
+  // Base mainnet USDC entry removed (2026-09-18) -- Circle Wallet is
+  // Testnet-only now (see App.tsx MAINNET group comment for why), so a
+  // mainnet address has no business being in this allowlist at all.
   // EURC (Arc)
   ['0x89b50855aa3be2f677cd6303cec089b5f319d72a', new Set(['approve(address,uint256)', 'transfer(address,uint256)'])],
   // ArcFactoryV2 v4c pool (USDC/EURC) — the only pool SwapForm's Circle
