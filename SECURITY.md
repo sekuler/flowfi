@@ -1,5 +1,9 @@
 # Security notes
 
+## Reporting a vulnerability
+
+Found a security issue? Email **contact@flowfi.finance** with what you found and, if possible, how to reproduce it. Please don't open a public GitHub issue for anything that could put real funds at risk — give a reasonable window to fix it before any public disclosure. This is a solo-developer project without a formal bug bounty budget right now, but every genuine report gets read and taken seriously.
+
 Self-review by the project's own developer. No third-party audit of FlowFi's own Testnet contracts. Every `onlyOwner` Testnet contract's owner is a 2-of-3 Safe multisig, not a single wallet — see "Ownership" below.
 
 ## Mainnet trust model — why real funds never touch a FlowFi contract
