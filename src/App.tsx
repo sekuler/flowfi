@@ -754,12 +754,12 @@ function AppInner() {
                {tab === "home" ? "Your Arc Mainnet overview" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
             </div>
-{tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} />}
+{tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} provider={wallet.provider} />}
 
-            {tab === "mainnetbridge" && <MainnetBridge />}
-            {tab === "mainnetswap" && <MainnetSwap />}
+            {tab === "mainnetbridge" && <MainnetBridge provider={wallet?.provider} />}
+            {tab === "mainnetswap" && <MainnetSwap provider={wallet?.provider} />}
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
-            {tab === "dashboardmainnet" && (wallet || (circlePrimary && circleWalletInfo)) && <DashboardMainnet address={wallet ? wallet.address : circleWalletInfo!.address} balances={mainnetBalances} />}
+            {tab === "dashboardmainnet" && (wallet || (circlePrimary && circleWalletInfo)) && <DashboardMainnet address={wallet ? wallet.address : circleWalletInfo!.address} balances={mainnetBalances} provider={wallet?.provider} />}
             {tab === "analytics" && <StablecoinAnalytics onNavigate={(t) => setTab(t)} />}
             {tab === "history" && (wallet || (circlePrimary && circleWalletInfo)) && <TxHistory address={wallet ? wallet.address : circleWalletInfo!.address} />}
             {tab === "bridge" && (wallet || (circlePrimary && circleWalletInfo)) && (
