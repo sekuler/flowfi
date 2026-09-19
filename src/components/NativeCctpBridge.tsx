@@ -50,6 +50,11 @@ const SOURCE_CHAINS: SourceChain[] = [
   { key: "polygon", name: "Polygon", chain: polygon, domain: 7, usdc: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" },
 ];
 
+const CHAIN_COLORS: Record<string, string> = {
+  ethereum: "#627EEA", avalanche: "#E84142", optimism: "#FF0420",
+  arbitrum: "#28A0F0", base: "#0052FF", polygon: "#8247E5",
+};
+
 const ERC20_APPROVE_ABI = [{ type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] }] as const;
 const DEPOSIT_FOR_BURN_ABI = [{
   type: "function", name: "depositForBurn", stateMutability: "nonpayable",
@@ -80,6 +85,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const [sourceIdx, setSourceIdx] = useState(0);
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<Step>("idle");
+  const [chainMenuOpen, setChainMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
@@ -206,12 +212,31 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div>
+        <div style={{ position: "relative" }}>
           <label style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>From</label>
-          <select value={sourceIdx} onChange={(e) => setSourceIdx(Number(e.target.value))} disabled={busy}
-            style={{ width: "100%", padding: "0.7rem 0.9rem", borderRadius: 12, border: "1px solid #E5E7EB", fontSize: 14, marginTop: 4, background: "#F5F3FF" }}>
-            {SOURCE_CHAINS.map((c, i) => <option key={c.key} value={i}>{c.name}</option>)}
-          </select>
+          <button type="button" onClick={() => !busy && setChainMenuOpen((o) => !o)} disabled={busy}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.65rem 0.9rem", borderRadius: 12, border: "1px solid #E5E7EB", fontSize: 14, marginTop: 4, background: "#F5F3FF", cursor: busy ? "not-allowed" : "pointer" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ width: 26, height: 26, borderRadius: "50%", background: CHAIN_COLORS[source.key], color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {source.name.slice(0, 1)}
+              </span>
+              <span style={{ fontWeight: 700, color: "#111827" }}>{source.name}</span>
+            </span>
+            <span style={{ color: "#9CA3AF" }}>{chainMenuOpen ? "▲" : "▼"}</span>
+          </button>
+          {chainMenuOpen && (
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12, boxShadow: "0 8px 24px rgba(17,24,39,0.1)", zIndex: 10, overflow: "hidden" }}>
+              {SOURCE_CHAINS.map((c, i) => (
+                <button key={c.key} type="button" onClick={() => { setSourceIdx(i); setChainMenuOpen(false); }}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "0.65rem 0.9rem", border: "none", background: i === sourceIdx ? "#F5F3FF" : "#fff", cursor: "pointer", textAlign: "left" }}>
+                  <span style={{ width: 24, height: 24, borderRadius: "50%", background: CHAIN_COLORS[c.key], color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {c.name.slice(0, 1)}
+                  </span>
+                  <span style={{ fontSize: 13.5, color: "#111827", fontWeight: i === sourceIdx ? 700 : 500 }}>{c.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>

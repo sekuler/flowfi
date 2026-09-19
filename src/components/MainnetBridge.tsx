@@ -44,7 +44,7 @@ const lifiWidgetConfig: WidgetConfig = {
 };
 
 export default function MainnetBridge({ address, provider }: { address?: string; provider?: EIP1193Provider }) {
-  const [mode, setMode] = useState<"cctp" | "lifi">("cctp");
+  const [mode, setMode] = useState<"cctp" | "lifi">("lifi");
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 0.5rem" }}>
@@ -55,15 +55,15 @@ export default function MainnetBridge({ address, provider }: { address?: string;
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <button onClick={() => setMode("cctp")}
-          style={{ flex: 1, padding: "0.9rem", borderRadius: 14, border: mode === "cctp" ? "2px solid #6D5EF7" : "1px solid #E5E7EB", background: mode === "cctp" ? "#F5F3FF" : "#fff", cursor: "pointer", textAlign: "left" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>USDC · Circle CCTP</div>
-          <div style={{ fontSize: 11, color: "#6B7280" }}>Native USDC, burn and mint</div>
-        </button>
         <button onClick={() => setMode("lifi")}
           style={{ flex: 1, padding: "0.9rem", borderRadius: 14, border: mode === "lifi" ? "2px solid #6D5EF7" : "1px solid #E5E7EB", background: mode === "lifi" ? "#F5F3FF" : "#fff", cursor: "pointer", textAlign: "left" }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>Any token · LI.FI</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>Swap + bridge in one route</div>
+        </button>
+        <button onClick={() => setMode("cctp")}
+          style={{ flex: 1, padding: "0.9rem", borderRadius: 14, border: mode === "cctp" ? "2px solid #6D5EF7" : "1px solid #E5E7EB", background: mode === "cctp" ? "#F5F3FF" : "#fff", cursor: "pointer", textAlign: "left" }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>USDC · Circle CCTP</div>
+          <div style={{ fontSize: 11, color: "#6B7280" }}>Native USDC, burn and mint</div>
         </button>
       </div>
 
