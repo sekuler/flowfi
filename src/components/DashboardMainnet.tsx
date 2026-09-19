@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { EIP1193Provider } from "viem";
 import EmptyState from "./EmptyState";
 import NetworkGuard from "./NetworkGuard";
+import { USDC_ERC20_DECIMALS } from "../chains";
 import { useIsMobile } from "../useIsMobile";
 
 // Mainnet counterpart to Dashboard.tsx. Differences from the testnet
@@ -124,7 +125,7 @@ export default function DashboardMainnet({ address, balances, provider }: Props)
           let amount = "";
           if (tx.methodId === "0xa9059cbb" && tx.input && tx.input.length >= 138) {
             const amountHex = tx.input.slice(-64);
-            const val = parseInt(amountHex, 16) / 1e6;
+            const val = parseInt(amountHex, 16) / 10 ** USDC_ERC20_DECIMALS;
             if (!isNaN(val) && val < 1e9) amount = val.toFixed(2);
           }
 
