@@ -713,7 +713,7 @@ function AppInner() {
                   <div style={{ fontSize: 9.5, color: "#B45309", fontWeight: 800, letterSpacing: "1px" }}>TESTNET — DEMO, NO REAL FUNDS</div>
                 </div>
               )}
-              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : variant === "mainnet" ? "#DC2626" : "#6D5EF7", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem", opacity: variant === "testnet" ? 0.75 : 1 }}>{group}</div>
+              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : variant === "mainnet" ? "#6D5EF7" : "#6D5EF7", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem", opacity: variant === "testnet" ? 0.75 : 1 }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 const locked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(id) : !GUEST_SAFE_TABS.includes(id));
