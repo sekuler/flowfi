@@ -2,6 +2,7 @@ import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import NetworkGuard from "./NetworkGuard";
+import { ARC_MAINNET_CHAIN_ID } from "../chains";
 
 // Same-chain counterpart to MainnetBridge.tsx: fromChain and toChain are
 // both Arc, so LI.FI's widget renders as a same-chain swap (routed
@@ -11,7 +12,6 @@ import NetworkGuard from "./NetworkGuard";
 // Bridge page -- this is deliberately the same widget/config shape, not
 // a separate build, per the "one place already does both" reasoning
 // behind adding this as its own nav entry.
-const ARC_MAINNET_CHAIN_ID = 5042;
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
 
 const lifiWidgetConfig: WidgetConfig = {
