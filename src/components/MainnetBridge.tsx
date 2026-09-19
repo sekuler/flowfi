@@ -1,5 +1,7 @@
 import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
+import type { EIP1193Provider } from "viem";
+import NetworkGuard from "./NetworkGuard";
 
 const ARC_MAINNET_CHAIN_ID = 5042;
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
@@ -39,7 +41,7 @@ const lifiWidgetConfig: WidgetConfig = {
   appearance: "light",
 };
 
-export default function MainnetBridge() {
+export default function MainnetBridge({ provider }: { provider?: EIP1193Provider }) {
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 0.5rem" }}>
       <div style={{ marginBottom: 16 }}>
@@ -47,6 +49,8 @@ export default function MainnetBridge() {
           ⚡ MAINNET — real funds, real fees
         </div>
       </div>
+
+      <NetworkGuard provider={provider} />
 
       {/* The amount input's focus outline turned out to be the browser's
           own default :focus ring, not a MUI component -- theme.components

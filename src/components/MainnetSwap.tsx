@@ -1,5 +1,7 @@
 import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
+import type { EIP1193Provider } from "viem";
+import NetworkGuard from "./NetworkGuard";
 
 // Same-chain counterpart to MainnetBridge.tsx: fromChain and toChain are
 // both Arc, so LI.FI's widget renders as a same-chain swap (routed
@@ -47,7 +49,7 @@ const lifiWidgetConfig: WidgetConfig = {
   appearance: "light",
 };
 
-export default function MainnetSwap() {
+export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }) {
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 0.5rem" }}>
       <div style={{ marginBottom: 16 }}>
@@ -55,6 +57,8 @@ export default function MainnetSwap() {
           ⚡ MAINNET — real funds, real fees
         </div>
       </div>
+
+      <NetworkGuard provider={provider} />
 
       <style>{`
         .lifi-widget-wrap input:focus {

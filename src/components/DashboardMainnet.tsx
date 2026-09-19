@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import type { EIP1193Provider } from "viem";
 import EmptyState from "./EmptyState";
+import NetworkGuard from "./NetworkGuard";
 import { useIsMobile } from "../useIsMobile";
 
 // Mainnet counterpart to Dashboard.tsx. Differences from the testnet
@@ -22,6 +24,7 @@ import { useIsMobile } from "../useIsMobile";
 interface Props {
   address: string;
   balances: { usdc: string | null; eurc: string | null; usyc: string | null; cirbtc: string | null; native: string | null };
+  provider?: EIP1193Provider;
 }
 
 interface ActivityItem {
@@ -89,7 +92,7 @@ function loadWeekSnapshot(address: string): { weekStart: string; value: number }
   }
 }
 
-export default function DashboardMainnet({ address, balances }: Props) {
+export default function DashboardMainnet({ address, balances, provider }: Props) {
   const isMobile = useIsMobile();
   const [txCount, setTxCount] = useState<number | null>(null);
   const [incomingCount, setIncomingCount] = useState(0);
@@ -239,6 +242,7 @@ export default function DashboardMainnet({ address, balances }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <NetworkGuard provider={provider} />
       <div style={{ position: "relative", overflow: "hidden", background: "linear-gradient(135deg, #EDE9FE, #FDE68A)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.75rem" }}>
         <div style={{ position: "relative" }}>
         <div style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1.5px", marginBottom: 8 }}>⚡ NET WORTH — MAINNET</div>
