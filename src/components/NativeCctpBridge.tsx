@@ -42,7 +42,7 @@ interface SourceChain {
   usdc: `0x${string}`;
 }
 
-const SOURCE_CHAINS: SourceChain[] = [
+export const SOURCE_CHAINS: SourceChain[] = [
   { key: "ethereum", name: "Ethereum", chain: mainnet, domain: 0, usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
   { key: "avalanche", name: "Avalanche", chain: avalanche, domain: 1, usdc: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E" },
   { key: "optimism", name: "Optimism", chain: optimism, domain: 2, usdc: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85" },
@@ -90,12 +90,6 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const [error, setError] = useState<string | null>(null);
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
-  const [rotatingIdx, setRotatingIdx] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => setRotatingIdx((i) => (i + 1) % SOURCE_CHAINS.length), 2200);
-    return () => clearInterval(interval);
-  }, []);
 
   const source = SOURCE_CHAINS[sourceIdx];
 
@@ -203,18 +197,6 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
   return (
     <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem" }}>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#EDE9FE", padding: "5px 12px", borderRadius: 999, marginBottom: 14 }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E" }} />
-        <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.3px" }}>Arc Mainnet · Circle CCTP V2 · LI.FI</span>
-      </div>
-      <h2 style={{ fontSize: 28, fontWeight: 800, color: "#111827", margin: "0 0 6px", lineHeight: 1.15 }}>
-        Bridge to Arc from{" "}
-        <span key={rotatingIdx} className="flowfi-mono" style={{ color: "#6D5EF7", display: "inline-block" }}>{SOURCE_CHAINS[rotatingIdx].name}</span>
-      </h2>
-      <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 20 }}>
-        Bridge USDC to Arc natively with Circle CCTP V2 — burn on the source chain, mint native USDC on Arc. Any other token or chain routes through LI.FI's Swap.
-      </p>
-
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, padding: "1.4rem 1rem", marginBottom: 20, background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", borderRadius: 16 }}>
         {[
           { key: "burn", label: "Burn", sub: "Tokens burned on source", Icon: Zap, active: step === "approving" || step === "burning", complete: step === "waiting-attestation" || step === "minting" || step === "done" },
