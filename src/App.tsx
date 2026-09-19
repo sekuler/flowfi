@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Skeleton from "./components/Skeleton";
 import StablecoinAnalytics from "./components/StablecoinAnalytics";
-import CopilotHome from "./components/CopilotHome";
+import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import TokenLaunch from "./components/TokenLaunch";
 import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
@@ -18,7 +18,6 @@ import TxHistory from "./components/TxHistory";
 import Dashboard from "./components/Dashboard";
 import DashboardMainnet from "./components/DashboardMainnet";
 import MainnetSwap from "./components/MainnetSwap";
-import UnifiedBalance from "./components/UnifiedBalance";
 import CircleWallet from "./components/CircleWallet";
 import LiquidityPools from "./components/LiquidityPools";
 import AiCopilot from "./components/AiCopilot";
@@ -85,7 +84,7 @@ const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnets
 // lookups (no signing), so it works for any address. Home/Dashboard/Launch and
 // the AI Copilot all assume a real browser-wallet signer and don't
 // have a Circle-Wallet code path yet — those stay locked until that's built.
-const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "portfolio", "circlewallet", "mainnetbridge", "mainnetswap", "dashboardmainnet"];
+const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "history", "circlewallet", "mainnetbridge", "mainnetswap", "dashboardmainnet"];
 
 const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
@@ -713,7 +712,7 @@ function AppInner() {
                   <div style={{ fontSize: 9.5, color: "#B45309", fontWeight: 800, letterSpacing: "1px" }}>TESTNET — DEMO, NO REAL FUNDS</div>
                 </div>
               )}
-              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : variant === "mainnet" ? "#6D5EF7" : "#6D5EF7", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem", opacity: variant === "testnet" ? 0.75 : 1 }}>{group}</div>
+              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : variant === "mainnet" ? "#DC2626" : "#6D5EF7", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem", opacity: variant === "testnet" ? 0.75 : 1 }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 const locked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(id) : !GUEST_SAFE_TABS.includes(id));
@@ -852,116 +851,50 @@ function AppInner() {
                 {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "dashboardmainnet" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "mainnetswap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your AI-powered financial overview" : tab === "portfolio" ? "Arc Testnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
+               {tab === "home" ? "Your Arc Mainnet overview" : tab === "portfolio" ? "Arc Mainnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
-              {tab === "portfolio" && balances.usdc !== null && (
+              {tab === "portfolio" && mainnetBalances.usdc !== null && (
                 <div style={{ marginTop: 14 }}>
-                  <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>TOTAL VALUE</div>
+                  <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>TOTAL VALUE (ARC MAINNET)</div>
                   <div className="flowfi-mono" style={{ fontSize: 34, fontWeight: 700, color: "#111827" }}>
-                    ${(Number(balances.usdc || 0) + Number(balances.eurc || 0) * (eurUsdRate ?? 1.08) + Number(balances.usyc || 0) + Number(balances.cirbtc || 0) * (btcUsdRate ?? 0)).toFixed(2)}
+                    ${Number(mainnetBalances.usdc || 0).toFixed(2)}
                   </div>
                 </div>
               )}
             </div>
-{tab === "home" && wallet && <CopilotHome address={wallet.address} balances={balances} onNavigate={(t) => setTab(t)} />}
-{tab === "portfolio" && (wallet || (circlePrimary && circleWalletInfo)) && (() => {
-              const portfolioAddr = wallet ? wallet.address : circleWalletInfo!.address;
-              function WalletCard({ title, addr, rows, showCreatePrompt }: { title: string; addr: string | null; rows: { label: string; value: string | null; sub: string }[]; showCreatePrompt?: boolean }) {
-                if (showCreatePrompt) {
-                  return (
-                    <div className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 20, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)", border: "1px solid #D4C9FA", display: "flex", flexDirection: "column", alignItems: "flex-start", justifyContent: "center", minHeight: 260 }}>
-                      <div style={{ fontSize: 17, fontWeight: 700, color: "#111827", marginBottom: 8 }}>Circle Wallet</div>
-                      <p style={{ fontSize: 12.5, color: "#6B7280", marginBottom: 16 }}>No seed phrase, no extension — one click. Use it alongside your browser wallet.</p>
-                      <button onClick={() => setTab("circlewallet")}
-                        style={{ background: "#6D5EF7", border: "none", borderRadius: 12, padding: "0.6rem 1.1rem", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-                        + Create Circle Wallet
-                      </button>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 20, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)", border: "1px solid #D4C9FA", display: "flex", flexDirection: "column" }}>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: "#111827", marginBottom: 4 }}>{title}</div>
-                    {addr && <div className="flowfi-mono" style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 14 }}>{addr.slice(0, 6)}...{addr.slice(-4)}</div>}
-                    <div style={{ borderTop: "1px solid #F5F3FF" }}>
-                      {rows.map((r) => (
-                        <div key={r.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 0", borderBottom: "1px solid #F5F3FF" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <TokenIcon symbol={r.label} size={30} />
-                            <div>
-                              <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{r.label}</div>
-                              <div style={{ fontSize: 11, color: "#9CA3AF" }}>{r.sub}</div>
-                            </div>
-                          </div>
-                          <div className="flowfi-mono" style={{ fontSize: 16, fontWeight: 700, color: "#0f1222" }}>
-                            {r.value === null ? <Skeleton width={60} height={16} /> : <>{r.value} <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500 }}>{r.label}</span></>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {wallet && title === "Browser Wallet" && (
-                      <div style={{ fontSize: 10.5, color: "#9CA3AF", marginTop: 10 }}>Arc gas is deducted from your USDC balance above.</div>
-                    )}
-                    <div style={{ display: "flex", gap: 20, marginTop: 16 }}>
-                      <button onClick={() => setTab("swap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}><RefreshCw size={12} />Send</button>
-                      <button onClick={() => setTab("bridge")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}><Hexagon size={12} />Bridge</button>
-                      <button onClick={() => setTab("swap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}><Repeat size={12} />Swap</button>
-                    </div>
-                  </div>
-                );
-              }
-              const browserRows = [
-                { label: "USDC", value: balances.usdc, sub: "USDC on Arc" },
-                { label: "EURC", value: balances.eurc, sub: "Euro Coin" },
-                ...(balances.usyc && Number(balances.usyc) > 0 ? [{ label: "USYC", value: balances.usyc, sub: "Circle Yield" }] : []),
-                ...(balances.cirbtc && Number(balances.cirbtc) > 0 ? [{ label: "cirBTC", value: balances.cirbtc, sub: "Circle Wrapped Bitcoin" }] : []),
-              ];
-              const circleRows = [
-                { label: "USDC", value: circleBalances?.usdc ?? null, sub: "Across 4 chains" },
-                { label: "EURC", value: circleBalances?.eurc ?? null, sub: "Across 4 chains" },
-              ];
+{tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} />}
+{tab === "portfolio" && wallet && (() => {
+              const portfolioAddr = wallet.address;
               return (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
-                  {wallet ? (
-                    <WalletCard title="Browser Wallet" addr={wallet.address} rows={browserRows} />
-                  ) : (
-                    <WalletCard title="Circle Wallet" addr={circleWalletInfo!.address} rows={circleRows} />
-                  )}
-                  {wallet && circleWalletInfo && <WalletCard title="Circle Wallet" addr={circleWalletInfo.address} rows={circleRows} />}
-                  {wallet && !circleWalletInfo && <WalletCard title="Circle Wallet" addr={null} rows={[]} showCreatePrompt />}
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <button onClick={() => loadBalances(portfolioAddr)} style={{ background: "#ffffff", border: "none", borderRadius: 999, padding: "0.5rem 1rem", color: "#6D5EF7", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
-                    <RefreshCw size={12} style={{ marginRight: 5, verticalAlign: -1 }} />Refresh
-                  </button>
-                  {lastUpdated && (
-                    <span style={{ fontSize: 11, color: "#6B7280" }}>Updated {timeAgo(lastUpdated)}</span>
-                  )}
-                </div>
-
-                <UnifiedBalance address={portfolioAddr} />
-
-                {recentTxs.length > 0 && (
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px" }}>RECENT ACTIVITY</span>
-                      <button onClick={() => setTab("history")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 11, cursor: "pointer" }}>View all →</button>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {recentTxs.map((tx) => (
-                        <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
-                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.65rem 0.9rem", borderRadius: 12, background: "#ffffff", textDecoration: "none", boxShadow: "0 1px 3px rgba(124,58,237,0.06)" , border: "1px solid #D4C9FA" }}>
-                          <span style={{ fontSize: 12, color: "#374151" }}>{tx.method}</span>
-                          <span style={{ fontSize: 11, color: "#6B7280" }}>{tx.age}</span>
-                        </a>
-                      ))}
+                <div className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 20, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)", border: "1px solid #D4C9FA", display: "flex", flexDirection: "column" }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Browser Wallet</div>
+                  <div className="flowfi-mono" style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 14 }}>{portfolioAddr.slice(0, 6)}...{portfolioAddr.slice(-4)}</div>
+                  <div style={{ borderTop: "1px solid #F5F3FF" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 0", borderBottom: "1px solid #F5F3FF" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <TokenIcon symbol="USDC" size={30} />
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>USDC</div>
+                          <div style={{ fontSize: 11, color: "#9CA3AF" }}>USD Coin — Arc Mainnet</div>
+                        </div>
+                      </div>
+                      <div className="flowfi-mono" style={{ fontSize: 16, fontWeight: 700, color: "#0f1222" }}>
+                        {mainnetBalances.usdc === null ? <Skeleton width={60} height={16} /> : <>{mainnetBalances.usdc} <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500 }}>USDC</span></>}
+                      </div>
                     </div>
                   </div>
-                )}
+                  <div style={{ display: "flex", gap: 20, marginTop: 16 }}>
+                    <button onClick={() => setTab("mainnetbridge")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}><Hexagon size={12} />Bridge</button>
+                    <button onClick={() => setTab("mainnetswap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}><Repeat size={12} />Swap</button>
+                  </div>
+                </div>
 
-                <a href={`https://testnet.arcscan.app/address/${portfolioAddr}`} target="_blank" rel="noopener noreferrer"
+                <button onClick={() => loadMainnetBalances(portfolioAddr)} style={{ alignSelf: "flex-start", background: "#ffffff", border: "none", borderRadius: 999, padding: "0.5rem 1rem", color: "#6D5EF7", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
+                  <RefreshCw size={12} style={{ marginRight: 5, verticalAlign: -1 }} />Refresh
+                </button>
+
+                <a href={`https://arc.etherscan.io/address/${portfolioAddr}`} target="_blank" rel="noopener noreferrer"
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderRadius: 12, border: "none", background: "rgba(109,94,247,0.08)", color: "#6D5EF7", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
                   <span>View on Explorer ↗</span>
                   <span className="flowfi-mono" style={{ fontSize: 11, color: "#6D5EF7" }}>{portfolioAddr.slice(0, 6)}...{portfolioAddr.slice(-4)}</span>
