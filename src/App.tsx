@@ -479,7 +479,7 @@ function AppInner() {
         </div>
 
         <div style={{ flex: "1 1 460px", minWidth: 320, display: "flex", justifyContent: "center" }}>
-          <img src="/usdc-hero.jpg" alt="USDC on Arc" style={{ width: "100%", maxWidth: 620, height: "auto", borderRadius: 0, mixBlendMode: "multiply" }} />
+          <img src="/usdc-hero.png" alt="USDC on Arc" style={{ width: "100%", maxWidth: 620, height: "auto" }} />
         </div>
       </div>
 
