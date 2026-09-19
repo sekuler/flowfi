@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { createWalletClient, createPublicClient, custom, http, encodeFunctionData, parseUnits } from "viem";
 import type { EIP1193Provider, Chain } from "viem";
 import { mainnet, base, arbitrum, optimism, polygon, avalanche } from "viem/chains";
+import { Zap, CheckCircle2, Sparkles } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 
 // Native Circle CCTP V2 bridge into Arc Mainnet -- burn on the source
@@ -202,14 +203,44 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
   return (
     <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem" }}>
-      <div style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>ARC MAINNET · CIRCLE CCTP V2</div>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111827", margin: "0 0 4px" }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#EDE9FE", padding: "5px 12px", borderRadius: 999, marginBottom: 14 }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E" }} />
+        <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.3px" }}>Arc Mainnet · Circle CCTP V2 · LI.FI</span>
+      </div>
+      <h2 style={{ fontSize: 28, fontWeight: 800, color: "#111827", margin: "0 0 6px", lineHeight: 1.15 }}>
         Bridge to Arc from{" "}
         <span key={rotatingIdx} className="flowfi-mono" style={{ color: "#6D5EF7", display: "inline-block" }}>{SOURCE_CHAINS[rotatingIdx].name}</span>
       </h2>
       <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 20 }}>
         Bridge USDC to Arc natively with Circle CCTP V2 — burn on the source chain, mint native USDC on Arc. Any other token or chain routes through LI.FI's Swap.
       </p>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, padding: "1.4rem 1rem", marginBottom: 20, background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", borderRadius: 16 }}>
+        {[
+          { key: "burn", label: "Burn", sub: "Tokens burned on source", Icon: Zap, active: step === "approving" || step === "burning", complete: step === "waiting-attestation" || step === "minting" || step === "done" },
+          { key: "attest", label: "Attest", sub: "Circle validates", Icon: Sparkles, active: step === "waiting-attestation", complete: step === "minting" || step === "done" },
+          { key: "mint", label: "Mint", sub: "Native USDC delivered", Icon: CheckCircle2, active: step === "minting", complete: step === "done" },
+        ].map((s, i, arr) => (
+          <div key={s.key} style={{ display: "flex", alignItems: "center", flex: i < arr.length - 1 ? 1 : undefined }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 72 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                background: s.complete || s.active ? "#6D5EF7" : "#ffffff",
+                border: s.complete || s.active ? "none" : "1.5px solid #D4C9FA",
+                boxShadow: s.active ? "0 0 0 5px rgba(109,94,247,0.15)" : "none",
+                transition: "all 0.3s",
+              }}>
+                <s.Icon size={17} color={s.complete || s.active ? "#fff" : "#9CA3AF"} />
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: s.complete || s.active ? "#6D5EF7" : "#6B7280" }}>{s.label}</div>
+              <div style={{ fontSize: 9.5, color: "#9CA3AF", textAlign: "center" }}>{s.sub}</div>
+            </div>
+            {i < arr.length - 1 && (
+              <div style={{ flex: 1, height: 2, background: arr[i].complete ? "#6D5EF7" : "#D4C9FA", margin: "0 4px 22px", transition: "background 0.3s" }} />
+            )}
+          </div>
+        ))}
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ position: "relative" }}>
