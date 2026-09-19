@@ -67,7 +67,6 @@ const ARC_EURC = EURC_ADDRESS;
 const ARC_USYC = USYC_ADDRESS;
 const ARC_CIRBTC = CIRBTC_ADDRESS;
 
-const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
 const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnetswap"];
 // Bridge/Swap/History already read their own Circle Wallet from localStorage
 // internally (independent of the provider/address props) — so a Circle-primary
@@ -82,6 +81,7 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
   group: "⚡ MAINNET",
   variant: "mainnet",
   tabs: [
+    { id: "home", label: "Home", Icon: Home },
     { id: "mainnetbridge", label: "Bridge", Icon: Zap },
     { id: "mainnetswap", label: "Swap", Icon: Repeat },
     { id: "dashboardmainnet", label: "Dashboard", Icon: LayoutDashboard },
@@ -601,27 +601,7 @@ function AppInner() {
             </div>
           </div>
         </div>
-        <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
-          <div style={{ marginBottom: 4 }}>
-            {[HOME_TAB].map((t) => {
-              const tLocked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(t.id) : !GUEST_SAFE_TABS.includes(t.id));
-              return (
-              <button key={t.id} onClick={() => goToTab(t.id)}
-                style={{
-                  width: "100%", padding: "0.45rem 1rem", borderRadius: 999, border: "none",
-                  background: tab === t.id ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
-                  color: tab === t.id ? "#6D5EF7" : tLocked ? "#B5B0C4" : "#4B5563",
-                  fontSize: 12.5, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 9, textAlign: "left",
-                  marginBottom: 1,
-                }}>
-                <t.Icon size={15} strokeWidth={2} />
-                <span style={{ flex: 1 }}>{t.label}</span>
-                {tLocked && <Lock size={11} />}
-              </button>
-              );
-            })}
-          </div>
+        <div style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           {TAB_GROUPS.map(({ group, variant, tabs }, groupIndex) => {
             const prevVariant = groupIndex > 0 ? TAB_GROUPS[groupIndex - 1].variant : undefined;
             const isFirstTestnetGroup = variant === "testnet" && prevVariant !== "testnet";
@@ -656,7 +636,7 @@ function AppInner() {
             </div>
             );
           })}
-        </nav>
+        </div>
         <div style={{ padding: "0.5rem 1.25rem", marginTop: "auto" }}>
           {wallet ? (
             <>
