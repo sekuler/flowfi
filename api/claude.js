@@ -61,13 +61,27 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
     limiter: Ratelimit.slidingWindow(20, "60 s"), // 20 requests per IP per minute, shared across all instances
     prefix: "ratelimit:claude",
   });
+} else if (process.env.NODE_ENV === "production") {
+  // Hard requirement in production (2026-09-19): this endpoint spends
+  // real Anthropic API credit on every call, so serving it unprotected
+  // (previously: log a warning, then keep handling requests with no rate
+  // limit at all) meant a single abusive client or bug could run up the
+  // whole account's balance with nothing standing in the way. Local dev
+  // without Redis still works (degraded, unprotected) so it's not
+  // required to run the app locally, but production refuses to serve
+  // without it.
+  console.error("api/claude.js: UPSTASH_REDIS_REST_URL/TOKEN not set in production — refusing to serve unprotected.");
 } else {
-  console.warn("api/claude.js: UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting is OFF, not falling back to a per-instance approximation.");
+  console.warn("api/claude.js: UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting is OFF (dev only), not falling back to a per-instance approximation.");
 }
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (!ratelimit && process.env.NODE_ENV === "production") {
+    return res.status(503).json({ error: "Service temporarily unavailable — rate limiting is not configured." });
   }
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
