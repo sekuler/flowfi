@@ -1,56 +1,72 @@
 # FlowFi
 
-Native USDC on Arc: Circle Wallet, Gateway unified balance, CCTP V2.
+Native USDC on Arc — live on **Arc Mainnet** for Bridge, Swap, and Dashboard; a full permissionless DeFi showcase (Circle Wallet, Token Launch, Liquidity Pools, CCTP, Gateway) still running on **Arc Testnet**.
 
 **App:** [flowfi.finance](https://flowfi.finance) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
-One loop: connect a wallet → check your balance → swap or move cross-chain.
+One loop on mainnet: connect a wallet → bridge or swap real USDC on Arc, routed through already-live, already-audited infrastructure — not FlowFi's own contracts.
 
 | | |
 |---|---|
-| **Circle Wallet** | Seedless — sign in with email |
-| **Gateway** | One USDC balance across 4 chains |
-| **CCTP V2** | Official burn/attest/mint |
-| **Safe 2-of-3** | Owns every privileged contract |
+| **Mainnet Bridge & Swap** | Routed through LI.FI and Relay — real funds never touch a FlowFi-run contract |
+| **Self-custody only, mainnet** | Every mainnet transaction is signed by the user's own wallet. FlowFi holds no keys, no custody, no hot wallet |
+| **Circle Wallet** *(Testnet)* | Seedless — sign in with email. Full Developer-Controlled Wallet flow, kept on testnet by design — see "Why Circle Wallet stays on Testnet" below |
+| **Gateway & CCTP V2** *(Testnet)* | One USDC balance across 4 chains; official Circle burn/attest/mint |
+| **Safe 2-of-3** | Owns every privileged testnet contract |
 
 [![CI](https://github.com/sekuler/flowfi/actions/workflows/ci.yml/badge.svg)](https://github.com/sekuler/flowfi/actions/workflows/ci.yml)
 
-> **Testnet.** Everything below runs on Arc Testnet with testnet USDC/EURC — no real funds are involved. Mainnet transition is in progress; see [SECURITY.md](./SECURITY.md) for what's still open before that happens.
+> **Two environments, on purpose.** Mainnet (real funds) is intentionally the smaller surface: Bridge, Swap, Dashboard, and a navigation-only AI Copilot — all routed through third-party infrastructure that was already live and battle-tested before FlowFi touched it, with every signature coming from the user's own wallet. Testnet (test USDC/EURC, no monetary value) is where FlowFi's own contracts — Token Launch, Liquidity Pools, Circle Wallet, CCTP, Gateway — live as a full working showcase. See [SECURITY.md](./SECURITY.md) for the reasoning behind that split.
 
 ---
 
-## What's inside
+## Live on Arc Mainnet
 
 | Feature | What it does |
 |---|---|
-| **Circle Wallet** | FlowFi provisions a Developer-Controlled Wallet and tracks its per-chain wallet IDs — no seed phrase, no browser extension, one consistent address surfaced across all four supported chains. Can be used as your only login, or alongside a browser wallet |
+| **Bridge** | Move USDC (and other assets) onto or off Arc from any chain LI.FI supports, with a full route comparison panel (Across, Polymer, Relay, LI.FI's own Intents) so the user picks the fastest or cheapest option themselves. Signed entirely by the user's connected browser wallet |
+| **Swap** | Same-chain swaps on Arc, same LI.FI-routed model |
+| **Dashboard** | Live Arc Mainnet USDC balance and recent activity, read directly from Arc's official Etherscan-run explorer (`arc.etherscan.io`) — no FlowFi-side balance tracking |
+| **AI Copilot (Mainnet)** | Recognizes a bridge/swap request in plain language and takes the user to the right page to confirm with their own wallet — it never signs or executes anything itself on mainnet |
+
+No FlowFi-deployed contract is involved in any of the above. FlowFi is a frontend and router here, not a counterparty.
+
+## Full showcase on Arc Testnet
+
+| Feature | What it does |
+|---|---|
+| **Circle Wallet** | FlowFi provisions a Developer-Controlled Wallet and tracks its per-chain wallet IDs — no seed phrase, no browser extension, one consistent address surfaced across all four supported testnet chains. Can be used as your only login, or alongside a browser wallet |
 | **Bridge & Gateway** | One page, two modes. Bridge: genuine cross-chain USDC transfer via Circle's official burn/attest/mint CCTP V2 protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia. Gateway: a unified USDC balance via Circle's Gateway protocol — deposit once, held as one pooled balance instead of four separate on-chain balances. Both work from either a browser wallet or the Circle Wallet |
 | **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
 | **Permissionless Token Launch** | Deploy your own ERC-20 on Arc and open its own trading pool immediately — no waiting on anyone's approval, scoped so it never touches the curated pools' security model |
-| **Liquidity Pools** | Testnet-only showcase pool (USDC/EURC) demonstrating the swap rail — anyone can add/remove liquidity or swap against it. Not FlowFi's mainnet product surface; mainnet swaps route to external liquidity instead |
-| **Stablecoin Analytics** | Live, on-chain TVL and distribution across every FlowFi contract |
-| **AI Copilot** | Type what you want — "swap 10 USDC to EURC", "send 20 USDC to 0x..." — Copilot parses it and executes the on-chain transaction. An interface over the settlement rail above, not the product itself |
-| **AI Market Analysis** | Ask "analyze BTC" or "analyze Morpho" and get real technical analysis (RSI, EMA, MACD, pivot support/resistance across 1H/4H/1D/1W/1M) and tokenomics/unlock data — all numbers computed server-side from live data, with the AI only writing the interpretive summary, never the figures |
+| **Liquidity Pools** | A working showcase pool (USDC/EURC) demonstrating the swap rail — anyone can add/remove liquidity or swap against it |
+| **Stablecoin Analytics** | Live, on-chain TVL and distribution across every FlowFi testnet contract |
+| **AI Copilot (Testnet)** | Type what you want — "swap 10 USDC to EURC", "send 20 USDC to 0x..." — Copilot parses it and executes the on-chain transaction directly, signed by the connected wallet |
+| **AI Market Analysis** | Ask "analyze BTC" or "analyze Morpho" and get real technical analysis (RSI, EMA, MACD, pivot support/resistance across 1H/4H/1D/1W/1M) and tokenomics/unlock data — all numbers computed server-side from live data, with the AI only writing the interpretive summary, never the figures. Works from either environment |
+
+### Why Circle Wallet stays on Testnet
+
+Circle's own console confirms Arc Mainnet wallet creation is technically available now. FlowFi still isn't turning it on for real funds: a custodial wallet product — FlowFi's backend holding signing authority over a user's private key, even briefly, even non-exportable — is a regulated activity in a growing number of jurisdictions, including Türkiye (7518 sayılı Kanun brought custody and transfer/exchange services under SPK licensing as of July 2024). Rather than operate that model for real money without the applicable license, FlowFi kept every mainnet flow strictly self-custodial: the user's own wallet signs every transaction, FlowFi never holds a key or a balance. Circle Wallet, Token Launch, and Liquidity Pools stay exactly where they've been fully exercised and demonstrated — Testnet, no monetary value, no licensing question — rather than being rushed onto mainnet under real-money rules they weren't built for.
 
 ---
 
 ## Smart contracts (Arc Testnet)
 
-The live product surface only — every `onlyOwner` contract here is owned by a 2-of-3 Safe multisig (`0xa50FFedfC93eDB81F8Bcc23507db8aDdE7EE8Be0`), not a single wallet. Superseded/legacy versions (still live on-chain, no longer where the app sends traffic) are documented separately in [`contracts/LEGACY.md`](./contracts/LEGACY.md), not deleted from the record.
+The live testnet product surface only — every `onlyOwner` contract here is owned by a 2-of-3 Safe multisig (`0xa50FFedfC93eDB81F8Bcc23507db8aDdE7EE8Be0`), not a single wallet. Superseded/legacy versions (still live on-chain, no longer where the app sends traffic) are documented separately in [`contracts/LEGACY.md`](./contracts/LEGACY.md), not deleted from the record. Arc Mainnet has no equivalent contracts — Bridge/Swap there route through LI.FI/Relay, not a FlowFi deployment.
 
 | Contract | Address |
 |---|---|
 | Pool Factory v4c *(current — where new pools actually get created)* | `0xD2dC496dcf4e6D8c9CFc710AC5C9A6Dc941CBbB0` |
 | Launch Pool Factory *(permissionless, but only for tokens minted through Token Factory below — see [`contracts/README.md`](./contracts/README.md); not yet independently reviewed)* | `0x2b3B2E69C14DA2558E3ce6e2d58c04b2147E5ec0` |
 | Token Factory (v2) | `0x1Fe800a2663988C043e4a9A393651f18Cd49D998` |
-| USDC (Arc native) | `0x3600000000000000000000000000000000000000` |
+| USDC (Arc Testnet) | `0x3600000000000000000000000000000000000000` |
 | EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
 | CCTP V2 TokenMessengerV2 *(Circle-official)* | `0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA` |
 | CCTP V2 MessageTransmitterV2 *(Circle-official)* | `0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275` |
 | Gateway Wallet *(Circle-official)* | `0x0077777d7EBA4688BDeF3E311b846F25870A19B9` |
 | Gateway Minter *(Circle-official)* | `0x0022222ABE238Cc2C7Bb1f21003F0a260052475B` |
 
-All verified and viewable on [Arcscan](https://testnet.arcscan.app). Full security review: [`SECURITY.md`](./SECURITY.md). CCTP/Gateway addresses confirmed against [Arc's official contract addresses page](https://docs.arc.io/arc/references/contract-addresses) and [Circle Gateway docs](https://developers.circle.com/gateway).
+All verified and viewable on [Arcscan Testnet](https://testnet.arcscan.app). Arc Mainnet activity is viewable on [arc.etherscan.io](https://arc.etherscan.io). Full security review: [`SECURITY.md`](./SECURITY.md). CCTP/Gateway addresses confirmed against [Arc's official contract addresses page](https://docs.arc.io/arc/references/contract-addresses) and [Circle Gateway docs](https://developers.circle.com/gateway).
 
 One more deployed and verified contract, Escrow v4, isn't in the table above because it isn't wired into the app yet — see [`contracts/README.md`](./contracts/README.md) for it.
 
@@ -58,15 +74,15 @@ One more deployed and verified contract, Escrow v4, isn't in the table above bec
 
 ## Verified receipts — real transaction hashes
 
-Every claim above is checkable on-chain. Rather than asking anyone to take our word for it, here are real transaction hashes from live demo runs — click through to Arcscan to see them settle.
+Every claim above is checkable on-chain. Rather than asking anyone to take our word for it, here are real transaction hashes from live demo runs — click through to the relevant explorer to see them settle.
 
-**Demo 1 — Cross-chain bridge (Ethereum Sepolia → Arc)**
+**Demo 1 — Cross-chain bridge, Testnet (Ethereum Sepolia → Arc)**
 | Step | Tx hash |
 |---|---|
 | Source burn (Ethereum Sepolia) | [`0x2920de716bea703082e373d6b711354f6ce4d5076a1783fdb73e0094adfecc51`](https://sepolia.etherscan.io/tx/0x2920de716bea703082e373d6b711354f6ce4d5076a1783fdb73e0094adfecc51) |
 | Destination mint (Arc) | [`0x77a9b887dadd47dd6a80d029d8aedee659f730e529ab4a624dd8518226d61695`](https://testnet.arcscan.app/tx/0x77a9b887dadd47dd6a80d029d8aedee659f730e529ab4a624dd8518226d61695) |
 
-**Demo 2 — Circle Developer-Controlled Wallet executing a swap on Arc**
+**Demo 2 — Circle Developer-Controlled Wallet executing a swap on Arc, Testnet**
 | Step | Tx hash |
 |---|---|
 | On-chain execution | [`0x0226fc2c8b4cd4000bd25c6aea358f553aed9e69cc69b36582c0b2c7568146c0`](https://testnet.arcscan.app/tx/0x0226fc2c8b4cd4000bd25c6aea358f553aed9e69cc69b36582c0b2c7568146c0) |
@@ -88,6 +104,30 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 ---
 
 ## Architecture
+
+**Mainnet — real funds, self-custody only:**
+
+```
+┌─────────────────────────────────────────────┐
+│                  Frontend                    │
+│        React + TypeScript + viem             │
+└──────────────────┬────────────────────────────┘
+                    │
+            ┌───────▼────────┐
+            │ Browser Wallet   │
+            │ (EIP-6963)       │  ← every mainnet tx signed here, never by FlowFi
+            └───────┬────────┘
+                     │
+       ┌─────────────▼──────────────┐
+       │   LI.FI / Relay routing     │  ← third-party, already live & audited
+       └─────────────┬───────────────┘
+                      │
+              ┌───────▼────────┐
+              │   Arc Mainnet    │
+              └─────────────────┘
+```
+
+**Testnet — full FlowFi-built showcase:**
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -154,8 +194,9 @@ If a data point isn't available from a real source, FlowFi says so rather than g
 
 - **Frontend** — React, TypeScript, Vite
 - **Chain interaction** — [viem](https://viem.sh)
-- **Wallets** — EIP-6963 (MetaMask, Rabby, etc.) and Circle Developer-Controlled Wallets
-- **Bridging** — Circle CCTP V2
+- **Wallets** — EIP-6963 (MetaMask, Rabby, etc.) everywhere; Circle Developer-Controlled Wallets on Testnet only
+- **Mainnet routing** — LI.FI (bridge/swap aggregation, full route comparison), Relay (fallback for routes LI.FI doesn't yet index)
+- **Testnet bridging** — Circle CCTP V2
 - **AI** — Claude Sonnet, used for natural-language transaction parsing, swap risk analysis, and market analysis summaries (never for computing the underlying numbers)
 - **Charts** — lightweight-charts
 - **Hosting** — Vercel
@@ -172,17 +213,21 @@ npm install
 cp .env.example .env
 # then fill in:
 # ANTHROPIC_API_KEY=       (server-side only — no VITE_ prefix, or it gets bundled into client-side JS)
-# CIRCLE_API_KEY=
+# CIRCLE_API_KEY=          (Testnet-scoped — Circle Wallet stays on Testnet, see "Why Circle Wallet stays on Testnet" above)
 # CIRCLE_ENTITY_SECRET=
+# VITE_LIFI_API_KEY=       (client-exposed by design, like a publishable key — powers Mainnet Bridge/Swap)
+# RELAY_API_KEY=           (server-side only — used via api/relay-proxy)
+# ETHERSCAN_API_KEY=       (server-side only — powers Mainnet Dashboard's balance/activity reads via arc.etherscan.io)
 # DROPSTAB_API_KEY=        (optional — live token unlock data; falls back to the manual list without it)
 # ARC_RPC_URL=             (optional — a keyed RPC provider for Arc Testnet; falls back to the public RPC)
-# UPSTASH_REDIS_REST_URL=  (optional — shared rate limiting for /api/claude and /api/dropstab;
-# UPSTASH_REDIS_REST_TOKEN= rate limiting is off entirely, not approximated, if unset)
+# ARC_MAINNET_RPC_URL=     (optional — falls back to Arc's own public mainnet RPC)
+# UPSTASH_REDIS_REST_URL=  (optional — shared rate limiting for /api/claude and /api/dropstab, and the
+# UPSTASH_REDIS_REST_TOKEN= explorer-proxy cache; rate limiting/caching is off entirely, not approximated, if unset)
 
 npm run dev
 ```
 
-The app runs on Arc Testnet by default — no mainnet funds are ever involved. Get test USDC from [faucet.circle.com](https://faucet.circle.com).
+Local dev defaults to Arc Testnet for the full showcase — no real funds are ever involved there. Get test USDC from [faucet.circle.com](https://faucet.circle.com). Mainnet features (Bridge/Swap/Dashboard) work locally too, against real Arc Mainnet, the moment a browser wallet is connected — same as production.
 
 ---
 
@@ -204,15 +249,15 @@ CI ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) runs this suite pl
 
 ## Known Limitations
 
-FlowFi's contracts have been through a manual security review, not a professional third-party audit. Deliberate design trade-offs from that review (no oracle on ArcSwap's pricing, no TWAP on pools, no admin kill-switch on individual pools by design) are documented in full — not hidden — in [`SECURITY.md`](./SECURITY.md).
+FlowFi's own Testnet contracts have been through a manual security review, not a professional third-party audit. Deliberate design trade-offs from that review (no oracle on ArcSwap's pricing, no TWAP on pools, no admin kill-switch on individual pools by design) are documented in full — not hidden — in [`SECURITY.md`](./SECURITY.md). Mainnet real-money flows (Bridge/Swap/Dashboard) sidestep this question entirely by never running a FlowFi contract in the first place — see [`SECURITY.md`](./SECURITY.md) for the full reasoning.
 
 ---
 
 ## Roadmap
 
-- [ ] Mainnet deployment (pending a professional third-party security audit)
-- [ ] Cross-chain intent engine — extend the CCTP V2 settlement flow to route multi-step actions automatically
-- [ ] Native yield routing across liquidity positions, built on the same settlement rail
+- [ ] Mainnet Liquidity Pools / Token Launch — revisit once a professional third-party audit and appropriate regulatory footing are both in place; deliberately not rushed
+- [ ] Cross-chain intent engine — extend mainnet routing to handle multi-step actions automatically
+- [ ] Native yield routing across liquidity positions, once Pools has a mainnet path
 
 **Not on the roadmap:** Perpetuals was fully removed (app, Copilot, and frontend code) after a security review found no oracle backs the pricing. A contract from that era is still deployed and verified on Arcscan for historical/audit reference, but there's no plan to rebuild the feature without a real decentralized oracle integration.
 
@@ -220,4 +265,4 @@ FlowFi's contracts have been through a manual security review, not a professiona
 
 ## Disclaimer
 
-FlowFi runs entirely on Arc Testnet. All tokens are test assets with no monetary value. An earlier Perpetuals contract remains deployed and verified on Arcscan for historical reference — it was fully removed from the app and isn't reachable through the product; if you interact with its bytecode directly, be aware its pricing was client-submitted with no decentralized oracle behind it.
+Arc Mainnet features (Bridge, Swap, Dashboard) move real USDC and other assets — every transaction is signed by the user's own connected wallet, at the user's own discretion; FlowFi never holds a key, a balance, or signing authority over mainnet funds. Everything else in this README (Circle Wallet, Token Launch, Liquidity Pools, CCTP, Gateway) runs on Arc Testnet with test assets that carry no monetary value. An earlier Perpetuals contract remains deployed and verified on Arcscan for historical reference — it was fully removed from the app and isn't reachable through the product; if you interact with its bytecode directly, be aware its pricing was client-submitted with no decentralized oracle behind it.
