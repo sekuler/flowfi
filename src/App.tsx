@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import Skeleton from "./components/Skeleton";
 import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import TokenLaunch from "./components/TokenLaunch";
@@ -10,7 +9,6 @@ import { arc as arcMainnet } from "viem/chains";
 import { arcTestnet } from "./chains";
 import { discoverWallets } from "./components/WalletConnect";
 import ConnectModal from "./components/ConnectModal";
-import { TokenIcon } from "./components/TokenIcon";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
 import TransferHub from "./components/TransferHub";
 import SwapForm from "./components/SwapForm";
@@ -32,9 +30,9 @@ import { getCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "./ci
 import { showToast } from "./toast";
 import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./contracts";
 import {
-  Home, LayoutGrid, Repeat, Droplet,
+  Home, Repeat, Droplet,
   Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
-  Sparkles, Moon, Power, Copy, Check, RefreshCw, Lock, Mail, Zap,
+  Sparkles, Moon, Power, Copy, Check, Lock, Mail, Zap,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -51,7 +49,7 @@ interface Balances {
   native: string | null;
 }
 
-type Tab = "home" | "portfolio" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "dashboardmainnet" | "mainnetswap";
+type Tab = "home" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "dashboardmainnet" | "mainnetswap";
 
 const ARC_USDC = USDC_ADDRESS;
 // Arc mainnet USDC -- the only mainnet stablecoin address confirmed so
@@ -70,7 +68,6 @@ const ARC_USYC = USYC_ADDRESS;
 const ARC_CIRBTC = CIRBTC_ADDRESS;
 
 const HOME_TAB: { id: Tab; label: string; Icon: any } = { id: "home", label: "Home", Icon: Home };
-const PORTFOLIO_TAB: { id: Tab; label: string; Icon: any } = { id: "portfolio", label: "Portfolio", Icon: LayoutGrid };
 const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnetswap"];
 // Bridge/Swap/History already read their own Circle Wallet from localStorage
 // internally (independent of the provider/address props) — so a Circle-primary
@@ -606,7 +603,7 @@ function AppInner() {
         </div>
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           <div style={{ marginBottom: 4 }}>
-            {[HOME_TAB, PORTFOLIO_TAB].map((t) => {
+            {[HOME_TAB].map((t) => {
               const tLocked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(t.id) : !GUEST_SAFE_TABS.includes(t.id));
               return (
               <button key={t.id} onClick={() => goToTab(t.id)}
@@ -771,60 +768,13 @@ function AppInner() {
           <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 28, fontWeight: 800, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "home" ? "Home" : tab === "portfolio" ? "Portfolio" : tab === "dashboard" ? "Dashboard" : tab === "dashboardmainnet" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "mainnetswap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
+                {tab === "home" ? "Home" : tab === "dashboard" ? "Dashboard" : tab === "dashboardmainnet" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "mainnetswap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your Arc Mainnet overview" : tab === "portfolio" ? "Arc Mainnet balances" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
+               {tab === "home" ? "Your Arc Mainnet overview" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
-              {tab === "portfolio" && mainnetBalances.usdc !== null && (
-                <div style={{ marginTop: 14 }}>
-                  <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, letterSpacing: "1px", marginBottom: 2 }}>TOTAL VALUE (ARC MAINNET)</div>
-                  <div className="flowfi-mono" style={{ fontSize: 34, fontWeight: 700, color: "#111827" }}>
-                    ${Number(mainnetBalances.usdc || 0).toFixed(2)}
-                  </div>
-                </div>
-              )}
             </div>
 {tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} />}
-{tab === "portfolio" && wallet && (() => {
-              const portfolioAddr = wallet.address;
-              return (
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <div className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 20, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)", border: "1px solid #D4C9FA", display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Browser Wallet</div>
-                  <div className="flowfi-mono" style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 14 }}>{portfolioAddr.slice(0, 6)}...{portfolioAddr.slice(-4)}</div>
-                  <div style={{ borderTop: "1px solid #F5F3FF" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 0", borderBottom: "1px solid #F5F3FF" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <TokenIcon symbol="USDC" size={30} />
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>USDC</div>
-                          <div style={{ fontSize: 11, color: "#9CA3AF" }}>USD Coin — Arc Mainnet</div>
-                        </div>
-                      </div>
-                      <div className="flowfi-mono" style={{ fontSize: 16, fontWeight: 700, color: "#0f1222" }}>
-                        {mainnetBalances.usdc === null ? <Skeleton width={60} height={16} /> : <>{mainnetBalances.usdc} <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500 }}>USDC</span></>}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 20, marginTop: 16 }}>
-                    <button onClick={() => setTab("mainnetbridge")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}><Hexagon size={12} />Bridge</button>
-                    <button onClick={() => setTab("mainnetswap")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 5 }}><Repeat size={12} />Swap</button>
-                  </div>
-                </div>
-
-                <button onClick={() => loadMainnetBalances(portfolioAddr)} style={{ alignSelf: "flex-start", background: "#ffffff", border: "none", borderRadius: 999, padding: "0.5rem 1rem", color: "#6D5EF7", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" }}>
-                  <RefreshCw size={12} style={{ marginRight: 5, verticalAlign: -1 }} />Refresh
-                </button>
-
-                <a href={`https://arc.etherscan.io/address/${portfolioAddr}`} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderRadius: 12, border: "none", background: "rgba(109,94,247,0.08)", color: "#6D5EF7", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
-                  <span>View on Explorer ↗</span>
-                  <span className="flowfi-mono" style={{ fontSize: 11, color: "#6D5EF7" }}>{portfolioAddr.slice(0, 6)}...{portfolioAddr.slice(-4)}</span>
-                </a>
-              </div>
-              );
-            })()}
 
             {tab === "mainnetbridge" && <MainnetBridge />}
             {tab === "mainnetswap" && <MainnetSwap />}
