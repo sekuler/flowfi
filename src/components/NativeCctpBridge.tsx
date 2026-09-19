@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { createWalletClient, createPublicClient, custom, http, encodeFunctionData, parseUnits } from "viem";
 import type { EIP1193Provider, Chain } from "viem";
 import { mainnet, base, arbitrum, optimism, polygon, avalanche } from "viem/chains";
