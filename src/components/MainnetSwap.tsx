@@ -58,17 +58,17 @@ export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }
         </div>
       </div>
 
-      <NetworkGuard provider={provider} />
-
-      <style>{`
-        .lifi-widget-wrap input:focus {
-          outline: none !important;
-          box-shadow: none !important;
-        }
-      `}</style>
-      <div className="lifi-widget-wrap">
-        <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
-      </div>
+      <NetworkGuard provider={provider}>
+        <style>{`
+          .lifi-widget-wrap input:focus {
+            outline: none !important;
+            box-shadow: none !important;
+          }
+        `}</style>
+        <div className="lifi-widget-wrap">
+          <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
+        </div>
+      </NetworkGuard>
     </div>
   );
 }
