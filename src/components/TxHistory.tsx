@@ -13,15 +13,18 @@ interface Tx {
   to: string;
   status: string;
   input: string;
+  value: string;
 }
 
 interface Props {
   address: string;
+  network?: "testnet" | "mainnet";
 }
 
 const KNOWN_TOKENS: Record<string, string> = {
   [USDC_ADDRESS.toLowerCase()]: "USDC",
   [EURC_ADDRESS.toLowerCase()]: "EURC",
+  "0x3600000000000000000000000000000000000000": "USDC", // Arc Mainnet USDC
 };
 
 const METHOD_META: Record<string, { label: string; color: string }> = {
@@ -43,6 +46,13 @@ const DOMAIN_NAMES: Record<number, string> = {
   26: "Arc Testnet",
 };
 
+// Mainnet CCTP domains (same numbering as NativeCctpBridge's source-chain list).
+const DOMAIN_NAMES_MAINNET: Record<number, string> = {
+  0: "Ethereum", 1: "Avalanche", 2: "Optimism", 3: "Arbitrum", 6: "Base", 7: "Polygon",
+  10: "Unichain", 11: "Linea", 12: "Codex", 13: "Sonic", 14: "World Chain", 15: "Monad",
+  16: "Sei", 18: "XDC", 19: "HyperEVM", 21: "Ink", 22: "Plume", 26: "Arc", 30: "Morph",
+};
+
 function timeAgo(sec: number) {
   const diff = Math.floor(Date.now() / 1000) - sec;
   if (diff < 60) return `${diff}s ago`;
@@ -51,8 +61,16 @@ function timeAgo(sec: number) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function methodMeta(methodId: string) {
-  return METHOD_META[methodId] ?? { label: "Transfer", color: "#6B7280" };
+// Label/color for a transaction. Plain native transfers (empty calldata) are Send or Receive depending on
+// direction; only a transaction with no recipient is a contract deployment.
+function metaFor(tx: Tx, me: string) {
+  if (tx.input === "0x" || tx.method === "0x") {
+    if (!tx.to || tx.to === "—") return { label: "Deploy", color: "#4B5563" };
+    return tx.from.toLowerCase() === me.toLowerCase()
+      ? { label: "Send", color: "#16A34A" }
+      : { label: "Receive", color: "#0EA5E9" };
+  }
+  return METHOD_META[tx.method] ?? { label: "Transfer", color: "#6B7280" };
 }
 
 function shortAddr(addr: string) {
@@ -93,8 +111,19 @@ function formatAmount(n: number): string {
 
 // Builds a plain-English description of what a transaction actually did,
 // decoded from the raw calldata rather than just showing the tx hash.
-function describeTx(tx: Tx): string {
+function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet"): string {
   const tokenSymbol = KNOWN_TOKENS[tx.to.toLowerCase()] ?? "tokens";
+  const domainNames = network === "mainnet" ? DOMAIN_NAMES_MAINNET : DOMAIN_NAMES;
+
+  // Plain native USDC transfer (Arc's gas token): no calldata, just a value.
+  if (tx.input === "0x" && tx.to && tx.to !== "—") {
+    let amt: number | null = null;
+    try { amt = Number(BigInt(tx.value || "0")) / 1e18; } catch { amt = null; }
+    const amtText = amt !== null && amt > 0 ? `${amt.toLocaleString(undefined, { maximumFractionDigits: 4 })} USDC ` : "USDC ";
+    return tx.from.toLowerCase() !== me.toLowerCase()
+      ? `Received ${amtText}from ${shortAddr(tx.from)}`
+      : `Sent ${amtText}to ${shortAddr(tx.to)}`;
+  }
 
   switch (tx.method) {
     case "0xa9059cbb": { // transfer(address,uint256)
@@ -122,7 +151,7 @@ function describeTx(tx: Tx): string {
       const amount = decodeUint(tx.input, 0);
       const domainWord = decodeWord(tx.input, 1);
       const domain = domainWord ? parseInt(domainWord, 16) : null;
-      const chainName = domain !== null ? DOMAIN_NAMES[domain] : null;
+      const chainName = domain !== null ? domainNames[domain] : null;
       if (amount === null) return "Bridged USDC via CCTP";
       return chainName ? `Bridged ${formatAmount(amount)} USDC to ${chainName}` : `Bridged ${formatAmount(amount)} USDC via CCTP`;
     }
@@ -137,7 +166,7 @@ function describeTx(tx: Tx): string {
   }
 }
 
-export default function TxHistory({ address }: Props) {
+export default function TxHistory({ address, network = "testnet" }: Props) {
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -151,13 +180,16 @@ export default function TxHistory({ address }: Props) {
     setCircleWallet(getCircleWallet());
   }, []);
 
-  const effectiveAddress = useCircle && circleWallet ? circleWallet.address : address;
+  const isMainnet = network === "mainnet";
+  const explorer = isMainnet ? "https://arc.etherscan.io" : "https://testnet.arcscan.app";
+  // Circle Wallet only exists on testnet.
+  const effectiveAddress = !isMainnet && useCircle && circleWallet ? circleWallet.address : address;
 
   async function load() {
     if (!effectiveAddress) return;
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`/api/arcscan-proxy?module=account&action=txlist&address=${effectiveAddress}&limit=30`);
+      const res = await fetch(`/api/arcscan-proxy?${isMainnet ? "network=mainnet&" : ""}module=account&action=txlist&address=${effectiveAddress}&limit=30`);
       if (!res.ok) throw new Error(`Arcscan returned ${res.status}`);
       const data = await res.json();
       const items: Tx[] = (data.result ?? []).map((tx: any) => ({
@@ -168,6 +200,7 @@ export default function TxHistory({ address }: Props) {
         to: tx.to ?? "—",
         status: tx.txreceipt_status === "1" ? "ok" : tx.txreceipt_status === "0" ? "error" : "pending",
         input: tx.input ?? "0x",
+        value: tx.value ?? "0",
       }));
       setTxs(items);
     } catch (e: unknown) {
@@ -184,7 +217,7 @@ export default function TxHistory({ address }: Props) {
     }
   }
 
-  useEffect(() => { if (effectiveAddress) load(); }, [effectiveAddress]);
+  useEffect(() => { if (effectiveAddress) load(); }, [effectiveAddress, network]);
 
   function copyHash(hash: string, e: React.MouseEvent) {
     e.preventDefault();
@@ -194,12 +227,12 @@ export default function TxHistory({ address }: Props) {
     setTimeout(() => setCopiedHash(null), 1500);
   }
 
-  const filterOptions = ["all", "Send", "Swap", "Bridge", "Approve"];
-  const filteredTxs = filter === "all" ? txs : txs.filter(tx => methodMeta(tx.method).label === filter);
+  const filterOptions = ["all", "Send", "Receive", "Swap", "Bridge", "Approve"];
+  const filteredTxs = filter === "all" ? txs : txs.filter(tx => metaFor(tx, effectiveAddress).label === filter);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      {circleWallet && (
+      {!isMainnet && circleWallet && (
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => setUseCircle(false)}
             style={{ flex: 1, padding: "0.55rem", borderRadius: 10, border: "none", background: !useCircle ? "#ede9fe" : "#f5f3ff", color: !useCircle ? "#5B21B6" : "#4B5563", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
@@ -249,7 +282,7 @@ export default function TxHistory({ address }: Props) {
           <div style={{ fontSize: 12.5, color: "#6B7280", marginBottom: 16 }}>{error}</div>
           <button onClick={load} style={{ background: "#6D5EF7", border: "none", borderRadius: 10, padding: "0.6rem 1.4rem", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", marginRight: 10 }}>↻ Try again</button>
           {effectiveAddress && (
-            <a href={`https://testnet.arcscan.app/address/${effectiveAddress}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#6D5EF7", fontWeight: 600, textDecoration: "none" }}>Open explorer ↗</a>
+            <a href={`${explorer}/address/${effectiveAddress}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#6D5EF7", fontWeight: 600, textDecoration: "none" }}>Open explorer ↗</a>
           )}
         </div>
       )}
@@ -268,10 +301,10 @@ export default function TxHistory({ address }: Props) {
             <span style={{ textAlign: "right" }}>AGE</span>
           </div>
           {filteredTxs.map((tx) => {
-            const meta = methodMeta(tx.method);
+            const meta = metaFor(tx, effectiveAddress);
             const statusMeta = { ok: { label: "Success", color: "#16A34A", dot: "#16A34A" }, pending: { label: "Pending", color: "#B45309", dot: "#f59e0b" }, error: { label: "Failed", color: "#DC2626", dot: "#ef4444" } }[tx.status] ?? { label: "Pending", color: "#B45309", dot: "#f59e0b" };
             return (
-              <a key={tx.hash} href={`https://testnet.arcscan.app/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
+              <a key={tx.hash} href={`${explorer}/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
                 style={{
                   display: "grid", gridTemplateColumns: "80px 1fr 90px 60px 70px", gap: 8, alignItems: "center",
                   padding: "0.75rem 1rem", textDecoration: "none",
@@ -279,7 +312,7 @@ export default function TxHistory({ address }: Props) {
                 <span style={{ fontSize: 11, fontWeight: 700, color: meta.color, background: `${meta.color}1a`, padding: "3px 8px", borderRadius: 6, textAlign: "center", width: "fit-content" }}>
                   {meta.label}
                 </span>
-                <span style={{ fontSize: 12.5, color: "#111827", fontWeight: 500 }}>{describeTx(tx)}</span>
+                <span style={{ fontSize: 12.5, color: "#111827", fontWeight: 500 }}>{describeTx(tx, effectiveAddress, network)}</span>
                 <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: statusMeta.color, background: `${statusMeta.dot}1a`, padding: "3px 8px", borderRadius: 6, width: "fit-content" }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusMeta.dot }} />
                   {statusMeta.label}
@@ -296,9 +329,14 @@ export default function TxHistory({ address }: Props) {
       )}
 
       {!loading && txs.length > 0 && (
-        <a href={`https://testnet.arcscan.app/address/${effectiveAddress}`} target="_blank" rel="noopener noreferrer" style={{ textAlign: "center", color: "#4B5563", fontSize: 12, textDecoration: "none", padding: "0.5rem" }}>
+        <a href={`${explorer}/address/${effectiveAddress}`} target="_blank" rel="noopener noreferrer" style={{ textAlign: "center", color: "#4B5563", fontSize: 12, textDecoration: "none", padding: "0.5rem" }}>
           View all on Explorer ↗
         </a>
+      )}
+      {!loading && isMainnet && (
+        <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 11.5, lineHeight: 1.5, padding: "0 0.5rem" }}>
+          This list shows activity on Arc. The sending half of a bridge from another chain appears on that chain's explorer. Swaps routed through aggregators show as contract interactions.
+        </div>
       )}
     </div>
   );
