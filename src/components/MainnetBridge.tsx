@@ -24,8 +24,8 @@ const lifiWidgetConfig: WidgetConfig = {
     types: { allow: [ChainType.EVM] },
   },
   theme: {
-    palette: {
-      primary: { main: "#6D5EF7" },
+    colorSchemes: {
+      light: { palette: { primary: { main: "#6D5EF7" } } },
     },
     shape: {
       borderRadius: 16,
