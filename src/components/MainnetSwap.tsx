@@ -15,6 +15,9 @@ import ArcTokenStrip from "./ArcTokenStrip";
 // a separate build, per the "one place already does both" reasoning
 // behind adding this as its own nav entry.
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
+// EURC on Arc Mainnet, from Circle's official EURC contract address list. It is the default target, so the To
+// field opens filled in (USDC to EURC) instead of empty.
+const ARC_MAINNET_EURC = "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1";
 
 const lifiWidgetConfig: WidgetConfig = {
   integrator: "flowfi",
@@ -23,9 +26,7 @@ const lifiWidgetConfig: WidgetConfig = {
   fromChain: ARC_MAINNET_CHAIN_ID,
   fromToken: ARC_MAINNET_USDC,
   toChain: ARC_MAINNET_CHAIN_ID,
-  // toToken deliberately left unset -- Arc's on-chain token set is still
-  // very new, so instead of guessing a second default asset, the token
-  // picker opens for the user to choose what's actually available.
+  toToken: ARC_MAINNET_EURC,
   routePriority: "FASTEST",
   variant: "wide",
   chains: {
@@ -82,8 +83,14 @@ export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }
             }
           `}</style>
           <div className="lifi-widget-wrap" style={{ maxWidth: 480, margin: "0 auto" }}>
-            <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Swap to"
-              onPick={(t) => formRef.current?.setFieldValue("toToken", t.address, { setUrlSearchParam: false })} />
+            <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Swap to" initialSelected={ARC_MAINNET_EURC}
+              onPick={(t) => {
+                // Picking USDC means "swap into USDC", so the source becomes EURC; anything else swaps from USDC.
+                const opts = { setUrlSearchParam: false };
+                const intoUsdc = t.address.toLowerCase() === ARC_MAINNET_USDC.toLowerCase();
+                formRef.current?.setFieldValue("fromToken", intoUsdc ? ARC_MAINNET_EURC : ARC_MAINNET_USDC, opts);
+                formRef.current?.setFieldValue("toToken", t.address, opts);
+              }} />
             <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
           </div>
         </NetworkGuard>

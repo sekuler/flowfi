@@ -19,8 +19,9 @@ function loadArcTokens(chainId: number): Promise<ArcToken[]> {
           seen.add(t.symbol);
           return true;
         });
-        // USDC first (it's Arc's native asset), the rest in LI.FI's order.
-        list.sort((a, b) => Number(b.symbol === "USDC") - Number(a.symbol === "USDC"));
+        // USDC first (Arc's native asset), then EURC, the rest in LI.FI's order.
+        const rank = (t: ArcToken) => (t.symbol === "USDC" ? 0 : t.symbol === "EURC" ? 1 : 2);
+        list.sort((a, b) => rank(a) - rank(b));
         return list.slice(0, 12);
       })
       .catch(() => []);
@@ -29,9 +30,9 @@ function loadArcTokens(chainId: number): Promise<ArcToken[]> {
   return p;
 }
 
-export default function ArcTokenStrip({ chainId, label = "On Arc", onPick }: { chainId: number; label?: string; onPick: (t: ArcToken) => void }) {
+export default function ArcTokenStrip({ chainId, label = "On Arc", onPick, initialSelected }: { chainId: number; label?: string; onPick: (t: ArcToken) => void; initialSelected?: string }) {
   const [tokens, setTokens] = useState<ArcToken[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialSelected?.toLowerCase() ?? null);
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,9 +50,9 @@ export default function ArcTokenStrip({ chainId, label = "On Arc", onPick }: { c
       </span>
       <div ref={scroller} style={{ display: "flex", gap: 8, overflowX: "auto", flex: 1, scrollbarWidth: "none" }}>
         {tokens.map((t) => {
-          const on = selected === t.address;
+          const on = selected === t.address.toLowerCase();
           return (
-            <button key={t.address} type="button" onClick={() => { setSelected(t.address); onPick(t); }}
+            <button key={t.address} type="button" onClick={() => { setSelected(t.address.toLowerCase()); onPick(t); }}
               style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0, padding: "4px 12px 4px 5px", borderRadius: 999, background: "#fff", border: on ? "1.5px solid #6D5EF7" : "1px solid #DDD6FA", boxShadow: on ? "0 0 0 3px rgba(109,94,247,0.12)" : "none", cursor: "pointer", transition: "all 0.15s" }}>
               <img src={t.logoURI} alt="" width={24} height={24} onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} />
               <span style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{t.symbol}</span>
