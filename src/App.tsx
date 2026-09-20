@@ -57,6 +57,9 @@ const ARC_USDC = USDC_ADDRESS;
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000" as const;
 // EURC on Arc Mainnet (6 decimals), from Circle's official EURC contract address list.
 const ARC_MAINNET_EURC = "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1" as const;
+// USYC (6 decimals) and cirBTC (8 decimals) on Arc Mainnet, from Circle's official contract address pages.
+const ARC_MAINNET_USYC = "0x8a5D989Bbb96929F689B0200f435f53dA42bF490" as const;
+const ARC_MAINNET_CIRBTC = "0x171A4217b86A807A64eB94757Db6849fb4bDbAA0" as const;
 // Guest mode (browsing Pools without a connected wallet) needs *something* to pass as
 // address/provider — a real zero address for read-only reserve/APR lookups, and a stub
 // provider whose request() always rejects, so if a guest somehow reaches an action button,
@@ -360,16 +363,18 @@ function AppInner() {
   async function loadMainnetBalances(address: string) {
     try {
       const client = createPublicClient({ chain: arcMainnet, transport: http() });
-      const [usdcErc20, nativeBal, eurcErc20] = await Promise.all([
+      const [usdcErc20, nativeBal, eurcErc20, usycErc20, cirbtcErc20] = await Promise.all([
         client.readContract({ address: ARC_MAINNET_USDC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch((e) => { console.error("Mainnet USDC balanceOf failed:", e); return 0n; }),
         client.getBalance({ address: address as `0x${string}` }).catch((e) => { console.error("Mainnet native getBalance failed:", e); return 0n; }),
         client.readContract({ address: ARC_MAINNET_EURC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch((e) => { console.error("Mainnet EURC balanceOf failed:", e); return 0n; }),
+        client.readContract({ address: ARC_MAINNET_USYC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch((e) => { console.error("Mainnet USYC balanceOf failed:", e); return 0n; }),
+        client.readContract({ address: ARC_MAINNET_CIRBTC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch((e) => { console.error("Mainnet cirBTC balanceOf failed:", e); return 0n; }),
       ]);
       setMainnetBalances({
         usdc: formatUsdcErc20(usdcErc20 as bigint).toFixed(2),
         eurc: formatUsdcErc20(eurcErc20 as bigint).toFixed(2),
-        usyc: null,
-        cirbtc: null,
+        usyc: formatUsdcErc20(usycErc20 as bigint).toFixed(2),
+        cirbtc: Number(formatUnits(cirbtcErc20 as bigint, 8)).toFixed(6),
         native: formatArcNative(nativeBal as bigint).toFixed(2),
       });
     } catch {
