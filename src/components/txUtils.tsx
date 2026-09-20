@@ -128,7 +128,7 @@ function decodeAddress(input: string, wordIndex: number): string | null {
 export function formatAmount(n: number, max = 2): string {
   // Unlimited/near-unlimited approvals show as a word instead of a huge number.
   if (n > 1e12) return "unlimited";
-  return n.toLocaleString(undefined, { maximumFractionDigits: max });
+  return n.toLocaleString("en-US", { maximumFractionDigits: max });
 }
 
 export function nativeValue(tx: Tx): number | null {

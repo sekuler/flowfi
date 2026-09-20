@@ -40,7 +40,7 @@ function todayKey() {
 }
 
 function money(n: number, digits = 2) {
-  return n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 function Donut({ segments, size = 132, thickness = 14, children }: { segments: { value: number; color: string }[]; size?: number; thickness?: number; children?: ReactNode }) {
@@ -90,7 +90,7 @@ function Sparkline({ points }: { points: number[] }) {
 
 const card = { background: "#ffffff", border: "1px solid #E4DDFB", borderRadius: 20, boxShadow: "0 8px 30px -14px rgba(109,94,247,0.2)" } as const;
 const kpiLabel = { display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#6B7280", fontWeight: 600 } as const;
-const bigNum = { fontSize: 28, fontWeight: 800, color: "#111827", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.5px" } as const;
+const bigNum = { fontSize: 28, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.5px" } as const;
 
 export default function DashboardMainnet({ address, balances, provider, onNavigate }: Props) {
   const isMobile = useIsMobile();
@@ -208,7 +208,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
       <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontWeight: 700, color: "#111827" }}>
         {sym === "USDC"
           ? <img src={USDC_LOGO} alt="" width={20} height={20} style={{ width: 20, height: 20, borderRadius: "50%" }} />
-          : <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#EDE9FE", color: "#6D5EF7", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{sym.slice(0, 1)}</span>}
+          : <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#EDE9FE", color: "#6D5EF7", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{sym.slice(0, 1)}</span>}
         {sym}
       </span>
     );
@@ -242,7 +242,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
           <div style={kpiLabel}>Available cirBTC</div>
           <div className="flowfi-mono" style={{ ...bigNum, marginTop: 6 }}>{balances.cirbtc === null ? "…" : cirbtcAmt > 0 ? balances.cirbtc : "—"}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 13, fontWeight: 700, color: "#374151" }}>
-            <span style={{ width: 26, height: 26, borderRadius: "50%", background: "#F7931A", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>₿</span> cirBTC
+            <span style={{ width: 26, height: 26, borderRadius: "50%", background: "#F7931A", color: "#fff", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>₿</span> cirBTC
           </div>
         </div>
 
@@ -268,14 +268,14 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
         <div style={{ ...card, padding: "1.2rem" }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 14 }}>Portfolio</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Portfolio</div>
           {total === 0 ? (
             <EmptyState icon="💰" title="No balances yet" subtitle="Bridge USDC to Arc or buy with a card to get started" />
           ) : (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
                 <Donut segments={distribution.map((d) => ({ value: d.value, color: d.color }))}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#111827", fontVariantNumeric: "tabular-nums" }}>{Math.round(topPct)}%</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>{Math.round(topPct)}%</div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280" }}>{top?.label}</div>
                 </Donut>
                 <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -300,14 +300,14 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
         </div>
 
         <div style={{ ...card, padding: "1.2rem" }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 14 }}>Activity mix</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Activity mix</div>
           {mix.length === 0 ? (
             <div style={{ fontSize: 12.5, color: "#9CA3AF", padding: "1.5rem 0" }}>{loading ? "Loading..." : "No transactions yet."}</div>
           ) : (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
                 <Donut segments={mix.map((m) => ({ value: m.value, color: m.color }))}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#111827", fontVariantNumeric: "tabular-nums" }}>{txs.length}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>{txs.length}</div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280" }}>recent tx</div>
                 </Donut>
                 <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -332,7 +332,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
       <div style={{ ...card, overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, padding: "1rem 1.2rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>Recent activity</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Recent activity</span>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0D9488" }}>{loading ? "…" : incoming} incoming</span>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: "#16A34A" }}>{loading ? "…" : sent} sent</span>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: "#D97706" }}>{loading ? "…" : txCount === null ? "—" : txCount >= 100 ? "100+" : txCount} all-time tx</span>
@@ -351,7 +351,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
         {recent.length > 0 && (
           <div style={{ overflowX: "auto" }}>
             <div style={{ minWidth: 640 }}>
-              <div style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, padding: "0.6rem 1.2rem", background: "#F8F7FF", borderTop: "1px solid #E4DDFB", borderBottom: "1px solid #E4DDFB", fontSize: 10.5, color: "#6B7280", fontWeight: 800, letterSpacing: "0.6px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, padding: "0.6rem 1.2rem", background: "#F8F7FF", borderTop: "1px solid #E4DDFB", borderBottom: "1px solid #E4DDFB", fontSize: 10.5, color: "#6B7280", fontWeight: 700, letterSpacing: "0.6px" }}>
                 <span>TYPE</span><span>ASSET</span><span style={{ textAlign: "right" }}>AMOUNT</span><span>FROM / TO</span><span>TIME</span><span style={{ textAlign: "right" }}>TX</span>
               </div>
               {recent.map((tx) => {
@@ -359,7 +359,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
                 const amt = amountCell(tx, address);
                 return (
                   <div key={tx.hash} style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, alignItems: "center", padding: "0.7rem 1.2rem", borderBottom: "1px solid #F5F3FF", fontSize: 13 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 800, color: meta.color, background: `${meta.color}1a`, border: `1px solid ${meta.color}33`, padding: "4px 10px", borderRadius: 8, width: "fit-content" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: meta.color, background: `${meta.color}1a`, border: `1px solid ${meta.color}33`, padding: "4px 10px", borderRadius: 8, width: "fit-content" }}>
                       {TYPE_ICON[meta.label]}{meta.label}
                     </span>
                     {assetChip(assetOf(tx))}
