@@ -436,6 +436,11 @@ function AppInner() {
       .flowfi-ticker-track { animation: flowfi-ticker-scroll 20s linear infinite; }
       @keyframes flowfi-dot-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
       .flowfi-live-dot { animation: flowfi-dot-pulse 1.6s ease-in-out infinite; }
+      @keyframes flowfi-shimmer { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
+      @keyframes flowfi-ribbon { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
+      .flowfi-shimmer-title { position: relative; display: inline-block; font-size: clamp(32px, 6vw, 46px); font-weight: 900; letter-spacing: -1px; line-height: 1.1; padding-bottom: 6px; background: linear-gradient(100deg, #5B21B6 0%, #6D5EF7 30%, #B7A6FF 45%, #6D5EF7 60%, #5B21B6 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; animation: flowfi-shimmer 3.5s linear infinite; }
+      .flowfi-shimmer-title::after { content: ""; position: absolute; left: 0; bottom: 0; width: 100%; height: 3px; border-radius: 999px; background: linear-gradient(90deg, rgba(109,94,247,0) 0%, #6D5EF7 25%, #B7A6FF 50%, #6D5EF7 75%, rgba(109,94,247,0) 100%); background-size: 200% 100%; animation: flowfi-ribbon 2.8s linear infinite; }
+      @media (prefers-reduced-motion: reduce) { .flowfi-shimmer-title, .flowfi-shimmer-title::after { animation: none; } }
       .flowfi-glow-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
       .flowfi-glow-card:hover { box-shadow: 0 8px 30px rgba(139,92,246,0.15); transform: translateY(-2px); }
     `}</style>
@@ -788,7 +793,7 @@ function AppInner() {
           <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 28, fontWeight: 800, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "home" ? "Home" : tab === "dashboard" ? "Dashboard" : tab === "dashboardmainnet" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "mainnetswap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : "Bridge"}
+                {tab === "home" ? "Home" : tab === "dashboard" ? "Dashboard" : tab === "dashboardmainnet" ? "Dashboard" : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? "Swap" : tab === "mainnetswap" ? "Swap" : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
                {tab === "home" ? "Your Arc Mainnet overview" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
