@@ -340,6 +340,8 @@ export function counterpartOf(tx: Tx, me: string): string {
   return isMe(tx.from) ? (tx.to && tx.to !== "—" ? `To ${nice(tx.to)}` : "—") : `From ${nice(tx.from)}`;
 }
 
+const NATIVE_PSEUDO_TOKEN = "0xfffffffffffffffffffffffffffffffffffffffe";
+
 // The user's activity on Arc: normal transactions merged with token transfers, newest first.
 // A swap done through another app (Relay, for example) is often sent by that app's own address, so it only
 // shows up as tokens leaving and arriving at the user's address, never as a transaction the user sent.
@@ -370,10 +372,13 @@ export async function fetchActivity(address: string, network: "testnet" | "mainn
     const from = String(t.from ?? "").toLowerCase();
     const to = String(t.to ?? "").toLowerCase();
     if (from !== me && to !== me) continue;
+    // Arc also reports native USDC movements as transfers of a pseudo-token at 0xff…fe (18 decimals, no symbol).
+    // The same movement already appears as a normal USDC transfer, so this duplicate is skipped.
+    if (String(t.contractAddress ?? "").toLowerCase() === NATIVE_PSEUDO_TOKEN || !t.tokenSymbol || t.tokenDecimal === undefined || t.tokenDecimal === "") continue;
     let amount: number;
-    try { amount = Number(BigInt(t.value)) / 10 ** Number(t.tokenDecimal ?? 18); } catch { continue; }
+    try { amount = Number(BigInt(t.value)) / 10 ** Number(t.tokenDecimal); } catch { continue; }
     const dir: "in" | "out" = to === me ? "in" : "out";
-    const transfer: Transfer = { symbol: t.tokenSymbol || "TOKEN", amount, dir, counterparty: dir === "in" ? t.from : t.to };
+    const transfer: Transfer = { symbol: t.tokenSymbol, amount, dir, counterparty: dir === "in" ? t.from : t.to };
     let tx = items.get(t.hash);
     if (!tx) {
       tx = {
