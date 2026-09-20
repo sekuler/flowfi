@@ -5,7 +5,7 @@ import {
   mainnet, base, arbitrum, optimism, polygon, avalanche,
   unichain, linea, sonic, worldchain, monad, sei, xdc, hyperEvm, ink, plume, morph, codex,
 } from "viem/chains";
-import { Zap, CheckCircle2, Sparkles } from "lucide-react";
+import { Check } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 
 // Native Circle CCTP V2 bridge into Arc Mainnet -- burn on the source
@@ -259,9 +259,9 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   }
 
   const stepLabel = useMemo(() => ({
-    idle: "", approving: "Approving USDC...", burning: "Burning on source chain...",
-    "waiting-attestation": "Waiting for Circle's attestation (usually under a minute)...",
-    minting: "Minting native USDC on Arc...", done: "Complete!", error: "Failed",
+    idle: "", approving: "Approving USDC...", burning: "Sending from source chain...",
+    "waiting-attestation": "Waiting for Circle to confirm (usually under a minute)...",
+    minting: "Receiving native USDC on Arc...", done: "Complete!", error: "Failed",
   }[step]), [step]);
 
   const busy = step !== "idle" && step !== "done" && step !== "error";
@@ -270,9 +270,9 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.5rem" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, padding: "1.4rem 1rem", marginBottom: 20, background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", borderRadius: 16 }}>
         {[
-          { key: "burn", label: "Burn", sub: "Tokens burned on source", Icon: Zap, active: step === "approving" || step === "burning", complete: step === "waiting-attestation" || step === "minting" || step === "done" },
-          { key: "attest", label: "Attest", sub: "Circle validates", Icon: Sparkles, active: step === "waiting-attestation", complete: step === "minting" || step === "done" },
-          { key: "mint", label: "Mint", sub: "Native USDC delivered", Icon: CheckCircle2, active: step === "minting", complete: step === "done" },
+          { key: "burn", label: "Send", sub: "Burned on the source chain", num: 1, active: step === "approving" || step === "burning", complete: step === "waiting-attestation" || step === "minting" || step === "done" },
+          { key: "attest", label: "Confirm", sub: "Circle attests the burn", num: 2, active: step === "waiting-attestation", complete: step === "minting" || step === "done" },
+          { key: "mint", label: "Receive", sub: "USDC minted on Arc", num: 3, active: step === "minting", complete: step === "done" },
         ].map((s, i, arr) => (
           <div key={s.key} style={{ display: "flex", alignItems: "center", flex: i < arr.length - 1 ? 1 : undefined }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 72 }}>
@@ -283,7 +283,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
                 boxShadow: s.active ? "0 0 0 5px rgba(109,94,247,0.15)" : "none",
                 transition: "all 0.3s",
               }}>
-                <s.Icon size={17} color={s.complete || s.active ? "#fff" : "#9CA3AF"} />
+                {s.complete ? <Check size={17} color="#fff" /> : <span style={{ fontSize: 15, fontWeight: 800, color: s.active ? "#fff" : "#9CA3AF" }}>{s.num}</span>}
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: s.complete || s.active ? "#6D5EF7" : "#6B7280" }}>{s.label}</div>
               <div style={{ fontSize: 9.5, color: "#9CA3AF", textAlign: "center" }}>{s.sub}</div>
@@ -325,13 +325,13 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
         </div>
 
         <div>
-          <label style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>Amount (USDC)</label>
+          <label style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>You send (USDC)</label>
           <input type="text" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={busy} placeholder="0.00"
             style={{ width: "100%", padding: "0.7rem 0.9rem", borderRadius: 12, border: "1px solid #E5E7EB", fontSize: 16, marginTop: 4, boxSizing: "border-box" }} />
         </div>
 
         <div style={{ background: "#F5F3FF", borderRadius: 12, padding: "0.75rem 1rem", fontSize: 11.5, color: "#4B5563" }}>
-          <strong>Multi-step bridge.</strong> You'll sign an approve + burn on {source.name}, then a mint on Arc once Circle attests the transfer. You'll need a little gas on Arc for the mint step (Arc gas is USDC).
+          <strong>Heads up:</strong> you'll sign twice on {source.name} (approve, then send). Once Circle confirms, the last step runs on Arc and costs a small amount of USDC for gas.
         </div>
 
         {error && <div style={{ background: "rgba(239,68,68,0.1)", color: "#DC2626", borderRadius: 12, padding: "0.75rem 1rem", fontSize: 12.5 }}>{error}</div>}
@@ -346,7 +346,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
         <button onClick={run} disabled={busy || !amount.trim() || !provider}
           style={{ width: "100%", padding: "0.9rem", borderRadius: 14, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 15, fontWeight: 700, cursor: busy || !amount.trim() ? "not-allowed" : "pointer", opacity: busy || !amount.trim() ? 0.6 : 1 }}>
-          {busy ? stepLabel : step === "done" ? "Bridge again" : "Bridge USDC"}
+          {busy ? stepLabel : step === "done" ? "Send again" : "Send to Arc"}
         </button>
       </div>
     </div>
