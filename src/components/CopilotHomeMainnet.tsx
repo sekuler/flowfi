@@ -301,7 +301,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
               <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                 {statusIcon(tx.status)}
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 14, color: "#111827", fontWeight: 600 }}>{describeTx(tx, address, "mainnet", diamond)}</div>
+                  <div style={{ fontSize: 14, color: "#111827", fontWeight: 600 }}>{describeTx(tx, address, "mainnet", diamond, true)}</div>
                   <div className="flowfi-mono" style={{ fontSize: 11.5, color: "#9CA3AF", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{counterpartOf(tx, address)} · Arc Mainnet</div>
                 </div>
               </div>
