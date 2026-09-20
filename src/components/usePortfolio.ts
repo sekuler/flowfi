@@ -22,13 +22,13 @@ function todayKey() {
 // Shared by Home and Dashboard so both pages always show the same net worth, chart and 7-day change.
 export function usePortfolio(address: string, balances: MainnetBalances) {
   const [series, setSeries] = useState<Snap[]>([]);
-  const [prices, setPrices] = useState<{ btc: number | null; eur: number | null }>({ btc: null, eur: null });
+  const [prices, setPrices] = useState<{ btc: number | null; eur: number | null; usyc: number | null }>({ btc: null, eur: null, usyc: null });
 
   useEffect(() => {
-    fetch("/api/coingecko-proxy?path=" + encodeURIComponent("/simple/price?ids=bitcoin,euro-coin&vs_currencies=usd"))
+    fetch("/api/coingecko-proxy?path=" + encodeURIComponent("/simple/price?ids=bitcoin,euro-coin,hashnote-usyc&vs_currencies=usd"))
       .then((r) => r.json())
-      .then((d) => setPrices({ btc: d?.bitcoin?.usd ?? null, eur: d?.["euro-coin"]?.usd ?? null }))
-      .catch(() => setPrices({ btc: null, eur: null }));
+      .then((d) => setPrices({ btc: d?.bitcoin?.usd ?? null, eur: d?.["euro-coin"]?.usd ?? null, usyc: d?.["hashnote-usyc"]?.usd ?? null }))
+      .catch(() => setPrices({ btc: null, eur: null, usyc: null }));
   }, []);
 
   const usdcVal = Number(balances.usdc ?? 0);
@@ -36,7 +36,9 @@ export function usePortfolio(address: string, balances: MainnetBalances) {
   // EURC is priced in dollars from the live EUR rate; if the rate is unavailable it is left out of the dollar total
   // rather than guessed at 1:1.
   const eurcVal = prices.eur !== null ? eurcAmt * prices.eur : 0;
-  const usycVal = Number(balances.usyc ?? 0);
+  const usycAmt = Number(balances.usyc ?? 0);
+  // USYC is a money-market fund share worth more than $1, so it is priced from its live rate too (left out if unavailable).
+  const usycVal = prices.usyc !== null ? usycAmt * prices.usyc : 0;
   const cirbtcAmt = Number(balances.cirbtc ?? 0);
   const cirbtcVal = prices.btc !== null ? cirbtcAmt * prices.btc : 0;
   // Arc's native (gas) balance and the ERC-20 USDC balance are the SAME
@@ -86,7 +88,7 @@ export function usePortfolio(address: string, balances: MainnetBalances) {
   const holdings = [
     { label: "USDC", amount: balances.usdc ?? "0", n: usdcVal, value: usdcVal as number | null, color: "#3B82F6" },
     { label: "EURC", amount: balances.eurc ?? "0", n: eurcAmt, value: (prices.eur !== null ? eurcVal : null) as number | null, color: "#22C55E" },
-    { label: "USYC", amount: balances.usyc ?? "0", n: usycVal, value: usycVal as number | null, color: "#F59E0B" },
+    { label: "USYC", amount: balances.usyc ?? "0", n: usycAmt, value: (prices.usyc !== null ? usycVal : null) as number | null, color: "#F59E0B" },
     { label: "cirBTC", amount: balances.cirbtc ?? "0", n: cirbtcAmt, value: (prices.btc !== null ? cirbtcVal : null) as number | null, color: "#C2410C" },
   ].filter((h) => h.n > 0).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
