@@ -69,6 +69,8 @@ export async function restoreWalletConnect(): Promise<any | null> {
   return p.session && p.accounts?.[0] ? p : null;
 }
 
+const IS_MOBILE = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 interface Props { onConnected: (provider: EIP1193Provider, address: string, walletName: string) => void; }
 
 // Curated list of popular wallets, shown even when not installed — matches the
@@ -187,6 +189,7 @@ export default function WalletConnect({ onConnected }: Props) {
                 disabled={connectingUuid !== null}
                 onClick={() => {
                   if (found) connectWallet(found);
+                  else if (IS_MOBILE) connectWithWalletConnect();
                   else window.open(c.installUrl, "_blank", "noopener,noreferrer");
                 }}
                 style={{
@@ -207,7 +210,7 @@ export default function WalletConnect({ onConnected }: Props) {
                 {isConnecting ? (
                   <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 600 }}>Connecting...</span>
                 ) : !isInstalled ? (
-                  <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, background: "#f5f3ff", padding: "3px 9px", borderRadius: 999 }}>Install</span>
+                  <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, background: "#f5f3ff", padding: "3px 9px", borderRadius: 999 }}>{IS_MOBILE ? "Open" : "Install"}</span>
                 ) : null}
               </button>
             );
