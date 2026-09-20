@@ -4,17 +4,18 @@ import { TokenIcon } from "./TokenIcon";
 import NetworkGuard from "./NetworkGuard";
 import { useIsMobile } from "../useIsMobile";
 import { getFormattedMarketAnalysis } from "../marketData";
-import { ArrowUpRight, ShieldCheck, Zap, Repeat, Wallet, Plus, Box, Send, CheckCircle2 } from "lucide-react";
+import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, PlusCircle, Send, CheckCircle2, XCircle, Clock, Sparkles } from "lucide-react";
+import Sparkline from "./Sparkline";
+import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
+import { loadLifiDiamond, describeTx, counterpartOf, toTx, type Tx } from "./txUtils";
 
 // Mainnet counterpart to CopilotHome.tsx (which stays as-is, Arc Testnet
-// only). Visual pass 2026-09-19 to close the "unfinished/empty shop" gap
-// against a reference mockup: richer Net Worth card (inline actions,
-// asset count, a purely decorative sparkline -- NOT a real historical
-// chart, since FlowFi doesn't track net-worth history yet; a fabricated
-// "+X% (24h)" figure would be a real, honest-ness problem for a finance
-// app, so that's deliberately left out rather than faked), AI Advisor as
-// clickable suggestion rows instead of a static paragraph, and richer
-// Recent Activity rows (icon + truncated hash).
+// only). Layout follows the FlowFi reference mockup: net-worth hero, an
+// even Bridge / Swap / Add funds action row, Your Assets next to
+// "Ask your wallet", then Recent activity.
+//   - The net-worth chart is drawn from daily snapshots this browser
+//     records (see usePortfolio.ts), never from made-up data: with fewer
+//     than two days recorded it says so instead of drawing a curve.
 //   - "Total Value Locked" / "Active Pools" cards are gone entirely, not
 //     replaced -- they read FlowFi's own testnet pool contracts, and
 //     there is no mainnet equivalent (Pools was never ported, see
@@ -25,40 +26,19 @@ import { ArrowUpRight, ShieldCheck, Zap, Repeat, Wallet, Plus, Box, Send, CheckC
 //     general question answered from Arc MAINNET's own recent activity
 //     (via arcscan-proxy's `network=mainnet` routing), mirroring
 //     AiNarrator's own two-step logic but scoped to mainnet data.
-const METHOD_META: Record<string, { label: string; Icon: typeof Box }> = {
-  "0xa9059cbb": { label: "Send", Icon: Send },
-  "0x095ea7b3": { label: "Approve", Icon: CheckCircle2 },
-};
-function metaForMethodId(methodId: string | undefined): { label: string; Icon: typeof Box } {
-  if (!methodId || methodId === "0x") return { label: "Contract Deploy", Icon: Box };
-  return METHOD_META[methodId] ?? { label: "Activity", Icon: Box };
-}
+//   - Recent activity is labelled with the same logic as the History and
+//     Dashboard pages (txUtils.tsx).
 
 interface Props {
   address: string;
-  balances: { usdc: string | null; native: string | null };
-  onNavigate: (tab: "mainnetbridge" | "mainnetswap") => void;
+  balances: MainnetBalances;
+  onNavigate: (tab: "mainnetbridge" | "mainnetswap" | "mainnethistory") => void;
   provider?: EIP1193Provider;
-}
-
-interface RecentTx {
-  hash: string;
-  label: string;
-  Icon: typeof Box;
-  age: string;
 }
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
-}
-
-function timeAgo(sec: number) {
-  const diff = Math.floor(Date.now() / 1000) - sec;
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
 }
 
 const ANALYSIS_SECTION_HEADERS = new Set([
@@ -96,8 +76,9 @@ const SUGGESTED_QUESTIONS = [
 
 export default function CopilotHomeMainnet({ address, balances, onNavigate, provider }: Props) {
   const isMobile = useIsMobile();
-  const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
+  const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
+  const [diamond, setDiamond] = useState<string | null>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -143,16 +124,18 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   }
 
   useEffect(() => {
+    let cancelled = false;
+    loadLifiDiamond().then((d) => { if (!cancelled) setDiamond(d); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     async function load() {
       setLoading(true);
       try {
         const res = await fetch(`/api/arcscan-proxy?network=mainnet&module=account&action=txlist&address=${address}&limit=4`);
         const data = await res.json();
-        const items: RecentTx[] = (data.result ?? []).slice(0, 4).map((tx: any) => {
-          const meta = metaForMethodId(tx.methodId);
-          return { hash: tx.hash, label: meta.label, Icon: meta.Icon, age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—" };
-        });
-        setRecentTxs(items);
+        setTxs((data.result ?? []).slice(0, 4).map(toTx));
       } catch {
         /* leave defaults */
       } finally {
@@ -162,94 +145,99 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
     if (address) load();
   }, [address]);
 
-  const usdcVal = Number(balances.usdc ?? 0);
-  const assetCount = usdcVal > 0 ? 1 : 0;
+  const { total, distribution, chartPoints, hasChart } = usePortfolio(address, balances);
+  const assetCount = distribution.length;
+  const assetNames = distribution.map((d) => d.label).join(", ");
+
+  const card = { background: "#ffffff", border: "1px solid #E4DDFB", borderRadius: 20, boxShadow: "0 8px 30px -14px rgba(109,94,247,0.2)" } as const;
+  const statusIcon = (s: string) =>
+    s === "ok" ? <CheckCircle2 size={20} color="#16A34A" /> : s === "error" ? <XCircle size={20} color="#DC2626" /> : <Clock size={20} color="#B45309" />;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <NetworkGuard provider={provider} />
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#EDE9FE", color: "#6D5EF7", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, alignSelf: "flex-start" }}>
-        ⚡ MAINNET — real funds, self-custody
-      </div>
+      <style>{`
+        .ff-ask:focus { border-color: #6D5EF7 !important; box-shadow: 0 0 0 3px rgba(109,94,247,0.15) !important; outline: none; }
+        .ff-action { transition: all 0.15s; }
+        .ff-action:hover { border-color: #C9BDFB; background: #FBFAFF; transform: translateY(-1px); }
+        .ff-row:hover { background: rgba(109,94,247,0.05); }
+      `}</style>
 
-      <div style={{ background: "linear-gradient(135deg, #EDE9FE, #FDE68A)", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.75rem", display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 16 : 24, alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between" }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, color: "#6D5EF7", marginBottom: 8, fontWeight: 600 }}>Net Worth (Arc Mainnet)</div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
-            <div className="flowfi-mono" style={{ fontSize: 40, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
-              {loading && !balances.usdc ? "..." : `$${usdcVal.toFixed(2)}`}
-            </div>
-            {!isMobile && (
-              // Purely decorative texture, not a real historical chart —
-              // FlowFi doesn't track net-worth history yet, so this
-              // deliberately carries no numbers or axis that could be
-              // mistaken for real data.
-              <svg width="120" height="36" viewBox="0 0 120 36" style={{ opacity: 0.5, marginBottom: 4 }}>
-                <path d="M0 24 Q 15 10, 30 20 T 60 16 T 90 22 T 120 12" stroke="#6D5EF7" strokeWidth="2" fill="none" strokeLinecap="round" />
-              </svg>
-            )}
+      <div style={{ ...card, background: "linear-gradient(135deg, #FFFFFF 0%, #F6F3FF 100%)", padding: isMobile ? "1.25rem" : "1.6rem 1.8rem", display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 18 : 28, alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", overflow: "hidden" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, color: "#6B7280", fontWeight: 600, marginBottom: 6 }}>Net worth</div>
+          <div className="flowfi-mono" style={{ fontSize: isMobile ? 40 : 52, fontWeight: 700, color: "#111827", lineHeight: 1.05, letterSpacing: "-1px", fontVariantNumeric: "tabular-nums" }}>
+            {balances.usdc === null && loading ? "…" : `$${money(total)}`}
           </div>
-          <div style={{ fontSize: 11.5, color: "#7C6FA8", marginTop: 8 }}>{assetCount} asset{assetCount === 1 ? "" : "s"} · Arc Mainnet</div>
+          <div style={{ fontSize: 14, color: "#6B7280", marginTop: 8 }}>
+            {assetCount} asset{assetCount === 1 ? "" : "s"}{assetCount > 0 ? ` · ${assetNames}` : ""}
+          </div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, padding: "5px 12px", borderRadius: 999, background: "#FFFBEB", border: "1px solid #FDE68A", color: "#92400E", fontSize: 11, fontWeight: 700, letterSpacing: "0.6px" }}>
+            <ShieldCheck size={13} /> REAL FUNDS · SELF-CUSTODY
+          </div>
         </div>
-        <div style={{ display: "flex", flexDirection: isMobile ? "row" : "column", gap: 8 }}>
-          {[
-            { label: "Bridge", Icon: Zap, target: "mainnetbridge" as const },
-            { label: "Swap", Icon: Repeat, target: "mainnetswap" as const },
-            { label: "Add funds", Icon: Wallet, target: "mainnetbridge" as const },
-          ].map((a) => (
-            <button key={a.label} onClick={() => onNavigate(a.target)}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "0.6rem 1rem", borderRadius: 12, border: "none", background: "#ffffff", color: "#111827", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
-              <a.Icon size={14} color="#6D5EF7" /> {a.label}
-            </button>
-          ))}
+        <div style={{ flex: 1, maxWidth: isMobile ? "none" : 460, minWidth: isMobile ? 0 : 220 }}>
+          {hasChart ? (
+            <>
+              <Sparkline points={chartPoints} height={96} />
+              <div style={{ fontSize: 10.5, color: "#9CA3AF", textAlign: "right", marginTop: 4 }}>{chartPoints.length} days</div>
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: "#9CA3AF", textAlign: isMobile ? "left" : "right" }}>Chart builds as you visit. Not enough history yet.</div>
+          )}
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr)", gap: "1rem", alignItems: "start" }}>
-        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
+        {[
+          { label: "Bridge", Icon: Zap, target: "mainnetbridge" as const },
+          { label: "Swap", Icon: Repeat, target: "mainnetswap" as const },
+          { label: "Add funds", Icon: PlusCircle, target: "mainnetbridge" as const },
+        ].map((a) => (
+          <button key={a.label} onClick={() => onNavigate(a.target)} className="ff-action"
+            style={{ ...card, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: isMobile ? "0.9rem 0.5rem" : "1.05rem 1rem", color: "#111827", fontSize: isMobile ? 13 : 15, fontWeight: 600, cursor: "pointer" }}>
+            <a.Icon size={isMobile ? 18 : 20} color="#6D5EF7" /> {a.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem", alignItems: "stretch" }}>
+        <div style={{ ...card, padding: "1.25rem", display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Your Assets</div>
-            <button onClick={() => onNavigate("mainnetbridge")} style={{ background: "rgba(109,94,247,0.1)", border: "none", borderRadius: 999, padding: "4px 10px", color: "#6D5EF7", fontSize: 11.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
-              Bridge more <ArrowUpRight size={12} />
+            <button onClick={() => onNavigate("mainnetbridge")} style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+              <Plus size={14} /> Add token
             </button>
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 0.25rem", borderBottom: "1px solid #F5F3FF" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <TokenIcon symbol="USDC" size={34} />
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>USDC</div>
-                <div style={{ fontSize: 11, color: "#6B7280" }}>USD Coin — Arc Mainnet</div>
+          <div style={{ border: "1px solid #F1EEFF", borderRadius: 14, overflow: "hidden" }}>
+            {distribution.length === 0 && <div style={{ padding: "1rem", fontSize: 12.5, color: "#9CA3AF" }}>{balances.usdc === null ? "Loading..." : "No assets yet."}</div>}
+            {distribution.map((d, i) => (
+              <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1rem", borderTop: i > 0 ? "1px solid #F5F3FF" : "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <TokenIcon symbol={d.label} size={38} />
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{d.label} <span style={{ color: "#9CA3AF", fontWeight: 500 }}>· Arc</span></div>
+                    <div className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280", fontVariantNumeric: "tabular-nums" }}>{d.amount} {d.label}</div>
+                  </div>
+                </div>
+                <div className="flowfi-mono" style={{ fontSize: 16, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>${money(d.value)}</div>
               </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div className="flowfi-mono" style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{balances.usdc ?? "..."}</div>
-              <div style={{ fontSize: 11, color: "#6B7280" }}>${usdcVal.toFixed(2)}</div>
-            </div>
+            ))}
           </div>
           <button onClick={() => onNavigate("mainnetbridge")}
-            style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "0.65rem 0.25rem", border: "none", background: "none", color: "#9CA3AF", fontSize: 12.5, fontWeight: 600, cursor: "pointer", marginTop: 4 }}>
-            <Plus size={14} /> Add token
+            style={{ display: "flex", alignItems: "center", gap: 6, marginTop: "auto", paddingTop: 14, background: "none", border: "none", color: "#4B5563", fontSize: 13, fontWeight: 600, cursor: "pointer", alignSelf: "flex-start" }}>
+            Bridge more <ArrowRight size={14} />
           </button>
         </div>
 
-        {!isMobile && <div />}
-
-        <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.1rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#6D5EF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff" }}>✦</div>
-            <span style={{ fontSize: 12.5, color: "#111827", fontWeight: 700 }}>Ask your wallet</span>
-          </div>
-
-          {messages.length === 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {SUGGESTED_QUESTIONS.map((q) => (
-                <button key={q} onClick={() => ask(q)} disabled={asking}
-                  style={{ padding: "6px 12px", borderRadius: 999, border: "none", background: "#F5F3FF", color: "#6D5EF7", fontSize: 11, cursor: "pointer" }}>
-                  {q}
-                </button>
-              ))}
+        <div style={{ ...card, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Sparkles size={18} color="#6D5EF7" />
+              <span style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Ask your wallet</span>
             </div>
-          )}
+            <div style={{ fontSize: 12.5, color: "#6B7280", marginTop: 3 }}>Copilot for your Arc wallet</div>
+          </div>
 
           {messages.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 220, overflowY: "auto" }}>
@@ -269,52 +257,61 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 6, marginTop: "auto" }}>
-            <input type="text" placeholder="Ask about your wallet activity..." value={input}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", border: "1.5px solid #D9D0FA", borderRadius: 14, padding: "0.35rem 0.4rem 0.35rem 0.9rem", background: "#FBFAFF" }} className="ff-ask-wrap">
+            <input className="ff-ask" type="text" placeholder="Ask anything about your wallet..." value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") ask(input); }}
               disabled={asking}
-              style={{ flex: 1, background: "#F5F3FF", border: "none", borderRadius: 10, padding: "0.55rem 0.75rem", fontSize: 12, color: "#111827", outline: "none" }} />
-            <button onClick={() => ask(input)} disabled={asking || !input.trim()}
-              style={{ padding: "0.55rem 0.9rem", borderRadius: 10, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12, fontWeight: 700, cursor: asking || !input.trim() ? "not-allowed" : "pointer", opacity: asking || !input.trim() ? 0.6 : 1 }}>
-              Ask
+              style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", boxShadow: "none", fontSize: 13.5, color: "#111827", outline: "none", padding: "0.5rem 0" }} />
+            <button onClick={() => ask(input)} disabled={asking || !input.trim()} aria-label="Ask"
+              style={{ width: 38, height: 38, borderRadius: 11, border: "none", background: "linear-gradient(135deg,#4F46E5,#7C3AED)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: asking || !input.trim() ? "not-allowed" : "pointer", opacity: asking || !input.trim() ? 0.55 : 1, flexShrink: 0 }}>
+              <Send size={16} />
             </button>
           </div>
+
+          {messages.length === 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {SUGGESTED_QUESTIONS.map((q) => (
+                <button key={q} onClick={() => ask(q)} disabled={asking}
+                  style={{ padding: "7px 13px", borderRadius: 999, border: "1px solid #DDD6FA", background: "#ffffff", color: "#4B5563", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 20, padding: "1.25rem", boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Recent Activity</div>
-          <a href={`https://arc.etherscan.io/address/${address}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: "#6D5EF7", fontWeight: 600, textDecoration: "none" }}>View all</a>
+      <div style={{ ...card, padding: "1.25rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Recent activity</span>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.18)" }} />
+          </div>
+          <button onClick={() => onNavigate("mainnethistory")} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", color: "#6D5EF7", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            View all <ArrowRight size={14} />
+          </button>
         </div>
-        {!loading && recentTxs.length === 0 && <div style={{ fontSize: 12, color: "#6B7280" }}>No recent activity yet.</div>}
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {recentTxs.map((tx) => (
-            <a key={tx.hash} href={`https://arc.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.55rem 0.25rem", textDecoration: "none" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <tx.Icon size={14} color="#6D5EF7" />
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, color: "#111827", fontWeight: 600 }}>{tx.label}</div>
-                  <div className="flowfi-mono" style={{ fontSize: 10.5, color: "#9CA3AF" }}>{tx.hash.slice(0, 6)}...{tx.hash.slice(-4)}</div>
+        {loading && <div style={{ fontSize: 12.5, color: "#6B7280", padding: "0.5rem 0" }}>Loading...</div>}
+        {!loading && txs.length === 0 && <div style={{ fontSize: 12.5, color: "#6B7280", padding: "0.5rem 0" }}>No recent activity yet.</div>}
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {txs.map((tx, i) => (
+            <a key={tx.hash} href={`https://arc.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="ff-row"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "0.75rem 0.4rem", textDecoration: "none", borderTop: i > 0 ? "1px solid #F5F3FF" : "none", borderRadius: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                {statusIcon(tx.status)}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, color: "#111827", fontWeight: 600 }}>{describeTx(tx, address, "mainnet", diamond)}</div>
+                  <div className="flowfi-mono" style={{ fontSize: 11.5, color: "#9CA3AF", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{counterpartOf(tx, address)} · Arc Mainnet</div>
                 </div>
               </div>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>{tx.age}</span>
+              <span style={{ fontSize: 12, color: "#6B7280", flexShrink: 0 }}>{tx.age}</span>
             </a>
           ))}
         </div>
-        {!loading && (
-          <div style={{ textAlign: "center", marginTop: 12, paddingTop: 12, borderTop: "1px solid #F5F3FF", fontSize: 11.5, color: "#9CA3AF" }}>
-            No more activity ·{" "}
-            <button onClick={() => onNavigate("mainnetbridge")} style={{ background: "none", border: "none", color: "#6D5EF7", fontWeight: 700, cursor: "pointer", fontSize: 11.5, padding: 0 }}>Bridge funds →</button>
-          </div>
-        )}
       </div>
 
-      <div style={{ background: "#ffffff", border: "1px solid #D4C9FA", borderRadius: 16, padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
+      <div style={{ ...card, borderRadius: 16, padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 10 }}>
         <ShieldCheck size={18} color="#6D5EF7" />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Self-custody, always</div>
