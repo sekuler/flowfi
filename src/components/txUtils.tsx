@@ -58,6 +58,10 @@ const DOMAIN_NAMES_MAINNET: Record<number, string> = {
 
 // LI.FI's router ("diamond") contract on Arc, from LI.FI's public chain list. Used only to label
 // transactions sent to it as LI.FI routes. Looked up once; if it can't be found, those stay generic.
+// LiFiDiamond on Arc, from LI.FI's public deployment list (lifinance/contracts, deployments/arc.json).
+// Used when LI.FI's chain list doesn't include a diamondAddress for Arc.
+const LIFI_DIAMOND_ARC = "0xa4072583658fae592a3506a42431cb6316a8d40b";
+
 let diamondPromise: Promise<string | null> | null = null;
 export function loadLifiDiamond(): Promise<string | null> {
   if (!diamondPromise) {
@@ -65,9 +69,9 @@ export function loadLifiDiamond(): Promise<string | null> {
       .then((r) => r.json())
       .then((d) => {
         const c = (d?.chains ?? []).find((x: { id?: number; diamondAddress?: string }) => x.id === ARC_MAINNET_CHAIN_ID);
-        return (c?.diamondAddress as string | undefined)?.toLowerCase() ?? null;
+        return (c?.diamondAddress as string | undefined)?.toLowerCase() ?? LIFI_DIAMOND_ARC;
       })
-      .catch(() => null);
+      .catch(() => LIFI_DIAMOND_ARC);
   }
   return diamondPromise;
 }
@@ -144,7 +148,8 @@ const Addr = ({ a }: { a: string }) => {
 };
 
 // Plain-English description of what a transaction did, decoded from the raw calldata.
-export function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet", diamond: string | null): ReactNode {
+// compact = leave the counterparty out of the text (for rows that show it on a second line).
+export function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet", diamond: string | null, compact = false): ReactNode {
   const tokenSymbol = KNOWN_TOKENS[tx.to.toLowerCase()] ?? "tokens";
   const domainNames = network === "mainnet" ? DOMAIN_NAMES_MAINNET : DOMAIN_NAMES;
 
@@ -152,7 +157,9 @@ export function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet", d
   if (tx.input === "0x" && tx.to && tx.to !== "—") {
     const amt = nativeValue(tx);
     const amtNode = amt !== null && amt > 0 ? <>{formatAmount(amt, 4)} <Tok s="USDC" /></> : <Tok s="USDC" />;
-    return tx.from.toLowerCase() !== me.toLowerCase()
+    const incoming = tx.from.toLowerCase() !== me.toLowerCase();
+    if (compact) return incoming ? <>Received {amtNode}</> : <>Sent {amtNode}</>;
+    return incoming
       ? <>Received {amtNode} from <Addr a={tx.from} /></>
       : <>Sent {amtNode} to <Addr a={tx.to} /></>;
   }
@@ -164,12 +171,14 @@ export function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet", d
       const amount = decodeUint(tx.input, 1);
       const recipient = decodeAddress(tx.input, 0);
       if (amount === null || !recipient) return <>Sent <Tok s={tokenSymbol} /></>;
+      if (compact) return <>Sent {formatAmount(amount)} <Tok s={tokenSymbol} /></>;
       return <>Sent {formatAmount(amount)} <Tok s={tokenSymbol} /> to <Addr a={recipient} /></>;
     }
     case "0x095ea7b3": { // approve(address,uint256)
       const amount = decodeUint(tx.input, 1);
       const spender = decodeAddress(tx.input, 0);
       const amtText = amount === null ? "" : `${formatAmount(amount)} `;
+      if (compact) return <>Approved {amtText}<Tok s={tokenSymbol} /> spend</>;
       return <>Approved {amtText}<Tok s={tokenSymbol} />{spender ? <> for spender <Addr a={spender} /></> : " for spending"}</>;
     }
     case "0x74b30078": { // swapUsdcToEurc(uint256)

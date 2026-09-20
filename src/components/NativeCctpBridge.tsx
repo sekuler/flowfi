@@ -7,7 +7,7 @@ import {
 } from "viem/chains";
 import { Check, ArrowRight, ArrowLeft, ChevronDown, X } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
-import { USDC_LOGO } from "./tokenLogos";
+import { USDC_LOGO, ARC_LOGO } from "./tokenLogos";
 
 // Native Circle CCTP V2 bridge into Arc Mainnet -- burn on the source
 // chain, Circle's Iris attestation service signs it, mint native USDC on
@@ -140,39 +140,9 @@ function ChainLogo({ chain, size }: { chain: SourceChain; size: number }) {
   );
 }
 
-// Arc's logo comes from LI.FI's public chain list (the app already talks to li.quest), looked up once and cached.
-// If that lookup fails, a gradient badge is shown instead, so nothing breaks.
-let arcLogoPromise: Promise<string | null> | null = null;
-function loadArcLogo(): Promise<string | null> {
-  if (!arcLogoPromise) {
-    arcLogoPromise = fetch("https://li.quest/v1/chains?chainTypes=EVM")
-      .then((r) => r.json())
-      .then((d) => {
-        const c = (d?.chains ?? []).find((x: { id?: number; logoURI?: string }) => x.id === arcMainnet.id);
-        return (c?.logoURI as string | undefined) ?? null;
-      })
-      .catch(() => null);
-  }
-  return arcLogoPromise;
-}
-
+// Arc's logo is embedded (tokenLogos.ts), so it always renders and needs no network request.
 function ArcLogo({ size }: { size: number }) {
-  const [src, setSrc] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    loadArcLogo().then((u) => { if (!cancelled) setSrc(u); });
-    return () => { cancelled = true; };
-  }, []);
-  if (!src || failed) {
-    return (
-      <span style={{ width: size, height: size, borderRadius: "50%", background: "linear-gradient(135deg,#4F46E5,#7C3AED)", color: "#fff", fontSize: size * 0.42, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>A</span>
-    );
-  }
-  return (
-    <img src={src} alt="Arc" width={size} height={size} onError={() => setFailed(true)}
-      style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, background: "#fff" }} />
-  );
+  return <img src={ARC_LOGO} alt="Arc" width={size} height={size} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />;
 }
 
 function UsdcLogo({ size }: { size: number }) {
