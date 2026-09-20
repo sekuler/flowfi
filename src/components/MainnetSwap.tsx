@@ -1,8 +1,10 @@
-import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
+import { useRef } from "react";
+import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import NetworkGuard from "./NetworkGuard";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
+import ArcTokenStrip from "./ArcTokenStrip";
 
 // Same-chain counterpart to MainnetBridge.tsx: fromChain and toChain are
 // both Arc, so LI.FI's widget renders as a same-chain swap (routed
@@ -30,10 +32,16 @@ const lifiWidgetConfig: WidgetConfig = {
     types: { allow: [ChainType.EVM] },
   },
   theme: {
-    container: {
-      border: "1px solid #E5E7EB",
+    colorSchemes: {
+      light: { palette: { primary: { main: "#6D5EF7" } } },
+    },
+    shape: {
       borderRadius: 16,
-      boxShadow: "none",
+    },
+    container: {
+      border: "1px solid rgba(212,201,250,0.7)",
+      borderRadius: 24,
+      boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28)",
     },
     components: {
       MuiInputCard: {
@@ -50,25 +58,36 @@ const lifiWidgetConfig: WidgetConfig = {
 };
 
 export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }) {
+  const formRef = useRef<FormState | null>(null);
+
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 0.5rem" }}>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#EDE9FE", color: "#6D5EF7", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999 }}>
-          ⚡ MAINNET — real funds, real fees
-        </div>
+    <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1.75rem 0.75rem 2.5rem" }}>
+      <div aria-hidden style={{ position: "absolute", inset: 0, borderRadius: 32, overflow: "hidden", background: "linear-gradient(180deg,#FBFAFF 0%,#F3F0FF 100%)", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", top: -140, left: "50%", transform: "translateX(-50%)", width: 620, height: 380, background: "radial-gradient(closest-side, rgba(124,58,237,0.20), rgba(96,165,250,0.12) 60%, transparent)", filter: "blur(30px)" }} />
       </div>
 
-      <NetworkGuard provider={provider}>
-        <style>{`
-          .lifi-widget-wrap input:focus {
-            outline: none !important;
-            box-shadow: none !important;
-          }
-        `}</style>
-        <div className="lifi-widget-wrap">
-          <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.85)", border: "1px solid #E4DDFB", padding: "5px 13px", borderRadius: 999 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.18)" }} />
+            <span style={{ fontSize: 11.5, color: "#5B21B6", fontWeight: 700 }}>Arc Mainnet · real funds, real fees</span>
+          </div>
         </div>
-      </NetworkGuard>
+
+        <NetworkGuard provider={provider}>
+          <style>{`
+            .lifi-widget-wrap input:focus {
+              outline: none !important;
+              box-shadow: none !important;
+            }
+          `}</style>
+          <div className="lifi-widget-wrap" style={{ maxWidth: 480, margin: "0 auto" }}>
+            <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Swap to"
+              onPick={(t) => formRef.current?.setFieldValue("toToken", t.address, { setUrlSearchParam: false })} />
+            <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
+          </div>
+        </NetworkGuard>
+      </div>
     </div>
   );
 }
