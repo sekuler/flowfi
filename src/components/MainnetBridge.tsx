@@ -65,25 +65,26 @@ export default function MainnetBridge({ address, provider }: { address?: string;
         <span style={{ fontSize: 11, color: "#6D5EF7", fontWeight: 700, letterSpacing: "0.3px" }}>Arc Mainnet · Circle CCTP V2 · LI.FI</span>
       </div>
       <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111827", margin: "0 0 6px", lineHeight: 1.15 }}>
-        Bridge to Arc from{" "}
-        <span key={rotatingIdx} className="flowfi-mono" style={{ color: "#6D5EF7", display: "inline-block" }}>{SOURCE_CHAINS[rotatingIdx].name}</span>
+        {mode === "cctp" ? "Send USDC from" : "Move any token from"}{" "}
+        <span key={rotatingIdx} className="flowfi-mono" style={{ color: "#6D5EF7", display: "inline-block" }}>{SOURCE_CHAINS[rotatingIdx].name}</span>{" "}
+        to Arc
       </h1>
       <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 20 }}>
         {mode === "cctp"
-          ? "Bridge USDC to Arc natively with Circle CCTP V2 — burn on the source chain, mint native USDC on Arc. Any other token or chain routes through LI.FI's Swap."
-          : "Bridge any token to Arc through LI.FI's aggregated routing — swap and bridge in one step. For a plain USDC transfer, Circle's native CCTP V2 is the direct path."}
+          ? "Native USDC over Circle CCTP V2: it's burned on the source chain and minted fresh on Arc, with no wrapped tokens. Need a different asset? Switch to the Any token tab."
+          : "LI.FI finds the best route and handles the swap and the bridge in a single flow. If you're only moving USDC, the Native USDC tab is the more direct path."}
       </p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button onClick={() => setMode("lifi")}
           style={{ flex: 1, padding: "0.9rem", borderRadius: 14, border: mode === "lifi" ? "2px solid #6D5EF7" : "1px solid #E5E7EB", background: mode === "lifi" ? "#F5F3FF" : "#fff", cursor: "pointer", textAlign: "left" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>Any token · LI.FI</div>
-          <div style={{ fontSize: 11, color: "#6B7280" }}>Swap + bridge in one route</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>Any token</div>
+          <div style={{ fontSize: 11, color: "#6B7280" }}>Swap and bridge via LI.FI</div>
         </button>
         <button onClick={() => setMode("cctp")}
           style={{ flex: 1, padding: "0.9rem", borderRadius: 14, border: mode === "cctp" ? "2px solid #6D5EF7" : "1px solid #E5E7EB", background: mode === "cctp" ? "#F5F3FF" : "#fff", cursor: "pointer", textAlign: "left" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>USDC · Circle CCTP</div>
-          <div style={{ fontSize: 11, color: "#6B7280" }}>Native USDC, burn and mint</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>Native USDC</div>
+          <div style={{ fontSize: 11, color: "#6B7280" }}>1:1 via Circle CCTP</div>
         </button>
       </div>
 
