@@ -6,7 +6,7 @@ import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet, arcMainnet, formatUsdcErc20, formatArcNative } from "./chains";
-import { discoverWallets } from "./components/WalletConnect";
+import { discoverWallets, restoreWalletConnect } from "./components/WalletConnect";
 import ConnectModal from "./components/ConnectModal";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
 import TransferHub from "./components/TransferHub";
@@ -248,6 +248,12 @@ function AppInner() {
   useEffect(() => {
     const lastRdns = localStorage.getItem("flowfi-last-wallet-rdns");
     if (!lastRdns) return;
+    if (lastRdns === "walletconnect") {
+      restoreWalletConnect()
+        .then((p) => { if (p) handleConnected(p as unknown as EIP1193Provider, p.accounts[0], "WalletConnect"); })
+        .catch(() => {});
+      return;
+    }
     (async () => {
       const found = await discoverWallets();
       const match = found.find((w) => w.info.rdns === lastRdns);
@@ -271,6 +277,13 @@ function AppInner() {
     window.addEventListener("circle-wallet-changed", refresh);
     return () => { clearInterval(interval); window.removeEventListener("circle-wallet-changed", refresh); };
   }, []);
+
+  function disconnectWallet() {
+    localStorage.removeItem("flowfi-last-wallet-rdns");
+    const p = wallet?.provider as unknown as { disconnect?: () => Promise<void> } | undefined;
+    if (wallet?.walletName === "WalletConnect" && p?.disconnect) p.disconnect().catch(() => {});
+    setWallet(null);
+  }
 
  function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
   setWallet({ provider, address, walletName });
@@ -674,7 +687,7 @@ function AppInner() {
                   <Sparkles size={10} color="#6D5EF7" />
                   <span className="flowfi-mono" style={{ fontSize: 10, fontWeight: 700, color: "#6D5EF7" }}>{points} pts</span>
                 </div>
-                <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} style={{ fontSize: 10, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Disconnect</button>
+                <button onClick={disconnectWallet} style={{ fontSize: 10, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Disconnect</button>
               </div>
             </>
           ) : circlePrimary && circleWalletInfo ? (
@@ -746,7 +759,7 @@ function AppInner() {
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                 {shortAddr}
               </a>
-              <button onClick={() => { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); }} title="Disconnect wallet"
+              <button onClick={disconnectWallet} title="Disconnect wallet"
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
                 <Power size={14} />
               </button>

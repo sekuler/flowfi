@@ -1,8 +1,8 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import type { EIP1193Provider } from "viem";
 
 // Get a free project ID from https://cloud.reown.com and paste it below.
-const WALLETCONNECT_PROJECT_ID = "PASTE_YOUR_PROJECT_ID_HERE";
+const WALLETCONNECT_PROJECT_ID: string = "4084fea887972a480fbc1b78b5599990";
 
 type EIP6963ProviderInfo = { uuid: string; name: string; icon: string; rdns: string; };
 type EIP6963ProviderDetail = { info: EIP6963ProviderInfo; provider: EIP1193Provider; };
@@ -34,6 +34,39 @@ export async function discoverWallets(): Promise<EIP6963ProviderDetail[]> {
   }
 
   return [];
+}
+
+// ---- WalletConnect (shared provider + session restore) ----
+// The provider is created once and reused, so a session saved by WalletConnect
+// can be restored after the page reloads (common on mobile after switching to the wallet app).
+let wcPromise: Promise<any> | null = null;
+async function getWcProvider() {
+  if (!wcPromise) {
+    wcPromise = (async () => {
+      const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
+      return EthereumProvider.init({
+        projectId: WALLETCONNECT_PROJECT_ID,
+        showQrModal: true,
+        optionalChains: [5042002, 1, 8453, 42161, 11155111],
+        // Arc's real RPC has no CORS headers, so route reads through our own proxy (full URL required).
+        rpcMap: { "5042002": `${window.location.origin}/api/rpc-proxy` },
+        qrModalOptions: { themeVariables: { "--wcm-z-index": "9999" } },
+        metadata: {
+          name: "FlowFi",
+          description: "The AI-powered DeFi operating system for Arc.",
+          url: window.location.origin,
+          icons: [`${window.location.origin}/favicon.ico`],
+        },
+      });
+    })().catch((e) => { wcPromise = null; throw e; });
+  }
+  return wcPromise;
+}
+
+export async function restoreWalletConnect(): Promise<any | null> {
+  if (WALLETCONNECT_PROJECT_ID === "PASTE_YOUR_PROJECT_ID_HERE") return null;
+  const p = await getWcProvider();
+  return p.session && p.accounts?.[0] ? p : null;
 }
 
 interface Props { onConnected: (provider: EIP1193Provider, address: string, walletName: string) => void; }
@@ -94,21 +127,11 @@ export default function WalletConnect({ onConnected }: Props) {
     }
     setConnectingUuid("walletconnect"); setError(null);
     try {
-      const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
-      const wcProvider = await EthereumProvider.init({
-        projectId: WALLETCONNECT_PROJECT_ID,
-        showQrModal: true,
-        optionalChains: [5042002, 1, 8453, 42161, 11155111],
-        metadata: {
-          name: "FlowFi",
-          description: "The AI-powered DeFi operating system for Arc.",
-          url: window.location.origin,
-          icons: [`${window.location.origin}/favicon.ico`],
-        },
-      });
+      const wcProvider = await getWcProvider();
       await wcProvider.enable();
       const accounts = wcProvider.accounts as string[];
       if (!accounts?.[0]) throw new Error("No account found.");
+      localStorage.setItem("flowfi-last-wallet-rdns", "walletconnect");
       onConnected(wcProvider as unknown as EIP1193Provider, accounts[0], "WalletConnect");
     } catch (e: unknown) {
       const err = e as { message?: string };
