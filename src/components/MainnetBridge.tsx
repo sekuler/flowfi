@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { LiFiWidget, ChainType, type WidgetConfig } from "@lifi/widget";
+import { useState, useEffect, useRef } from "react";
+import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import NetworkGuard from "./NetworkGuard";
 import NativeCctpBridge, { SOURCE_CHAINS } from "./NativeCctpBridge";
+import ArcTokenStrip from "./ArcTokenStrip";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
@@ -52,6 +53,7 @@ const lifiWidgetConfig: WidgetConfig = {
 export default function MainnetBridge({ address, provider }: { address?: string; provider?: EIP1193Provider }) {
   const [mode, setMode] = useState<"cctp" | "lifi">("lifi");
   const [rotatingIdx, setRotatingIdx] = useState(0);
+  const formRef = useRef<FormState | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setRotatingIdx((i) => (i + 1) % SOURCE_CHAINS.length), 2200);
@@ -122,7 +124,9 @@ export default function MainnetBridge({ address, provider }: { address?: string;
                 }
               `}</style>
               <div className="lifi-widget-wrap" style={{ maxWidth: 480, margin: "0 auto" }}>
-                <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} />
+                <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Bridge into"
+                  onPick={(t) => formRef.current?.setFieldValue("toToken", t.address, { setUrlSearchParam: false })} />
+                <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
               </div>
             </>
           )}
