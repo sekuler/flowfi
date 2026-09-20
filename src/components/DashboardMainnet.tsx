@@ -6,6 +6,8 @@ import NetworkGuard from "./NetworkGuard";
 import { useIsMobile } from "../useIsMobile";
 import { USDC_LOGO } from "./tokenLogos";
 import { TYPE_ICON, loadLifiDiamond, metaFor, amountCell, assetOf, counterpartOf, shortHash, toTx, type Tx } from "./txUtils";
+import Sparkline from "./Sparkline";
+import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 
 // Mainnet counterpart to Dashboard.tsx. Differences from the testnet
 // version, and why:
@@ -28,19 +30,9 @@ import { TYPE_ICON, loadLifiDiamond, metaFor, amountCell, assetOf, counterpartOf
 //     anything.
 interface Props {
   address: string;
-  balances: { usdc: string | null; eurc: string | null; usyc: string | null; cirbtc: string | null; native: string | null };
+  balances: MainnetBalances;
   provider?: EIP1193Provider;
   onNavigate?: (tab: string) => void;
-}
-
-type Snap = { date: string; value: number };
-
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function money(n: number, digits = 2) {
-  return n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 function Donut({ segments, size = 132, thickness = 14, children }: { segments: { value: number; color: string }[]; size?: number; thickness?: number; children?: ReactNode }) {
@@ -67,27 +59,6 @@ function Donut({ segments, size = 132, thickness = 14, children }: { segments: {
   );
 }
 
-function Sparkline({ points }: { points: number[] }) {
-  const w = 160, h = 44, pad = 3;
-  const min = Math.min(...points), max = Math.max(...points);
-  const span = max - min || 1;
-  const xy = points.map((v, i) => [pad + (i / (points.length - 1)) * (w - pad * 2), h - pad - ((v - min) / span) * (h - pad * 2)]);
-  const line = xy.map((p) => p.join(",")).join(" ");
-  const area = `${pad},${h} ${line} ${w - pad},${h}`;
-  return (
-    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display: "block" }}>
-      <defs>
-        <linearGradient id="ffspark" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#6D5EF7" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#6D5EF7" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={area} fill="url(#ffspark)" />
-      <polyline points={line} fill="none" stroke="#6D5EF7" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
 const card = { background: "#ffffff", border: "1px solid #E4DDFB", borderRadius: 20, boxShadow: "0 8px 30px -14px rgba(109,94,247,0.2)" } as const;
 const kpiLabel = { display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#6B7280", fontWeight: 600 } as const;
 const bigNum = { fontSize: 28, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.5px" } as const;
@@ -100,8 +71,6 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [diamond, setDiamond] = useState<string | null>(null);
-  const [series, setSeries] = useState<Snap[]>([]);
-  const [btcUsd, setBtcUsd] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,60 +98,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
     if (address) load();
   }, [address, reloadKey]);
 
-  useEffect(() => {
-    fetch("/api/coingecko-proxy?path=" + encodeURIComponent("/simple/price?ids=bitcoin&vs_currencies=usd"))
-      .then((r) => r.json())
-      .then((d) => setBtcUsd(d?.bitcoin?.usd ?? null))
-      .catch(() => setBtcUsd(null));
-  }, []);
-
-  const usdcVal = Number(balances.usdc ?? 0);
-  const eurcVal = Number(balances.eurc ?? 0);
-  const usycVal = Number(balances.usyc ?? 0);
-  const cirbtcAmt = Number(balances.cirbtc ?? 0);
-  const cirbtcVal = btcUsd !== null ? cirbtcAmt * btcUsd : 0;
-  // Arc's native (gas) balance and the ERC-20 USDC balance are the SAME
-  // underlying USDC shown two ways, not separate money -- confirmed live
-  // (both read 5.11 for the same address). Only usdcVal (ERC-20) counts
-  // toward net worth; balances.native is kept around for display only.
-  const total = usdcVal + eurcVal + usycVal + cirbtcVal;
-
-  // Daily snapshots of net worth, recorded in this browser (no historical balance API exists).
-  const seriesKey = `flowfi-portfolio-series-mainnet-${address}`;
-  useEffect(() => {
-    if (!address) return;
-    let saved: Snap[] = [];
-    try {
-      const parsed = JSON.parse(localStorage.getItem(seriesKey) ?? "[]");
-      if (Array.isArray(parsed)) saved = parsed.filter((p) => p && typeof p.date === "string" && typeof p.value === "number");
-    } catch { /* ignore */ }
-    if (total > 0) {
-      const today = todayKey();
-      const last = saved[saved.length - 1];
-      if (last && last.date === today) last.value = total;
-      else saved.push({ date: today, value: total });
-      saved = saved.slice(-60);
-      try { localStorage.setItem(seriesKey, JSON.stringify(saved)); } catch { /* ignore */ }
-    }
-    setSeries(saved);
-  }, [address, total]);
-
-  const chartPoints = series.slice(-30).map((p) => p.value);
-  const hasChart = chartPoints.length >= 2;
-  // "7-day change" compares against the newest snapshot that is at least 7 days old. It is a balance
-  // change, so deposits and withdrawals count too, not only price movement.
-  const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
-  const ref = [...series].reverse().find((p) => p.date <= cutoff);
-  const change = ref && ref.value > 0 && total > 0 ? { abs: total - ref.value, pct: ((total - ref.value) / ref.value) * 100 } : null;
-
-  const distribution = [
-    { label: "USDC", value: usdcVal, color: "#3B82F6" },
-    { label: "EURC", value: eurcVal, color: "#22C55E" },
-    { label: "USYC", value: usycVal, color: "#F59E0B" },
-    { label: "cirBTC", value: cirbtcVal, color: "#C2410C" },
-  ].filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
-  const top = distribution[0];
-  const topPct = top && total > 0 ? (top.value / total) * 100 : 0;
+  const { total, cirbtcAmt, distribution, top, topPct, chartPoints, hasChart, change } = usePortfolio(address, balances);
 
   // Activity mix: last 20 transactions, labelled the same way as the History page.
   const mixCounts: Record<string, { count: number; color: string }> = {};
