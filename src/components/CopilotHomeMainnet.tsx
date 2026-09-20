@@ -7,6 +7,7 @@ import { getFormattedMarketAnalysis } from "../marketData";
 import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, PlusCircle, Send, CheckCircle2, XCircle, Clock, Sparkles } from "lucide-react";
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
+import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
 import { loadLifiDiamond, describeTx, counterpartOf, toTx, type Tx } from "./txUtils";
 
 // Mainnet counterpart to CopilotHome.tsx (which stays as-is, Arc Testnet
@@ -145,9 +146,9 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
     if (address) load();
   }, [address]);
 
-  const { total, distribution, chartPoints, hasChart } = usePortfolio(address, balances);
-  const assetCount = distribution.length;
-  const assetNames = distribution.map((d) => d.label).join(", ");
+  const { total, holdings, chartPoints, hasChart } = usePortfolio(address, balances);
+  const assetCount = holdings.length;
+  const assetNames = holdings.map((d) => d.label).join(", ");
 
   const card = { background: "#ffffff", border: "1px solid #E4DDFB", borderRadius: 20, boxShadow: "0 8px 30px -14px rgba(109,94,247,0.2)" } as const;
   const statusIcon = (s: string) =>
@@ -210,17 +211,19 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
             </button>
           </div>
           <div style={{ border: "1px solid #F1EEFF", borderRadius: 14, overflow: "hidden" }}>
-            {distribution.length === 0 && <div style={{ padding: "1rem", fontSize: 12.5, color: "#9CA3AF" }}>{balances.usdc === null ? "Loading..." : "No assets yet."}</div>}
-            {distribution.map((d, i) => (
+            {holdings.length === 0 && <div style={{ padding: "1rem", fontSize: 12.5, color: "#9CA3AF" }}>{balances.usdc === null ? "Loading..." : "No assets yet."}</div>}
+            {holdings.map((d, i) => (
               <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1rem", borderTop: i > 0 ? "1px solid #F5F3FF" : "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <TokenIcon symbol={d.label} size={38} />
+                  {d.label === "USDC" || d.label === "EURC"
+                    ? <img src={d.label === "USDC" ? USDC_LOGO : EURC_LOGO} alt="" width={38} height={38} style={{ width: 38, height: 38, borderRadius: "50%" }} />
+                    : <TokenIcon symbol={d.label} size={38} />}
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{d.label} <span style={{ color: "#9CA3AF", fontWeight: 500 }}>· Arc</span></div>
                     <div className="flowfi-mono" style={{ fontSize: 12, color: "#6B7280", fontVariantNumeric: "tabular-nums" }}>{d.amount} {d.label}</div>
                   </div>
                 </div>
-                <div className="flowfi-mono" style={{ fontSize: 16, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>${money(d.value)}</div>
+                <div className="flowfi-mono" style={{ fontSize: 16, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>{d.value !== null ? `$${money(d.value)}` : "—"}</div>
               </div>
             ))}
           </div>

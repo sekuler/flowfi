@@ -20,6 +20,7 @@ const KNOWN_TOKENS: Record<string, string> = {
   [USDC_ADDRESS.toLowerCase()]: "USDC",
   [EURC_ADDRESS.toLowerCase()]: "EURC",
   "0x3600000000000000000000000000000000000000": "USDC", // Arc Mainnet USDC
+  "0xbef5f6d51cb62b58e6a8f77868681825c6fe21c1": "EURC", // Arc Mainnet EURC
 };
 
 const METHOD_META: Record<string, { label: string; color: string }> = {

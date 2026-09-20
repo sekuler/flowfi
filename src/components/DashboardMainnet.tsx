@@ -4,7 +4,7 @@ import { ExternalLink, ArrowRight, RefreshCw, ShieldCheck } from "lucide-react";
 import EmptyState from "./EmptyState";
 import NetworkGuard from "./NetworkGuard";
 import { useIsMobile } from "../useIsMobile";
-import { USDC_LOGO } from "./tokenLogos";
+import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
 import { TYPE_ICON, loadLifiDiamond, metaFor, amountCell, assetOf, counterpartOf, shortHash, toTx, type Tx } from "./txUtils";
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
@@ -98,7 +98,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
     if (address) load();
   }, [address, reloadKey]);
 
-  const { total, cirbtcAmt, distribution, top, topPct, chartPoints, hasChart, change } = usePortfolio(address, balances);
+  const { total, distribution, top, topPct, chartPoints, hasChart, change } = usePortfolio(address, balances);
 
   // Activity mix: last 20 transactions, labelled the same way as the History page.
   const mixCounts: Record<string, { count: number; color: string }> = {};
@@ -122,8 +122,8 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
     if (!sym) return <span style={{ color: "#9CA3AF" }}>—</span>;
     return (
       <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontWeight: 700, color: "#111827" }}>
-        {sym === "USDC"
-          ? <img src={USDC_LOGO} alt="" width={20} height={20} style={{ width: 20, height: 20, borderRadius: "50%" }} />
+        {sym === "USDC" || sym === "EURC"
+          ? <img src={sym === "USDC" ? USDC_LOGO : EURC_LOGO} alt="" width={20} height={20} style={{ width: 20, height: 20, borderRadius: "50%" }} />
           : <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#EDE9FE", color: "#6D5EF7", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{sym.slice(0, 1)}</span>}
         {sym}
       </span>
@@ -155,10 +155,10 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
         </div>
 
         <div style={{ ...card, padding: "1.1rem 1.2rem" }}>
-          <div style={kpiLabel}>Available cirBTC</div>
-          <div className="flowfi-mono" style={{ ...bigNum, marginTop: 6 }}>{balances.cirbtc === null ? "…" : cirbtcAmt > 0 ? balances.cirbtc : "—"}</div>
+          <div style={kpiLabel}>Available EURC</div>
+          <div className="flowfi-mono" style={{ ...bigNum, marginTop: 6 }}>{balances.eurc ?? "…"}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 13, fontWeight: 700, color: "#374151" }}>
-            <span style={{ width: 26, height: 26, borderRadius: "50%", background: "#F7931A", color: "#fff", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>₿</span> cirBTC
+            <img src={EURC_LOGO} alt="" width={26} height={26} style={{ width: 26, height: 26, borderRadius: "50%" }} /> EURC
           </div>
         </div>
 
