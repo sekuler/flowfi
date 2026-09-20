@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
+import LiveBlock from "./components/LiveBlock";
 import TokenLaunch from "./components/TokenLaunch";
 import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
@@ -450,6 +451,11 @@ function AppInner() {
       .flowfi-shimmer-title { position: relative; display: inline-block; font-size: clamp(32px, 6vw, 46px); font-weight: 900; letter-spacing: -1px; line-height: 1.1; padding-bottom: 6px; background: linear-gradient(100deg, #5B21B6 0%, #6D5EF7 30%, #B7A6FF 45%, #6D5EF7 60%, #5B21B6 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; animation: flowfi-shimmer 3.5s linear infinite; }
       .flowfi-shimmer-title::after { content: ""; position: absolute; left: 0; bottom: 0; width: 100%; height: 3px; border-radius: 999px; background: linear-gradient(90deg, rgba(109,94,247,0) 0%, #6D5EF7 25%, #B7A6FF 50%, #6D5EF7 75%, rgba(109,94,247,0) 100%); background-size: 200% 100%; animation: flowfi-ribbon 2.8s linear infinite; }
       @media (prefers-reduced-motion: reduce) { .flowfi-shimmer-title, .flowfi-shimmer-title::after { animation: none; } }
+      @keyframes flowfi-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-14px) rotate(0.8deg); } }
+      .flowfi-float { animation: flowfi-float 7s ease-in-out infinite; will-change: transform; }
+      @keyframes flowfi-chip { 0%, 30% { background-color: #6D5EF7; color: #ffffff; border-color: #6D5EF7; box-shadow: 0 6px 16px rgba(109,94,247,0.35); } 36%, 100% { background-color: #ffffff; color: #4B5563; border-color: #E5DEFA; box-shadow: none; } }
+      .flowfi-chip { animation: flowfi-chip 6s ease-in-out infinite; }
+      @media (prefers-reduced-motion: reduce) { .flowfi-float, .flowfi-chip { animation: none; } }
       .flowfi-glow-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
       .flowfi-glow-card:hover { box-shadow: 0 8px 30px rgba(139,92,246,0.15); transform: translateY(-2px); }
     `}</style>
@@ -487,6 +493,11 @@ function AppInner() {
           <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 460, marginBottom: 32 }}>
             Send, bridge, and swap your USDC on Arc Mainnet with FlowFi — manage everything from one fast, secure platform. Every transaction signed by your own wallet, never by FlowFi.
           </p>
+          <div style={{ display: "flex", gap: 8, marginBottom: 26 }} aria-hidden="true">
+            {["Send", "Bridge", "Swap"].map((w, i) => (
+              <span key={w} className="flowfi-chip" style={{ animationDelay: `${i * 2}s`, padding: "6px 16px", borderRadius: 999, border: "1px solid #E5DEFA", backgroundColor: "#ffffff", color: "#4B5563", fontSize: 13, fontWeight: 700 }}>{w}</span>
+            ))}
+          </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 14, marginBottom: 28 }}>
             <button onClick={() => setShowConnectModal(true)}
               style={{ padding: "1rem 2rem", borderRadius: 16, border: "none", background: "linear-gradient(90deg, #7C3AED, #3B82F6)", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
@@ -502,11 +513,12 @@ function AppInner() {
                 <span style={{ fontSize: 11 }}>▶</span> Watch Demo
               </a>
             </div>
+            <LiveBlock />
           </div>
         </div>
 
         <div style={{ flex: "1 1 460px", minWidth: 320, display: "flex", justifyContent: "center" }}>
-          <img src="/usdc-hero.png" alt="USDC on Arc" style={{ width: "100%", maxWidth: 560, height: "auto" }} />
+          <img src="/usdc-hero.png" alt="USDC on Arc" className="flowfi-float" style={{ width: "100%", maxWidth: 560, height: "auto" }} />
         </div>
       </div>
 
