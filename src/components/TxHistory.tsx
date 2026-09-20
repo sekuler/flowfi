@@ -169,7 +169,7 @@ export default function TxHistory({ address, network = "testnet" }: Props) {
         <div style={{ ...card, overflow: "hidden" }}>
           <div style={{ overflow: "auto", maxHeight: "70vh" }}>
             <div style={{ minWidth: 720 }}>
-              <div style={{ position: "sticky", top: 0, zIndex: 2, display: "grid", gridTemplateColumns: GRID, gap: 10, padding: "0.75rem 1.1rem", background: "#F8F7FF", borderBottom: "1px solid #E4DDFB", fontSize: 10.5, color: "#6B7280", fontWeight: 800, letterSpacing: "0.6px" }}>
+              <div style={{ position: "sticky", top: 0, zIndex: 2, display: "grid", gridTemplateColumns: GRID, gap: 10, padding: "0.75rem 1.1rem", background: "#F8F7FF", borderBottom: "1px solid #E4DDFB", fontSize: 10.5, color: "#6B7280", fontWeight: 700, letterSpacing: "0.6px" }}>
                 <span>TYPE</span>
                 <span>DETAILS</span>
                 <span style={{ textAlign: "right" }}>AMOUNT</span>
@@ -185,7 +185,7 @@ export default function TxHistory({ address, network = "testnet" }: Props) {
                 return (
                   <div key={tx.hash} className="ff-tx-row"
                     style={{ display: "grid", gridTemplateColumns: GRID, gap: 10, alignItems: "center", padding: "0.85rem 1.1rem", borderTop: "1px solid #F5F3FF" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 800, color: meta.color, background: `${meta.color}1a`, border: `1px solid ${meta.color}33`, padding: "4px 10px", borderRadius: 8, width: "fit-content" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: meta.color, background: `${meta.color}1a`, border: `1px solid ${meta.color}33`, padding: "4px 10px", borderRadius: 8, width: "fit-content" }}>
                       {TYPE_ICON[meta.label]}{meta.label}
                     </span>
                     <span style={{ minWidth: 0 }}>

@@ -184,7 +184,7 @@ type Step = "idle" | "approving" | "burning" | "waiting-attestation" | "minting"
 const PENDING_KEY = "flowfi-cctp-pending";
 
 function fmt(n: number, max = 2) {
-  return n.toLocaleString(undefined, { maximumFractionDigits: max });
+  return n.toLocaleString("en-US", { maximumFractionDigits: max });
 }
 
 export default function NativeCctpBridge({ address, provider }: { address: string; provider?: EIP1193Provider }) {
