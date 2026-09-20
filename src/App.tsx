@@ -633,16 +633,9 @@ function AppInner() {
           </div>
         </div>
         <div style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
-          {TAB_GROUPS.map(({ group, variant, tabs }, groupIndex) => {
-            const prevVariant = groupIndex > 0 ? TAB_GROUPS[groupIndex - 1].variant : undefined;
-            const isFirstTestnetGroup = variant === "testnet" && prevVariant !== "testnet";
-            return (
+          {(() => {
+            const renderGroup = ({ group, variant, tabs }: (typeof TAB_GROUPS)[number]) => (
             <div key={group} style={{ marginBottom: 4 }}>
-              {isFirstTestnetGroup && (
-                <div style={{ margin: "0.9rem 1rem 0.5rem", paddingTop: "0.75rem", borderTop: "1px solid #EDE9FE" }}>
-                  <div style={{ fontSize: 9.5, color: "#B45309", fontWeight: 800, letterSpacing: "1px" }}>TESTNET — DEMO, NO REAL FUNDS</div>
-                </div>
-              )}
               <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : variant === "mainnet" ? "#6D5EF7" : "#6D5EF7", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem", opacity: variant === "testnet" ? 0.75 : 1 }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
@@ -666,7 +659,19 @@ function AppInner() {
               })}
             </div>
             );
-          })}
+            return (
+              <>
+                {TAB_GROUPS.filter((g) => g.variant !== "testnet").map(renderGroup)}
+                <div style={{ margin: "1.1rem 0 0.5rem", padding: "0.8rem 0.5rem 0.5rem", border: "1px dashed #F0D9A6", background: "#FFFCF5", borderRadius: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0.5rem 0.6rem", fontSize: 9.5, color: "#B45309", fontWeight: 800, letterSpacing: "1px" }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706", flexShrink: 0 }} />
+                    TESTNET — DEMO, NO REAL FUNDS
+                  </div>
+                  {TAB_GROUPS.filter((g) => g.variant === "testnet").map(renderGroup)}
+                </div>
+              </>
+            );
+          })()}
         </div>
         <div style={{ padding: "0.5rem 1.25rem", marginTop: "auto" }}>
           {wallet ? (
