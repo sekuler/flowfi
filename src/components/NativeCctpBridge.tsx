@@ -5,7 +5,8 @@ import {
   mainnet, base, arbitrum, optimism, polygon, avalanche,
   unichain, linea, sonic, worldchain, monad, sei, xdc, hyperEvm, ink, plume, morph, codex,
 } from "viem/chains";
-import { Check, ArrowRight, ArrowLeft, ChevronDown, X } from "lucide-react";
+import { Check, ArrowRight, ArrowLeft, ChevronDown, X, ShieldCheck } from "lucide-react";
+import { useIsMobile } from "../useIsMobile";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 import { USDC_LOGO, ARC_LOGO } from "./tokenLogos";
 
@@ -81,6 +82,30 @@ export const SOURCE_CHAINS: SourceChain[] = [
   { key: "plume", name: "Plume", chain: plume, domain: 22, usdc: "0x222365EF19F7947e5484218551B56bb3965Aa7aF", fastTransfer: true, logo: LLAMA_ICON("plume") },
   { key: "morph", name: "Morph", chain: morph, domain: 30, usdc: "0xCfb1186F4e93D60E60a8bDd997427D1F33bc372B", fastTransfer: true, logo: LLAMA_ICON("morph") },
 ];
+
+// Average time for Circle to attest a Standard Transfer once the burn is sent, per source chain, from Circle's
+// "Finality and block confirmations" page. It is an average, not a guarantee, and the final mint on Arc is a separate
+// step you sign afterwards. maxMin is how long this page keeps waiting before it stops and offers Resume instead.
+const STANDARD_WAIT: Record<string, { label: string; maxMin: number }> = {
+  ethereum: { label: "15–19 min", maxMin: 30 },
+  avalanche: { label: "8 sec", maxMin: 5 },
+  optimism: { label: "15–19 min", maxMin: 30 },
+  arbitrum: { label: "15–19 min", maxMin: 30 },
+  base: { label: "15–19 min", maxMin: 30 },
+  polygon: { label: "8 sec", maxMin: 5 },
+  unichain: { label: "15–19 min", maxMin: 30 },
+  linea: { label: "6–32 hours", maxMin: 10 },
+  codex: { label: "15–19 min", maxMin: 30 },
+  sonic: { label: "8 sec", maxMin: 5 },
+  worldchain: { label: "15–19 min", maxMin: 30 },
+  monad: { label: "5 sec", maxMin: 5 },
+  sei: { label: "5 sec", maxMin: 5 },
+  xdc: { label: "10 sec", maxMin: 5 },
+  hyperevm: { label: "5 sec", maxMin: 5 },
+  ink: { label: "30 min", maxMin: 45 },
+  plume: { label: "15–19 min", maxMin: 30 },
+  morph: { label: "20–30 min", maxMin: 45 },
+};
 
 const CHAIN_COLORS: Record<string, string> = {
   ethereum: "#627EEA", avalanche: "#E84142", optimism: "#FF0420",
@@ -158,6 +183,7 @@ function fmt(n: number, max = 2) {
 }
 
 export default function NativeCctpBridge({ address, provider }: { address: string; provider?: EIP1193Provider }) {
+  const isMobile = useIsMobile();
   const [view, setView] = useState<"form" | "review">("form");
   const [sourceIdx, setSourceIdx] = useState(0);
   const [amount, setAmount] = useState("");
@@ -253,8 +279,9 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     }
   }
 
-  async function pollAttestation(txHash: string, domain: number): Promise<{ message: string; attestation: string }> {
-    for (let i = 0; i < 60; i++) {
+  async function pollAttestation(txHash: string, domain: number, maxMin: number): Promise<{ message: string; attestation: string }> {
+    const attempts = Math.ceil((maxMin * 60) / 5);
+    for (let i = 0; i < attempts; i++) {
       const res = await fetch(`${IRIS_API}/v2/messages/${domain}?transactionHash=${txHash}`);
       const data = await res.json();
       const msg = data?.messages?.[0];
@@ -340,7 +367,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       }
 
       setStep("waiting-attestation");
-      const { message, attestation } = await pollAttestation(burnHash, src.domain);
+      const { message, attestation } = await pollAttestation(burnHash, src.domain, (STANDARD_WAIT[src.key] ?? { maxMin: 30 }).maxMin);
 
       const arcWalletClient = createWalletClient({ account: address as `0x${string}`, chain: arcMainnet, transport: custom(provider) });
       const arcPublicClient = createPublicClient({ chain: arcMainnet, transport: http() });
@@ -374,11 +401,12 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     }
   }
 
+  const wait = STANDARD_WAIT[burnSource.key] ?? { label: "a few minutes", maxMin: 30 };
   const stepLabel = useMemo(() => ({
     idle: "", approving: "Approving USDC...", burning: "Sending from source chain...",
-    "waiting-attestation": "Waiting for Circle to confirm the transfer...",
+    "waiting-attestation": `Waiting for Circle to confirm (about ${wait.label} on ${burnSource.name})...`,
     minting: "Receiving native USDC on Arc...", done: "Complete!", error: "Failed",
-  }[step]), [step]);
+  }[step]), [step, wait.label, burnSource.name]);
 
   const busy = step !== "idle" && step !== "done" && step !== "error";
   const unfinished = step === "error" && !!burnTxHash;
@@ -438,6 +466,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     { k: "Route", v: "Circle CCTP V2" },
     { k: "Speed", v: "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
+    { k: "Est. wait", v: `~${wait.label}` },
     { k: "You receive", v: receive !== null ? `≈ ${fmt(receive, 6)} USDC` : "—" },
     { k: "Gas on Arc", v: "Paid in USDC" },
   ];
@@ -446,6 +475,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     { k: "Route", v: "Circle CCTP V2" },
     { k: "Speed", v: "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
+    { k: "Est. wait", v: `~${wait.label}` },
     { k: "Signatures", v: `2 on ${source.name}, 1 on Arc` },
     { k: "Gas on Arc", v: "Paid in USDC" },
   ];
@@ -456,21 +486,65 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     .filter(({ c }) => !q || c.name.toLowerCase().includes(q))
     .sort((a, b) => (Number(balances[b.c.key] ?? 0) - Number(balances[a.c.key] ?? 0)) || a.i - b.i);
 
-  function renderRows(rows: { k: string; v: string; good?: boolean }[]) {
+  function renderRows(rows: { k: string; v: string; good?: boolean; badge?: string }[]) {
     return (
       <div style={{ marginTop: 10, border: "1px solid #F0ECFF", borderRadius: 18, padding: "6px 14px" }}>
         {rows.map((r, i) => (
           <div key={r.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < rows.length - 1 ? "1px solid #F5F3FF" : "none", fontSize: 12.5 }}>
             <span style={{ color: "#6B7280" }}>{r.k}</span>
-            <span style={{ color: r.good ? "#16A34A" : "#111827", fontWeight: 600, textAlign: "right" }}>{r.v}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 6, color: r.good ? "#16A34A" : "#111827", fontWeight: 600, textAlign: "right" }}>
+              {r.v}
+              {r.badge && <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.6px", color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 999, padding: "1px 7px" }}>{r.badge}</span>}
+            </span>
           </div>
         ))}
       </div>
     );
   }
 
+  const summaryRows: { k: string; v: string; good?: boolean; badge?: string }[] = [
+    { k: "Recipient", v: `${shortAddr} on Arc` },
+    { k: "Route", v: "Circle CCTP V2", badge: "OFFICIAL" },
+    { k: "Speed", v: "Standard" },
+    ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
+    { k: "Est. wait", v: `~${wait.label}` },
+    { k: "Signatures", v: `2 on ${source.name}, 1 on Arc` },
+    { k: "Gas on Arc", v: "Paid in USDC" },
+  ];
+  const summaryCard = (
+    <div style={{ background: "#ffffff", border: "1px solid rgba(212,201,250,0.7)", borderRadius: 24, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(109,94,247,0.2), 0 2px 6px rgba(17,24,39,0.04)" }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Transfer summary</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={paneStyle}>
+          <span style={labelStyle}>YOU SEND</span>
+          <ChainLogo chain={source} size={28} />
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{validAmt ? fmt(amt, 6) : "—"} USDC</span>
+          <span style={{ fontSize: 11.5, color: "#6B7280" }}>on {source.name}</span>
+        </div>
+        <div style={paneStyle}>
+          <span style={labelStyle}>YOU RECEIVE</span>
+          <ArcLogo size={28} />
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{receive !== null ? `≈ ${fmt(receive, 6)}` : "—"} USDC</span>
+          <span style={{ fontSize: 11.5, color: "#6B7280" }}>on Arc</span>
+        </div>
+      </div>
+      {renderRows(summaryRows)}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <ShieldCheck size={16} color="#6D5EF7" style={{ flexShrink: 0, marginTop: 2 }} />
+          <div style={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}><span style={{ color: "#111827", fontWeight: 600 }}>Self-custody.</span> You sign every step in your own wallet. FlowFi never holds your funds.</div>
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <Check size={16} color="#6D5EF7" style={{ flexShrink: 0, marginTop: 2 }} />
+          <div style={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}><span style={{ color: "#111827", fontWeight: 600 }}>Native USDC.</span> Burned on the source chain and minted on Arc. No wrapped tokens.</div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", background: "#ffffff", border: "1px solid rgba(212,201,250,0.7)", borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28), 0 2px 6px rgba(17,24,39,0.04)" }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(0, 480px) minmax(0, 420px)", gap: 16, justifyContent: "center", alignItems: "start", maxWidth: 940, margin: "0 auto" }}>
+    <div style={{ width: "100%", boxSizing: "border-box", background: "#ffffff", border: "1px solid rgba(212,201,250,0.7)", borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28), 0 2px 6px rgba(17,24,39,0.04)" }}>
       <style>{`@keyframes ffspin { to { transform: rotate(360deg); } } .ff-amount, .ff-amount:focus, .ff-amount:focus-visible { outline: none !important; box-shadow: none !important; border: none !important; background: transparent !important; } .ff-amount::placeholder { color: #C4C0DC; }`}</style>
 
       {view === "form" && (
@@ -518,7 +592,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
             </div>
           </div>
 
-          {renderRows(formRows)}
+          {isMobile && renderRows(formRows)}
         </>
       )}
 
@@ -551,11 +625,11 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
             </div>
           </div>
 
-          {renderRows(reviewRows)}
+          {isMobile && renderRows(reviewRows)}
 
           {step === "idle" && (
             <div style={{ marginTop: 10, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 14, padding: "10px 12px", fontSize: 11.5, color: "#92400E", lineHeight: 1.55 }}>
-              Standard transfers wait for {source.name} to finalize before Circle confirms, so this isn't instant. Keep this tab open until it finishes. If you close it, you can resume later from here.
+              Standard transfers wait for {source.name} to finalize before Circle confirms (about {wait.label} on average), so this isn't instant. Keep this tab open until it finishes. If you close it, you can resume later from here.
             </div>
           )}
         </>
@@ -651,6 +725,8 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
           </div>
         </div>
       )}
+    </div>
+    {!isMobile && summaryCard}
     </div>
   );
 }
