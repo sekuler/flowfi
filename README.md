@@ -178,11 +178,11 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 | | |
 |---|---|
 | **Landing**<br>Connect a wallet or explore without connecting | ![Landing](./screenshots/1-Landing.jpg) |
-| **Home**<br>Net worth, assets, Ask your wallet, recent activity | ![Home](./screenshots/2-Home.png) |
-| **Bridge**<br>Any token via LI.FI, or native USDC via Circle CCTP V2 | ![Bridge](./screenshots/3-Bridge.png) |
-| **Swap**<br>Same-chain swaps on Arc, opens on USDC → EURC | ![Swap](./screenshots/4-Swap.png) |
-| **Dashboard**<br>Balances, portfolio split, activity mix | ![Dashboard](./screenshots/5-Dashboard.png) |
-| **History**<br>Transactions and token transfers, with amounts | ![History](./screenshots/6-History.png) |
+| **Home**<br>Net worth, assets, Ask your wallet, recent activity | ![Home](./screenshots/2-Home.jpg) |
+| **Bridge**<br>Any token via LI.FI, or native USDC via Circle CCTP V2 | ![Bridge](./screenshots/3-Bridge.jpg) |
+| **Swap**<br>Same-chain swaps on Arc, opens on USDC → EURC | ![Swap](./screenshots/4-Swap.jpg) |
+| **Dashboard**<br>Balances, portfolio split, activity mix | ![Dashboard](./screenshots/5-Dashboard.jpg) |
+| **History**<br>Transactions and token transfers, with amounts | ![History](./screenshots/6-History.jpg) |
 
 These are the Arc Mainnet screens. The Testnet showcase (Circle Wallet, Token Launch, Liquidity Pools, Stablecoin Analytics) is in the same app under the Testnet menu.
 
