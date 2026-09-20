@@ -48,7 +48,7 @@ interface Balances {
   native: string | null;
 }
 
-type Tab = "home" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "dashboardmainnet" | "mainnetswap";
+type Tab = "home" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "dashboardmainnet" | "mainnetswap" | "mainnethistory";
 
 const ARC_USDC = USDC_ADDRESS;
 // Arc mainnet USDC -- the only mainnet stablecoin address confirmed so
@@ -84,6 +84,7 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     { id: "mainnetbridge", label: "Bridge", Icon: Zap },
     { id: "mainnetswap", label: "Swap", Icon: Repeat },
     { id: "dashboardmainnet", label: "Dashboard", Icon: LayoutDashboard },
+    { id: "mainnethistory", label: "History", Icon: HistoryIcon },
     // Circle Wallet on mainnet was fully removed (2026-09-18), not just
     // hidden from nav -- component file, Tab union entry, and safe-tab
     // list entries are all gone (an earlier pass only removed the nav
@@ -790,13 +791,13 @@ function AppInner() {
         </header>
 
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
-          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" || tab === "mainnetbridge" ? 900 : 520), margin: "0 auto" }}>
+          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" || tab === "mainnetbridge" || tab === "mainnethistory" ? 900 : 520), margin: "0 auto" }}>
             <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 28, fontWeight: 800, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
-                {tab === "home" ? <span className="flowfi-shimmer-title">Home</span> : tab === "dashboard" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "dashboardmainnet" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "mainnetswap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
+                {tab === "home" ? <span className="flowfi-shimmer-title">Home</span> : tab === "dashboard" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "dashboardmainnet" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "mainnethistory" ? <span className="flowfi-shimmer-title">History</span> : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "mainnetswap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "home" ? "Your Arc Mainnet overview" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
+               {tab === "home" ? "Your Arc Mainnet overview" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "mainnethistory" ? "Recent transactions on Arc Mainnet" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
             </div>
 {tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} provider={wallet.provider} />}
@@ -804,6 +805,7 @@ function AppInner() {
             {tab === "mainnetbridge" && <MainnetBridge address={wallet?.address} provider={wallet?.provider} />}
             {tab === "mainnetswap" && <MainnetSwap provider={wallet?.provider} />}
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
+            {tab === "mainnethistory" && wallet && <TxHistory address={wallet.address} network="mainnet" />}
             {tab === "dashboardmainnet" && wallet && <DashboardMainnet address={wallet.address} balances={mainnetBalances} provider={wallet.provider} />}
             {tab === "analytics" && <StablecoinAnalytics onNavigate={(t) => setTab(t)} />}
             {tab === "history" && (wallet || (circlePrimary && circleWalletInfo)) && <TxHistory address={wallet ? wallet.address : circleWalletInfo!.address} />}
@@ -889,7 +891,7 @@ function AppInner() {
         )}
       </main>
 
-      {wallet && (tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet") ? (
+      {wallet && (tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet" || tab === "mainnethistory") ? (
         <AiCopilotMainnet onNavigate={(t) => setTab(t)} />
       ) : (
         wallet && <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
