@@ -266,7 +266,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
           <div style={{ overflowX: "auto" }}>
             <div style={{ minWidth: 640 }}>
               <div style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, padding: "0.6rem 1.2rem", background: "#F8F7FF", borderTop: "1px solid #E4DDFB", borderBottom: "1px solid #E4DDFB", fontSize: 10.5, color: "#6B7280", fontWeight: 700, letterSpacing: "0.6px" }}>
-                <span>TYPE</span><span>ASSET</span><span style={{ textAlign: "right" }}>AMOUNT</span><span>FROM / TO</span><span>TIME</span><span style={{ textAlign: "right" }}>TX</span>
+                <span>TYPE</span><span>ASSET</span><span style={{ textAlign: "right", paddingRight: 14 }}>AMOUNT</span><span>FROM / TO</span><span>TIME</span><span style={{ textAlign: "right" }}>TX</span>
               </div>
               {recent.map((tx) => {
                 const meta = metaFor(tx, address, diamond);
@@ -277,7 +277,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
                       {TYPE_ICON[meta.label]}{meta.label}
                     </span>
                     {assetChip(assetOf(tx))}
-                    <span style={{ textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", fontFamily: "ui-monospace, 'JetBrains Mono', monospace", color: amt ? (amt.tone === "in" ? "#15803D" : "#111827") : "#9CA3AF" }}>{amt ? amt.text.replace(/ [A-Z]+$/, "") : "—"}</span>
+                    <span style={{ textAlign: "right", paddingRight: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums", fontFamily: "ui-monospace, 'JetBrains Mono', monospace", color: amt ? (amt.tone === "in" ? "#15803D" : "#111827") : "#9CA3AF" }}>{amt ? amt.text.replace(/ [A-Z]+$/, "") : "—"}</span>
                     <span style={{ color: "#6B7280", fontFamily: "ui-monospace, 'JetBrains Mono', monospace", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{counterpartOf(tx, address)}</span>
                     <span style={{ color: "#6B7280", fontSize: 12 }}>{tx.age}</span>
                     <a href={`https://arc.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" title={shortHash(tx.hash)}

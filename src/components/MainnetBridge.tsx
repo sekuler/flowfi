@@ -35,6 +35,7 @@ const lifiWidgetConfig: WidgetConfig = {
       border: "1px solid rgba(212,201,250,0.7)",
       borderRadius: 24,
       boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28)",
+      maxHeight: "none",
     },
     components: {
       MuiInputCard: {
