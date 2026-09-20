@@ -2,7 +2,7 @@ import EmptyState from "./EmptyState";
 import { HelpCircle, Copy, ExternalLink, RefreshCw, Check, CheckCircle2, Clock, XCircle, ListFilter } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getCircleWallet, type CircleWalletInfo } from "../circleWalletHelpers";
-import { TYPE_ICON, loadLifiDiamond, shortHash, metaFor, describeTx, amountCell, toTx, type Tx } from "./txUtils";
+import { TYPE_ICON, loadLifiDiamond, shortHash, metaFor, describeTx, amountCell, fetchActivity, type Tx } from "./txUtils";
 
 interface Props {
   address: string;
@@ -42,11 +42,7 @@ export default function TxHistory({ address, network = "testnet" }: Props) {
     if (!effectiveAddress) return;
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`/api/arcscan-proxy?${isMainnet ? "network=mainnet&" : ""}module=account&action=txlist&address=${effectiveAddress}&limit=30`);
-      if (!res.ok) throw new Error(`Arcscan returned ${res.status}`);
-      const data = await res.json();
-      const items: Tx[] = (data.result ?? []).map(toTx);
-      setTxs(items);
+      setTxs(await fetchActivity(effectiveAddress, network, 30));
     } catch (e: unknown) {
       const err = e as { message?: string };
       if (err.message?.includes("Arcscan returned")) {
@@ -72,7 +68,7 @@ export default function TxHistory({ address, network = "testnet" }: Props) {
   }
 
   const filterOptions = isMainnet
-    ? ["all", "Send", "Receive", "Route", "Bridge", "Approve"]
+    ? ["all", "Send", "Receive", "Swap", "Route", "Bridge", "Approve"]
     : ["all", "Send", "Receive", "Swap", "Bridge", "Approve"];
   const filteredTxs = filter === "all" ? txs : txs.filter((tx) => metaFor(tx, effectiveAddress, diamond).label === filter);
 

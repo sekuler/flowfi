@@ -5,7 +5,7 @@ import EmptyState from "./EmptyState";
 import NetworkGuard from "./NetworkGuard";
 import { useIsMobile } from "../useIsMobile";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
-import { TYPE_ICON, loadLifiDiamond, metaFor, amountCell, assetOf, counterpartOf, shortHash, toTx, type Tx } from "./txUtils";
+import { TYPE_ICON, loadLifiDiamond, metaFor, amountCell, assetOf, counterpartOf, shortHash, fetchActivity, type Tx } from "./txUtils";
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 
@@ -82,11 +82,9 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/arcscan-proxy?network=mainnet&module=account&action=txlist&address=${address}&limit=100`);
-        const data = await res.json();
-        const raw = data.result ?? [];
-        setTxCount(raw.length);
-        setTxs(raw.slice(0, 20).map(toTx));
+        const all = await fetchActivity(address, "mainnet", 100);
+        setTxCount(all.length);
+        setTxs(all.slice(0, 20));
         setUpdatedAt(Date.now());
       } catch {
         setTxCount(null);

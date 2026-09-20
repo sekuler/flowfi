@@ -8,7 +8,7 @@ import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, PlusCircle, Send, CheckCirc
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
-import { loadLifiDiamond, describeTx, counterpartOf, toTx, type Tx } from "./txUtils";
+import { loadLifiDiamond, describeTx, counterpartOf, fetchActivity, type Tx } from "./txUtils";
 
 // Mainnet counterpart to CopilotHome.tsx (which stays as-is, Arc Testnet
 // only). Layout follows the FlowFi reference mockup: net-worth hero, an
@@ -96,7 +96,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         setMessages((prev) => [...prev, { role: "assistant", content: marketAnswer }]);
         return;
       }
-      const res = await fetch(`/api/arcscan-proxy?network=mainnet&module=account&action=txlist&address=${address}&limit=30`);
+      const res = await fetch(`/api/arcscan-proxy?network=mainnet&module=account&action=txlist&address=${address}&sort=desc&limit=30`);
       const data = await res.json();
       const txs = (data.result ?? []).slice(0, 30).map((tx: any) => ({
         hash: tx.hash,
@@ -134,9 +134,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/arcscan-proxy?network=mainnet&module=account&action=txlist&address=${address}&limit=4`);
-        const data = await res.json();
-        setTxs((data.result ?? []).slice(0, 4).map(toTx));
+        setTxs((await fetchActivity(address, "mainnet", 10)).slice(0, 4));
       } catch {
         /* leave defaults */
       } finally {

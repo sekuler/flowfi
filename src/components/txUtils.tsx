@@ -4,16 +4,40 @@ import { contactNameFor } from "../contacts";
 import { USDC_ADDRESS, EURC_ADDRESS } from "../contracts";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 
+// One token movement in or out of the user's address, from the explorer's token-transfer list.
+export interface Transfer {
+  symbol: string;
+  amount: number;
+  dir: "in" | "out";
+  counterparty: string;
+}
+
 export interface Tx {
   hash: string;
   method: string;
   age: string;
+  ts: number;
   from: string;
   to: string;
   status: string;
   input: string;
   value: string;
+  transfers?: Transfer[];
 }
+
+// Adds up a transaction's token movements per token and direction (a swap can be split across several transfers).
+function summarize(tx: Tx) {
+  const groups = new Map<string, Transfer>();
+  for (const t of tx.transfers ?? []) {
+    const key = t.dir + t.symbol;
+    const g = groups.get(key);
+    if (g) g.amount += t.amount;
+    else groups.set(key, { ...t });
+  }
+  const all = [...groups.values()];
+  return { ins: all.filter((g) => g.dir === "in"), outs: all.filter((g) => g.dir === "out") };
+}
+const BRIDGE_METHODS = ["0x57ecfd28", "0x8e0250ee"];
 
 
 const KNOWN_TOKENS: Record<string, string> = {
@@ -96,6 +120,13 @@ export function shortHash(h: string) {
 // Label/color for a transaction. Plain native transfers (empty calldata) are Send or Receive depending on
 // direction; only a transaction with no recipient is a contract deployment.
 export function metaFor(tx: Tx, me: string, diamond: string | null) {
+  if (tx.transfers?.length && !BRIDGE_METHODS.includes(tx.method)) {
+    const { ins, outs } = summarize(tx);
+    if (ins.length && outs.length) return { label: "Swap", color: "#7C3AED" };
+    if (diamond && tx.to.toLowerCase() === diamond) return { label: "Route", color: "#6D5EF7" };
+    if (ins.length) return { label: "Receive", color: "#0D9488" };
+    if (outs.length) return { label: "Send", color: "#16A34A" };
+  }
   if (tx.input === "0x" || tx.method === "0x") {
     if (!tx.to || tx.to === "—") return { label: "Deploy", color: "#4B5563" };
     return tx.from.toLowerCase() === me.toLowerCase()
@@ -154,6 +185,26 @@ export function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet", d
   const tokenSymbol = KNOWN_TOKENS[tx.to.toLowerCase()] ?? "tokens";
   const domainNames = network === "mainnet" ? DOMAIN_NAMES_MAINNET : DOMAIN_NAMES;
 
+  // Token movements from the explorer describe what actually happened (swaps, incoming tokens, bridge mints).
+  if (tx.transfers?.length) {
+    const { ins, outs } = summarize(tx);
+    if (tx.method === "0x57ecfd28" && ins.length) return <>Received bridged {formatAmount(ins[0].amount, 4)} <Tok s={ins[0].symbol} /></>;
+    if (!BRIDGE_METHODS.includes(tx.method)) {
+      if (ins.length && outs.length) return <>Swapped {formatAmount(outs[0].amount, 4)} <Tok s={outs[0].symbol} /> for {formatAmount(ins[0].amount, 4)} <Tok s={ins[0].symbol} /></>;
+      if (diamond && tx.to.toLowerCase() === diamond && outs.length) return <>LI.FI route · sent {formatAmount(outs[0].amount, 4)} <Tok s={outs[0].symbol} /></>;
+      if (ins.length) {
+        return compact
+          ? <>Received {formatAmount(ins[0].amount, 4)} <Tok s={ins[0].symbol} /></>
+          : <>Received {formatAmount(ins[0].amount, 4)} <Tok s={ins[0].symbol} /> from <Addr a={ins[0].counterparty} /></>;
+      }
+      if (outs.length) {
+        return compact
+          ? <>Sent {formatAmount(outs[0].amount, 4)} <Tok s={outs[0].symbol} /></>
+          : <>Sent {formatAmount(outs[0].amount, 4)} <Tok s={outs[0].symbol} /> to <Addr a={outs[0].counterparty} /></>;
+      }
+    }
+  }
+
   // Plain native USDC transfer (Arc's gas token): no calldata, just a value.
   if (tx.input === "0x" && tx.to && tx.to !== "—") {
     const amt = nativeValue(tx);
@@ -211,6 +262,11 @@ export function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet", d
 
 // Amount column: signed for real value movements, plain for approvals, dash when it can't be decoded.
 export function amountCell(tx: Tx, me: string): { text: string; tone: "in" | "out" | "neutral" } | null {
+  if (tx.transfers?.length && tx.method !== "0x8e0250ee") {
+    const { ins, outs } = summarize(tx);
+    if (ins.length) return { text: `+${formatAmount(ins[0].amount, 4)} ${ins[0].symbol}`, tone: "in" };
+    if (outs.length) return { text: `−${formatAmount(outs[0].amount, 4)} ${outs[0].symbol}`, tone: "out" };
+  }
   const symbol = KNOWN_TOKENS[tx.to.toLowerCase()] ?? "USDC";
   if (tx.input === "0x" && tx.to && tx.to !== "—") {
     const v = nativeValue(tx);
@@ -242,6 +298,7 @@ export function toTx(tx: any): Tx {
     hash: tx.hash,
     method: tx.methodId ?? "0x",
     age: tx.timeStamp ? timeAgo(Number(tx.timeStamp)) : "—",
+    ts: Number(tx.timeStamp ?? 0),
     from: tx.from ?? "—",
     to: tx.to ?? "—",
     status: tx.txreceipt_status === "1" ? "ok" : tx.txreceipt_status === "0" ? "error" : "pending",
@@ -252,6 +309,10 @@ export function toTx(tx: any): Tx {
 
 // Token this transaction is about, for an "Asset" column (null when it can't be told).
 export function assetOf(tx: Tx): string | null {
+  if (tx.transfers?.length) {
+    const { ins, outs } = summarize(tx);
+    return (ins[0] ?? outs[0])?.symbol ?? null;
+  }
   if (tx.input === "0x" && tx.to && tx.to !== "—") return nativeValue(tx) ? "USDC" : null;
   const sym = KNOWN_TOKENS[tx.to.toLowerCase()];
   return sym ?? null;
@@ -261,6 +322,12 @@ export function assetOf(tx: Tx): string | null {
 export function counterpartOf(tx: Tx, me: string): string {
   const isMe = (a: string) => a.toLowerCase() === me.toLowerCase();
   const nice = (a: string) => contactNameFor(a) ?? shortAddr(a);
+  if (tx.transfers?.length && !BRIDGE_METHODS.includes(tx.method)) {
+    const { ins, outs } = summarize(tx);
+    if (ins.length && outs.length) return tx.to && tx.to !== "—" && !isMe(tx.to) ? `Via ${nice(tx.to)}` : "Swap";
+    if (ins.length) return `From ${nice(ins[0].counterparty)}`;
+    if (outs.length) return `To ${nice(outs[0].counterparty)}`;
+  }
   if (tx.input === "0x" && tx.to && tx.to !== "—") return isMe(tx.from) ? `To ${nice(tx.to)}` : `From ${nice(tx.from)}`;
   if (tx.method === "0x095ea7b3") {
     const w = decodeAddress(tx.input, 0);
@@ -271,4 +338,52 @@ export function counterpartOf(tx: Tx, me: string): string {
     return w ? `To ${nice(w)}` : "—";
   }
   return isMe(tx.from) ? (tx.to && tx.to !== "—" ? `To ${nice(tx.to)}` : "—") : `From ${nice(tx.from)}`;
+}
+
+// The user's activity on Arc: normal transactions merged with token transfers, newest first.
+// A swap done through another app (Relay, for example) is often sent by that app's own address, so it only
+// shows up as tokens leaving and arriving at the user's address, never as a transaction the user sent.
+export async function fetchActivity(address: string, network: "testnet" | "mainnet", limit: number): Promise<Tx[]> {
+  const base = `/api/arcscan-proxy?${network === "mainnet" ? "network=mainnet&" : ""}module=account`;
+  const paging = `sort=desc&page=1&offset=${limit}&limit=${limit}`;
+  const [txRes, tokRes] = await Promise.all([
+    fetch(`${base}&action=txlist&address=${address}&${paging}`),
+    fetch(`${base}&action=tokentx&address=${address}&${paging}`).catch(() => null),
+  ]);
+  if (!txRes.ok) throw new Error(`Arcscan returned ${txRes.status}`);
+  const txData = await txRes.json();
+  const rawTx: any[] = Array.isArray(txData.result) ? txData.result : [];
+
+  let rawTok: any[] = [];
+  try {
+    if (tokRes && tokRes.ok) {
+      const d = await tokRes.json();
+      if (Array.isArray(d.result)) rawTok = d.result;
+    }
+  } catch { /* token transfers are an extra; the page still works without them */ }
+
+  const me = address.toLowerCase();
+  const items = new Map<string, Tx>();
+  for (const raw of rawTx) items.set(raw.hash, toTx(raw));
+
+  for (const t of rawTok) {
+    const from = String(t.from ?? "").toLowerCase();
+    const to = String(t.to ?? "").toLowerCase();
+    if (from !== me && to !== me) continue;
+    let amount: number;
+    try { amount = Number(BigInt(t.value)) / 10 ** Number(t.tokenDecimal ?? 18); } catch { continue; }
+    const dir: "in" | "out" = to === me ? "in" : "out";
+    const transfer: Transfer = { symbol: t.tokenSymbol || "TOKEN", amount, dir, counterparty: dir === "in" ? t.from : t.to };
+    let tx = items.get(t.hash);
+    if (!tx) {
+      tx = {
+        hash: t.hash, method: "0x", age: t.timeStamp ? timeAgo(Number(t.timeStamp)) : "—", ts: Number(t.timeStamp ?? 0),
+        from: t.from ?? "—", to: t.to ?? "—", status: "ok", input: "0x", value: "0",
+      };
+      items.set(t.hash, tx);
+    }
+    tx.transfers = [...(tx.transfers ?? []), transfer];
+  }
+
+  return [...items.values()].sort((a, b) => b.ts - a.ts).slice(0, limit);
 }
