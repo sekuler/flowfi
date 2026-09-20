@@ -7,6 +7,7 @@ import {
 } from "viem/chains";
 import { Check, ArrowRight, ArrowLeft, ChevronDown, X } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
+import { USDC_LOGO } from "./tokenLogos";
 
 // Native Circle CCTP V2 bridge into Arc Mainnet -- burn on the source
 // chain, Circle's Iris attestation service signs it, mint native USDC on
@@ -139,19 +140,43 @@ function ChainLogo({ chain, size }: { chain: SourceChain; size: number }) {
   );
 }
 
-// Arc logo: drop a file named arc-logo.png into /public. If it's missing the
-// gradient letter badge below is shown instead, so nothing breaks.
+// Arc's logo comes from LI.FI's public chain list (the app already talks to li.quest), looked up once and cached.
+// If that lookup fails, a gradient badge is shown instead, so nothing breaks.
+let arcLogoPromise: Promise<string | null> | null = null;
+function loadArcLogo(): Promise<string | null> {
+  if (!arcLogoPromise) {
+    arcLogoPromise = fetch("https://li.quest/v1/chains?chainTypes=EVM")
+      .then((r) => r.json())
+      .then((d) => {
+        const c = (d?.chains ?? []).find((x: { id?: number; logoURI?: string }) => x.id === arcMainnet.id);
+        return (c?.logoURI as string | undefined) ?? null;
+      })
+      .catch(() => null);
+  }
+  return arcLogoPromise;
+}
+
 function ArcLogo({ size }: { size: number }) {
+  const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  if (failed) {
+  useEffect(() => {
+    let cancelled = false;
+    loadArcLogo().then((u) => { if (!cancelled) setSrc(u); });
+    return () => { cancelled = true; };
+  }, []);
+  if (!src || failed) {
     return (
       <span style={{ width: size, height: size, borderRadius: "50%", background: "linear-gradient(135deg,#4F46E5,#7C3AED)", color: "#fff", fontSize: size * 0.42, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>A</span>
     );
   }
   return (
-    <img src="/arc-logo.png" alt="Arc" width={size} height={size} onError={() => setFailed(true)}
+    <img src={src} alt="Arc" width={size} height={size} onError={() => setFailed(true)}
       style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, background: "#fff" }} />
   );
+}
+
+function UsdcLogo({ size }: { size: number }) {
+  return <img src={USDC_LOGO} alt="USDC" width={size} height={size} style={{ width: size, height: size, borderRadius: "50%", flexShrink: 0 }} />;
 }
 
 type Step = "idle" | "approving" | "burning" | "waiting-attestation" | "minting" | "done" | "error";
@@ -476,7 +501,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", background: "#ffffff", border: "1px solid rgba(212,201,250,0.7)", borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28), 0 2px 6px rgba(17,24,39,0.04)" }}>
-      <style>{`@keyframes ffspin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes ffspin { to { transform: rotate(360deg); } } .ff-amount, .ff-amount:focus, .ff-amount:focus-visible { outline: none !important; box-shadow: none !important; border: none !important; background: transparent !important; } .ff-amount::placeholder { color: #C4C0DC; }`}</style>
 
       {view === "form" && (
         <>
@@ -513,11 +538,11 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
               )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <input type="text" inputMode="decimal" value={amount} placeholder="0.00"
+              <input className="ff-amount" type="text" inputMode="decimal" value={amount} placeholder="0.00"
                 onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setAmount(e.target.value); }}
                 style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 30, fontWeight: 700, color: "#111827", padding: 0 }} />
               <span style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", borderRadius: 999, padding: "5px 12px 5px 6px", fontSize: 13, fontWeight: 700, color: "#111827", boxShadow: "0 1px 3px rgba(17,24,39,0.06)" }}>
-                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#2775CA", color: "#fff", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>$</span>
+                <UsdcLogo size={24} />
                 USDC
               </span>
             </div>
