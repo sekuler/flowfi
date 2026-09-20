@@ -87,6 +87,10 @@ export default function TxHistory({ address, network = "testnet" }: Props) {
         .ff-tx-row:hover { background: rgba(109,94,247,0.06); }
         .ff-icon-btn { transition: all 0.15s; }
         .ff-icon-btn:hover { background: #EDE9FE; border-color: #C9BDFB; }
+        .ff-tx-scroll { scrollbar-width: thin; scrollbar-color: #D4C9FA transparent; }
+        .ff-tx-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .ff-tx-scroll::-webkit-scrollbar-thumb { background: #D4C9FA; border-radius: 8px; }
+        .ff-tx-scroll::-webkit-scrollbar-track { background: transparent; }
       `}</style>
 
       {!isMainnet && circleWallet && (
@@ -163,7 +167,7 @@ export default function TxHistory({ address, network = "testnet" }: Props) {
 
       {!loading && filteredTxs.length > 0 && (
         <div style={{ ...card, overflow: "hidden" }}>
-          <div style={{ overflow: "auto", maxHeight: "70vh" }}>
+          <div className="ff-tx-scroll" style={{ overflow: "auto", maxHeight: "70vh" }}>
             <div style={{ minWidth: 720 }}>
               <div style={{ position: "sticky", top: 0, zIndex: 2, display: "grid", gridTemplateColumns: GRID, gap: 10, padding: "0.75rem 1.1rem", background: "#F8F7FF", borderBottom: "1px solid #E4DDFB", fontSize: 10.5, color: "#6B7280", fontWeight: 700, letterSpacing: "0.6px" }}>
                 <span>TYPE</span>
