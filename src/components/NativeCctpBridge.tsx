@@ -1,7 +1,10 @@
 import { useState, useMemo } from "react";
 import { createWalletClient, createPublicClient, custom, http, encodeFunctionData, parseUnits } from "viem";
 import type { EIP1193Provider, Chain } from "viem";
-import { mainnet, base, arbitrum, optimism, polygon, avalanche } from "viem/chains";
+import {
+  mainnet, base, arbitrum, optimism, polygon, avalanche,
+  unichain, linea, sonic, worldchain, monad, sei, xdc, hyperEvm, ink, plume, morph, codex,
+} from "viem/chains";
 import { Zap, CheckCircle2, Sparkles } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 
@@ -28,7 +31,18 @@ import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../ch
 // deployed at the same address across every CCTP V2-supported EVM chain
 // via a consistent CREATE2 factory (standard Circle deployment pattern) --
 // confirmed for Arc specifically via Arc's own docs (docs.arc.io). Domain
-// IDs are Circle's own stable, documented CCTP domain numbering.
+// IDs cross-checked 2026-09-20 against Circle's own official domain table
+// (developers.circle.com/cctp/concepts/supported-chains-and-domains) --
+// every domain number below matches that source exactly. Chain IDs and
+// RPC endpoints come from viem's own built-in chain registry (not
+// hand-typed), so wallet_switchEthereumChain/wallet_addEthereumChain get
+// real, working values. Two exclusions from an earlier candidate list:
+// EDGE (its CCTP MessageTransmitterV2 address isn't independently
+// confirmed anywhere yet -- can't safely build the mint step without it)
+// and Pharos (no chain ID/RPC available in viem's registry to switch a
+// wallet to it). Note: Plume's chain ID here is 98865 per viem's
+// registry, not 98866 -- flagged as a discrepancy against an earlier
+// candidate list, viem's independently-maintained registry trusted here.
 const CCTP_TOKEN_MESSENGER_V2 = "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d" as const;
 const CCTP_MESSAGE_TRANSMITTER_V2 = "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64" as const;
 const ARC_DOMAIN = 26;
@@ -40,20 +54,39 @@ interface SourceChain {
   chain: Chain;
   domain: number;
   usdc: `0x${string}`;
+  fastTransfer: boolean;
+  logo: string; // DefiLlama's public chain-icon CDN; falls back to a letter badge on load failure
 }
 
+const LLAMA_ICON = (key: string) => `https://icons.llamao.fi/icons/chains/rsz_${key}.jpg`;
+
 export const SOURCE_CHAINS: SourceChain[] = [
-  { key: "ethereum", name: "Ethereum", chain: mainnet, domain: 0, usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
-  { key: "avalanche", name: "Avalanche", chain: avalanche, domain: 1, usdc: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E" },
-  { key: "optimism", name: "Optimism", chain: optimism, domain: 2, usdc: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85" },
-  { key: "arbitrum", name: "Arbitrum", chain: arbitrum, domain: 3, usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" },
-  { key: "base", name: "Base", chain: base, domain: 6, usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
-  { key: "polygon", name: "Polygon", chain: polygon, domain: 7, usdc: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" },
+  { key: "ethereum", name: "Ethereum", chain: mainnet, domain: 0, usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", fastTransfer: true, logo: LLAMA_ICON("ethereum") },
+  { key: "avalanche", name: "Avalanche", chain: avalanche, domain: 1, usdc: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", fastTransfer: false, logo: LLAMA_ICON("avalanche") },
+  { key: "optimism", name: "Optimism", chain: optimism, domain: 2, usdc: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85", fastTransfer: true, logo: LLAMA_ICON("optimism") },
+  { key: "arbitrum", name: "Arbitrum", chain: arbitrum, domain: 3, usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", fastTransfer: true, logo: LLAMA_ICON("arbitrum") },
+  { key: "base", name: "Base", chain: base, domain: 6, usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", fastTransfer: true, logo: LLAMA_ICON("base") },
+  { key: "polygon", name: "Polygon", chain: polygon, domain: 7, usdc: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", fastTransfer: false, logo: LLAMA_ICON("polygon") },
+  { key: "unichain", name: "Unichain", chain: unichain, domain: 10, usdc: "0x078D782b760474a361dDA0AF3839290b0EF57AD6", fastTransfer: true, logo: LLAMA_ICON("unichain") },
+  { key: "linea", name: "Linea", chain: linea, domain: 11, usdc: "0x176211869cA2b568f2A7D4EE941E073a821EE1ff", fastTransfer: true, logo: LLAMA_ICON("linea") },
+  { key: "codex", name: "Codex", chain: codex, domain: 12, usdc: "0xd996633a415985DBd7D6D12f4A4343E31f5037cf", fastTransfer: true, logo: LLAMA_ICON("codex") },
+  { key: "sonic", name: "Sonic", chain: sonic, domain: 13, usdc: "0x29219dd400f2Bf60E5a23d13Be72B486D4038894", fastTransfer: false, logo: LLAMA_ICON("sonic") },
+  { key: "worldchain", name: "World Chain", chain: worldchain, domain: 14, usdc: "0x79A02482A880bCe3F13E09da970dC34dB4cD24D1", fastTransfer: true, logo: LLAMA_ICON("world-chain") },
+  { key: "monad", name: "Monad", chain: monad, domain: 15, usdc: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603", fastTransfer: false, logo: LLAMA_ICON("monad") },
+  { key: "sei", name: "Sei", chain: sei, domain: 16, usdc: "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392", fastTransfer: false, logo: LLAMA_ICON("sei") },
+  { key: "xdc", name: "XDC", chain: xdc, domain: 18, usdc: "0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1", fastTransfer: false, logo: LLAMA_ICON("xdc") },
+  { key: "hyperevm", name: "HyperEVM", chain: hyperEvm, domain: 19, usdc: "0xb88339CB7199b77E23DB6E890353E22632Ba630f", fastTransfer: false, logo: LLAMA_ICON("hyperliquid") },
+  { key: "ink", name: "Ink", chain: ink, domain: 21, usdc: "0x2D270e6886d130D724215A266106e6832161EAEd", fastTransfer: true, logo: LLAMA_ICON("ink") },
+  { key: "plume", name: "Plume", chain: plume, domain: 22, usdc: "0x222365EF19F7947e5484218551B56bb3965Aa7aF", fastTransfer: true, logo: LLAMA_ICON("plume") },
+  { key: "morph", name: "Morph", chain: morph, domain: 30, usdc: "0xCfb1186F4e93D60E60a8bDd997427D1F33bc372B", fastTransfer: true, logo: LLAMA_ICON("morph") },
 ];
 
 const CHAIN_COLORS: Record<string, string> = {
   ethereum: "#627EEA", avalanche: "#E84142", optimism: "#FF0420",
   arbitrum: "#28A0F0", base: "#0052FF", polygon: "#8247E5",
+  unichain: "#FF37C7", linea: "#61DFFF", codex: "#6D5EF7", sonic: "#FE9A4D",
+  worldchain: "#111827", monad: "#8B5CF6", sei: "#8B1BFF", xdc: "#F9A825",
+  hyperevm: "#00D4AA", ink: "#7132F5", plume: "#FF6B4A", morph: "#5FC8FF",
 };
 
 const ERC20_APPROVE_ABI = [{ type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] }] as const;
@@ -78,6 +111,26 @@ const RECEIVE_MESSAGE_ABI = [{
 
 function addressToBytes32(addr: string): `0x${string}` {
   return `0x${"0".repeat(24)}${addr.slice(2).toLowerCase()}` as `0x${string}`;
+}
+
+// Real chain logo via DefiLlama's public icon CDN, falling back to a
+// colored letter badge if that specific chain's icon isn't on their CDN
+// (some very new chains, e.g. Monad, World Chain, may not have one yet) --
+// purely cosmetic, so a 404 just degrades gracefully rather than breaking
+// anything.
+function ChainLogo({ chain, size }: { chain: SourceChain; size: number }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span style={{ width: size, height: size, borderRadius: "50%", background: CHAIN_COLORS[chain.key] ?? "#6D5EF7", color: "#fff", fontSize: size * 0.42, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        {chain.name.slice(0, 1)}
+      </span>
+    );
+  }
+  return (
+    <img src={chain.logo} alt={chain.name} width={size} height={size} onError={() => setFailed(true)}
+      style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, background: "#fff" }} />
+  );
 }
 
 type Step = "idle" | "approving" | "burning" | "waiting-attestation" | "minting" | "done" | "error";
@@ -128,7 +181,25 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       const currentChainId = await provider.request({ method: "eth_chainId" });
       const wantedHex = `0x${source.chain.id.toString(16)}`;
       if ((currentChainId as string).toLowerCase() !== wantedHex.toLowerCase()) {
-        await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: wantedHex }] });
+        try {
+          await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: wantedHex }] });
+        } catch (e: unknown) {
+          const err = e as { code?: number };
+          if (err.code === 4902) {
+            await provider.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: wantedHex,
+                chainName: source.chain.name,
+                nativeCurrency: source.chain.nativeCurrency,
+                rpcUrls: [source.chain.rpcUrls.default.http[0]],
+                blockExplorerUrls: source.chain.blockExplorers?.default?.url ? [source.chain.blockExplorers.default.url] : [],
+              }],
+            });
+          } else {
+            throw e;
+          }
+        }
       }
 
       const amountRaw = parseUnits(amount.trim(), USDC_ERC20_DECIMALS);
@@ -228,24 +299,25 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
         <div style={{ position: "relative" }}>
           <label style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>From</label>
           <button type="button" onClick={() => !busy && setChainMenuOpen((o) => !o)} disabled={busy}
-            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.65rem 0.9rem", borderRadius: 12, border: "1px solid #E5E7EB", fontSize: 14, marginTop: 4, background: "#F5F3FF", cursor: busy ? "not-allowed" : "pointer" }}>
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 0.9rem", borderRadius: 12, border: "1px solid #E5E7EB", fontSize: 14, marginTop: 4, background: "#F5F3FF", cursor: busy ? "not-allowed" : "pointer" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ width: 26, height: 26, borderRadius: "50%", background: CHAIN_COLORS[source.key], color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {source.name.slice(0, 1)}
-              </span>
+              <ChainLogo chain={source} size={28} />
               <span style={{ fontWeight: 700, color: "#111827" }}>{source.name}</span>
             </span>
             <span style={{ color: "#9CA3AF" }}>{chainMenuOpen ? "▲" : "▼"}</span>
           </button>
           {chainMenuOpen && (
-            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12, boxShadow: "0 8px 24px rgba(17,24,39,0.1)", zIndex: 10, overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, boxShadow: "0 12px 32px rgba(17,24,39,0.12)", zIndex: 10, overflow: "hidden", maxHeight: 340, overflowY: "auto" }}>
               {SOURCE_CHAINS.map((c, i) => (
                 <button key={c.key} type="button" onClick={() => { setSourceIdx(i); setChainMenuOpen(false); }}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "0.65rem 0.9rem", border: "none", background: i === sourceIdx ? "#F5F3FF" : "#fff", cursor: "pointer", textAlign: "left" }}>
-                  <span style={{ width: 24, height: 24, borderRadius: "50%", background: CHAIN_COLORS[c.key], color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {c.name.slice(0, 1)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "0.7rem 0.9rem", border: "none", borderBottom: "1px solid #F5F3FF", background: i === sourceIdx ? "#F5F3FF" : "#fff", cursor: "pointer", textAlign: "left" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <ChainLogo chain={c} size={26} />
+                    <span style={{ fontSize: 13.5, color: "#111827", fontWeight: i === sourceIdx ? 700 : 500 }}>{c.name}</span>
                   </span>
-                  <span style={{ fontSize: 13.5, color: "#111827", fontWeight: i === sourceIdx ? 700 : 500 }}>{c.name}</span>
+                  {c.fastTransfer && (
+                    <span style={{ fontSize: 9, fontWeight: 700, color: "#16A34A", background: "rgba(34,197,94,0.1)", padding: "2px 7px", borderRadius: 999 }}>FAST</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -267,7 +339,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
         {step !== "idle" && (
           <div style={{ background: "#EDE9FE", borderRadius: 12, padding: "0.75rem 1rem", fontSize: 12.5, color: "#6D5EF7", fontWeight: 600 }}>
             {stepLabel}
-            {burnTxHash && <div style={{ marginTop: 4 }}><a href={`${source.name === "Ethereum" ? "https://etherscan.io" : "#"}/tx/${burnTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#6D5EF7" }}>Burn tx ↗</a></div>}
+            {burnTxHash && <div style={{ marginTop: 4 }}><a href={`${source.chain.blockExplorers?.default?.url ?? "#"}/tx/${burnTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#6D5EF7" }}>Burn tx ↗</a></div>}
             {mintTxHash && <div style={{ marginTop: 2 }}><a href={`https://arc.etherscan.io/tx/${mintTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#6D5EF7" }}>Mint tx ↗</a></div>}
           </div>
         )}
