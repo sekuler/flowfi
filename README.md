@@ -90,6 +90,14 @@ One more deployed and verified contract, Escrow v4, isn't in the table above bec
 
 Every claim above is checkable on-chain. Rather than asking anyone to take our word for it, here are real transaction hashes from live demo runs — click through to the relevant explorer to see them settle.
 
+**Mainnet — Native USDC bridge via Circle CCTP V2 (Base → Arc), 1 USDC, 21 Sep 2026**
+| Step | Tx hash |
+|---|---|
+| Source burn (Base) | [`0x4432dba5df285033b804b26baa583d6bee874ceca209e73b700b8fe53d96a70a`](https://basescan.org/tx/0x4432dba5df285033b804b26baa583d6bee874ceca209e73b700b8fe53d96a70a) |
+| Destination mint (Arc) | [`0xf5cf3b1847b5dc8899ae6855a48ff86dfd1031c09343e4d91cee5614e4bef449`](https://arc.etherscan.io/tx/0xf5cf3b1847b5dc8899ae6855a48ff86dfd1031c09343e4d91cee5614e4bef449) |
+
+Standard transfer (Circle destination domain 26). The burn and the mint are about 25 minutes apart.
+
 **Demo 1 — Cross-chain bridge, Testnet (Ethereum Sepolia → Arc)**
 | Step | Tx hash |
 |---|---|
