@@ -393,6 +393,15 @@ function AppInner() {
     }
   }, [wallet, circlePrimary, circleWalletInfo]);
 
+  // Refresh mainnet balances when landing on Home/Dashboard and every 30s while there,
+  // so a swap or bridge made elsewhere shows up without a page reload.
+  useEffect(() => {
+    if (!wallet || (tab !== "home" && tab !== "dashboardmainnet")) return;
+    loadMainnetBalances(wallet.address);
+    const id = setInterval(() => loadMainnetBalances(wallet.address), 30000);
+    return () => clearInterval(id);
+  }, [wallet, tab]);
+
   function copyAddress() {
     if (!wallet) return;
     navigator.clipboard.writeText(wallet.address);
