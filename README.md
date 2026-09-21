@@ -237,7 +237,6 @@ cp .env.example .env
 # CIRCLE_API_KEY=          (Testnet-scoped — Circle Wallet stays on Testnet, see "Why Circle Wallet stays on Testnet" above)
 # CIRCLE_ENTITY_SECRET=
 # VITE_LIFI_API_KEY=       (client-exposed by design, like a publishable key — powers Mainnet Bridge/Swap)
-# RELAY_API_KEY=           (server-side only — used via api/relay-proxy)
 # ETHERSCAN_API_KEY=       (server-side only — powers Mainnet Home/Dashboard/History activity and token-transfer reads via arc.etherscan.io)
 # DROPSTAB_API_KEY=        (optional — live token unlock data; falls back to the manual list without it)
 # ARC_RPC_URL=             (optional — a keyed RPC provider for Arc Testnet; falls back to the public RPC)
