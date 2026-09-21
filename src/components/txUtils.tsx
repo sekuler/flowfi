@@ -45,7 +45,15 @@ const KNOWN_TOKENS: Record<string, string> = {
   [EURC_ADDRESS.toLowerCase()]: "EURC",
   "0x3600000000000000000000000000000000000000": "USDC", // Arc Mainnet USDC
   "0xbef5f6d51cb62b58e6a8f77868681825c6fe21c1": "EURC", // Arc Mainnet EURC
+  "0x8a5d989bbb96929f689b0200f435f53da42bf490": "USYC", // Arc Mainnet USYC
+  "0x171a4217b86a807a64eb94757db6849fb4bdbaa0": "cirBTC", // Arc Mainnet cirBTC
 };
+
+// Token decimals (default 6). cirBTC uses 8, so its amounts must be decoded differently.
+const TOKEN_DECIMALS: Record<string, number> = {
+  "0x171a4217b86a807a64eb94757db6849fb4bdbaa0": 8,
+};
+const decimalsOf = (addr: string) => TOKEN_DECIMALS[addr.toLowerCase()] ?? 6;
 
 const METHOD_META: Record<string, { label: string; color: string }> = {
   "0xa9059cbb": { label: "Send", color: "#16A34A" },
@@ -220,14 +228,14 @@ export function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet", d
 
   switch (tx.method) {
     case "0xa9059cbb": { // transfer(address,uint256)
-      const amount = decodeUint(tx.input, 1);
+      const amount = decodeUint(tx.input, 1, decimalsOf(tx.to));
       const recipient = decodeAddress(tx.input, 0);
       if (amount === null || !recipient) return <>Sent <Tok s={tokenSymbol} /></>;
       if (compact) return <>Sent {formatAmount(amount)} <Tok s={tokenSymbol} /></>;
       return <>Sent {formatAmount(amount)} <Tok s={tokenSymbol} /> to <Addr a={recipient} /></>;
     }
     case "0x095ea7b3": { // approve(address,uint256)
-      const amount = decodeUint(tx.input, 1);
+      const amount = decodeUint(tx.input, 1, decimalsOf(tx.to));
       const spender = decodeAddress(tx.input, 0);
       const amtText = amount === null ? "" : `${formatAmount(amount)} `;
       if (compact) return <>Approved {amtText}<Tok s={tokenSymbol} /> spend</>;
@@ -275,11 +283,11 @@ export function amountCell(tx: Tx, me: string): { text: string; tone: "in" | "ou
     return { text: `${incoming ? "+" : "−"}${formatAmount(v, 4)} USDC`, tone: incoming ? "in" : "out" };
   }
   if (tx.method === "0xa9059cbb") {
-    const a = decodeUint(tx.input, 1);
+    const a = decodeUint(tx.input, 1, decimalsOf(tx.to));
     return a === null ? null : { text: `−${formatAmount(a)} ${symbol}`, tone: "out" };
   }
   if (tx.method === "0x095ea7b3") {
-    const a = decodeUint(tx.input, 1);
+    const a = decodeUint(tx.input, 1, decimalsOf(tx.to));
     return a === null ? null : { text: `${formatAmount(a)} ${symbol}`, tone: "neutral" };
   }
   if (tx.method === "0x74b30078" || tx.method === "0x9cd441da" || tx.method === "0x8e0250ee") {
