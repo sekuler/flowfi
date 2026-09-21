@@ -107,6 +107,9 @@ export default function MainnetBridge({ address, provider }: { address?: string;
         </div>
 
         <>
+          <div style={{ maxWidth: 480, margin: "0 auto 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 14, padding: "8px 12px", fontSize: 11.5, color: "#92400E", lineHeight: 1.5, textAlign: "center" }}>
+            Arc mainnet is new. Some routes, especially out of Arc, may be limited or unavailable.
+          </div>
           {mode === "cctp" && address && <NativeCctpBridge address={address} provider={provider} />}
           {mode === "cctp" && !address && (
             <div style={{ maxWidth: 480, margin: "0 auto", background: "#fff", border: "1px solid #D4C9FA", borderRadius: 24, padding: "2rem", textAlign: "center", color: "#6B7280", fontSize: 13 }}>
