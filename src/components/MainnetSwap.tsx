@@ -28,6 +28,9 @@ const lifiWidgetConfig: WidgetConfig = {
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_EURC,
   routePriority: "FASTEST",
+  sdkConfig: {
+    rpcUrls: { 5042: ["https://rpc.mainnet.arc.io"] },
+  },
   variant: "wide",
   chains: {
     types: { allow: [ChainType.EVM] },
