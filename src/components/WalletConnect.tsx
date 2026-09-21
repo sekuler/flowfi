@@ -47,7 +47,7 @@ async function getWcProvider() {
       return EthereumProvider.init({
         projectId: WALLETCONNECT_PROJECT_ID,
         showQrModal: true,
-        optionalChains: [5042002, 1, 8453, 42161, 11155111],
+        optionalChains: [5042, 5042002, 1, 8453, 42161, 11155111],
         // Arc's real RPC has no CORS headers, so route reads through our own proxy (full URL required).
         rpcMap: { "5042002": `${window.location.origin}/api/rpc-proxy` },
         qrModalOptions: { themeVariables: { "--wcm-z-index": "9999" } },
