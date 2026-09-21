@@ -25,9 +25,9 @@ import { USDC_LOGO, ARC_LOGO } from "./tokenLogos";
 // minFinalityThreshold -- confirmed against Circle's own CCTP V2 message
 // format docs and a real integration writeup for Arc specifically
 // (circlefin/arc-node#110, #127). Arc-bound burns must use
-// minFinalityThreshold 2000: Arc doesn't support Fast Transfer (1000) as
-// a source, only the Standard/finalized tier -- using 1000 risks the
-// burn being rejected by Iris.
+// minFinalityThreshold is 1000 (Fast) when Circle's fee API lists a Fast fee for
+// the source chain, otherwise 2000 (Standard). Arc's "Fast N/A" in Circle's table
+// applies to Arc as a SOURCE (burns leaving Arc); this bridge only sends into Arc.
 //
 // Contract addresses: TokenMessengerV2 and MessageTransmitterV2 are
 // deployed at the same address across every CCTP V2-supported EVM chain
@@ -82,6 +82,11 @@ export const SOURCE_CHAINS: SourceChain[] = [
   { key: "plume", name: "Plume", chain: plume, domain: 22, usdc: "0x222365EF19F7947e5484218551B56bb3965Aa7aF", fastTransfer: true, logo: LLAMA_ICON("plume") },
   { key: "morph", name: "Morph", chain: morph, domain: 30, usdc: "0xCfb1186F4e93D60E60a8bDd997427D1F33bc372B", fastTransfer: true, logo: LLAMA_ICON("morph") },
 ];
+
+// Fast Transfer: when Circle's fee API lists a Fast (1000) fee for the source chain, use it by default.
+// Set PREFER_FAST to false to go back to Standard-only.
+const PREFER_FAST = true;
+const FAST_WAIT_LABEL = "10–20 sec";
 
 // Average time for Circle to attest a Standard Transfer once the burn is sent, per source chain, from Circle's
 // "Finality and block confirmations" page. It is an average, not a guarantee, and the final mint on Arc is a separate
@@ -197,13 +202,16 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [balances, setBalances] = useState<Record<string, string | null>>({});
-  const [feeBps, setFeeBps] = useState<number | null>(null);
+  const [stdFeeBps, setFeeBps] = useState<number | null>(null);
+  const [fastFeeBps, setFastFeeBps] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
   const [burnSourceIdx, setBurnSourceIdx] = useState<number | null>(null);
 
   const source = SOURCE_CHAINS[sourceIdx];
+  const useFast = PREFER_FAST && fastFeeBps !== null;
+  const feeBps = useFast ? fastFeeBps : stdFeeBps;
   const burnSource = SOURCE_CHAINS[burnSourceIdx ?? sourceIdx];
 
   function savePending(hash: string, idx: number, amt: string) {
@@ -262,12 +270,16 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   useEffect(() => {
     let cancelled = false;
     setFeeBps(null);
+    setFastFeeBps(null);
     fetch(`${IRIS_API}/v2/burn/USDC/fees/${source.domain}/${ARC_DOMAIN}`)
       .then((r) => r.json())
       .then((data) => {
         const std = Array.isArray(data) ? data.find((d: { finalityThreshold?: number }) => d.finalityThreshold === 2000) : null;
         const v = Number(std?.minimumFee);
         if (!cancelled && std && Number.isFinite(v)) setFeeBps(v);
+        const fast = Array.isArray(data) ? data.find((d: { finalityThreshold?: number }) => d.finalityThreshold === 1000) : null;
+        const fv = Number(fast?.minimumFee);
+        if (!cancelled && fast && Number.isFinite(fv)) setFastFeeBps(fv);
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -277,7 +289,8 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     try {
       const res = await fetch(`${IRIS_API}/v2/burn/USDC/fees/${source.domain}/${ARC_DOMAIN}`);
       const data = await res.json();
-      const bps = Number(data?.[0]?.minimumFee ?? 100); // fallback: 1% (100 bps) if the API shape changes
+      const fastEntry = useFast && Array.isArray(data) ? data.find((d: { finalityThreshold?: number }) => d.finalityThreshold === 1000) : null;
+      const bps = Number((fastEntry ?? data?.[0])?.minimumFee ?? 100); // fallback: 1% (100 bps) if the API shape changes
       const fee = (amountRaw * BigInt(Math.ceil(bps * 1.2))) / 10000n; // +20% buffer per Circle's own guidance
       return fee > 0n ? fee : 1n;
     } catch {
@@ -357,7 +370,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
           data: encodeFunctionData({
             abi: DEPOSIT_FOR_BURN_ABI,
             functionName: "depositForBurn",
-            args: [amountRaw, ARC_DOMAIN, mintRecipient, source.usdc, `0x${"0".repeat(64)}`, maxFee, 2000],
+            args: [amountRaw, ARC_DOMAIN, mintRecipient, source.usdc, `0x${"0".repeat(64)}`, maxFee, useFast ? 1000 : 2000],
           }),
         });
         setBurnTxHash(burnHash);
@@ -414,7 +427,8 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     }
   }
 
-  const wait = STANDARD_WAIT[burnSource.key] ?? { label: "a few minutes", maxMin: 30 };
+  const stdWait = STANDARD_WAIT[burnSource.key] ?? { label: "a few minutes", maxMin: 30 };
+  const wait = useFast ? { ...stdWait, label: FAST_WAIT_LABEL } : stdWait;
   const stepLabel = useMemo(() => ({
     idle: "", approving: "Approving USDC...", burning: "Sending from source chain...",
     "waiting-attestation": `Waiting for Circle to confirm (about ${wait.label} on ${burnSource.name})...`,
@@ -477,7 +491,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
   const formRows: { k: string; v: string; good?: boolean }[] = [
     { k: "Route", v: "Circle CCTP V2" },
-    { k: "Speed", v: "Standard" },
+    { k: "Speed", v: useFast ? "Fast" : "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
     { k: "Est. wait", v: `~${wait.label}` },
     { k: "You receive", v: receive !== null ? `≈ ${fmt(receive, 6)} USDC` : "—" },
@@ -486,7 +500,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const reviewRows: { k: string; v: string; good?: boolean }[] = [
     { k: "Recipient", v: `${shortAddr} on Arc` },
     { k: "Route", v: "Circle CCTP V2" },
-    { k: "Speed", v: "Standard" },
+    { k: "Speed", v: useFast ? "Fast" : "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
     { k: "Est. wait", v: `~${wait.label}` },
     { k: "Signatures", v: `2 on ${source.name}, 1 on Arc` },
@@ -518,7 +532,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const summaryRows: { k: string; v: string; good?: boolean; badge?: string }[] = [
     { k: "Recipient", v: `${shortAddr} on Arc` },
     { k: "Route", v: "Circle CCTP V2", badge: "OFFICIAL" },
-    { k: "Speed", v: "Standard" },
+    { k: "Speed", v: useFast ? "Fast" : "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
     { k: "Est. wait", v: `~${wait.label}` },
     { k: "Signatures", v: `2 on ${source.name}, 1 on Arc` },
@@ -642,7 +656,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
           {step === "idle" && (
             <div style={{ marginTop: 10, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 14, padding: "10px 12px", fontSize: 11.5, color: "#92400E", lineHeight: 1.55 }}>
-              Standard transfers wait for {source.name} to finalize before Circle confirms (about {wait.label} on average), so this isn't instant. Keep this tab open until it finishes. If you close it, you can resume later from here.
+              {useFast ? `Fast transfer: Circle usually confirms within ${wait.label}, for a small Circle fee.` : `Standard transfers wait for ${source.name} to finalize before Circle confirms (about ${wait.label} on average), so this isn't instant.`} Keep this tab open until it finishes. If you close it, you can resume later from here.
             </div>
           )}
         </>
