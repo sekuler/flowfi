@@ -135,6 +135,12 @@ const RECEIVE_MESSAGE_ABI = [{
   outputs: [{ type: "bool" }],
 }] as const;
 
+const USED_NONCES_ABI = [{
+  type: "function", name: "usedNonces", stateMutability: "view",
+  inputs: [{ name: "nonce", type: "bytes32" }],
+  outputs: [{ type: "uint256" }],
+}] as const;
+
 const ERC20_BALANCE_ABI = [{
   type: "function", name: "balanceOf", stateMutability: "view",
   inputs: [{ name: "account", type: "address" }],
@@ -383,6 +389,13 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
           }
         }
       }
+
+      // If this message was already minted (e.g. Resume after a successful mint), don't send another tx.
+      try {
+        const nonce = `0x${(message as string).slice(26, 90)}` as `0x${string}`;
+        const used = await arcPublicClient.readContract({ address: CCTP_MESSAGE_TRANSMITTER_V2, abi: USED_NONCES_ABI, functionName: "usedNonces", args: [nonce] });
+        if (Number(used) > 0) { clearPending(); setStep("done"); return; }
+      } catch { /* check failed, continue with the normal mint */ }
 
       setStep("minting");
       const mintHash = await arcWalletClient.sendTransaction({
