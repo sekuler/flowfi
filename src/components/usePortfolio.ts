@@ -80,7 +80,7 @@ export function usePortfolio(address: string, balances: MainnetBalances) {
     { label: "EURC", value: eurcVal, color: "#22C55E", amount: balances.eurc ?? "0" },
     { label: "USYC", value: usycVal, color: "#F59E0B", amount: balances.usyc ?? "0" },
     { label: "cirBTC", value: cirbtcVal, color: "#C2410C", amount: balances.cirbtc ?? "0" },
-  ].filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
+  ].filter((d) => d.value > 0 || d.label === "cirBTC").sort((a, b) => b.value - a.value); // cirBTC is always listed, even at 0
   const top = distribution[0];
   const topPct = top && total > 0 ? (top.value / total) * 100 : 0;
 
@@ -90,7 +90,7 @@ export function usePortfolio(address: string, balances: MainnetBalances) {
     { label: "EURC", amount: balances.eurc ?? "0", n: eurcAmt, value: (prices.eur !== null ? eurcVal : null) as number | null, color: "#22C55E" },
     { label: "USYC", amount: balances.usyc ?? "0", n: usycAmt, value: (prices.usyc !== null ? usycVal : null) as number | null, color: "#F59E0B" },
     { label: "cirBTC", amount: balances.cirbtc ?? "0", n: cirbtcAmt, value: (prices.btc !== null ? cirbtcVal : null) as number | null, color: "#C2410C" },
-  ].filter((h) => h.n > 0).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  ].filter((h) => h.n > 0 || h.label === "cirBTC").sort((a, b) => (b.value ?? 0) - (a.value ?? 0)); // cirBTC is always listed, even at 0
 
   return { total, cirbtcAmt, eurcAmt, holdings, distribution, top, topPct, chartPoints, hasChart, change };
 }
