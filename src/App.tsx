@@ -864,7 +864,7 @@ function AppInner() {
         </div>
         </div>
 
-        {tab !== "pools" && tab !== "history" && (
+        {tab !== "pools" && tab !== "history" && tab !== "home" && tab !== "mainnetbridge" && tab !== "mainnetswap" && tab !== "dashboardmainnet" && tab !== "mainnethistory" && (
         <footer style={{ background: "#F5F3FF", borderTop: "1px solid #E5DEFA" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
             <div style={{ maxWidth: 320 }}>
@@ -916,7 +916,7 @@ function AppInner() {
         )}
       </main>
 
-      {wallet && (tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet" || tab === "mainnethistory") ? (
+      {wallet && (tab === "home" || tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet" || tab === "mainnethistory") ? (
         <AiCopilotMainnet onNavigate={(t) => setTab(t)} />
       ) : (
         wallet && <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
