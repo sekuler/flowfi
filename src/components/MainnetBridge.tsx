@@ -19,6 +19,9 @@ const lifiWidgetConfig: WidgetConfig = {
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_USDC,
   routePriority: "FASTEST",
+  sdkConfig: {
+    rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
+  },
   variant: "wide",
   chains: {
     types: { allow: [ChainType.EVM] },
