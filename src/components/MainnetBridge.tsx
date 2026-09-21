@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
-import NetworkGuard from "./NetworkGuard";
 import NativeCctpBridge, { SOURCE_CHAINS } from "./NativeCctpBridge";
 import ArcTokenStrip from "./ArcTokenStrip";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
@@ -104,7 +103,7 @@ export default function MainnetBridge({ address, provider }: { address?: string;
           })}
         </div>
 
-        <NetworkGuard provider={provider}>
+        <>
           {mode === "cctp" && address && <NativeCctpBridge address={address} provider={provider} />}
           {mode === "cctp" && !address && (
             <div style={{ maxWidth: 480, margin: "0 auto", background: "#fff", border: "1px solid #D4C9FA", borderRadius: 24, padding: "2rem", textAlign: "center", color: "#6B7280", fontSize: 13 }}>
@@ -131,7 +130,7 @@ export default function MainnetBridge({ address, provider }: { address?: string;
               </div>
             </>
           )}
-        </NetworkGuard>
+        </>
       </div>
     </div>
   );
