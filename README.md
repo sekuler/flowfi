@@ -45,6 +45,18 @@ No FlowFi-deployed contract is involved in any of the above. FlowFi is a fronten
 | CCTP V2 TokenMessengerV2 *(Circle-official)* | `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d` |
 | CCTP V2 MessageTransmitterV2 *(Circle-official)* | `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` |
 
+**Bridge routes LI.FI lists for USDC** (LI.FI `/v1/connections`, checked 21 Sep 2026)
+
+| Chain | Arc → chain | chain → Arc |
+|---|---|---|
+| Base | ✅ | ✅ |
+| Ethereum | ✅ | ✅ |
+| Arbitrum | ✅ | ✅ |
+| Optimism | ✅ | ✅ |
+| Polygon | ✅ | ✅ |
+
+A listed connection means LI.FI knows a path for that USDC pair. It does not guarantee liquidity at every amount, and routes can change. Arc mainnet is new, so availability may vary.
+
 ## Full showcase on Arc Testnet
 
 | Feature | What it does |
