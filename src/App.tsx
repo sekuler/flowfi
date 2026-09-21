@@ -612,7 +612,7 @@ function AppInner() {
         <div style={{ borderTop: "1px solid #E5DEFA" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.1rem 2rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8 }}>
             <span style={{ fontSize: 12.5, color: "#6B7280" }}>© 2026 FlowFi. All rights reserved.</span>
-            <span style={{ fontSize: 12.5, color: "#6B7280" }}>Built on Circle & Arc Testnet</span>
+            <span style={{ fontSize: 12.5, color: "#6B7280" }}>Built on Circle & Arc Mainnet</span>
           </div>
         </div>
       </footer>
@@ -864,7 +864,7 @@ function AppInner() {
         </div>
         </div>
 
-        {tab !== "pools" && tab !== "history" && tab !== "home" && tab !== "mainnetbridge" && tab !== "mainnetswap" && tab !== "dashboardmainnet" && tab !== "mainnethistory" && (
+        {tab !== "pools" && tab !== "history" && (
         <footer style={{ background: "#F5F3FF", borderTop: "1px solid #E5DEFA" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
             <div style={{ maxWidth: 320 }}>
@@ -873,7 +873,7 @@ function AppInner() {
                 <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>FlowFi</span>
               </div>
               <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
-                An AI-powered DeFi platform built on Arc Testnet, Circle's stablecoin-native Layer-1. Swap, bridge, and provide liquidity through one intelligent Copilot.
+                Self-custodial bridging and swapping on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Every transaction signed by your own wallet, never by FlowFi.
               </p>
               <div style={{ display: "flex", gap: 10 }}>
                 <a href="https://x.com/flowfiarc" target="_blank" rel="noopener noreferrer"
@@ -890,10 +890,8 @@ function AppInner() {
             <div>
               <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Quick Links</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <button onClick={() => setTab("swap")} style={{ background: "none", border: "none", padding: 0, textAlign: "left", fontSize: 14, color: "#4B5563", cursor: "pointer" }}>Swap</button>
-                <button onClick={() => setTab("bridge")} style={{ background: "none", border: "none", padding: 0, textAlign: "left", fontSize: 14, color: "#4B5563", cursor: "pointer" }}>Bridge</button>
-                <button onClick={() => setTab("pools")} style={{ background: "none", border: "none", padding: 0, textAlign: "left", fontSize: 14, color: "#4B5563", cursor: "pointer" }}>Liquidity Pools</button>
-                <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>Faucet</a>
+                <button onClick={() => setTab("mainnetswap")} style={{ background: "none", border: "none", padding: 0, textAlign: "left", fontSize: 14, color: "#4B5563", cursor: "pointer" }}>Swap</button>
+                <button onClick={() => setTab("mainnetbridge")} style={{ background: "none", border: "none", padding: 0, textAlign: "left", fontSize: 14, color: "#4B5563", cursor: "pointer" }}>Bridge</button>
               </div>
             </div>
 
@@ -901,7 +899,7 @@ function AppInner() {
               <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Resources</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
                 <a href="https://github.com/sekuler/flowfi#readme" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>Documentation</a>
-                <a href="https://testnet.arcscan.app" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>Block Explorer</a>
+                <a href="https://arc.etherscan.io" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>Block Explorer</a>
                 <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>Source Code</a>
               </div>
             </div>
@@ -909,7 +907,7 @@ function AppInner() {
           <div style={{ borderTop: "1px solid #E5DEFA" }}>
             <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.1rem 2rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8 }}>
               <span style={{ fontSize: 12.5, color: "#6B7280" }}>© 2026 FlowFi. All rights reserved.</span>
-              <span style={{ fontSize: 12.5, color: "#6B7280" }}>Built on Circle & Arc Testnet</span>
+              <span style={{ fontSize: 12.5, color: "#6B7280" }}>Built on Circle & Arc Mainnet</span>
             </div>
           </div>
         </footer>
