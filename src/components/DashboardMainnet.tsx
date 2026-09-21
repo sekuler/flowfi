@@ -207,7 +207,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
                 </div>
               </div>
               <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #F1EEFF", fontSize: 12, color: "#6B7280" }}>
-                {distribution.length === 1 || topPct >= 80 ? `Concentrated in ${top?.label}` : `Spread across ${distribution.length} assets`}
+                {distribution.filter((d) => d.value > 0).length === 1 || topPct >= 80 ? `Concentrated in ${top?.label}` : `Spread across ${distribution.filter((d) => d.value > 0).length} assets`}
               </div>
             </>
           )}

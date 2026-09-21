@@ -375,7 +375,7 @@ function AppInner() {
         usdc: formatUsdcErc20(usdcErc20 as bigint).toFixed(2),
         eurc: formatUsdcErc20(eurcErc20 as bigint).toFixed(2),
         usyc: formatUsdcErc20(usycErc20 as bigint).toFixed(2),
-        cirbtc: Number(formatUnits(cirbtcErc20 as bigint, 8)).toFixed(6),
+        cirbtc: formatUnits(cirbtcErc20 as bigint, 8),
         native: formatArcNative(nativeBal as bigint).toFixed(2),
       });
     } catch {

@@ -145,8 +145,9 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   }, [address]);
 
   const { total, holdings, chartPoints, hasChart } = usePortfolio(address, balances);
-  const assetCount = holdings.length;
-  const assetNames = holdings.map((d) => d.label).join(", ");
+  const owned = holdings.filter((d) => d.n > 0);
+  const assetCount = owned.length;
+  const assetNames = owned.map((d) => d.label).join(", ");
 
   const card = { background: "#ffffff", border: "1px solid #E4DDFB", borderRadius: 20, boxShadow: "0 8px 30px -14px rgba(109,94,247,0.2)" } as const;
   const statusIcon = (s: string) =>
