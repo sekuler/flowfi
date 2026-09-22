@@ -102,6 +102,10 @@ One more deployed and verified contract, Escrow v4, isn't in the table above bec
 
 Every claim above is checkable on-chain. Rather than asking anyone to take our word for it, here are real transaction hashes from live demo runs — click through to the relevant explorer to see them settle.
 
+**Mainnet demo videos**
+- [Native USDC bridge (Base → Arc, CCTP V2 burn & mint)](https://youtu.be/j5hJ95oeA7E)
+- [Any-token bridge via LI.FI (Base ETH → Arc USDC)](https://youtu.be/f4Luu0ic3ek)
+
 **Mainnet — Native USDC bridge via Circle CCTP V2 (Base → Arc), 1 USDC, 21 Sep 2026**
 | Step | Tx hash |
 |---|---|
