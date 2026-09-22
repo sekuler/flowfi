@@ -517,7 +517,7 @@ function AppInner() {
                 style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
                 Explore without connecting →
               </button>
-              <a href="https://x.com/flowfiarc/status/2078926068485173522" target="_blank" rel="noopener noreferrer"
+              <a href="https://x.com/flowfiarc/status/2102424250942447869" target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", alignItems: "center", gap: 6, color: "#6D5EF7", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
                 <span style={{ fontSize: 11 }}>▶</span> Watch Demo
               </a>
