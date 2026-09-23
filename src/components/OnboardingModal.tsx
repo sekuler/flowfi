@@ -6,22 +6,22 @@ const STEPS = [
   {
     icon: "✦",
     title: "Welcome to FlowFi",
-    body: "Built around Circle's full stack on Arc Testnet — sign in with just your email (no seed phrase), move USDC across 4 chains instantly with Gateway, and swap, bridge, or launch tokens, all in one place.",
+    body: "A self-custodial interface for USDC on Arc Mainnet — connect your own wallet, no seed phrase ever leaves it. Bridge, swap, and track your portfolio, all in one place. Real funds, real fees.",
   },
   {
-    icon: "💰",
-    title: "Get testnet funds",
-    body: "You'll need testnet USDC to try anything here. It's free — grab some from faucet.circle.com whenever your balance shows zero.",
+    icon: "🌉",
+    title: "Bridge USDC onto Arc",
+    body: "Native USDC via Circle's CCTP V2 — burned on the source chain, minted fresh on Arc, no wrapped tokens. Need a different asset? The Any token tab routes it in via LI.FI.",
   },
   {
     icon: "🤖",
-    title: "Ask the Copilot anything",
-    body: "Type \"swap 10 USDC to EURC\" to execute a trade, or \"analyze BTC\" for a full technical report — real RSI, MACD, and support/resistance, computed live.",
+    title: "Ask your wallet",
+    body: "The Copilot on Home can answer questions about your balances and activity, and take you straight to the right screen — like \"how much USDC do I have\" or \"find my last transaction\".",
   },
   {
     icon: "🧭",
     title: "Explore at your own pace",
-    body: "Bridge, Pools, Token Launch — everything's in the sidebar. No rush, explore whenever you're ready.",
+    body: "Bridge, Swap, Dashboard, History — everything's in the sidebar. No rush, explore whenever you're ready.",
   },
 ];
 
