@@ -43,7 +43,7 @@ function Donut({ segments, size = 132, thickness = 14, children }: { segments: {
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#F1EEFF" strokeWidth={thickness} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EEF1FE" strokeWidth={thickness} />
         {segments.map((s, i) => {
           const len = (s.value / total) * c;
           const el = (
@@ -59,7 +59,7 @@ function Donut({ segments, size = 132, thickness = 14, children }: { segments: {
   );
 }
 
-const card = { background: "#ffffff", border: "1px solid #E4DDFB", borderRadius: 20, boxShadow: "0 8px 30px -14px rgba(109,94,247,0.2)" } as const;
+const card = { background: "#ffffff", border: "1px solid #E7E4DD", borderRadius: 20, boxShadow: "0 8px 30px -14px rgba(61,90,241,0.2)" } as const;
 const kpiLabel = { display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#6B7280", fontWeight: 600 } as const;
 const bigNum = { fontSize: 28, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.5px" } as const;
 
@@ -122,7 +122,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
       <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontWeight: 700, color: "#111827" }}>
         {sym === "USDC" || sym === "EURC"
           ? <img src={sym === "USDC" ? USDC_LOGO : EURC_LOGO} alt="" width={20} height={20} style={{ width: 20, height: 20, borderRadius: "50%" }} />
-          : <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#EDE9FE", color: "#6D5EF7", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{sym.slice(0, 1)}</span>}
+          : <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#E3E8FD", color: "#3D5AF1", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{sym.slice(0, 1)}</span>}
         {sym}
       </span>
     );
@@ -206,7 +206,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
                   ))}
                 </div>
               </div>
-              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #F1EEFF", fontSize: 12, color: "#6B7280" }}>
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #EEF1FE", fontSize: 12, color: "#6B7280" }}>
                 {distribution.filter((d) => d.value > 0).length === 1 || topPct >= 80 ? `Concentrated in ${top?.label}` : `Spread across ${distribution.filter((d) => d.value > 0).length} assets`}
               </div>
             </>
@@ -235,7 +235,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
                   ))}
                 </div>
               </div>
-              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #F1EEFF", fontSize: 12, color: "#6B7280" }}>
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #EEF1FE", fontSize: 12, color: "#6B7280" }}>
                 Based on your last {txs.length} transactions.
               </div>
             </>
@@ -253,7 +253,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
           </div>
           {onNavigate && (
             <button onClick={() => onNavigate("mainnethistory")}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#6D5EF7", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#3D5AF1", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
               View all activity <ArrowRight size={15} />
             </button>
           )}
@@ -265,14 +265,14 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
         {recent.length > 0 && (
           <div style={{ overflowX: "auto" }}>
             <div style={{ minWidth: 640 }}>
-              <div style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, padding: "0.6rem 1.2rem", background: "#F8F7FF", borderTop: "1px solid #E4DDFB", borderBottom: "1px solid #E4DDFB", fontSize: 10.5, color: "#6B7280", fontWeight: 700, letterSpacing: "0.6px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, padding: "0.6rem 1.2rem", background: "#F5F7FF", borderTop: "1px solid #E7E4DD", borderBottom: "1px solid #E7E4DD", fontSize: 10.5, color: "#6B7280", fontWeight: 700, letterSpacing: "0.6px" }}>
                 <span>TYPE</span><span>ASSET</span><span style={{ textAlign: "right", paddingRight: 14 }}>AMOUNT</span><span>FROM / TO</span><span>TIME</span><span style={{ textAlign: "right" }}>TX</span>
               </div>
               {recent.map((tx) => {
                 const meta = metaFor(tx, address, diamond);
                 const amt = amountCell(tx, address);
                 return (
-                  <div key={tx.hash} style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, alignItems: "center", padding: "0.7rem 1.2rem", borderBottom: "1px solid #F5F3FF", fontSize: 13 }}>
+                  <div key={tx.hash} style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, alignItems: "center", padding: "0.7rem 1.2rem", borderBottom: "1px solid #EEF1FE", fontSize: 13 }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: meta.color, background: `${meta.color}1a`, border: `1px solid ${meta.color}33`, padding: "4px 10px", borderRadius: 8, width: "fit-content" }}>
                       {TYPE_ICON[meta.label]}{meta.label}
                     </span>
@@ -289,11 +289,11 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
           </div>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "0.75rem 1.2rem", background: "#FBFAFF", borderTop: recent.length > 0 ? "none" : "1px solid #E4DDFB", fontSize: 12, color: "#6B7280" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}><ShieldCheck size={14} color="#6D5EF7" /> All data sourced from Arc Mainnet explorer</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "0.75rem 1.2rem", background: "#F7F8FF", borderTop: recent.length > 0 ? "none" : "1px solid #E7E4DD", fontSize: 12, color: "#6B7280" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}><ShieldCheck size={14} color="#3D5AF1" /> All data sourced from Arc Mainnet explorer</span>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             Last updated: {updatedText}
-            <button onClick={() => setReloadKey((k) => k + 1)} title="Refresh" style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 2, color: "#6D5EF7" }}><RefreshCw size={14} /></button>
+            <button onClick={() => setReloadKey((k) => k + 1)} title="Refresh" style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 2, color: "#3D5AF1" }}><RefreshCw size={14} /></button>
           </span>
         </div>
       </div>
