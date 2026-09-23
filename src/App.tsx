@@ -735,7 +735,7 @@ function AppInner() {
                   {nickname || shortAddr}
                 </button>
                 <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, fontSize: 11.5, color: "#5E5B6B" }}>
-                  <Sparkles size={11} color="#5B3DF5" /> {points} pts
+                  <Sparkles size={11} color="#3D5AF1" /> {points} pts
                 </div>
               </div>
               <button onClick={copyAddress} title="Copy address" aria-label="Copy address"
