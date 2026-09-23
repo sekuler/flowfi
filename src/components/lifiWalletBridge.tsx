@@ -18,12 +18,25 @@ function ActivateConnector({ connectorId }: { connectorId: string }) {
   const triedRef = useRef(false);
 
   useEffect(() => {
+    console.log("[flowfi-lifi-debug] ActivateConnector effect fired", {
+      isConnected,
+      tried: triedRef.current,
+      connectorIds: connectors.map((c) => c.id),
+    });
     if (isConnected || triedRef.current) return;
     const connector = connectors.find((c) => c.id === connectorId);
-    if (connector) {
-      triedRef.current = true;
-      connect({ connector });
+    if (!connector) {
+      console.log("[flowfi-lifi-debug] connector not found in list", connectorId);
+      return;
     }
+    triedRef.current = true;
+    connect(
+      { connector },
+      {
+        onSuccess: (data) => console.log("[flowfi-lifi-debug] connect() succeeded", data),
+        onError: (err) => console.log("[flowfi-lifi-debug] connect() FAILED", err),
+      }
+    );
   }, [isConnected, connectors, connect, connectorId]);
 
   return null;
@@ -40,8 +53,13 @@ export default function LifiWalletBridge({
 }) {
   const queryClient = useMemo(() => new QueryClient(), []);
 
+  console.log("[flowfi-lifi-debug] LifiWalletBridge render", { hasProvider: !!provider, address });
+
   const config = useMemo(() => {
-    if (!provider || !address) return null;
+    if (!provider || !address) {
+      console.log("[flowfi-lifi-debug] no provider/address -- rendering children unwrapped");
+      return null;
+    }
     return createConfig({
       chains: [arcMainnet, base, mainnet, arbitrum, optimism, polygon],
       connectors: [flowfiConnector(provider, address)],
