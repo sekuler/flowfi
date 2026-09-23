@@ -135,7 +135,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
       <NetworkGuard provider={provider} />
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1.25fr 1fr 1fr 1fr", gap: "0.75rem" }}>
-        <div style={{ ...card, padding: "1.1rem 1.2rem", gridColumn: isMobile ? "1 / -1" : undefined }}>
+        <div className="flowfi-glow-card" style={{ ...card, padding: "1.1rem 1.2rem", gridColumn: isMobile ? "1 / -1" : undefined }}>
           <div style={kpiLabel}>Net worth</div>
           <div className="flowfi-mono" style={{ ...bigNum, fontSize: 32, marginTop: 6 }}>${money(total)}</div>
           <div style={{ marginTop: 8, minHeight: 44 }}>
@@ -144,7 +144,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
           {hasChart && <div style={{ fontSize: 10.5, color: "#9CA3AF", textAlign: "right", marginTop: 2 }}>{chartPoints.length} days</div>}
         </div>
 
-        <div style={{ ...card, padding: "1.1rem 1.2rem" }}>
+        <div className="flowfi-glow-card" style={{ ...card, padding: "1.1rem 1.2rem" }}>
           <div style={kpiLabel}>Available USDC</div>
           <div className="flowfi-mono" style={{ ...bigNum, marginTop: 6 }}>{balances.usdc ?? "…"}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 13, fontWeight: 700, color: "#374151" }}>
@@ -152,7 +152,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
           </div>
         </div>
 
-        <div style={{ ...card, padding: "1.1rem 1.2rem" }}>
+        <div className="flowfi-glow-card" style={{ ...card, padding: "1.1rem 1.2rem" }}>
           <div style={kpiLabel}>Available EURC</div>
           <div className="flowfi-mono" style={{ ...bigNum, marginTop: 6 }}>{balances.eurc ?? "…"}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 13, fontWeight: 700, color: "#374151" }}>
@@ -160,7 +160,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
           </div>
         </div>
 
-        <div style={{ ...card, padding: "1.1rem 1.2rem", gridColumn: isMobile ? "1 / -1" : undefined }}>
+        <div className="flowfi-glow-card" style={{ ...card, padding: "1.1rem 1.2rem", gridColumn: isMobile ? "1 / -1" : undefined }}>
           <div style={kpiLabel}>7-day change</div>
           {change ? (
             <>
@@ -181,7 +181,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
-        <div style={{ ...card, padding: "1.2rem" }}>
+        <div className="flowfi-glow-card" style={{ ...card, padding: "1.2rem" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Portfolio</div>
           {total === 0 ? (
             <EmptyState icon="💰" title="No balances yet" subtitle="Bridge USDC to Arc or buy with a card to get started" />
@@ -213,7 +213,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
           )}
         </div>
 
-        <div style={{ ...card, padding: "1.2rem" }}>
+        <div className="flowfi-glow-card" style={{ ...card, padding: "1.2rem" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Activity mix</div>
           {mix.length === 0 ? (
             <div style={{ fontSize: 12.5, color: "#9CA3AF", padding: "1.5rem 0" }}>{loading ? "Loading..." : "No transactions yet."}</div>

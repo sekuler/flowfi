@@ -665,7 +665,7 @@ function AppInner() {
           {(() => {
             const renderGroup = ({ group, variant, tabs }: (typeof TAB_GROUPS)[number]) => (
             <div key={group} style={{ marginBottom: 4 }}>
-              <div style={{ display: "inline-block", fontSize: 9, color: "#ffffff", background: variant === "testnet" ? "#D97706" : variant === "mainnet" ? "#6D5EF7" : "#6D5EF7", fontWeight: 800, letterSpacing: "1.5px", padding: "0.3rem 0.6rem", borderRadius: 6, margin: "0.35rem 1rem 0.2rem", opacity: variant === "testnet" ? 0.75 : 1 }}>{group}</div>
+              <div style={{ display: "block", fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 1rem 0.2rem", margin: 0 }}>{group}</div>
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 const locked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(id) : !GUEST_SAFE_TABS.includes(id));
