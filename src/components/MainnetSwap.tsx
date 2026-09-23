@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
@@ -20,52 +20,55 @@ const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
 // field opens filled in (USDC to EURC) instead of empty.
 const ARC_MAINNET_EURC = "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1";
 
-const lifiWidgetConfig: WidgetConfig = {
-  integrator: "flowfi",
-  apiKey: import.meta.env.VITE_LIFI_API_KEY,
-  providers: [EthereumProvider()],
-  fromChain: ARC_MAINNET_CHAIN_ID,
-  fromToken: ARC_MAINNET_USDC,
-  toChain: ARC_MAINNET_CHAIN_ID,
-  toToken: ARC_MAINNET_EURC,
-  routePriority: "FASTEST",
 
-  sdkConfig: {
-    rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
-  },
-  variant: "wide",
-  chains: {
-    types: { allow: [ChainType.EVM] },
-  },
-  theme: {
-    colorSchemes: {
-      light: { palette: { primary: { main: "#6D5EF7" } } },
+export default function MainnetSwap({ provider, address }: { provider?: EIP1193Provider; address?: string }) {
+  const formRef = useRef<FormState | null>(null);
+
+  // See MainnetBridge.tsx for why `providers: [EthereumProvider()]` is only
+  // included when no wallet is connected yet.
+  const isFlowfiConnected = !!(address && provider);
+  const lifiWidgetConfig = useMemo<WidgetConfig>(() => ({
+    integrator: "flowfi",
+    apiKey: import.meta.env.VITE_LIFI_API_KEY,
+    ...(isFlowfiConnected ? {} : { providers: [EthereumProvider()] }),
+    fromChain: ARC_MAINNET_CHAIN_ID,
+    fromToken: ARC_MAINNET_USDC,
+    toChain: ARC_MAINNET_CHAIN_ID,
+    toToken: ARC_MAINNET_EURC,
+    routePriority: "FASTEST",
+    sdkConfig: {
+      rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
     },
-    shape: {
-      borderRadius: 16,
+    variant: "wide",
+    chains: {
+      types: { allow: [ChainType.EVM] },
     },
-    container: {
-      border: "1px solid rgba(212,201,250,0.7)",
-      borderRadius: 24,
-      boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28)",
-      maxHeight: "none",
-    },
-    components: {
-      MuiInputCard: {
-        styleOverrides: {
-          root: {
-            border: "none",
-            boxShadow: "none",
+    theme: {
+      colorSchemes: {
+        light: { palette: { primary: { main: "#6D5EF7" } } },
+      },
+      shape: {
+        borderRadius: 16,
+      },
+      container: {
+        border: "1px solid rgba(212,201,250,0.7)",
+        borderRadius: 24,
+        boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28)",
+        maxHeight: "none",
+      },
+      components: {
+        MuiInputCard: {
+          styleOverrides: {
+            root: {
+              border: "none",
+              boxShadow: "none",
+            },
           },
         },
       },
     },
-  },
-  appearance: "light",
-};
-
-export default function MainnetSwap({ provider, address }: { provider?: EIP1193Provider; address?: string }) {
-  const formRef = useRef<FormState | null>(null);
+    appearance: "light",
+  }), [isFlowfiConnected]);
 
   return (
     <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1.75rem 0.75rem 2.5rem" }}>
