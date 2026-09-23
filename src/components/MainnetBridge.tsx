@@ -3,6 +3,7 @@ import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import NativeCctpBridge, { SOURCE_CHAINS } from "./NativeCctpBridge";
+import NativeEurcBridge from "./NativeEurcBridge";
 import ArcTokenStrip from "./ArcTokenStrip";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 
@@ -55,7 +56,7 @@ const lifiWidgetConfig: WidgetConfig = {
 };
 
 export default function MainnetBridge({ address, provider }: { address?: string; provider?: EIP1193Provider }) {
-  const [mode, setMode] = useState<"cctp" | "lifi">(() => {
+  const [mode, setMode] = useState<"cctp" | "lifi" | "eurc">(() => {
     try {
       const m = sessionStorage.getItem("flowfi-bridge-mode");
       sessionStorage.removeItem("flowfi-bridge-mode");
@@ -101,6 +102,7 @@ export default function MainnetBridge({ address, provider }: { address?: string;
           {([
             { k: "lifi", t: "Any token", sub: "Swap and bridge via LI.FI" },
             { k: "cctp", t: "Native USDC", sub: "1:1 via Circle CCTP" },
+            { k: "eurc", t: "Native EURC", sub: "1:1 via Circle CCTP" },
           ] as const).map((tab) => {
             const on = mode === tab.k;
             return (
@@ -121,6 +123,13 @@ export default function MainnetBridge({ address, provider }: { address?: string;
           {mode === "cctp" && !address && (
             <div style={{ maxWidth: 480, margin: "0 auto", background: "#fff", border: "1px solid #E7E4DD", borderRadius: 24, padding: "2rem", textAlign: "center", color: "#6B7280", fontSize: 13 }}>
               Connect your wallet to use the native CCTP bridge.
+            </div>
+          )}
+
+          {mode === "eurc" && address && <NativeEurcBridge address={address} provider={provider} />}
+          {mode === "eurc" && !address && (
+            <div style={{ maxWidth: 480, margin: "0 auto", background: "#fff", border: "1px solid #E7E4DD", borderRadius: 24, padding: "2rem", textAlign: "center", color: "#6B7280", fontSize: 13 }}>
+              Connect your wallet to use the native EURC bridge.
             </div>
           )}
 
