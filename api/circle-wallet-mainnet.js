@@ -174,7 +174,8 @@ module.exports = async function handler(req, res) {
 
   try {
     const clean = (v) => String(v || '').trim().replace(/^["']+|["']+$/g, '').trim();
-    const liveKey = clean(process.env.CIRCLE_LIVE_API_KEY);
+    const rawKey = clean(process.env.CIRCLE_LIVE_API_KEY);
+    const liveKey = rawKey.split(':').length === 2 ? `LIVE_API_KEY:${rawKey}` : rawKey;
     const keyParts = liveKey.split(':');
     if (keyParts.length !== 3 || keyParts[0] !== 'LIVE_API_KEY') {
       return res.status(500).json({ error: `Key check: ${keyParts.length} part(s), starts with LIVE_API_KEY: ${keyParts[0] === 'LIVE_API_KEY'}, length ${liveKey.length}` });
