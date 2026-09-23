@@ -55,7 +55,13 @@ const lifiWidgetConfig: WidgetConfig = {
 };
 
 export default function MainnetBridge({ address, provider }: { address?: string; provider?: EIP1193Provider }) {
-  const [mode, setMode] = useState<"cctp" | "lifi">("lifi");
+  const [mode, setMode] = useState<"cctp" | "lifi">(() => {
+    try {
+      const m = sessionStorage.getItem("flowfi-bridge-mode");
+      sessionStorage.removeItem("flowfi-bridge-mode");
+      return m === "cctp" ? "cctp" : "lifi";
+    } catch { return "lifi"; }
+  });
   const [rotatingIdx, setRotatingIdx] = useState(0);
   const formRef = useRef<FormState | null>(null);
 
