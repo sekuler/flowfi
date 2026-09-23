@@ -63,7 +63,7 @@ const lifiWidgetConfig: WidgetConfig = {
   appearance: "light",
 };
 
-export default function MainnetSwap({ provider, address }: { provider?: EIP1193Provider; address?: string }) {
+export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }) {
   const formRef = useRef<FormState | null>(null);
 
   return (
