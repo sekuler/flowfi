@@ -798,14 +798,14 @@ function AppInner() {
         <header style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, padding: isMobile ? "0.85rem 1rem" : "1rem 1.75rem" }}>
           <NotificationCenter />
           <button disabled title="Coming soon"
-            style={{ position: "relative", background: "rgba(109,94,247,0.08)", border: "none", borderRadius: 10, width: 32, height: 32, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#6D5EF7" }}>
+            style={{ position: "relative", background: "rgba(61,90,241,0.08)", border: "none", borderRadius: 10, width: 32, height: 32, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", color: "#3D5AF1" }}>
             <Moon size={15} />
             <span style={{ position: "absolute", top: -7, right: -9, fontSize: 7, fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#fff", padding: "2px 4px", borderRadius: 6, boxShadow: "0 0 8px rgba(245,158,11,0.5)" }}>SOON</span>
           </button>
-          <div style={{ width: 1, height: 18, background: "rgba(109,94,247,0.12)" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: (TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "rgba(109,94,247,0.1)" : "rgba(34,197,94,0.1)" }}>
-            <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: (TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "#6D5EF7" : "#22C55E" }} />
-            <span style={{ fontSize: 11, fontWeight: 800, color: (TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "#6D5EF7" : "#16A34A" }}>
+          <div style={{ width: 1, height: 18, background: "rgba(61,90,241,0.12)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: (TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "rgba(61,90,241,0.1)" : "rgba(34,197,94,0.1)" }}>
+            <span className="flowfi-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: (TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "#3D5AF1" : "#22C55E" }} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: (TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "#3D5AF1" : "#16A34A" }}>
               {(TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "Arc Mainnet" : "Arc Testnet"}
             </span>
           </div>
@@ -813,7 +813,7 @@ function AppInner() {
             <>
               <a href={`${(TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet") === "mainnet" ? "https://arc.etherscan.io" : "https://testnet.arcscan.app"}/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
                 className="flowfi-mono"
-                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(61,90,241,0.1)", color: "#3D5AF1", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                 {shortAddr}
               </a>
               <button onClick={disconnectWallet} title="Disconnect wallet"
@@ -825,7 +825,7 @@ function AppInner() {
             <>
               <a href={`https://testnet.arcscan.app/address/${circleWalletInfo.address}`} target="_blank" rel="noopener noreferrer"
                 className="flowfi-mono"
-                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(109,94,247,0.1)", color: "#6D5EF7", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(61,90,241,0.1)", color: "#3D5AF1", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                 {circleWalletInfo.address.slice(0, 6)}...{circleWalletInfo.address.slice(-4)}
               </a>
               <button onClick={() => { setCirclePrimary(false); forgetCircleWallet(); setTab("home"); }} title="Disconnect"
@@ -835,7 +835,7 @@ function AppInner() {
             </>
           ) : (
             <button onClick={() => setShowConnectModal(true)}
-              style={{ padding: "8px 16px", borderRadius: 999, border: "none", background: "#6D5EF7", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+              style={{ padding: "8px 16px", borderRadius: 999, border: "none", background: "#3D5AF1", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
               Connect Wallet
             </button>
           )}
