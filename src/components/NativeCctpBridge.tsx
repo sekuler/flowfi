@@ -50,6 +50,14 @@ const CCTP_MESSAGE_TRANSMITTER_V2 = "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64"
 const ARC_DOMAIN = 26;
 const IRIS_API = "https://iris-api.circle.com";
 
+// Circle Forwarding Service (docs: developers.circle.com/cctp/concepts/forwarding-service,
+// quickstart "Transfer USDC from Ethereum to Arc"). Arc is listed as a supported
+// Forwarding Service destination. Burning with this hook data via depositForBurnWithHook
+// makes Circle submit the receiveMessage mint on Arc itself, so the user needs no Arc gas
+// and signs nothing on Arc. The fee (Arc gas + $0.05 service fee) is taken from the burned
+// USDC and must be covered by maxFee. Static hook = "cctp-forward" magic + version 0 + length 0.
+const FORWARD_HOOK_DATA = "0x636374702d666f72776172640000000000000000000000000000000000000000" as const;
+
 interface SourceChain {
   key: string;
   name: string;
@@ -115,7 +123,7 @@ const STANDARD_WAIT: Record<string, { label: string; maxMin: number }> = {
 const CHAIN_COLORS: Record<string, string> = {
   ethereum: "#627EEA", avalanche: "#E84142", optimism: "#FF0420",
   arbitrum: "#28A0F0", base: "#0052FF", polygon: "#8247E5",
-  unichain: "#FF37C7", linea: "#61DFFF", codex: "#6D5EF7", sonic: "#FE9A4D",
+  unichain: "#FF37C7", linea: "#61DFFF", codex: "#3D5AF1", sonic: "#FE9A4D",
   worldchain: "#111827", monad: "#8B5CF6", sei: "#8B1BFF", xdc: "#F9A825",
   hyperevm: "#00D4AA", ink: "#7132F5", plume: "#FF6B4A", morph: "#5FC8FF",
 };
@@ -133,6 +141,20 @@ const DEPOSIT_FOR_BURN_ABI = [{
     { name: "minFinalityThreshold", type: "uint32" },
   ],
   outputs: [{ name: "nonce", type: "uint64" }],
+}] as const;
+const DEPOSIT_FOR_BURN_WITH_HOOK_ABI = [{
+  type: "function", name: "depositForBurnWithHook", stateMutability: "nonpayable",
+  inputs: [
+    { name: "amount", type: "uint256" },
+    { name: "destinationDomain", type: "uint32" },
+    { name: "mintRecipient", type: "bytes32" },
+    { name: "burnToken", type: "address" },
+    { name: "destinationCaller", type: "bytes32" },
+    { name: "maxFee", type: "uint256" },
+    { name: "minFinalityThreshold", type: "uint32" },
+    { name: "hookData", type: "bytes" },
+  ],
+  outputs: [],
 }] as const;
 const RECEIVE_MESSAGE_ABI = [{
   type: "function", name: "receiveMessage", stateMutability: "nonpayable",
@@ -165,7 +187,7 @@ function ChainLogo({ chain, size }: { chain: SourceChain; size: number }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
     return (
-      <span style={{ width: size, height: size, borderRadius: "50%", background: CHAIN_COLORS[chain.key] ?? "#6D5EF7", color: "#fff", fontSize: size * 0.42, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <span style={{ width: size, height: size, borderRadius: "50%", background: CHAIN_COLORS[chain.key] ?? "#3D5AF1", color: "#fff", fontSize: size * 0.42, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         {chain.name.slice(0, 1)}
       </span>
     );
@@ -204,6 +226,11 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const [balances, setBalances] = useState<Record<string, string | null>>({});
   const [stdFeeBps, setFeeBps] = useState<number | null>(null);
   const [fastFeeBps, setFastFeeBps] = useState<number | null>(null);
+  // Forwarding Service fee in USDC subunits (6 decimals), from the fee API's forwardFee.
+  // null = not quoted (yet) for this route, in which case the bridge falls back to the
+  // direct-mint path where the user signs the Arc mint themselves.
+  const [forwardFeeRaw, setForwardFeeRaw] = useState<bigint | null>(null);
+  const [burnForwarded, setBurnForwarded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
@@ -213,9 +240,10 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const useFast = PREFER_FAST && fastFeeBps !== null;
   const feeBps = useFast ? fastFeeBps : stdFeeBps;
   const burnSource = SOURCE_CHAINS[burnSourceIdx ?? sourceIdx];
+  const forwarding = forwardFeeRaw !== null;
 
-  function savePending(hash: string, idx: number, amt: string) {
-    try { localStorage.setItem(PENDING_KEY, JSON.stringify({ hash, sourceIdx: idx, address, amount: amt })); } catch { /* ignore */ }
+  function savePending(hash: string, idx: number, amt: string, forwarded: boolean) {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify({ hash, sourceIdx: idx, address, amount: amt, forwarded })); } catch { /* ignore */ }
   }
   function clearPending() {
     try { localStorage.removeItem(PENDING_KEY); } catch { /* ignore */ }
@@ -226,15 +254,18 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     try {
       const raw = localStorage.getItem(PENDING_KEY);
       if (!raw) return;
-      const p = JSON.parse(raw) as { hash?: string; sourceIdx?: number; address?: string; amount?: string };
+      const p = JSON.parse(raw) as { hash?: string; sourceIdx?: number; address?: string; amount?: string; forwarded?: boolean };
       if (!p.hash || typeof p.sourceIdx !== "number" || !SOURCE_CHAINS[p.sourceIdx]) return;
       if (p.address?.toLowerCase() !== address.toLowerCase()) return;
       setBurnTxHash(p.hash);
       setBurnSourceIdx(p.sourceIdx);
       setSourceIdx(p.sourceIdx);
       setAmount(p.amount ?? "");
+      setBurnForwarded(!!p.forwarded);
       setStep("error");
-      setError("You have an unfinished transfer: the burn is confirmed, but the USDC hasn't been minted on Arc yet.");
+      setError(p.forwarded
+        ? "You have an unfinished transfer: the burn is confirmed, but we haven't seen Circle's delivery on Arc yet."
+        : "You have an unfinished transfer: the burn is confirmed, but the USDC hasn't been minted on Arc yet.");
       setView("review");
     } catch { /* ignore */ }
   }, [address]);
@@ -271,7 +302,8 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     let cancelled = false;
     setFeeBps(null);
     setFastFeeBps(null);
-    fetch(`${IRIS_API}/v2/burn/USDC/fees/${source.domain}/${ARC_DOMAIN}`)
+    setForwardFeeRaw(null);
+    fetch(`${IRIS_API}/v2/burn/USDC/fees/${source.domain}/${ARC_DOMAIN}?forward=true`)
       .then((r) => r.json())
       .then((data) => {
         const std = Array.isArray(data) ? data.find((d: { finalityThreshold?: number }) => d.finalityThreshold === 2000) : null;
@@ -280,10 +312,56 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
         const fast = Array.isArray(data) ? data.find((d: { finalityThreshold?: number }) => d.finalityThreshold === 1000) : null;
         const fv = Number(fast?.minimumFee);
         if (!cancelled && fast && Number.isFinite(fv)) setFastFeeBps(fv);
+        const fwdEntry = (preferFastTier(fast) ? fast : std) ?? fast ?? std;
+        const fwd = fwdEntry?.forwardFee?.high ?? fwdEntry?.forwardFee?.med;
+        if (!cancelled && fwd != null && Number.isFinite(Number(fwd)) && Number(fwd) > 0) setForwardFeeRaw(BigInt(Math.ceil(Number(fwd))));
       })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [source]);
+
+  function preferFastTier(fast: unknown) {
+    return PREFER_FAST && !!fast;
+  }
+
+  // Fresh quote right before burning (the forwarding fee is dynamic). Returns null if the API
+  // gives no usable forwardFee, in which case we must NOT send a forwarding burn.
+  async function fetchForwardPlan(amountRaw: bigint): Promise<{ maxFee: bigint; fast: boolean } | null> {
+    try {
+      const res = await fetch(`${IRIS_API}/v2/burn/USDC/fees/${source.domain}/${ARC_DOMAIN}?forward=true`);
+      const data = await res.json();
+      if (!Array.isArray(data)) return null;
+      const fastEntry = PREFER_FAST ? data.find((d: { finalityThreshold?: number }) => d.finalityThreshold === 1000) : null;
+      const entry = fastEntry ?? data.find((d: { finalityThreshold?: number }) => d.finalityThreshold === 2000);
+      const fwd = Number(entry?.forwardFee?.high ?? entry?.forwardFee?.med);
+      const bps = Number(entry?.minimumFee ?? 0);
+      if (!entry || !Number.isFinite(fwd) || fwd <= 0 || !Number.isFinite(bps)) return null;
+      const protocolFee = (amountRaw * BigInt(Math.ceil(bps * 1.2 * 100))) / 1_000_000n; // +20% buffer
+      const maxFee = protocolFee + BigInt(Math.ceil(fwd));
+      if (maxFee >= amountRaw) throw new Error("Amount is too small to cover Circle's delivery fee.");
+      return { maxFee, fast: !!fastEntry };
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith("Amount is too small")) throw e;
+      return null;
+    }
+  }
+
+  // With forwarding, completion = Iris returns forwardTxHash (Circle's mint tx on Arc).
+  async function pollForwardedMint(txHash: string, domain: number, maxMin: number): Promise<string | null> {
+    const attempts = Math.ceil((maxMin * 60) / 5);
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const res = await fetch(`${IRIS_API}/v2/messages/${domain}?transactionHash=${txHash}`);
+        if (res.ok) {
+          const data = await res.json();
+          const fwdHash = data?.messages?.[0]?.forwardTxHash;
+          if (fwdHash) return fwdHash as string;
+        }
+      } catch { /* retry */ }
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+    return null;
+  }
 
   async function fetchMaxFee(amountRaw: bigint): Promise<bigint> {
     try {
@@ -322,6 +400,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       const src = resume ? burnSource : source;
       let burnHash: string;
 
+      let forwardedBurn = resume ? burnForwarded : false;
       if (resume) {
         burnHash = resume.hash;
       } else {
@@ -353,7 +432,10 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
         }
 
         const amountRaw = parseUnits(amount.trim(), USDC_ERC20_DECIMALS);
-        const maxFee = await fetchMaxFee(amountRaw);
+        const plan = forwarding ? await fetchForwardPlan(amountRaw) : null;
+        forwardedBurn = plan !== null;
+        const maxFee = plan ? plan.maxFee : await fetchMaxFee(amountRaw);
+        const finality = plan ? (plan.fast ? 1000 : 2000) : (useFast ? 1000 : 2000);
 
         setStep("approving");
         const approveHash = await walletClient.sendTransaction({
@@ -367,15 +449,22 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
         const mintRecipient = addressToBytes32(address);
         burnHash = await walletClient.sendTransaction({
           to: CCTP_TOKEN_MESSENGER_V2,
-          data: encodeFunctionData({
-            abi: DEPOSIT_FOR_BURN_ABI,
-            functionName: "depositForBurn",
-            args: [amountRaw, ARC_DOMAIN, mintRecipient, source.usdc, `0x${"0".repeat(64)}`, maxFee, useFast ? 1000 : 2000],
-          }),
+          data: forwardedBurn
+            ? encodeFunctionData({
+                abi: DEPOSIT_FOR_BURN_WITH_HOOK_ABI,
+                functionName: "depositForBurnWithHook",
+                args: [amountRaw, ARC_DOMAIN, mintRecipient, source.usdc, `0x${"0".repeat(64)}`, maxFee, finality, FORWARD_HOOK_DATA],
+              })
+            : encodeFunctionData({
+                abi: DEPOSIT_FOR_BURN_ABI,
+                functionName: "depositForBurn",
+                args: [amountRaw, ARC_DOMAIN, mintRecipient, source.usdc, `0x${"0".repeat(64)}`, maxFee, finality],
+              }),
         });
         setBurnTxHash(burnHash);
         setBurnSourceIdx(sourceIdx);
-        savePending(burnHash, sourceIdx, amount.trim());
+        setBurnForwarded(forwardedBurn);
+        savePending(burnHash, sourceIdx, amount.trim(), forwardedBurn);
         const burnReceipt = await publicClient.waitForTransactionReceipt({ hash: burnHash as `0x${string}` });
         if (burnReceipt.status === "reverted") {
           clearPending();
@@ -386,7 +475,25 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       }
 
       setStep("waiting-attestation");
-      const { message, attestation } = await pollAttestation(burnHash, src.domain, (STANDARD_WAIT[src.key] ?? { maxMin: 30 }).maxMin);
+      const waitMax = (STANDARD_WAIT[src.key] ?? { maxMin: 30 }).maxMin;
+
+      if (forwardedBurn) {
+        // Circle mints on Arc for us. On a fresh transfer wait the full window; on Resume
+        // check for about a minute first, then fall back to a manual mint (safe: usedNonces
+        // below stops a double mint if Circle already delivered).
+        const fwdHash = await pollForwardedMint(burnHash, src.domain, resume ? 1 : waitMax);
+        if (fwdHash) {
+          setMintTxHash(fwdHash);
+          clearPending();
+          setStep("done");
+          return;
+        }
+        if (!resume) {
+          throw new Error("Circle hasn't delivered on Arc yet. Your burn is confirmed, so don't send again. Use Resume to check again or finish it yourself.");
+        }
+      }
+
+      const { message, attestation } = await pollAttestation(burnHash, src.domain, waitMax);
 
       const arcWalletClient = createWalletClient({ account: address as `0x${string}`, chain: arcMainnet, transport: custom(provider) });
       const arcPublicClient = createPublicClient({ chain: arcMainnet, transport: http() });
@@ -429,18 +536,21 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
   const stdWait = STANDARD_WAIT[burnSource.key] ?? { label: "a few minutes", maxMin: 30 };
   const wait = useFast ? { ...stdWait, label: FAST_WAIT_LABEL } : stdWait;
+  const deliveringOnArc = burnForwarded || (forwarding && step !== "idle" && !burnTxHash);
   const stepLabel = useMemo(() => ({
     idle: "", approving: "Approving USDC...", burning: "Sending from source chain...",
-    "waiting-attestation": `Waiting for Circle to confirm (about ${wait.label} on ${burnSource.name})...`,
+    "waiting-attestation": deliveringOnArc
+      ? `Circle is confirming and delivering your USDC on Arc (about ${wait.label})...`
+      : `Waiting for Circle to confirm (about ${wait.label} on ${burnSource.name})...`,
     minting: "Receiving native USDC on Arc...", done: "Complete!", error: "Failed",
-  }[step]), [step, wait.label, burnSource.name]);
+  }[step]), [step, wait.label, burnSource.name, deliveringOnArc]);
 
   const busy = step !== "idle" && step !== "done" && step !== "error";
   const unfinished = step === "error" && !!burnTxHash;
   const locked = busy || unfinished;
 
   function resetForm() {
-    setStep("idle"); setAmount(""); setBurnTxHash(null); setMintTxHash(null); setBurnSourceIdx(null); setError(null); setView("form");
+    setStep("idle"); setAmount(""); setBurnTxHash(null); setMintTxHash(null); setBurnSourceIdx(null); setBurnForwarded(false); setError(null); setView("form");
   }
 
   const balance = balances[source.key];
@@ -448,7 +558,13 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const amt = parseFloat(amount);
   const validAmt = Number.isFinite(amt) && amt > 0;
   const insufficient = validAmt && balNum !== null && amt > balNum;
-  const receive = validAmt && feeBps !== null ? amt * (1 - feeBps / 10000) : null;
+  const forwardFeeUsd = forwardFeeRaw !== null ? Number(forwardFeeRaw) / 1e6 : 0;
+  const receiveRaw = validAmt && feeBps !== null ? amt * (1 - feeBps / 10000) - forwardFeeUsd : null;
+  const tooSmall = receiveRaw !== null && receiveRaw <= 0;
+  const receive = receiveRaw !== null && receiveRaw > 0 ? receiveRaw : null;
+  const deliveryText = forwarding ? `≈ $${forwardFeeUsd.toFixed(2)}` : null;
+  const arcGasText = forwarding ? "Not needed" : "Paid in USDC";
+  const signText = forwarding ? `2 on ${source.name}` : `2 on ${source.name}, 1 on Arc`;
   const feeText = feeBps === null ? null : feeBps === 0 ? "Free" : `${(feeBps / 100).toFixed(2)}%`;
   const shortAddr = `${address.slice(0, 6)}…${address.slice(-4)}`;
 
@@ -471,8 +587,8 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   let ctaEnabled = false;
   let ctaAction: () => void = () => {};
   if (view === "form") {
-    ctaLabel = !provider ? "Connect wallet" : !validAmt ? "Enter an amount" : insufficient ? "Insufficient USDC balance" : "Review transfer";
-    ctaEnabled = !!provider && validAmt && !insufficient;
+    ctaLabel = !provider ? "Connect wallet" : !validAmt ? "Enter an amount" : insufficient ? "Insufficient USDC balance" : tooSmall ? "Amount too small" : "Review transfer";
+    ctaEnabled = !!provider && validAmt && !insufficient && !tooSmall;
     ctaAction = () => setView("review");
   } else if (busy) {
     ctaLabel = "Processing...";
@@ -486,25 +602,27 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     ctaLabel = "Confirm and send"; ctaEnabled = !!provider; ctaAction = () => run();
   }
 
-  const paneStyle = { background: "#F8F7FF", borderRadius: 20, padding: "14px 12px", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8, minWidth: 0 };
+  const paneStyle = { background: "#F5F7FF", borderRadius: 20, padding: "14px 12px", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8, minWidth: 0 };
   const labelStyle = { fontSize: 11, color: "#9CA3AF", fontWeight: 600, letterSpacing: 0.3 };
 
   const formRows: { k: string; v: string; good?: boolean }[] = [
     { k: "Route", v: "Circle CCTP V2" },
     { k: "Speed", v: useFast ? "Fast" : "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
+    ...(deliveryText ? [{ k: "Delivery on Arc", v: deliveryText }] : []),
     { k: "Est. wait", v: `~${wait.label}` },
     { k: "You receive", v: receive !== null ? `≈ ${fmt(receive, 6)} USDC` : "—" },
-    { k: "Gas on Arc", v: "Paid in USDC" },
+    { k: "Gas on Arc", v: arcGasText, good: forwarding },
   ];
   const reviewRows: { k: string; v: string; good?: boolean }[] = [
     { k: "Recipient", v: `${shortAddr} on Arc` },
     { k: "Route", v: "Circle CCTP V2" },
     { k: "Speed", v: useFast ? "Fast" : "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
+    ...(deliveryText ? [{ k: "Delivery on Arc", v: deliveryText }] : []),
     { k: "Est. wait", v: `~${wait.label}` },
-    { k: "Signatures", v: `2 on ${source.name}, 1 on Arc` },
-    { k: "Gas on Arc", v: "Paid in USDC" },
+    { k: "Signatures", v: signText },
+    { k: "Gas on Arc", v: arcGasText, good: forwarding },
   ];
 
   const q = search.trim().toLowerCase();
@@ -515,9 +633,9 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
   function renderRows(rows: { k: string; v: string; good?: boolean; badge?: string }[]) {
     return (
-      <div style={{ marginTop: 10, border: "1px solid #F0ECFF", borderRadius: 18, padding: "6px 14px" }}>
+      <div style={{ marginTop: 10, border: "1px solid #E7EBFB", borderRadius: 18, padding: "6px 14px" }}>
         {rows.map((r, i) => (
-          <div key={r.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < rows.length - 1 ? "1px solid #F5F3FF" : "none", fontSize: 12.5 }}>
+          <div key={r.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < rows.length - 1 ? "1px solid #EEF1FE" : "none", fontSize: 12.5 }}>
             <span style={{ color: "#6B7280" }}>{r.k}</span>
             <span style={{ display: "flex", alignItems: "center", gap: 6, color: r.good ? "#16A34A" : "#111827", fontWeight: 600, textAlign: "right" }}>
               {r.v}
@@ -534,12 +652,13 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     { k: "Route", v: "Circle CCTP V2", badge: "OFFICIAL" },
     { k: "Speed", v: useFast ? "Fast" : "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
+    ...(deliveryText ? [{ k: "Delivery on Arc", v: deliveryText }] : []),
     { k: "Est. wait", v: `~${wait.label}` },
-    { k: "Signatures", v: `2 on ${source.name}, 1 on Arc` },
-    { k: "Gas on Arc", v: "Paid in USDC" },
+    { k: "Signatures", v: signText },
+    { k: "Gas on Arc", v: arcGasText, good: forwarding },
   ];
   const summaryCard = (
-    <div style={{ background: "#ffffff", border: "1px solid rgba(212,201,250,0.7)", borderRadius: 24, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(109,94,247,0.2), 0 2px 6px rgba(17,24,39,0.04)" }}>
+    <div style={{ background: "#ffffff", border: "1px solid #E7E4DD", borderRadius: 24, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(61,90,241,0.2), 0 2px 6px rgba(17,24,39,0.04)" }}>
       <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Transfer summary</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div style={paneStyle}>
@@ -558,11 +677,11 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       {renderRows(summaryRows)}
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <ShieldCheck size={16} color="#6D5EF7" style={{ flexShrink: 0, marginTop: 2 }} />
+          <ShieldCheck size={16} color="#3D5AF1" style={{ flexShrink: 0, marginTop: 2 }} />
           <div style={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}><span style={{ color: "#111827", fontWeight: 600 }}>Self-custody.</span> You sign every step in your own wallet. FlowFi never holds your funds.</div>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <Check size={16} color="#6D5EF7" style={{ flexShrink: 0, marginTop: 2 }} />
+          <Check size={16} color="#3D5AF1" style={{ flexShrink: 0, marginTop: 2 }} />
           <div style={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}><span style={{ color: "#111827", fontWeight: 600 }}>Native USDC.</span> Burned on the source chain and minted on Arc. No wrapped tokens.</div>
         </div>
       </div>
@@ -571,8 +690,8 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(0, 480px) minmax(0, 420px)", gap: 16, justifyContent: "center", alignItems: "start", maxWidth: 940, margin: "0 auto" }}>
-    <div style={{ width: "100%", boxSizing: "border-box", background: "#ffffff", border: "1px solid rgba(212,201,250,0.7)", borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28), 0 2px 6px rgba(17,24,39,0.04)" }}>
-      <style>{`@keyframes ffspin { to { transform: rotate(360deg); } } .ff-amount, .ff-amount:focus, .ff-amount:focus-visible { outline: none !important; box-shadow: none !important; border: none !important; background: transparent !important; } .ff-amount::placeholder { color: #C4C0DC; }`}</style>
+    <div style={{ width: "100%", boxSizing: "border-box", background: "#ffffff", border: "1px solid #E7E4DD", borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(61,90,241,0.28), 0 2px 6px rgba(17,24,39,0.04)" }}>
+      <style>{`@keyframes ffspin { to { transform: rotate(360deg); } } .ff-amount, .ff-amount:focus, .ff-amount:focus-visible { outline: none !important; box-shadow: none !important; border: none !important; background: transparent !important; } .ff-amount::placeholder { color: #B8BFD9; }`}</style>
 
       {view === "form" && (
         <>
@@ -592,19 +711,19 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
               <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Arc</span>
             </div>
 
-            <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "3px solid #fff", boxShadow: "0 2px 8px rgba(109,94,247,0.25)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-              <ArrowRight size={16} color="#6D5EF7" />
+            <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "3px solid #fff", boxShadow: "0 2px 8px rgba(61,90,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+              <ArrowRight size={16} color="#3D5AF1" />
             </div>
           </div>
 
-          <div style={{ marginTop: 10, background: "#F8F7FF", borderRadius: 20, padding: "14px 16px" }}>
+          <div style={{ marginTop: 10, background: "#F5F7FF", borderRadius: 20, padding: "14px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <span style={labelStyle}>YOU SEND</span>
               {balNum !== null && (
                 <span style={{ fontSize: 11.5, color: "#6B7280" }}>
                   Balance: {fmt(balNum)} USDC{" "}
                   <button type="button" onClick={() => balance && setAmount(balance)}
-                    style={{ border: "none", background: "#EDE9FE", color: "#6D5EF7", fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, cursor: "pointer", marginLeft: 4 }}>MAX</button>
+                    style={{ border: "none", background: "#E3E8FD", color: "#3D5AF1", fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, cursor: "pointer", marginLeft: 4 }}>MAX</button>
                 </span>
               )}
             </div>
@@ -627,7 +746,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
         <>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <button type="button" disabled={locked} onClick={() => setView("form")}
-              style={{ width: 34, height: 34, borderRadius: 12, border: "none", background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.4 : 1 }}>
+              style={{ width: 34, height: 34, borderRadius: 12, border: "none", background: "#EEF1FE", display: "flex", alignItems: "center", justifyContent: "center", cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.4 : 1 }}>
               <ArrowLeft size={17} color="#4B5563" />
             </button>
             <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>Review transfer</span>
@@ -647,8 +766,8 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
               <span style={{ fontSize: 15, fontWeight: 800, color: "#111827", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{receive !== null ? `≈ ${fmt(receive, 6)}` : "—"} USDC</span>
               <span style={{ fontSize: 11.5, color: "#6B7280" }}>on Arc</span>
             </div>
-            <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "3px solid #fff", boxShadow: "0 2px 8px rgba(109,94,247,0.25)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-              <ArrowRight size={16} color="#6D5EF7" />
+            <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "3px solid #fff", boxShadow: "0 2px 8px rgba(61,90,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+              <ArrowRight size={16} color="#3D5AF1" />
             </div>
           </div>
 
@@ -656,24 +775,24 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
           {step === "idle" && (
             <div style={{ marginTop: 10, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 14, padding: "10px 12px", fontSize: 11.5, color: "#92400E", lineHeight: 1.55 }}>
-              {useFast ? `Fast transfer: Circle usually confirms within ${wait.label}, for a small Circle fee.` : `Standard transfers wait for ${source.name} to finalize before Circle confirms (about ${wait.label} on average), so this isn't instant.`} Keep this tab open until it finishes. If you close it, you can resume later from here.
+              {useFast ? `Fast transfer: Circle usually confirms within ${wait.label}, for a small Circle fee.` : `Standard transfers wait for ${source.name} to finalize before Circle confirms (about ${wait.label} on average), so this isn't instant.`}{forwarding ? " No Arc gas needed: Circle completes the final step on Arc for you." : ""} Keep this tab open until it finishes. If you close it, you can resume later from here.
             </div>
           )}
         </>
       )}
 
       {view === "review" && step !== "idle" && (
-        <div style={{ marginTop: 12, border: "1px solid #EDE9FE", borderRadius: 20, padding: "14px" }}>
+        <div style={{ marginTop: 12, border: "1px solid #E3E8FD", borderRadius: 20, padding: "14px" }}>
           <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
             {steps.map((st, i) => (
               <div key={st.key} style={{ display: "flex", alignItems: "center", flex: i < steps.length - 1 ? 1 : undefined }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, minWidth: 54 }}>
-                  <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: st.complete || st.active ? "#6D5EF7" : "#fff", border: st.complete || st.active ? "none" : "1.5px solid #D4C9FA", boxShadow: st.active ? "0 0 0 4px rgba(109,94,247,0.15)" : "none", transition: "all 0.3s" }}>
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: st.complete || st.active ? "#3D5AF1" : "#fff", border: st.complete || st.active ? "none" : "1.5px solid #D5DCF9", boxShadow: st.active ? "0 0 0 4px rgba(61,90,241,0.15)" : "none", transition: "all 0.3s" }}>
                     {st.complete ? <Check size={15} color="#fff" /> : <span style={{ fontSize: 13, fontWeight: 800, color: st.active ? "#fff" : "#9CA3AF" }}>{st.num}</span>}
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: st.complete || st.active ? "#6D5EF7" : "#9CA3AF" }}>{st.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: st.complete || st.active ? "#3D5AF1" : "#9CA3AF" }}>{st.label}</span>
                 </div>
-                {i < steps.length - 1 && <div style={{ flex: 1, height: 2, background: st.complete ? "#6D5EF7" : "#E9E4FC", margin: "0 4px 16px", transition: "background 0.3s" }} />}
+                {i < steps.length - 1 && <div style={{ flex: 1, height: 2, background: st.complete ? "#3D5AF1" : "#E3E8FD", margin: "0 4px 16px", transition: "background 0.3s" }} />}
               </div>
             ))}
           </div>
@@ -691,15 +810,15 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
           {(burnTxHash || mintTxHash) && (
             <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 12 }}>
-              {burnTxHash && <a href={`${burnSource.chain.blockExplorers?.default?.url ?? "#"}/tx/${burnTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#6D5EF7", fontWeight: 600 }}>Send tx ↗</a>}
-              {mintTxHash && <a href={`https://arc.etherscan.io/tx/${mintTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#6D5EF7", fontWeight: 600 }}>Receive tx ↗</a>}
+              {burnTxHash && <a href={`${burnSource.chain.blockExplorers?.default?.url ?? "#"}/tx/${burnTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#3D5AF1", fontWeight: 600 }}>Send tx ↗</a>}
+              {mintTxHash && <a href={`https://arc.etherscan.io/tx/${mintTxHash}`} target="_blank" rel="noopener noreferrer" style={{ color: "#3D5AF1", fontWeight: 600 }}>Receive tx ↗</a>}
             </div>
           )}
         </div>
       )}
 
       <button onClick={ctaAction} disabled={!ctaEnabled}
-        style={{ width: "100%", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.55rem 0.55rem 0.55rem 1.5rem", borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: ctaEnabled ? "linear-gradient(135deg,#4F46E5,#7C3AED)" : "#EEEDF5", color: ctaEnabled ? "#fff" : "#9CA3AF", fontSize: 16, fontWeight: 700, boxShadow: ctaEnabled ? "0 10px 28px rgba(109,94,247,0.4)" : "none", cursor: ctaEnabled ? "pointer" : "not-allowed", transition: "all 0.2s" }}>
+        style={{ width: "100%", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.55rem 0.55rem 0.55rem 1.5rem", borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: ctaEnabled ? "#3D5AF1" : "#EEEDF5", color: ctaEnabled ? "#fff" : "#9CA3AF", fontSize: 16, fontWeight: 700, boxShadow: ctaEnabled ? "0 10px 28px rgba(61,90,241,0.4)" : "none", cursor: ctaEnabled ? "pointer" : "not-allowed", transition: "all 0.2s" }}>
         <span>{ctaLabel}</span>
         <span style={{ width: 42, height: 42, borderRadius: 15, background: ctaEnabled ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <ArrowRight size={19} />
@@ -726,7 +845,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
             </div>
             <div style={{ padding: "0 1.25rem 0.6rem" }}>
               <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search network"
-                style={{ width: "100%", boxSizing: "border-box", padding: "0.65rem 0.9rem", borderRadius: 12, border: "1px solid #E5E7EB", background: "#F8F7FF", fontSize: 14, outline: "none", color: "#111827" }} />
+                style={{ width: "100%", boxSizing: "border-box", padding: "0.65rem 0.9rem", borderRadius: 12, border: "1px solid #E5E7EB", background: "#F5F7FF", fontSize: 14, outline: "none", color: "#111827" }} />
             </div>
             <div style={{ overflowY: "auto", padding: "0 0.6rem 0.8rem" }}>
               {pickerList.length === 0 && <div style={{ padding: "1.5rem", textAlign: "center", fontSize: 13, color: "#9CA3AF" }}>No network found.</div>}
@@ -735,7 +854,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
                 const has = b != null && Number(b) > 0;
                 return (
                   <button key={c.key} type="button" onClick={() => { setSourceIdx(i); setPickerOpen(false); }}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "0.7rem 0.65rem", border: "none", borderRadius: 14, background: i === sourceIdx ? "#F5F3FF" : "transparent", cursor: "pointer", textAlign: "left" }}>
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "0.7rem 0.65rem", border: "none", borderRadius: 14, background: i === sourceIdx ? "#EEF1FE" : "transparent", cursor: "pointer", textAlign: "left" }}>
                     <ChainLogo chain={c} size={36} />
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: "block", fontSize: 14.5, fontWeight: 700, color: "#111827" }}>{c.name}</span>
@@ -744,7 +863,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
                     <span style={{ fontSize: 13.5, fontWeight: has ? 700 : 500, color: has ? "#111827" : "#9CA3AF", textAlign: "right" }}>
                       {b === undefined ? "…" : b === null ? "—" : `${fmt(Number(b))} USDC`}
                     </span>
-                    {i === sourceIdx && <Check size={16} color="#6D5EF7" />}
+                    {i === sourceIdx && <Check size={16} color="#3D5AF1" />}
                   </button>
                 );
               })}
