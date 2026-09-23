@@ -63,7 +63,13 @@ export default function LifiWalletBridge({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <WagmiProvider config={config} reconnectOnMount={false}>
+      {/* key={address} forces a full remount (fresh Wagmi internal state,
+          fresh ActivateConnector) when the connected wallet changes --
+          Wagmi's config is meant to be created once and treated as stable,
+          so swapping the config object in-place on an already-mounted
+          WagmiProvider doesn't reliably reset its internal connection
+          state. A full remount sidesteps that entirely. */}
+      <WagmiProvider key={address} config={config} reconnectOnMount={false}>
         <ActivateConnector connectorId="flowfi" />
         {children}
       </WagmiProvider>
