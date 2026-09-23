@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
@@ -11,53 +11,62 @@ const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
 const BASE_CHAIN_ID = 8453;
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-const lifiWidgetConfig: WidgetConfig = {
-  integrator: "flowfi",
-  apiKey: import.meta.env.VITE_LIFI_API_KEY,
-  providers: [EthereumProvider()],
-  fromChain: BASE_CHAIN_ID,
-  fromToken: NATIVE_TOKEN_ADDRESS,
-  toChain: ARC_MAINNET_CHAIN_ID,
-  toToken: ARC_MAINNET_USDC,
-  routePriority: "FASTEST",
-  sdkConfig: {
-    rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
-  },
-  variant: "wide",
-  chains: {
-    types: { allow: [ChainType.EVM] },
-  },
-  theme: {
-    colorSchemes: {
-      light: { palette: { primary: { main: "#6D5EF7" } } },
-    },
-    shape: {
-      borderRadius: 16,
-    },
-    container: {
-      border: "1px solid rgba(212,201,250,0.7)",
-      borderRadius: 24,
-      boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28)",
-      maxHeight: "none",
-    },
-    components: {
-      MuiInputCard: {
-        styleOverrides: {
-          root: {
-            border: "none",
-            boxShadow: "none",
-          },
-        },
-      },
-    },
-  },
-  appearance: "light",
-};
 
 export default function MainnetBridge({ address, provider }: { address?: string; provider?: EIP1193Provider }) {
   const [mode, setMode] = useState<"cctp" | "lifi">("lifi");
   const [rotatingIdx, setRotatingIdx] = useState(0);
   const formRef = useRef<FormState | null>(null);
+
+  // When a wallet is already connected, LifiWalletBridge wraps this widget in an
+  // ambient WagmiProvider so the widget auto-detects and reuses it (LI.FI's
+  // documented behavior). `providers: [EthereumProvider()]` is deliberately left
+  // OUT in that case -- including it makes the widget spin up its own, separate
+  // wallet management instead of reusing FlowFi's connection. With no wallet
+  // connected yet (guest browsing), there's no ambient Wagmi to detect, so
+  // EthereumProvider() is kept as the widget's own standalone connect flow.
+  const isFlowfiConnected = !!(address && provider);
+  const lifiWidgetConfig = useMemo<WidgetConfig>(() => ({
+    integrator: "flowfi",
+    apiKey: import.meta.env.VITE_LIFI_API_KEY,
+    ...(isFlowfiConnected ? {} : { providers: [EthereumProvider()] }),
+    fromChain: BASE_CHAIN_ID,
+    fromToken: NATIVE_TOKEN_ADDRESS,
+    toChain: ARC_MAINNET_CHAIN_ID,
+    toToken: ARC_MAINNET_USDC,
+    routePriority: "FASTEST",
+    sdkConfig: {
+      rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
+    },
+    variant: "wide",
+    chains: {
+      types: { allow: [ChainType.EVM] },
+    },
+    theme: {
+      colorSchemes: {
+        light: { palette: { primary: { main: "#6D5EF7" } } },
+      },
+      shape: {
+        borderRadius: 16,
+      },
+      container: {
+        border: "1px solid rgba(212,201,250,0.7)",
+        borderRadius: 24,
+        boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28)",
+        maxHeight: "none",
+      },
+      components: {
+        MuiInputCard: {
+          styleOverrides: {
+            root: {
+              border: "none",
+              boxShadow: "none",
+            },
+          },
+        },
+      },
+    },
+    appearance: "light",
+  }), [isFlowfiConnected]);
 
   useEffect(() => {
     const interval = setInterval(() => setRotatingIdx((i) => (i + 1) % SOURCE_CHAINS.length), 2200);
