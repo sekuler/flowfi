@@ -187,7 +187,7 @@ function useFlowFiFonts() {
     const link = document.createElement("link");
     link.id = "flowfi-fonts";
     link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@500;600&display=swap";
     document.head.appendChild(link);
   }, []);
 }
@@ -430,9 +430,9 @@ function AppInner() {
         --text-placeholder: #9CA3AF;
         --primary: #6D5EF7;
       }
-      * { font-family: 'Inter', system-ui, sans-serif; }
-      .flowfi-display { font-family: 'Space Grotesk', 'Inter', sans-serif !important; }
-      .flowfi-mono { font-family: 'JetBrains Mono', ui-monospace, monospace !important; }
+      * { font-family: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      .flowfi-display { font-family: 'Bricolage Grotesque', 'Geist', sans-serif !important; }
+      .flowfi-mono { font-family: 'Geist Mono', ui-monospace, monospace !important; }
       button:not(:disabled) { transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease; }
       button:not(:disabled):hover { transform: translateY(-1px); }
       button:not(:disabled):active { transform: translateY(0px) scale(0.98); }
@@ -475,6 +475,8 @@ function AppInner() {
       @media (prefers-reduced-motion: reduce) { .flowfi-float, .flowfi-chip { animation: none; } }
       .flowfi-glow-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
       .flowfi-glow-card:hover { box-shadow: 0 8px 30px rgba(139,92,246,0.15); transform: translateY(-2px); }
+      .flowfi-shimmer-title { background: none !important; -webkit-text-fill-color: #16151C !important; color: #16151C !important; animation: none !important; font-size: inherit !important; font-weight: inherit !important; letter-spacing: inherit !important; padding-bottom: 0 !important; }
+      .flowfi-shimmer-title::after { display: none !important; }
     `}</style>
   );
 
@@ -837,7 +839,7 @@ function AppInner() {
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
           <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" || tab === "mainnetbridge" || tab === "mainnethistory" ? 900 : 520), margin: "0 auto" }}>
             {tab !== "home" && <div style={{ marginBottom: "2rem" }}>
-              <h1 className="flowfi-display" style={{ fontSize: 28, fontWeight: 800, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
+              <h1 className="flowfi-display" style={{ fontSize: 32, fontWeight: 600, color: "#16151C", marginBottom: 6, letterSpacing: "-0.02em" }}>
                 {tab === "dashboard" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "dashboardmainnet" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "mainnethistory" ? <span className="flowfi-shimmer-title">History</span> : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "mainnetswap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
