@@ -38,15 +38,15 @@ const lifiWidgetConfig: WidgetConfig = {
   },
   theme: {
     colorSchemes: {
-      light: { palette: { primary: { main: "#6D5EF7" } } },
+      light: { palette: { primary: { main: "#3D5AF1" } } },
     },
     shape: {
       borderRadius: 16,
     },
     container: {
-      border: "1px solid rgba(212,201,250,0.7)",
+      border: "1px solid #E7E4DD",
       borderRadius: 24,
-      boxShadow: "0 24px 60px -16px rgba(109,94,247,0.28)",
+      boxShadow: "0 24px 60px -16px rgba(61,90,241,0.18)",
       maxHeight: "none",
     },
     components: {
@@ -68,15 +68,15 @@ export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }
 
   return (
     <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1.75rem 0.75rem 2.5rem" }}>
-      <div aria-hidden style={{ position: "absolute", inset: 0, borderRadius: 32, overflow: "hidden", background: "linear-gradient(180deg,#FBFAFF 0%,#F3F0FF 100%)", pointerEvents: "none" }}>
-        <div style={{ position: "absolute", top: -140, left: "50%", transform: "translateX(-50%)", width: 620, height: 380, background: "radial-gradient(closest-side, rgba(124,58,237,0.20), rgba(96,165,250,0.12) 60%, transparent)", filter: "blur(30px)" }} />
+      <div aria-hidden style={{ position: "absolute", inset: 0, borderRadius: 32, overflow: "hidden", background: "linear-gradient(180deg,#F7F8FF 0%,#EEF1FE 100%)", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", top: -140, left: "50%", transform: "translateX(-50%)", width: 620, height: 380, background: "radial-gradient(closest-side, rgba(61,90,241,0.16), rgba(96,165,250,0.12) 60%, transparent)", filter: "blur(30px)" }} />
       </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.85)", border: "1px solid #E4DDFB", padding: "5px 13px", borderRadius: 999 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", padding: "5px 13px", borderRadius: 999 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.18)" }} />
-            <span style={{ fontSize: 11.5, color: "#5B21B6", fontWeight: 700 }}>Arc Mainnet · real funds, real fees</span>
+            <span style={{ fontSize: 11.5, color: "#2B45C9", fontWeight: 700 }}>Arc Mainnet · real funds, real fees</span>
           </div>
         </div>
 

@@ -32,7 +32,7 @@ import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./cont
 import {
   Home, Repeat, Droplet,
   Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
-  Sparkles, Moon, Power, Copy, HelpCircle, Check, Lock, Mail, Zap, ShieldCheck as ShieldCheckIcon,
+  Sparkles, Moon, Power, HelpCircle, Check, Lock, Mail, Zap, ShieldCheck as ShieldCheckIcon,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -167,7 +167,7 @@ function FlowFiMark({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" style={{ flexShrink: 0, display: "block" }}>
       <defs>
-        <linearGradient id="ffm-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#B49CFF" /><stop offset="1" stopColor="#7B5CF6" /></linearGradient>
+        <linearGradient id="ffm-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8FB0FF" /><stop offset="1" stopColor="#3D5AF1" /></linearGradient>
         <linearGradient id="ffm-bot" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#22D3EE" /><stop offset="1" stopColor="#4F6BF6" /></linearGradient>
       </defs>
       <rect width="100" height="100" rx="28" fill="#0B0B12" />
@@ -721,9 +721,10 @@ function AppInner() {
           </a>
           {wallet ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 14, background: "#FFFFFF", border: "1px solid #E7E4DD" }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: "#16151C", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
-                {(nickname || wallet.address.slice(2)).charAt(0).toUpperCase()}
-              </div>
+              <button onClick={copyAddress} title="Copy address" aria-label="Copy address"
+                style={{ width: 36, height: 36, borderRadius: 10, border: "none", background: copied ? "#0E9F6E" : "#3D5AF1", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, flexShrink: 0, cursor: "pointer" }}>
+                {copied ? <Check size={16} /> : (nickname || wallet.address.slice(2)).charAt(0).toUpperCase()}
+              </button>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <button onClick={() => {
                   const next = window.prompt("Set a local nickname (only visible to you, this browser only):", nickname ?? "");
@@ -734,14 +735,10 @@ function AppInner() {
                   style={{ display: "block", maxWidth: "100%", padding: 0, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#16151C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }}>
                   {nickname || shortAddr}
                 </button>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, fontSize: 11.5, color: "#5E5B6B" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, fontSize: 11.5, color: "#5E5B6B", whiteSpace: "nowrap" }}>
                   <Sparkles size={11} color="#3D5AF1" /> {points} pts
                 </div>
               </div>
-              <button onClick={copyAddress} title="Copy address" aria-label="Copy address"
-                style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: copied ? "#0E9F6E" : "#6B6876", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-              </button>
               <button onClick={disconnectWallet} title="Disconnect" aria-label="Disconnect"
                 style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: "#6B6876", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
                 <Power size={14} />
