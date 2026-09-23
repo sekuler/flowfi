@@ -32,6 +32,13 @@ export function flowfiConnector(provider: EIP1193Provider, address: string) {
       (provider as any)?.on?.("chainChanged", onChainChanged);
       (provider as any)?.on?.("disconnect", onDisconnect);
     }
+    function unbindListeners() {
+      if (!listenersBound) return;
+      listenersBound = false;
+      (provider as any)?.removeListener?.("accountsChanged", onAccountsChanged);
+      (provider as any)?.removeListener?.("chainChanged", onChainChanged);
+      (provider as any)?.removeListener?.("disconnect", onDisconnect);
+    }
 
     return {
       id: "flowfi",
@@ -43,15 +50,21 @@ export function flowfiConnector(provider: EIP1193Provider, address: string) {
       },
 
       async connect(_parameters?: { chainId?: number; isReconnecting?: boolean }) {
+        console.log("[flowfi-lifi-debug] connector.connect() called", { address });
         bindListeners();
         const hex = (await provider.request({ method: "eth_chainId" })) as string;
+        console.log("[flowfi-lifi-debug] connector.connect() got chainId", hex);
         return { accounts: [address as `0x${string}`] as readonly `0x${string}`[], chainId: Number(hex) };
       },
 
       async disconnect() {
-        // Intentionally a no-op: FlowFi's own sidebar controls the real
-        // connection. Wagmi-level "disconnect" here doesn't touch the
-        // actual wallet session.
+        // Unbind our listeners (this connector instance is being torn
+        // down, e.g. LifiWalletBridge's key={address} remount on wallet
+        // switch) -- without this, every remount left a new set of
+        // listeners on the underlying provider, piling up over repeated
+        // connects/switches (the "MaxListenersExceededWarning" in
+        // console). FlowFi's own real wallet session is untouched.
+        unbindListeners();
       },
 
       async getAccounts() {
