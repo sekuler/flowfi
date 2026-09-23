@@ -2,7 +2,6 @@ import { useRef } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
-import NetworkGuard from "./NetworkGuard";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 import ArcTokenStrip from "./ArcTokenStrip";
 
@@ -63,7 +62,7 @@ const lifiWidgetConfig: WidgetConfig = {
   appearance: "light",
 };
 
-export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }) {
+export default function MainnetSwap(_props: { provider?: EIP1193Provider }) {
   const formRef = useRef<FormState | null>(null);
 
   return (
@@ -80,7 +79,7 @@ export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }
           </div>
         </div>
 
-        <NetworkGuard provider={provider}>
+        <>
           <style>{`
             .lifi-widget-wrap input:focus {
               outline: none !important;
@@ -98,7 +97,7 @@ export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }
               }} />
             <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
           </div>
-        </NetworkGuard>
+        </>
       </div>
     </div>
   );
