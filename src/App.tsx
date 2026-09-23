@@ -90,12 +90,9 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     { id: "home", label: "Home", Icon: Home },
     { id: "mainnetbridge", label: "Bridge", Icon: Zap },
     { id: "mainnetswap", label: "Swap", Icon: Repeat },
+    { id: "circlewalletmainnet", label: "Circle Wallet", Icon: CircleDollarSign },
     { id: "dashboardmainnet", label: "Dashboard", Icon: LayoutDashboard },
     { id: "mainnethistory", label: "History", Icon: HistoryIcon },
-    // Circle Wallet is back on mainnet (2026-09-24) as a capped convenience wallet with an
-    // always-available withdraw; backend is api/circle-wallet-mainnet.js (LIVE key, separate
-    // from testnet). See the notes below for the original reasons it was removed.
-    { id: "circlewalletmainnet", label: "Circle Wallet", Icon: CircleDollarSign },
     // Circle Wallet on mainnet was fully removed (2026-09-18), not just
     // hidden from nav -- component file, Tab union entry, and safe-tab
     // list entries are all gone (an earlier pass only removed the nav
