@@ -10,12 +10,12 @@ export default function Sparkline({ points, height = 44 }: { points: number[]; h
     <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display: "block" }}>
       <defs>
         <linearGradient id="ffspark" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#6D5EF7" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#6D5EF7" stopOpacity="0" />
+          <stop offset="0%" stopColor="#4F6BF6" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#4F6BF6" stopOpacity="0" />
         </linearGradient>
       </defs>
       <polygon points={area} fill="url(#ffspark)" />
-      <polyline points={line} fill="none" stroke="#6D5EF7" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <polyline points={line} fill="none" stroke="#4F6BF6" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
