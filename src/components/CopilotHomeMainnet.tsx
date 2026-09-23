@@ -163,7 +163,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         .ff-row:hover { background: rgba(109,94,247,0.05); }
       `}</style>
 
-      <div style={{ ...card, background: "linear-gradient(135deg, #FFFFFF 0%, #F6F3FF 100%)", padding: isMobile ? "1.25rem" : "1.6rem 1.8rem", display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 18 : 28, alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", overflow: "hidden" }}>
+      <div className="flowfi-glow-card" style={{ ...card, background: "linear-gradient(135deg, #FFFFFF 0%, #F6F3FF 100%)", padding: isMobile ? "1.25rem" : "1.6rem 1.8rem", display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 18 : 28, alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", overflow: "hidden" }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 14, color: "#6B7280", fontWeight: 600, marginBottom: 6 }}>Net worth</div>
           <div className="flowfi-mono" style={{ fontSize: isMobile ? 40 : 52, fontWeight: 700, color: "#111827", lineHeight: 1.05, letterSpacing: "-1px", fontVariantNumeric: "tabular-nums" }}>
