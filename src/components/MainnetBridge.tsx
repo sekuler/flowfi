@@ -4,6 +4,7 @@ import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import NativeCctpBridge, { SOURCE_CHAINS } from "./NativeCctpBridge";
 import ArcTokenStrip from "./ArcTokenStrip";
+import LifiWalletBridge from "./lifiWalletBridge";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
@@ -132,7 +133,9 @@ export default function MainnetBridge({ address, provider }: { address?: string;
               <div className="lifi-widget-wrap" style={{ maxWidth: 480, margin: "0 auto" }}>
                 <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Bridge into"
                   onPick={(t) => formRef.current?.setFieldValue("toToken", t.address, { setUrlSearchParam: false })} />
-                <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
+                <LifiWalletBridge provider={provider} address={address}>
+                  <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
+                </LifiWalletBridge>
               </div>
             </>
           )}
