@@ -32,7 +32,7 @@ import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./cont
 import {
   Home, Repeat, Droplet,
   Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
-  Sparkles, Moon, Power, Copy, Check, Lock, Mail, Zap, ShieldCheck as ShieldCheckIcon,
+  Sparkles, Moon, Power, Copy, HelpCircle, Check, Lock, Mail, Zap, ShieldCheck as ShieldCheckIcon,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -165,10 +165,16 @@ const LANDING_FEATURES = [
 /* ---------- Soft pastel blob background ---------- */
 function FlowFiMark({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 34 34" fill="none" aria-hidden="true" style={{ flexShrink: 0, display: "block" }}>
-      <rect width="34" height="34" rx="10" fill="#16151C" />
-      <path d="M9 13.5c3-3 5.5-3 8.5 0s5.5 3 8.5 0" stroke="#7B61FF" strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M9 20.5c3-3 5.5-3 8.5 0s5.5 3 8.5 0" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round" />
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" style={{ flexShrink: 0, display: "block" }}>
+      <defs>
+        <linearGradient id="ffm-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#B49CFF" /><stop offset="1" stopColor="#7B5CF6" /></linearGradient>
+        <linearGradient id="ffm-bot" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#22D3EE" /><stop offset="1" stopColor="#4F6BF6" /></linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="28" fill="#0B0B12" />
+      <g transform="translate(22 15) scale(0.7)">
+        <path fill="url(#ffm-top)" d="M0 14C0 6 6 0 14 0H78C82 0 84 4 82 7L72 26C69 31 64 34 58 34H22C10 34 3 40 0 48Z" />
+        <path fill="url(#ffm-bot)" d="M0 62C0 53 7 46 16 46H66C70 46 72 50 70 53L62 64C59 68 55 70 50 70H36C28 70 22 74 18 80L8 97C6 100 0 100 0 96Z" />
+      </g>
     </svg>
   );
 }
@@ -708,34 +714,39 @@ function AppInner() {
             );
           })()}
         </div>
-        <div style={{ padding: "0.5rem 1.25rem", marginTop: "auto" }}>
+        <div style={{ padding: "0.5rem 0.75rem", marginTop: "auto" }}>
+          <a href="https://github.com/sekuler/flowfi#readme" target="_blank" rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", gap: 11, height: 40, padding: "0 0.75rem", marginBottom: 8, borderRadius: 10, fontSize: 13.5, fontWeight: 500, color: "#3F3D48", textDecoration: "none" }}>
+            <HelpCircle size={17} strokeWidth={1.8} /> Help &amp; docs
+          </a>
           {wallet ? (
-            <>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
-                  <div className="flowfi-mono" style={{ fontSize: 12, color: "#374151" }}>{nickname || shortAddr}</div>
-                  <button onClick={copyAddress} title="Copy address"
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 1, color: copied ? "#22C55E" : "#9CA3AF", display: "flex", flexShrink: 0 }}>
-                    {copied ? <Check size={11} /> : <Copy size={11} />}
-                  </button>
-                </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 14, background: "#FFFFFF", border: "1px solid #E7E4DD" }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "#16151C", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
+                {(nickname || wallet.address.slice(2)).charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <button onClick={() => {
                   const next = window.prompt("Set a local nickname (only visible to you, this browser only):", nickname ?? "");
                   if (next === null) return;
                   if (next.trim()) { setNicknameState(next.trim()); saveNickname(next.trim()); }
                   else { setNicknameState(null); clearNickname(); }
-                }} title="Set a local nickname" style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: 9, fontWeight: 700, flexShrink: 0 }}>
-                  {nickname ? "edit" : "+nick"}
+                }} title="Click to set a nickname"
+                  style={{ display: "block", maxWidth: "100%", padding: 0, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#16151C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }}>
+                  {nickname || shortAddr}
                 </button>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <Sparkles size={10} color="#6D5EF7" />
-                  <span className="flowfi-mono" style={{ fontSize: 10, fontWeight: 700, color: "#6D5EF7" }}>{points} pts</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, fontSize: 11.5, color: "#5E5B6B" }}>
+                  <Sparkles size={11} color="#5B3DF5" /> {points} pts
                 </div>
-                <button onClick={disconnectWallet} style={{ fontSize: 10, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Disconnect</button>
               </div>
-            </>
+              <button onClick={copyAddress} title="Copy address" aria-label="Copy address"
+                style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: copied ? "#0E9F6E" : "#6B6876", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+              <button onClick={disconnectWallet} title="Disconnect" aria-label="Disconnect"
+                style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: "#6B6876", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                <Power size={14} />
+              </button>
+            </div>
           ) : circlePrimary && circleWalletInfo ? (
             <>
               <div style={{ fontSize: 10, color: "#8B7CF9", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>CIRCLE WALLET</div>
