@@ -693,7 +693,7 @@ function AppInner() {
                   <button key={id} onClick={() => goToTab(id)}
                     style={{
                       width: "100%", height: 40, padding: "0 0.75rem", borderRadius: 10, border: "none",
-                      background: active ? "#16151C" : "transparent",
+                      background: active ? "#3D5AF1" : "transparent",
                       color: active ? "#FFFFFF" : locked ? "#B5B0C4" : "#3F3D48",
                       fontSize: 13.5, fontWeight: 500, cursor: "pointer",
                       display: "flex", alignItems: "center", gap: 11, textAlign: "left",
