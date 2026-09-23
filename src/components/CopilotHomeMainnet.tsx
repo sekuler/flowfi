@@ -42,8 +42,8 @@ const ANALYSIS_SECTION_HEADERS = new Set([
 
 // Design tokens (home only)
 const INK = "#16151C";
-const ACCENT = "#5B3DF5";
-const ACCENT_SOFT = "#F4F1FF";
+const ACCENT = "#3D5AF1";
+const ACCENT_SOFT = "#EEF1FE";
 const LINE = "#E7E4DD";
 const MUTED = "#5E5B6B";
 const SOFT_BG = "#FBFAF8";
@@ -400,9 +400,9 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         .ffh .ffh-display { font-family: 'Bricolage Grotesque', 'Geist', system-ui, sans-serif; }
         .ffh .ffh-mono { font-family: 'Geist Mono', ui-monospace, monospace; }
         .ffh .ffh-step:hover { background: ${ACCENT_SOFT} !important; transform: none !important; }
-        .ffh .ffh-suggest:hover { border-color: #C9C4F5 !important; background: #FFFFFF !important; }
+        .ffh .ffh-suggest:hover { border-color: #C3CCF8 !important; background: #FFFFFF !important; }
         .ffh .ffh-row:hover { background: ${SOFT_BG}; }
-        .ffh .ffh-ask-wrap:focus-within { border-color: ${ACCENT} !important; box-shadow: 0 0 0 3px rgba(91,61,245,0.14); }
+        .ffh .ffh-ask-wrap:focus-within { border-color: ${ACCENT} !important; box-shadow: 0 0 0 3px rgba(61,90,241,0.14); }
         .ffh #ffh-ask:focus { box-shadow: none; }
       `}</style>
 
