@@ -83,7 +83,7 @@ const CIRCLE_SAFE_TABS: Tab[] = ["pools", "analytics", "bridge", "swap", "histor
 
 const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: Tab; label: string; Icon: any }[] }[] = [
  {
-  group: "⚡ MAINNET",
+  group: "Mainnet",
   variant: "mainnet",
   tabs: [
     { id: "home", label: "Home", Icon: Home },
@@ -114,14 +114,14 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
   ],
 },
  {
-  group: "📈 TRADE",
+  group: "Trade",
   variant: "testnet",
   tabs: [
     { id: "swap",      label: "Swap",      Icon: Repeat },
   ],
 },
 {
-  group: "TRANSFER",
+  group: "Transfer",
   variant: "testnet",
   tabs: [
     { id: "bridge",       label: "Bridge",        Icon: Hexagon },
@@ -129,7 +129,7 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
   ],
 },
 {
-  group: "🛠️ TOOLS",
+  group: "Tools",
   variant: "testnet",
   tabs: [
     { id: "pools",     label: "Liquidity", Icon: Droplet },
@@ -137,7 +137,7 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
   ],
 },
  {
-  group: "ANALYTICS",
+  group: "Analytics",
   variant: "testnet",
   tabs: [
     { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -163,12 +163,19 @@ const LANDING_FEATURES = [
 ];
 
 /* ---------- Soft pastel blob background ---------- */
+function FlowFiMark({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 34 34" fill="none" aria-hidden="true" style={{ flexShrink: 0, display: "block" }}>
+      <rect width="34" height="34" rx="10" fill="#16151C" />
+      <path d="M9 13.5c3-3 5.5-3 8.5 0s5.5 3 8.5 0" stroke="#7B61FF" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M9 20.5c3-3 5.5-3 8.5 0s5.5 3 8.5 0" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function PastelBackground() {
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: "#F8F8FC" }}>
-      <div className="flowfi-blob-a" style={{ position: "absolute", top: "-10%", left: "-8%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,124,249,0.28) 0%, transparent 70%)", filter: "blur(50px)" }} />
-      <div className="flowfi-blob-b" style={{ position: "absolute", top: "20%", right: "-10%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(109,94,247,0.24) 0%, transparent 70%)", filter: "blur(50px)" }} />
-      <div className="flowfi-blob-a" style={{ position: "absolute", bottom: "-15%", left: "30%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)", filter: "blur(50px)", animationDelay: "-8s" }} />
+    <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: "#F6F5F2" }}>
     </div>
   );
 }
@@ -410,6 +417,7 @@ function AppInner() {
     setTimeout(() => setCopied(false), 1500);
   }
 
+  const activeVariant = TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet";
   const shortAddr = wallet ? wallet.address.slice(0, 6) + "..." + wallet.address.slice(-4) : "";
 
   const sharedStyle = (
@@ -478,7 +486,7 @@ function AppInner() {
 
       <header style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 3rem", maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 12, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(109,94,247,0.35)" }}>◈</div>
+          <FlowFiMark size={34} />
           <div className="flowfi-display" style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1, color: "#111827" }}>FlowFi</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -573,7 +581,7 @@ function AppInner() {
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
           <div style={{ maxWidth: 320 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <div style={{ width: 30, height: 30, borderRadius: 10, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff" }}>◈</div>
+              <FlowFiMark size={30} />
               <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>FlowFi</span>
             </div>
             <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
@@ -647,40 +655,43 @@ function AppInner() {
       }}>
         <div style={{ padding: "0 1.25rem 1rem", marginBottom: "0.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 11, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", boxShadow: "0 4px 14px rgba(109,94,247,0.35)" }}>◈</div>
-            <div>
-              <div className="flowfi-display" style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>FlowFi</div>
-              {(() => {
-                const activeVariant = TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet";
-                return (
-                  <div style={{ fontSize: 9, color: activeVariant === "mainnet" ? "#6D5EF7" : "#6D5EF7", fontWeight: 700, letterSpacing: "2px" }}>
-                    {activeVariant === "mainnet" ? "MAINNET" : "TESTNET"}
-                  </div>
-                );
-              })()}
-            </div>
+            <FlowFiMark size={32} />
+            <div className="flowfi-display" style={{ fontSize: 18, fontWeight: 700, color: "#16151C", letterSpacing: "-0.02em" }}>FlowFi</div>
+          </div>
+          <div role="group" aria-label="Network" style={{ display: "flex", gap: 2, padding: 3, marginTop: 18, borderRadius: 11, background: "#ECEAE4" }}>
+            {([
+              { v: "mainnet", label: "Mainnet", dot: "#0E9F6E", go: () => goToTab("home") },
+              { v: "testnet", label: "Testnet", dot: "#C77B12", go: () => goToTab(wallet ? "dashboard" : "pools") },
+            ] as const).map((n) => {
+              const on = activeVariant === n.v;
+              return (
+                <button key={n.v} onClick={n.go} aria-pressed={on}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 32, border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12.5, fontWeight: 600, background: on ? "#FFFFFF" : "transparent", color: on ? "#16151C" : "#5E5B6B", boxShadow: on ? "0 1px 2px rgba(22,21,28,0.12)" : "none" }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: n.dot }} />{n.label}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
           {(() => {
             const renderGroup = ({ group, variant, tabs }: (typeof TAB_GROUPS)[number]) => (
             <div key={group} style={{ marginBottom: 4 }}>
-              <div style={{ display: "block", fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 1rem 0.2rem", margin: 0 }}>{group}</div>
+              {variant === "testnet" && <div style={{ display: "block", fontSize: 10.5, color: "#6B6876", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.9rem 0.75rem 0.35rem", margin: 0 }}>{group}</div>}
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 const locked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(id) : !GUEST_SAFE_TABS.includes(id));
-                const muted = variant === "testnet" && !active;
                 return (
                   <button key={id} onClick={() => goToTab(id)}
                     style={{
-                      width: "100%", padding: muted ? "0.38rem 1rem" : "0.45rem 1rem", borderRadius: 999, border: "none",
-                      background: active ? "linear-gradient(90deg, #ede9fe, #f5f3ff)" : "transparent",
-                      color: active ? "#6D5EF7" : locked ? "#B5B0C4" : muted ? "#8B8594" : "#4B5563",
-                      fontSize: muted ? 11.5 : 12.5, fontWeight: active ? 700 : 500, cursor: "pointer",
-                      display: "flex", alignItems: "center", gap: 9, textAlign: "left",
-                      marginBottom: 1,
+                      width: "100%", height: 40, padding: "0 0.75rem", borderRadius: 10, border: "none",
+                      background: active ? "#16151C" : "transparent",
+                      color: active ? "#FFFFFF" : locked ? "#B5B0C4" : "#3F3D48",
+                      fontSize: 13.5, fontWeight: 500, cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 11, textAlign: "left",
+                      marginBottom: 2,
                     }}>
-                    <Icon size={muted ? 13 : 15} strokeWidth={2} />
+                    <Icon size={17} strokeWidth={1.8} />
                     <span style={{ flex: 1 }}>{label}</span>
                     {locked && <Lock size={11} />}
                   </button>
@@ -690,14 +701,7 @@ function AppInner() {
             );
             return (
               <>
-                {TAB_GROUPS.filter((g) => g.variant !== "testnet").map(renderGroup)}
-                <div style={{ margin: "1.1rem 0 0.5rem", padding: "0.8rem 0.5rem 0.5rem", border: "1px dashed #F0D9A6", background: "#FFFCF5", borderRadius: 16 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0.5rem 0.6rem", fontSize: 9.5, color: "#B45309", fontWeight: 800, letterSpacing: "1px" }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706", flexShrink: 0 }} />
-                    TESTNET — DEMO, NO REAL FUNDS
-                  </div>
-                  {TAB_GROUPS.filter((g) => g.variant === "testnet").map(renderGroup)}
-                </div>
+                {TAB_GROUPS.filter((g) => (g.variant ?? "testnet") === activeVariant).map(renderGroup)}
               </>
             );
           })()}
@@ -771,7 +775,7 @@ function AppInner() {
               ☰
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 26, height: 26, borderRadius: 8, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff" }}>◈</div>
+              <FlowFiMark size={26} />
               <span className="flowfi-display" style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>FlowFi</span>
             </div>
             <div style={{ width: 32 }} />
@@ -824,16 +828,22 @@ function AppInner() {
           )}
         </header>
 
+        {activeVariant === "testnet" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "0.6rem 1rem" : "0.6rem 2.5rem", background: "#FFF4E0", borderTop: "1px solid #F1DDB5", borderBottom: "1px solid #F1DDB5", fontSize: 13, color: "#6A4308" }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#C77B12", flexShrink: 0 }} />
+            You're on Arc Testnet. Tokens here have no real value — practice freely.
+          </div>
+        )}
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
           <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" || tab === "mainnetbridge" || tab === "mainnethistory" ? 900 : 520), margin: "0 auto" }}>
-            <div style={{ marginBottom: "2rem" }}>
+            {tab !== "home" && <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 28, fontWeight: 800, color: "#111827", marginBottom: 4, letterSpacing: "-0.5px" }}>
                 {tab === "home" ? <span className="flowfi-shimmer-title">Home</span> : tab === "dashboard" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "dashboardmainnet" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "mainnethistory" ? <span className="flowfi-shimmer-title">History</span> : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "mainnetswap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
                {tab === "home" ? "Your Arc Mainnet overview" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "mainnethistory" ? "Recent transactions on Arc Mainnet" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : tab === "mainnetbridge" ? "Bridge USDC and other assets onto Arc, via LI.FI or Circle's native CCTP" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
-            </div>
+            </div>}
 {tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} provider={wallet.provider} />}
 
             {tab === "mainnetbridge" && <MainnetBridge address={wallet?.address} provider={wallet?.provider} />}
@@ -878,7 +888,7 @@ function AppInner() {
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
             <div style={{ maxWidth: 320 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <div style={{ width: 30, height: 30, borderRadius: 10, background: "linear-gradient(135deg, #8B7CF9, #6D5EF7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff" }}>◈</div>
+                <FlowFiMark size={30} />
                 <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>FlowFi</span>
               </div>
               <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
@@ -923,11 +933,11 @@ function AppInner() {
         )}
       </main>
 
-      {wallet && (tab === "home" || tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet" || tab === "mainnethistory") ? (
+      {wallet && tab !== "home" && ((tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet" || tab === "mainnethistory") ? (
         <AiCopilotMainnet onNavigate={(t) => setTab(t)} />
       ) : (
-        wallet && <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
-      )}
+        <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
+      ))}
       {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
       {showConnectModal && <ConnectModal onClose={() => setShowConnectModal(false)} onConnected={handleConnected} onCircleConnected={handleCircleConnected} />}
     </div>
