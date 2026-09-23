@@ -168,13 +168,13 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   const doneCount = steps.filter((s) => s.done).length;
   const currentStep = steps.findIndex((s) => !s.done);
 
-  const primaryBtn = { display: "flex", alignItems: "center", gap: 8, height: 48, padding: "0 22px", border: "none", borderRadius: 12, background: ACCENT, color: "#FFFFFF", fontSize: 15, fontWeight: 600, cursor: "pointer" } as const;
-  const ghostBtn = { display: "flex", alignItems: "center", gap: 8, height: 48, padding: "0 20px", borderRadius: 12, background: "transparent", border: "1px solid #45424F", color: "#FFFFFF", fontSize: 15, fontWeight: 500, cursor: "pointer" } as const;
+  const primaryBtn = { display: "flex", alignItems: "center", gap: 8, height: 48, padding: "0 22px", border: "none", borderRadius: 12, background: "#FFFFFF", color: ACCENT, fontSize: 15, fontWeight: 600, cursor: "pointer" } as const;
+  const ghostBtn = { display: "flex", alignItems: "center", gap: 8, height: 48, padding: "0 20px", borderRadius: 12, background: "transparent", border: "1px solid rgba(255,255,255,0.5)", color: "#FFFFFF", fontSize: 15, fontWeight: 500, cursor: "pointer" } as const;
 
   const hero = (
-    <section style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.6fr) minmax(0, 1fr)", gap: isMobile ? 24 : 40, padding: isMobile ? "1.75rem 1.4rem" : "2.5rem 2.75rem", borderRadius: 24, background: INK, color: "#FFFFFF" }}>
+    <section style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.6fr) minmax(0, 1fr)", gap: isMobile ? 24 : 40, padding: isMobile ? "1.75rem 1.4rem" : "2.5rem 2.75rem", borderRadius: 24, background: ACCENT, color: "#FFFFFF" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#B9B6C6" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,0.85)" }}>
           <ShieldCheck size={15} /> Self-custody · you sign every transaction
         </div>
         {isNew ? (
@@ -182,17 +182,17 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
             <h2 className="ffh-display" style={{ margin: 0, fontSize: isMobile ? 32 : 44, lineHeight: 1.05, fontWeight: 600, letterSpacing: "-0.025em" }}>
               Welcome to FlowFi.<br />Let's put your wallet to work.
             </h2>
-            <p style={{ margin: 0, maxWidth: 520, fontSize: 16, lineHeight: 1.55, color: "#CFCCDA" }}>
+            <p style={{ margin: 0, maxWidth: 520, fontSize: 16, lineHeight: 1.55, color: "rgba(255,255,255,0.88)" }}>
               Bring USDC onto Arc to start swapping and bridging — with an AI copilot that explains every step.
             </p>
           </>
         ) : (
           <>
-            <div style={{ fontSize: 14, color: "#A8A5B5" }}>Net worth</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Net worth</div>
             <div className="ffh-mono" style={{ fontSize: isMobile ? 40 : 56, fontWeight: 500, lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
               {balancesLoading ? "…" : `$${money(total)}`}
             </div>
-            <div style={{ fontSize: 14, color: "#A8A5B5" }}>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>
               {balancesLoading ? "Loading balances…" : `${owned.length} asset${owned.length === 1 ? "" : "s"} · ${owned.map((d) => d.label).join(", ")}`}
             </div>
           </>
@@ -212,26 +212,26 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 20, padding: 24, borderRadius: 18, background: "#211F29", border: "1px solid #2E2C37", minWidth: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 20, padding: 24, borderRadius: 18, background: "rgba(8,20,90,0.22)", border: "1px solid rgba(255,255,255,0.18)", minWidth: 0 }}>
         {isNew ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 13, color: "#A8A5B5" }}>Total balance</span>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.82)" }}>Total balance</span>
             <span className="ffh-mono" style={{ fontSize: 40, fontWeight: 500, letterSpacing: "-0.02em" }}>$0.00</span>
           </div>
         ) : hasChart ? (
           <div>
-            <Sparkline points={chartPoints} height={96} />
-            <div style={{ fontSize: 11, color: "#A8A5B5", textAlign: "right", marginTop: 6 }}>{chartPoints.length} days</div>
+            <Sparkline points={chartPoints} height={96} color="#FFFFFF" />
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.82)", textAlign: "right", marginTop: 6 }}>{chartPoints.length} days</div>
           </div>
         ) : (
-          <div style={{ fontSize: 13, lineHeight: 1.5, color: "#A8A5B5" }}>Your balance chart appears after a couple of days of visits.</div>
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)" }}>Your balance chart appears after a couple of days of visits.</div>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ height: 1, background: "#2E2C37" }} />
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#A8A5B5" }}>
+          <div style={{ height: 1, background: "rgba(255,255,255,0.18)" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.82)" }}>
             <span>Assets</span><span style={{ color: "#FFFFFF" }}>{isNew ? "None yet" : balancesLoading ? "…" : owned.length}</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#A8A5B5" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.82)" }}>
             <span>Network</span><span style={{ color: "#FFFFFF" }}>Arc Mainnet</span>
           </div>
         </div>
