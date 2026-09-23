@@ -5,6 +5,7 @@ import { mainnet, base, avalanche } from "viem/chains";
 import { ArrowRight, Check } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { EURC_LOGO } from "./tokenLogos";
+import { TokenIcon } from "./TokenIcon";
 
 // Native EURC into Arc Mainnet via Circle's "CCTP for non-USDC" (CrossChainTokenService).
 // Sources (all verified 2026-09-23 against developers.circle.com):
@@ -19,11 +20,17 @@ import { EURC_LOGO } from "./tokenLogos";
 // user signs nothing on Arc and needs no Arc gas. Completion is confirmed via Iris + the Arc
 // MessageTransmitterV2 usedNonces check; if forwarding never lands, Resume can mint manually.
 const CCTS = "0x431871229103b780868f8C6BB820cd16ECf942BC" as const;
-const EURC_TOKEN_ID = "0x6ca9e29fa53becc29becaf4a90b9ca7a995ad4d2234880da13ca38c657fb241c" as const;
+// Pre-configured mainnet token IDs from cctp/expanded-assets/concepts/supported-chains-and-domains.
+// Routes into Arc per Circle's Interop on Arc page: EURC from Arc/Avalanche/Base/Ethereum/World Chain
+// (World Chain has no CrossChainTokenService deployment listed yet), cirBTC from Ethereum only.
+type TokenKey = "eurc" | "cirbtc";
+const TOKENS: Record<TokenKey, { id: `0x${string}`; symbol: string; decimals: number; sources: string[]; shownDecimals: number }> = {
+  eurc: { id: "0x6ca9e29fa53becc29becaf4a90b9ca7a995ad4d2234880da13ca38c657fb241c", symbol: "EURC", decimals: 6, sources: ["base", "ethereum", "avalanche"], shownDecimals: 2 },
+  cirbtc: { id: "0x3d26699fb5d40190fc3fa0dcbc1cd24e558355043c1997572ff9fd6efbb3fdca", symbol: "cirBTC", decimals: 8, sources: ["ethereum"], shownDecimals: 8 },
+};
 const ARC_MESSAGE_TRANSMITTER_V2 = "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64" as const;
 const ARC_DOMAIN = 26;
 const IRIS_API = "https://iris-api.circle.com";
-const EURC_DECIMALS = 6;
 const PENDING_KEY = "flowfi-eurc-pending";
 
 interface Source { key: string; name: string; chain: Chain; domain: number; gas: string; stdWait: string; stdMaxMin: number }
@@ -90,6 +97,7 @@ async function switchTo(provider: EIP1193Provider, chain: Chain) {
 }
 
 export default function NativeEurcBridge({ address, provider }: { address: string; provider?: EIP1193Provider }) {
+  const [tokenKey, setTokenKey] = useState<TokenKey>("eurc");
   const [srcIdx, setSrcIdx] = useState(0);
   const [amount, setAmount] = useState("");
   const [balance, setBalance] = useState<string | null>(null);
@@ -101,12 +109,13 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
   const [mintHash, setMintHash] = useState<string | null>(null);
   const [pendingSrc, setPendingSrc] = useState<number | null>(null);
 
+  const tok = TOKENS[tokenKey];
   const src = SOURCES[pendingSrc ?? srcIdx];
   const busy = step === "approving" || step === "quoting" || step === "sending" || step === "delivering";
   const unfinished = step === "error" && !!txHash;
 
   function savePending(hash: string, idx: number, amt: string) {
-    try { localStorage.setItem(PENDING_KEY, JSON.stringify({ hash, srcIdx: idx, address, amount: amt })); } catch { /* ignore */ }
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify({ hash, srcIdx: idx, address, amount: amt, token: tokenKey })); } catch { /* ignore */ }
   }
   function clearPending() { try { localStorage.removeItem(PENDING_KEY); } catch { /* ignore */ } }
 
@@ -114,11 +123,12 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
     try {
       const raw = localStorage.getItem(PENDING_KEY);
       if (!raw) return;
-      const p = JSON.parse(raw) as { hash?: string; srcIdx?: number; address?: string; amount?: string };
+      const p = JSON.parse(raw) as { hash?: string; srcIdx?: number; address?: string; amount?: string; token?: TokenKey };
       if (!p.hash || typeof p.srcIdx !== "number" || !SOURCES[p.srcIdx] || p.address?.toLowerCase() !== address.toLowerCase()) return;
       setTxHash(p.hash); setPendingSrc(p.srcIdx); setSrcIdx(p.srcIdx); setAmount(p.amount ?? "");
+      if (p.token && TOKENS[p.token]) setTokenKey(p.token);
       setStep("error");
-      setError("You have an unfinished EURC transfer: it was sent, but we haven't confirmed delivery on Arc yet.");
+      setError("You have an unfinished transfer: it was sent, but we haven't confirmed delivery on Arc yet.");
     } catch { /* ignore */ }
   }, [address]);
 
@@ -129,18 +139,18 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
     (async () => {
       try {
         const pc = createPublicClient({ chain: SOURCES[srcIdx].chain, transport: http() });
-        const token = await pc.readContract({ address: CCTS, abi: SERVICE_ABI, functionName: "resolveTokenAddress", args: [EURC_TOKEN_ID] });
+        const token = await pc.readContract({ address: CCTS, abi: SERVICE_ABI, functionName: "resolveTokenAddress", args: [TOKENS[tokenKey].id] });
         const raw = await pc.readContract({ address: token, abi: ERC20_ABI, functionName: "balanceOf", args: [address as `0x${string}`] });
-        if (!cancelled) setBalance(formatUnits(raw, EURC_DECIMALS));
+        if (!cancelled) setBalance(formatUnits(raw, TOKENS[tokenKey].decimals));
       } catch { if (!cancelled) setBalance(null); }
     })();
     return () => { cancelled = true; };
-  }, [srcIdx, address, step === "done"]);
+  }, [srcIdx, tokenKey, address, step === "done"]);
 
   async function getQuote(amountRaw: bigint, s: Source): Promise<{ signedQuote: `0x${string}`; fee: bigint; fast: boolean }> {
     const forward = { type: "FORWARD", params: { msgType: "TransferMessage", destinationAddress: address } };
     const attempt = async (withFast: boolean) => {
-      const res = await fetch(`${IRIS_API}/v2/quote/cctpx/${EURC_TOKEN_ID}/${s.domain}/${ARC_DOMAIN}`, {
+      const res = await fetch(`${IRIS_API}/v2/quote/cctpx/${tok.id}/${s.domain}/${ARC_DOMAIN}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: amountRaw.toString(), feeToken: zeroAddress, requests: withFast ? [{ type: "PRE_FINALITY" }, forward] : [forward] }),
@@ -184,9 +194,9 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
       await switchTo(provider, s.chain);
       const wc = createWalletClient({ account: address as `0x${string}`, chain: s.chain, transport: custom(provider) });
       const pc = createPublicClient({ chain: s.chain, transport: http() });
-      const amountRaw = parseUnits(amount.trim(), EURC_DECIMALS);
-      const tokenManager = await pc.readContract({ address: CCTS, abi: SERVICE_ABI, functionName: "resolveTokenManager", args: [EURC_TOKEN_ID] });
-      const token = await pc.readContract({ address: CCTS, abi: SERVICE_ABI, functionName: "resolveTokenAddress", args: [EURC_TOKEN_ID] });
+      const amountRaw = parseUnits(amount.trim(), tok.decimals);
+      const tokenManager = await pc.readContract({ address: CCTS, abi: SERVICE_ABI, functionName: "resolveTokenManager", args: [tok.id] });
+      const token = await pc.readContract({ address: CCTS, abi: SERVICE_ABI, functionName: "resolveTokenAddress", args: [tok.id] });
 
       setStep("approving");
       const approveHash = await wc.sendTransaction({ to: token, data: encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [tokenManager, amountRaw] }) });
@@ -204,17 +214,17 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
         value: q.fee,
         data: encodeFunctionData({
           abi: SERVICE_ABI, functionName: "crossChainTransfer",
-          args: [EURC_TOKEN_ID, amountRaw, ARC_DOMAIN, encodePacked(["address"], [address as `0x${string}`]), ZERO_BYTES32, q.fast ? 1000 : 2000, { signedQuote: q.signedQuote, refundAddress: zeroAddress }, false, "0x"],
+          args: [tok.id, amountRaw, ARC_DOMAIN, encodePacked(["address"], [address as `0x${string}`]), ZERO_BYTES32, q.fast ? 1000 : 2000, { signedQuote: q.signedQuote, refundAddress: zeroAddress }, false, "0x"],
         }),
       });
       setTxHash(hash); setPendingSrc(srcIdx); savePending(hash, srcIdx, amount.trim());
       const r = await pc.waitForTransactionReceipt({ hash });
-      if (r.status === "reverted") { clearPending(); setTxHash(null); setPendingSrc(null); throw new Error("The transfer reverted on the source chain. No EURC was sent."); }
+      if (r.status === "reverted") { clearPending(); setTxHash(null); setPendingSrc(null); throw new Error("The transfer reverted on the source chain. Nothing was sent."); }
 
       setStep("delivering");
       const out = await waitDelivered(hash, s, q.fast ? 5 : s.stdMaxMin);
       if (out.fwd) setMintHash(out.fwd);
-      if (!out.delivered) throw new Error("Circle hasn't delivered on Arc yet. Your EURC was sent, so don't send again. Use Resume to check again.");
+      if (!out.delivered) throw new Error(`Circle hasn't delivered on Arc yet. Your ${tok.symbol} was sent, so don't send again. Use Resume to check again.`);
       clearPending(); setStep("done");
     } catch (e: unknown) {
       const err = e as { shortMessage?: string; message?: string };
@@ -257,26 +267,26 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
   const validAmt = Number.isFinite(amt) && amt > 0;
   const insufficient = validAmt && balNum !== null && amt > balNum;
 
-  let cta = "Send EURC to Arc"; let ctaOn = !!provider && validAmt && !insufficient && step === "idle"; let ctaFn: () => void = send;
+  let cta = `Send ${tok.symbol} to Arc`; let ctaOn = !!provider && validAmt && !insufficient && step === "idle"; let ctaFn: () => void = send;
   if (!provider) cta = "Connect wallet";
   else if (step === "idle" && !validAmt) cta = "Enter an amount";
-  else if (step === "idle" && insufficient) cta = "Insufficient EURC balance";
+  else if (step === "idle" && insufficient) cta = `Insufficient ${tok.symbol} balance`;
   if (busy) { cta = "Processing..."; ctaOn = false; }
   if (step === "done") { cta = "Send another"; ctaOn = true; ctaFn = reset; }
   if (unfinished) { cta = "Resume"; ctaOn = !!provider; ctaFn = resume; }
   else if (step === "error") { cta = "Try again"; ctaOn = !!provider; ctaFn = () => { setStep("idle"); setError(null); }; }
 
   const statusText = {
-    idle: "", approving: `Approving EURC on ${src.name}...`, quoting: "Getting Circle's fee quote...", sending: `Sending from ${src.name}...`,
-    delivering: `Circle is delivering your EURC on Arc (${fast ? "about 10–20 sec" : `about ${src.stdWait}`})...`, done: "Your EURC is now on Arc.", error: error ?? "Failed",
+    idle: "", approving: `Approving ${tok.symbol} on ${src.name}...`, quoting: "Getting Circle's fee quote...", sending: `Sending from ${src.name}...`,
+    delivering: `Circle is delivering your ${tok.symbol} on Arc (${fast ? "about 10–20 sec" : `about ${src.stdWait}`})...`, done: `Your ${tok.symbol} is now on Arc.`, error: error ?? "Failed",
   }[step];
 
   const pane = { background: "#F5F7FF", borderRadius: 20, padding: "14px 16px" } as const;
   const label = { fontSize: 11, color: MUTED, fontWeight: 600, letterSpacing: 0.3 } as const;
   const rows: { k: string; v: string; good?: boolean }[] = [
-    { k: "Route", v: "Circle CCTP (native EURC)" },
+    { k: "Route", v: `Circle CCTP (native ${tok.symbol})` },
     { k: "Circle fee", v: feeText ? `${feeText} (paid in ${src.gas})` : `Paid in ${src.gas} on ${src.name}` },
-    { k: "You receive", v: validAmt ? `${amt.toLocaleString("en-US", { maximumFractionDigits: 6 })} EURC` : "—" },
+    { k: "You receive", v: validAmt ? `${amt.toLocaleString("en-US", { maximumFractionDigits: tok.decimals })} ${tok.symbol}` : "—" },
     { k: "Gas on Arc", v: "Not needed", good: true },
     { k: "Signatures", v: `2 on ${src.name}` },
   ];
@@ -285,9 +295,30 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
     <div style={{ maxWidth: 480, margin: "0 auto", background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(61,90,241,0.18)" }}>
       <style>{`.ff-eurc-amt, .ff-eurc-amt:focus { outline: none !important; box-shadow: none !important; border: none !important; background: transparent !important; }`}</style>
 
+      <div style={{ ...label, marginBottom: 8 }}>TOKEN</div>
+      <div role="group" aria-label="Token" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6, marginBottom: 12 }}>
+        {(Object.keys(TOKENS) as TokenKey[]).map((k) => {
+          const on = k === tokenKey;
+          return (
+            <button key={k} type="button" disabled={busy || unfinished} aria-pressed={on}
+              onClick={() => {
+                setTokenKey(k); setAmount("");
+                if (!TOKENS[k].sources.includes(SOURCES[srcIdx].key)) setSrcIdx(SOURCES.findIndex((s) => s.key === TOKENS[k].sources[0]));
+              }}
+              style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "#FFFFFF", color: on ? BLUE : INK, fontSize: 14, fontWeight: 600, cursor: busy || unfinished ? "not-allowed" : "pointer" }}>
+              {k === "eurc"
+                ? <img src={EURC_LOGO} alt="" width={20} height={20} style={{ borderRadius: "50%" }} />
+                : <TokenIcon symbol="cirBTC" size={20} />}
+              {TOKENS[k].symbol}
+            </button>
+          );
+        })}
+      </div>
+
       <div style={{ ...label, marginBottom: 8 }}>FROM</div>
-      <div role="group" aria-label="Source network" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6, marginBottom: 10 }}>
+      <div role="group" aria-label="Source network" style={{ display: "grid", gridTemplateColumns: `repeat(${tok.sources.length}, minmax(0, 1fr))`, gap: 6, marginBottom: 10 }}>
         {SOURCES.map((s, i) => {
+          if (!tok.sources.includes(s.key)) return null;
           const on = i === srcIdx;
           return (
             <button key={s.key} type="button" disabled={busy || unfinished} onClick={() => setSrcIdx(i)} aria-pressed={on}
@@ -303,18 +334,20 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
           <span style={label}>YOU SEND</span>
           {balNum !== null && (
             <span style={{ fontSize: 11.5, color: MUTED }}>
-              Balance: {balNum.toLocaleString("en-US", { maximumFractionDigits: 2 })} EURC
+              Balance: {balNum.toLocaleString("en-US", { maximumFractionDigits: tok.shownDecimals })} {tok.symbol}
               <button type="button" onClick={() => balance && setAmount(balance)} disabled={busy}
                 style={{ border: "none", background: "#E3E8FD", color: BLUE, fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, cursor: "pointer", marginLeft: 6 }}>MAX</button>
             </span>
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <input className="ff-eurc-amt" type="text" inputMode="decimal" value={amount} placeholder="0.00" disabled={busy || unfinished} aria-label="EURC amount"
+          <input className="ff-eurc-amt" type="text" inputMode="decimal" value={amount} placeholder="0.00" disabled={busy || unfinished} aria-label={`${tok.symbol} amount`}
             onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setAmount(e.target.value); }}
             style={{ flex: 1, minWidth: 0, fontSize: 30, fontWeight: 700, color: INK, padding: 0 }} />
           <span style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", borderRadius: 999, padding: "5px 12px 5px 6px", fontSize: 13, fontWeight: 700, color: INK, boxShadow: "0 1px 3px rgba(17,24,39,0.06)" }}>
-            <img src={EURC_LOGO} alt="" width={24} height={24} style={{ borderRadius: "50%" }} /> EURC
+            {tokenKey === "eurc"
+              ? <img src={EURC_LOGO} alt="" width={24} height={24} style={{ borderRadius: "50%" }} />
+              : <TokenIcon symbol="cirBTC" size={24} />} {tok.symbol}
           </span>
         </div>
       </div>
@@ -333,7 +366,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
           {step === "done" && <Check size={16} style={{ flexShrink: 0, marginTop: 2 }} />}
           <span>
             {statusText}
-            {unfinished && <><br />Your EURC was sent. Use Resume below and don't start a new transfer.</>}
+            {unfinished && <><br />Your {tok.symbol} was sent. Use Resume below and don't start a new transfer.</>}
           </span>
         </div>
       )}
@@ -360,7 +393,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
       )}
 
       <p style={{ margin: "12px 0 0", fontSize: 11.5, color: MUTED, lineHeight: 1.5, textAlign: "center" }}>
-        Self-custody: you sign every step in your own wallet. Circle's fee is paid in {src.gas}, so you receive the full EURC amount.
+        Self-custody: you sign every step in your own wallet. Circle's fee is paid in {src.gas}, so you receive the full {tok.symbol} amount.
       </p>
     </div>
   );

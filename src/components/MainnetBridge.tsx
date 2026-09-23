@@ -102,7 +102,7 @@ export default function MainnetBridge({ address, provider }: { address?: string;
           {([
             { k: "lifi", t: "Any token", sub: "Swap and bridge via LI.FI" },
             { k: "cctp", t: "Native USDC", sub: "1:1 via Circle CCTP" },
-            { k: "eurc", t: "Native EURC", sub: "1:1 via Circle CCTP" },
+            { k: "eurc", t: "EURC & cirBTC", sub: "1:1 via Circle CCTP" },
           ] as const).map((tab) => {
             const on = mode === tab.k;
             return (
