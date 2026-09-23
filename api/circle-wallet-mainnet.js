@@ -180,9 +180,13 @@ module.exports = async function handler(req, res) {
     if (keyParts.length !== 3 || keyParts[0] !== 'LIVE_API_KEY') {
       return res.status(500).json({ error: `Key check: ${keyParts.length} part(s), starts with LIVE_API_KEY: ${keyParts[0] === 'LIVE_API_KEY'}, length ${liveKey.length}` });
     }
+    const entitySecret = clean(process.env.CIRCLE_LIVE_ENTITY_SECRET).replace(/^0x/i, '');
+    if (!/^[0-9a-fA-F]{64}$/.test(entitySecret)) {
+      return res.status(500).json({ error: `Secret check: length ${entitySecret.length}, hex only: ${/^[0-9a-fA-F]*$/.test(entitySecret)}` });
+    }
     const client = initiateDeveloperControlledWalletsClient({
       apiKey: liveKey,
-      entitySecret: clean(process.env.CIRCLE_LIVE_ENTITY_SECRET),
+      entitySecret,
     });
     const { action } = req.body || {};
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
