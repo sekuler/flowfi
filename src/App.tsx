@@ -481,8 +481,8 @@ function AppInner() {
       @media (prefers-reduced-motion: reduce) { .flowfi-float, .flowfi-chip { animation: none; } }
       .flowfi-glow-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
       .flowfi-glow-card:hover { box-shadow: 0 8px 30px rgba(139,92,246,0.15); transform: translateY(-2px); }
-      .flowfi-shimmer-title { background: none !important; -webkit-text-fill-color: #16151C !important; color: #16151C !important; animation: none !important; font-size: inherit !important; font-weight: inherit !important; letter-spacing: inherit !important; padding-bottom: 0 !important; }
-      .flowfi-shimmer-title::after { display: none !important; }
+      .flowfi-shimmer-title { background-image: linear-gradient(100deg, #2B45C9 0%, #3D5AF1 30%, #9DB1FF 45%, #3D5AF1 60%, #2B45C9 100%) !important; }
+      .flowfi-shimmer-title::after { background-image: linear-gradient(90deg, rgba(61,90,241,0) 0%, #3D5AF1 25%, #9DB1FF 50%, #3D5AF1 75%, rgba(61,90,241,0) 100%) !important; }
     `}</style>
   );
 
