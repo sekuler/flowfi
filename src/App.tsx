@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import LiveBlock from "./components/LiveBlock";
+import { TokenIcon } from "./components/TokenIcon";
+import { USDC_LOGO, EURC_LOGO } from "./components/tokenLogos";
 import TokenLaunch from "./components/TokenLaunch";
 import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
@@ -176,6 +178,44 @@ function FlowFiMark({ size = 32 }: { size?: number }) {
         <path fill="url(#ffm-bot)" d="M0 62C0 53 7 46 16 46H66C70 46 72 50 70 53L62 64C59 68 55 70 50 70H36C28 70 22 74 18 80L8 97C6 100 0 100 0 96Z" />
       </g>
     </svg>
+  );
+}
+
+// Decorative "waterfall" of Arc's Circle assets in the sidebar's empty space: logos drift
+// slowly upward while turning, fading at both edges. Purely visual (aria-hidden), desktop only,
+// and switched off entirely for users who ask the OS to reduce motion.
+const FALL_ITEMS: { k: "usdc" | "eurc" | "cirbtc"; left: string; size: number; dur: number; delay: number }[] = [
+  { k: "usdc", left: "12%", size: 26, dur: 16, delay: 0 },
+  { k: "eurc", left: "58%", size: 22, dur: 19, delay: -6 },
+  { k: "cirbtc", left: "34%", size: 24, dur: 17, delay: -11 },
+  { k: "usdc", left: "76%", size: 20, dur: 21, delay: -3 },
+  { k: "eurc", left: "20%", size: 20, dur: 20, delay: -14 },
+  { k: "cirbtc", left: "66%", size: 26, dur: 18, delay: -8 },
+  { k: "usdc", left: "44%", size: 18, dur: 22, delay: -17 },
+];
+
+function SidebarWaterfall() {
+  const mask = "linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%)";
+  return (
+    <div aria-hidden="true" style={{ position: "relative", flex: 1, minHeight: 0, overflow: "hidden", margin: "12px 0 4px", WebkitMaskImage: mask, maskImage: mask, pointerEvents: "none" }}>
+      <style>{`
+        @keyframes ff-rise {
+          0% { top: 105%; transform: rotate(0deg); opacity: 0; }
+          15% { opacity: 0.5; }
+          85% { opacity: 0.5; }
+          100% { top: -15%; transform: rotate(360deg); opacity: 0; }
+        }
+        .ff-fall-item { position: absolute; top: 105%; animation-name: ff-rise; animation-timing-function: linear; animation-iteration-count: infinite; }
+        @media (prefers-reduced-motion: reduce) { .ff-fall-item { display: none; } }
+      `}</style>
+      {FALL_ITEMS.map((it, i) => (
+        <div key={i} className="ff-fall-item" style={{ left: it.left, animationDuration: `${it.dur}s`, animationDelay: `${it.delay}s` }}>
+          {it.k === "cirbtc"
+            ? <TokenIcon symbol="cirBTC" size={it.size} />
+            : <img src={it.k === "usdc" ? USDC_LOGO : EURC_LOGO} alt="" width={it.size} height={it.size} style={{ display: "block", width: it.size, height: it.size, borderRadius: "50%" }} />}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -713,6 +753,7 @@ function AppInner() {
               </>
             );
           })()}
+          {!isMobile && <SidebarWaterfall />}
         </div>
         <div style={{ padding: "0.5rem 0.75rem", marginTop: "auto" }}>
           <a href="https://github.com/sekuler/flowfi#readme" target="_blank" rel="noopener noreferrer"
