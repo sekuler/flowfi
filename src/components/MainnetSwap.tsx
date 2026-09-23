@@ -5,6 +5,7 @@ import type { EIP1193Provider } from "viem";
 import NetworkGuard from "./NetworkGuard";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 import ArcTokenStrip from "./ArcTokenStrip";
+import LifiWalletBridge from "./lifiWalletBridge";
 
 // Same-chain counterpart to MainnetBridge.tsx: fromChain and toChain are
 // both Arc, so LI.FI's widget renders as a same-chain swap (routed
@@ -63,7 +64,7 @@ const lifiWidgetConfig: WidgetConfig = {
   appearance: "light",
 };
 
-export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }) {
+export default function MainnetSwap({ provider, address }: { provider?: EIP1193Provider; address?: string }) {
   const formRef = useRef<FormState | null>(null);
 
   return (
@@ -96,7 +97,9 @@ export default function MainnetSwap({ provider }: { provider?: EIP1193Provider }
                 formRef.current?.setFieldValue("fromToken", intoUsdc ? ARC_MAINNET_EURC : ARC_MAINNET_USDC, opts);
                 formRef.current?.setFieldValue("toToken", t.address, opts);
               }} />
-            <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
+            <LifiWalletBridge provider={provider} address={address}>
+              <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
+            </LifiWalletBridge>
           </div>
         </NetworkGuard>
       </div>
