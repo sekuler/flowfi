@@ -160,8 +160,13 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   const statusIcon = (s: string) =>
     s === "ok" ? <CheckCircle2 size={20} color="#0E9F6E" /> : s === "error" ? <XCircle size={20} color="#DC2626" /> : <Clock size={20} color="#B45309" />;
 
+  function openNativeBridge() {
+    try { sessionStorage.setItem("flowfi-bridge-mode", "cctp"); } catch { /* ignore */ }
+    onNavigate("mainnetbridge");
+  }
+
   const steps = [
-    { title: "Add USDC to your wallet", sub: "Bridge USDC onto Arc from Ethereum, Base, Arbitrum and more.", done: owned.length > 0, action: () => onNavigate("mainnetbridge") },
+    { title: "Add USDC to your wallet", sub: "Bring USDC from Base, Ethereum, Arbitrum and more. No Arc gas needed.", done: owned.length > 0, action: openNativeBridge },
     { title: "Make your first swap", sub: "Trade USDC for EURC, cirBTC or other tokens on Arc.", done: !loading && txs.length > 0, action: () => onNavigate("mainnetswap") },
     { title: "Ask the Copilot", sub: "Get plain-language answers about your wallet and the market.", done: messages.length > 0, action: () => document.getElementById("ffh-ask")?.focus() },
   ];
@@ -198,7 +203,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
           </>
         )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 4 }}>
-          <button onClick={() => onNavigate("mainnetbridge")} style={primaryBtn}>
+          <button onClick={openNativeBridge} style={primaryBtn}>
             <Plus size={18} /> Add funds
           </button>
           {isNew ? (
