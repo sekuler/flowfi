@@ -195,14 +195,14 @@ const FALL_ITEMS: { k: "usdc" | "eurc" | "cirbtc"; left: string; size: number; d
 ];
 
 function SidebarWaterfall() {
-  const mask = "linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%)";
+  const mask = "linear-gradient(to bottom, transparent 0%, #000 10%, #000 90%, transparent 100%)";
   return (
     <div aria-hidden="true" style={{ position: "relative", flex: 1, minHeight: 0, overflow: "hidden", margin: "12px 0 4px", WebkitMaskImage: mask, maskImage: mask, pointerEvents: "none" }}>
       <style>{`
         @keyframes ff-rise {
           0% { top: 105%; transform: rotate(0deg); opacity: 0; }
-          15% { opacity: 0.5; }
-          85% { opacity: 0.5; }
+          12% { opacity: 1; }
+          88% { opacity: 1; }
           100% { top: -15%; transform: rotate(360deg); opacity: 0; }
         }
         .ff-fall-item { position: absolute; top: 105%; animation-name: ff-rise; animation-timing-function: linear; animation-iteration-count: infinite; }
