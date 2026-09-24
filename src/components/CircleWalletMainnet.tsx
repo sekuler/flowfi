@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { createPublicClient, http, erc20Abi, formatUnits, isAddress } from "viem";
-import type { Chain } from "viem";
+import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, isAddress } from "viem";
+import type { Chain, EIP1193Provider } from "viem";
 import { mainnet, base, arbitrum } from "viem/chains";
-import { ArrowUpRight, Copy, Check, ShieldCheck, LogOut, RefreshCw } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Copy, Check, ShieldCheck, LogOut, RefreshCw } from "lucide-react";
 import { arcMainnet } from "../chains";
 
 // Mainnet Circle Wallet (email sign-in, no seed phrase). Talks ONLY to /api/circle-wallet-mainnet
@@ -24,6 +24,28 @@ const ASSETS: Asset[] = [
   { key: "arb-usdc", chainCode: "ARB", chainName: "Arbitrum", chain: arbitrum, symbol: "USDC", token: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6, explorer: "https://arbiscan.io" },
 ];
 
+// Deposits are limited to stablecoins, because only USDC/EURC count toward the holding cap.
+// (cirBTC that arrives from outside can still be withdrawn.)
+const DEPOSIT_KEYS = ["arc-usdc", "arc-eurc", "base-usdc", "eth-usdc", "arb-usdc"];
+
+async function switchTo(provider: EIP1193Provider, chain: Chain) {
+  const isArc = chain.id === arcMainnet.id;
+  const want = `0x${chain.id.toString(16)}`;
+  const cur = (await provider.request({ method: "eth_chainId" })) as string;
+  if (cur.toLowerCase() === want.toLowerCase()) return;
+  try {
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: want }] });
+  } catch (e: unknown) {
+    if ((e as { code?: number }).code !== 4902) throw e;
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [isArc
+        ? { chainId: want, chainName: "Arc", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.mainnet.arc.io"], blockExplorerUrls: ["https://arc.etherscan.io"] }
+        : { chainId: want, chainName: chain.name, nativeCurrency: chain.nativeCurrency, rpcUrls: [chain.rpcUrls.default.http[0]], blockExplorerUrls: chain.blockExplorers?.default?.url ? [chain.blockExplorers.default.url] : [] }],
+    });
+  }
+}
+
 const BLUE = "#3D5AF1";
 const INK = "#16151C";
 const MUTED = "#5E5B6B";
@@ -43,7 +65,7 @@ function loadSaved(): LiveWallet | null {
   } catch { return null; }
 }
 
-export default function CircleWalletMainnet({ browserAddress }: { browserAddress?: string }) {
+export default function CircleWalletMainnet({ browserAddress, provider }: { browserAddress?: string; provider?: EIP1193Provider }) {
   const [wallet, setWallet] = useState<LiveWallet | null>(null);
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -61,7 +83,30 @@ export default function CircleWalletMainnet({ browserAddress }: { browserAddress
   const [wMsg, setWMsg] = useState<string | null>(null);
   const [wHash, setWHash] = useState<string | null>(null);
 
+  const [depKey, setDepKey] = useState("arc-usdc");
+  const [depAmount, setDepAmount] = useState("");
+  const [depBal, setDepBal] = useState<string | null>(null);
+  const [dStep, setDStep] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const [dMsg, setDMsg] = useState<string | null>(null);
+  const [dHash, setDHash] = useState<string | null>(null);
+
   const asset = ASSETS.find((a) => a.key === assetKey)!;
+  const depAsset = ASSETS.find((a) => a.key === depKey)!;
+
+  // Browser-wallet balance of the asset being deposited.
+  useEffect(() => {
+    let cancelled = false;
+    setDepBal(null);
+    if (!browserAddress) return;
+    (async () => {
+      try {
+        const pc = createPublicClient({ chain: depAsset.chain, transport: http() });
+        const raw = await pc.readContract({ address: depAsset.token, abi: erc20Abi, functionName: "balanceOf", args: [browserAddress as `0x${string}`] });
+        if (!cancelled) setDepBal(formatUnits(raw, depAsset.decimals));
+      } catch { if (!cancelled) setDepBal(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [depKey, browserAddress, dStep === "done"]);
 
   useEffect(() => { setWallet(loadSaved()); }, []);
   useEffect(() => { if (browserAddress && !dest) setDest(browserAddress); }, [browserAddress]);
@@ -131,6 +176,27 @@ export default function CircleWalletMainnet({ browserAddress }: { browserAddress
     } catch (e) { setWStep("error"); setWMsg(e instanceof Error ? e.message : "Withdrawal failed."); }
   }
 
+  async function deposit() {
+    if (!wallet || !provider || !browserAddress) return;
+    const to = wallet.walletsByChain[depAsset.chainCode]?.address;
+    if (!to) { setDStep("error"); setDMsg(`No ${depAsset.chainName} wallet on this account.`); return; }
+    setDStep("sending"); setDMsg(`Confirm the transfer in your wallet (${depAsset.chainName})...`); setDHash(null);
+    try {
+      await switchTo(provider, depAsset.chain);
+      const wc = createWalletClient({ account: browserAddress as `0x${string}`, chain: depAsset.chain, transport: custom(provider) });
+      const pc = createPublicClient({ chain: depAsset.chain, transport: http() });
+      const hash = await wc.writeContract({ address: depAsset.token, abi: erc20Abi, functionName: "transfer", args: [to as `0x${string}`, parseUnits(depAmount.trim(), depAsset.decimals)] });
+      setDHash(hash); setDMsg("Waiting for confirmation...");
+      const r = await pc.waitForTransactionReceipt({ hash });
+      if (r.status === "reverted") throw new Error("The transfer reverted. Nothing was sent.");
+      setDStep("done"); setDMsg(`${depAmount} ${depAsset.symbol} added to your Circle Wallet.`); setDepAmount("");
+      refresh(wallet);
+    } catch (e: unknown) {
+      const err = e as { shortMessage?: string; message?: string };
+      setDStep("error"); setDMsg(err.shortMessage || err.message || "Deposit failed.");
+    }
+  }
+
   const card = { background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 20, padding: "1.25rem" } as const;
   const input = { width: "100%", boxSizing: "border-box" as const, height: 46, padding: "0 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 14, color: INK, background: "#FFFFFF" };
   const primary = (on: boolean) => ({ width: "100%", height: 48, borderRadius: 12, border: "none", background: on ? BLUE : "#EEEDF5", color: on ? "#FFFFFF" : "#8A8798", fontSize: 15, fontWeight: 600, cursor: on ? "pointer" : "not-allowed" });
@@ -164,6 +230,22 @@ export default function CircleWalletMainnet({ browserAddress }: { browserAddress
       </div>
     );
   }
+
+  const room = status ? Math.max(0, status.capUsd - status.stableTotal) : 0;
+  const depBalNum = Number(depBal ?? 0);
+  const depAmt = Number(depAmount);
+  const depMax = Math.floor(Math.min(depBalNum, room) * 100) / 100;
+  const depValid = Number.isFinite(depAmt) && depAmt > 0 && depAmt <= depBalNum && depAmt <= room;
+  const canDeposit = !!provider && !!browserAddress && !!status && !status.withdrawOnly && !status.overCap && depValid && dStep !== "sending";
+  const depLabel = !provider || !browserAddress ? "Connect a browser wallet to deposit"
+    : !status ? "Loading..."
+    : status.withdrawOnly ? "Deposits are closed"
+    : dStep === "sending" ? "Depositing..."
+    : room <= 0 ? `Limit reached ($${status.capUsd})`
+    : !depAmount ? "Enter an amount"
+    : depAmt > depBalNum ? "Not enough balance"
+    : depAmt > room ? `Max $${room.toFixed(2)} (limit)`
+    : `Deposit ${depAmount} ${depAsset.symbol}`;
 
   const balNum = Number(balances[asset.key] ?? 0);
   const amt = Number(amount);
@@ -214,6 +296,40 @@ export default function CircleWalletMainnet({ browserAddress }: { browserAddress
             </div>
           ))}
         </div>
+      </div>
+
+      <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <ArrowDownLeft size={18} color={BLUE} />
+          <span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Add funds</span>
+        </div>
+        <p style={{ margin: 0, fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>
+          From your connected wallet. {status ? `You can add up to $${room.toFixed(2)} more (limit $${status.capUsd}).` : ""}
+        </p>
+
+        <label htmlFor="cw-live-dep-asset" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Asset</label>
+        <select id="cw-live-dep-asset" value={depKey} onChange={(e) => { setDepKey(e.target.value); setDepAmount(""); }} disabled={dStep === "sending"} style={input}>
+          {ASSETS.filter((a) => DEPOSIT_KEYS.includes(a.key)).map((a) => <option key={a.key} value={a.key}>{a.symbol} on {a.chainName}</option>)}
+        </select>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <label htmlFor="cw-live-dep-amount" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>
+            Amount{depBal !== null ? ` · in your wallet: ${depBalNum.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${depAsset.symbol}` : ""}
+          </label>
+          <button type="button" onClick={() => setDepAmount(depMax > 0 ? String(depMax) : "")} style={{ border: "none", background: "#E3E8FD", color: BLUE, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, cursor: "pointer" }}>MAX</button>
+        </div>
+        <input id="cw-live-dep-amount" inputMode="decimal" value={depAmount} placeholder="0.00" disabled={dStep === "sending"} style={input}
+          onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setDepAmount(e.target.value); }} />
+        {depAsset.chainCode !== "ARC" && <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Your wallet pays a little ETH gas on {depAsset.chainName}.</p>}
+
+        {dMsg && dStep !== "idle" && (
+          <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, background: dStep === "done" ? "#E7F7EF" : dStep === "error" ? "#FDECEC" : "#F5F7FF", color: dStep === "done" ? "#0B7A53" : dStep === "error" ? "#B91C1C" : INK }}>
+            {dMsg}{" "}
+            {dHash && <a href={`${depAsset.explorer}/tx/${dHash}`} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 600 }}>View tx ↗</a>}
+          </div>
+        )}
+
+        <button type="button" onClick={deposit} disabled={!canDeposit} style={primary(canDeposit)}>{depLabel}</button>
       </div>
 
       <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
