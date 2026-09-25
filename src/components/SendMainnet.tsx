@@ -41,7 +41,7 @@ async function switchToArc(provider: EIP1193Provider) {
 
 export default function SendMainnet({ browserAddress, provider, circleLive, onConnect }: { browserAddress?: string; provider?: EIP1193Provider; circleLive?: LiveCircleWallet | null; onConnect?: () => void }) {
   const hasBrowser = !!browserAddress && !!provider;
-  const hasCircle = !!circleLive;
+
   const [source, setSource] = useState<"browser" | "circle">(hasBrowser ? "browser" : "circle");
   const owner = source === "browser" ? browserAddress : circleLive?.address;
 
