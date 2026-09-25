@@ -57,9 +57,13 @@ const GATEWAY_DEPOSIT_ABI = [{ type: "function", name: "deposit", stateMutabilit
 const ZERO32 = `0x${"0".repeat(64)}` as `0x${string}`;
 
 const BLUE = "#3D5AF1";
-const INK = "#16151C";
-const MUTED = "#5E5B6B";
-const LINE = "#E7E4DD";
+// Cards use the Arc navy gradient, so text/line tokens are light. PAGE_* are for text that
+// sits on the light page background outside the cards.
+const INK = "#FFFFFF";
+const MUTED = "rgba(255,255,255,0.72)";
+const LINE = "rgba(255,255,255,0.16)";
+const PAGE_INK = "#16151C";
+const PAGE_MUTED = "#5E5B6B";
 
 const b32 = (a: string) => pad(a as `0x${string}`, { size: 32 });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -319,20 +323,20 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     }
   }
 
-  const card = { background: "linear-gradient(180deg, #EEF2FF 0%, #FFFFFF 160px)", border: "1px solid #D9E1F7", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 10px 30px -18px rgba(11,27,58,0.35)" };
+  const card = { background: "linear-gradient(160deg, #0B1B3A 0%, #12305A 55%, #3E6A94 100%)", color: "#FFFFFF", border: "none", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" };
   const sectionTitle = (Icon: typeof ArrowRight, text: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
         <Icon size={18} color="#FFFFFF" />
       </span>
-      <span style={{ fontSize: 19, fontWeight: 700, color: BLUE, letterSpacing: "-0.01em" }}>{text}</span>
+      <span style={{ fontSize: 19, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.01em" }}>{text}</span>
     </div>
   );
-  const input = { width: "100%", boxSizing: "border-box" as const, height: 46, padding: "0 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 14, color: INK, background: "#FFFFFF" };
+  const input = { width: "100%", boxSizing: "border-box" as const, height: 46, padding: "0 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 14, color: INK, background: "rgba(255,255,255,0.08)" };
   const label = { fontSize: 12, fontWeight: 600, color: MUTED } as const;
-  const primary = (on: boolean) => ({ width: "100%", height: 48, borderRadius: 12, border: "none", background: on ? BLUE : "#EEEDF5", color: on ? "#FFFFFF" : "#8A8798", fontSize: 15, fontWeight: 600, cursor: on ? "pointer" : "not-allowed" });
+  const primary = (on: boolean) => ({ width: "100%", height: 48, borderRadius: 12, border: "none", background: on ? "#FFFFFF" : "rgba(255,255,255,0.12)", color: on ? BLUE : "rgba(255,255,255,0.45)", fontSize: 15, fontWeight: 600, cursor: on ? "pointer" : "not-allowed" });
   const note = (st: string, msg: string | null) => msg && st !== "idle" && (
-    <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.5, background: st === "done" ? "#E7F7EF" : st === "error" ? "#FDECEC" : "#F5F7FF", color: st === "done" ? "#0B7A53" : st === "error" ? "#B91C1C" : INK }}>{msg}</div>
+    <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.5, background: st === "done" ? "#E7F7EF" : st === "error" ? "#FDECEC" : "rgba(255,255,255,0.1)", color: st === "done" ? "#0B7A53" : st === "error" ? "#B91C1C" : INK }}>{msg}</div>
   );
 
   // Chain picker: logo buttons instead of a plain <select>.
@@ -344,11 +348,11 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         return (
           <button key={c.key} type="button" role="radio" aria-checked={on} disabled={off} onClick={() => onPick(c.key)}
             style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 44, padding: "6px 10px", borderRadius: 12, textAlign: "left",
-              border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "#FFFFFF",
-              opacity: c.key === exclude ? 0.4 : 1, cursor: off ? "not-allowed" : "pointer" }}>
+              border: on ? "1.5px solid #8FB0FF" : `1px solid ${LINE}`, background: on ? "rgba(143,176,255,0.22)" : "rgba(255,255,255,0.06)",
+              opacity: c.key === exclude ? 0.35 : 1, cursor: off ? "not-allowed" : "pointer" }}>
             <ChainLogo chain={c.key as ChainKey} size={22} />
             <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: on ? BLUE : INK }}>{c.name}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: INK }}>{c.name}</span>
               {showBal === "gateway" && <span style={{ fontSize: 11, color: MUTED, fontFamily: "'Geist Mono', ui-monospace, monospace" }}>{bal ? bal[c.key].available.toFixed(2) : "…"} USDC</span>}
               {showBal === "wallet" && <span style={{ fontSize: 11, color: MUTED, fontFamily: "'Geist Mono', ui-monospace, monospace" }}>{walletBal[c.key] === undefined ? "…" : walletBal[c.key].toFixed(2)} USDC</span>}
             </span>
@@ -384,7 +388,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
             const on = source === k;
             return (
               <button key={k} type="button" aria-pressed={on} onClick={() => setSource(k)}
-                style={{ flex: 1, height: 38, borderRadius: 10, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: on ? "#FFFFFF" : "transparent", color: on ? INK : MUTED, boxShadow: on ? "0 1px 2px rgba(22,21,28,0.12)" : "none" }}>
+                style={{ flex: 1, height: 38, borderRadius: 10, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: on ? "#FFFFFF" : "transparent", color: on ? PAGE_INK : PAGE_MUTED, boxShadow: on ? "0 1px 2px rgba(22,21,28,0.12)" : "none" }}>
                 {k === "browser" ? "Browser wallet" : "Circle Wallet"}
               </button>
             );

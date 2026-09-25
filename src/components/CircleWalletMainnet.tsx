@@ -48,9 +48,13 @@ async function switchTo(provider: EIP1193Provider, chain: Chain) {
 }
 
 const BLUE = "#3D5AF1";
-const INK = "#16151C";
-const MUTED = "#5E5B6B";
-const LINE = "#E7E4DD";
+// Cards use the Arc navy gradient, so text/line tokens are light. PAGE_* are for text that
+// sits on the light page background outside the cards.
+const INK = "#FFFFFF";
+const MUTED = "rgba(255,255,255,0.72)";
+const LINE = "rgba(255,255,255,0.16)";
+const PAGE_MUTED = "#5E5B6B";
+const LINK = "#A9BCFF";
 
 async function post(body: Record<string, unknown>) {
   const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -200,21 +204,21 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
     }
   }
 
-  const card = { background: "linear-gradient(180deg, #EEF2FF 0%, #FFFFFF 160px)", border: "1px solid #D9E1F7", borderRadius: 20, padding: "1.25rem", boxShadow: "0 10px 30px -18px rgba(11,27,58,0.35)" } as const;
+  const card = { background: "linear-gradient(160deg, #0B1B3A 0%, #12305A 55%, #3E6A94 100%)", color: "#FFFFFF", border: "none", borderRadius: 20, padding: "1.25rem", boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" } as const;
   // Arc-style navy gradient for the account card.
   const arcCard = { background: "linear-gradient(160deg, #0B1B3A 0%, #12305A 55%, #3E6A94 100%)", borderRadius: 20, padding: "1.25rem", color: "#FFFFFF", boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" } as const;
-  const W70 = "rgba(255,255,255,0.72)";
+  const W70 = MUTED;
   const WLINE = "rgba(255,255,255,0.14)";
   const sectionTitle = (Icon: typeof ArrowUpRight, text: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
         <Icon size={18} color="#FFFFFF" />
       </span>
-      <span style={{ fontSize: 19, fontWeight: 700, color: BLUE, letterSpacing: "-0.01em" }}>{text}</span>
+      <span style={{ fontSize: 19, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.01em" }}>{text}</span>
     </div>
   );
-  const input = { width: "100%", boxSizing: "border-box" as const, height: 46, padding: "0 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 14, color: INK, background: "#FFFFFF" };
-  const primary = (on: boolean) => ({ width: "100%", height: 48, borderRadius: 12, border: "none", background: on ? BLUE : "#EEEDF5", color: on ? "#FFFFFF" : "#8A8798", fontSize: 15, fontWeight: 600, cursor: on ? "pointer" : "not-allowed" });
+  const input = { width: "100%", boxSizing: "border-box" as const, height: 46, padding: "0 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 14, color: INK, background: "rgba(255,255,255,0.08)" };
+  const primary = (on: boolean) => ({ width: "100%", height: 48, borderRadius: 12, border: "none", background: on ? "#FFFFFF" : "rgba(255,255,255,0.12)", color: on ? BLUE : "rgba(255,255,255,0.45)", fontSize: 15, fontWeight: 600, cursor: on ? "pointer" : "not-allowed" });
 
   if (!wallet) {
     return (
@@ -241,7 +245,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
             </>
           )}
         </div>
-        <p style={{ margin: 0, fontSize: 12, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>Real funds. Each account holds up to ${status?.capUsd ?? 100} in total, and you can withdraw to your own wallet at any time.</p>
+        <p style={{ margin: 0, fontSize: 12, color: PAGE_MUTED, textAlign: "center", lineHeight: 1.5 }}>Real funds. Each account holds up to ${status?.capUsd ?? 100} in total, and you can withdraw to your own wallet at any time.</p>
       </div>
     );
   }
@@ -255,10 +259,10 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
         return (
           <button key={a.key} type="button" role="radio" aria-checked={on} disabled={disabled} onClick={() => onPick(a.key)}
             style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "6px 10px", borderRadius: 12, textAlign: "left",
-              border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "#FFFFFF", cursor: disabled ? "not-allowed" : "pointer" }}>
+              border: on ? "1.5px solid #8FB0FF" : `1px solid ${LINE}`, background: on ? "rgba(143,176,255,0.22)" : "rgba(255,255,255,0.06)", cursor: disabled ? "not-allowed" : "pointer" }}>
             <TokenOnChain symbol={a.symbol} chain={chainKeyOf(a)} size={28} />
             <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: on ? BLUE : INK }}>{a.symbol}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: INK }}>{a.symbol}</span>
               <span style={{ fontSize: 11.5, color: MUTED }}>on {a.chainName}</span>
             </span>
           </button>
@@ -360,16 +364,16 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
           <label htmlFor="cw-live-dep-amount" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>
             Amount{depBal !== null ? ` · in your wallet: ${depBalNum.toLocaleString("en-US", { maximumFractionDigits: unitDigits })} ${depAsset.symbol}` : ""}{isBtc && btc && depAmt > 0 ? ` · ≈ $${depUsd.toFixed(2)}` : ""}
           </label>
-          <button type="button" onClick={() => setDepAmount(depMax > 0 ? String(depMax) : "")} style={{ border: "none", background: "#E3E8FD", color: BLUE, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, cursor: "pointer" }}>MAX</button>
+          <button type="button" onClick={() => setDepAmount(depMax > 0 ? String(depMax) : "")} style={{ border: "none", background: "rgba(255,255,255,0.16)", color: "#FFFFFF", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, cursor: "pointer" }}>MAX</button>
         </div>
         <input id="cw-live-dep-amount" inputMode="decimal" value={depAmount} placeholder="0.00" disabled={dStep === "sending"} style={input}
           onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setDepAmount(e.target.value); }} />
         {depAsset.chainCode !== "ARC" && <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Your wallet pays a little ETH gas on {depAsset.chainName}.</p>}
 
         {dMsg && dStep !== "idle" && (
-          <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, background: dStep === "done" ? "#E7F7EF" : dStep === "error" ? "#FDECEC" : "#F5F7FF", color: dStep === "done" ? "#0B7A53" : dStep === "error" ? "#B91C1C" : INK }}>
+          <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, background: dStep === "done" ? "#E7F7EF" : dStep === "error" ? "#FDECEC" : "rgba(255,255,255,0.1)", color: dStep === "done" ? "#0B7A53" : dStep === "error" ? "#B91C1C" : INK }}>
             {dMsg}{" "}
-            {dHash && <a href={`${depAsset.explorer}/tx/${dHash}`} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 600 }}>View tx ↗</a>}
+            {dHash && <a href={`${depAsset.explorer}/tx/${dHash}`} target="_blank" rel="noopener noreferrer" style={{ color: LINK, fontWeight: 600 }}>View tx ↗</a>}
           </div>
         )}
 
@@ -384,7 +388,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <label htmlFor="cw-live-amount" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Amount</label>
-          <button type="button" onClick={() => setAmount(balances[asset.key] ?? "")} style={{ border: "none", background: "#E3E8FD", color: BLUE, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, cursor: "pointer" }}>MAX</button>
+          <button type="button" onClick={() => setAmount(balances[asset.key] ?? "")} style={{ border: "none", background: "rgba(255,255,255,0.16)", color: "#FFFFFF", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, cursor: "pointer" }}>MAX</button>
         </div>
         <input id="cw-live-amount" inputMode="decimal" value={amount} placeholder="0.00" disabled={wStep === "sending"} style={input}
           onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setAmount(e.target.value); }} />
@@ -392,14 +396,14 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
         <label htmlFor="cw-live-dest" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Your wallet address on {asset.chainName}</label>
         <input id="cw-live-dest" value={dest} onChange={(e) => setDest(e.target.value)} placeholder="0x..." disabled={wStep === "sending"} style={{ ...input, fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 13 }} />
         {browserAddress && dest.trim().toLowerCase() !== browserAddress.toLowerCase() && (
-          <button type="button" onClick={() => setDest(browserAddress)} style={{ alignSelf: "flex-start", border: "none", background: "none", color: BLUE, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0 }}>Use my connected wallet</button>
+          <button type="button" onClick={() => setDest(browserAddress)} style={{ alignSelf: "flex-start", border: "none", background: "none", color: LINK, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0 }}>Use my connected wallet</button>
         )}
         {asset.chainCode !== "ARC" && <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Withdrawing on {asset.chainName} needs a little ETH in this Circle wallet for gas.</p>}
 
         {wMsg && wStep !== "idle" && (
-          <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, background: wStep === "done" ? "#E7F7EF" : wStep === "error" ? "#FDECEC" : "#F5F7FF", color: wStep === "done" ? "#0B7A53" : wStep === "error" ? "#B91C1C" : INK }}>
+          <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, background: wStep === "done" ? "#E7F7EF" : wStep === "error" ? "#FDECEC" : "rgba(255,255,255,0.1)", color: wStep === "done" ? "#0B7A53" : wStep === "error" ? "#B91C1C" : INK }}>
             {wMsg}{" "}
-            {wHash && <a href={`${asset.explorer}/tx/${wHash}`} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 600 }}>View tx ↗</a>}
+            {wHash && <a href={`${asset.explorer}/tx/${wHash}`} target="_blank" rel="noopener noreferrer" style={{ color: LINK, fontWeight: 600 }}>View tx ↗</a>}
           </div>
         )}
 
@@ -408,7 +412,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: MUTED, lineHeight: 1.5 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: PAGE_MUTED, lineHeight: 1.5 }}>
         <ShieldCheck size={15} style={{ flexShrink: 0, marginTop: 1 }} />
         Circle Wallet is a convenience wallet with a small holding limit. For larger amounts, use your own wallet.
       </div>
