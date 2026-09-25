@@ -328,7 +328,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
   );
 
   // Chain picker: logo buttons instead of a plain <select>.
-  const chainPicker = (value: string, onPick: (k: string) => void, disabled: boolean, ariaLabel: string, showBal = false, exclude?: string) => (
+  const chainPicker = (value: string, onPick: (k: string) => void, disabled: boolean, ariaLabel: string, showBal: false | "gateway" | "wallet" = false, exclude?: string) => (
     <div role="radiogroup" aria-label={ariaLabel} style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
       {CHAINS.map((c) => {
         const on = value === c.key;
@@ -341,7 +341,8 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
             <ChainLogo chain={c.key as ChainKey} size={22} />
             <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
               <span style={{ fontSize: 13.5, fontWeight: 600, color: on ? BLUE : INK }}>{c.name}</span>
-              {showBal && <span style={{ fontSize: 11, color: MUTED, fontFamily: "'Geist Mono', ui-monospace, monospace" }}>{bal ? bal[c.key].available.toFixed(2) : "…"} USDC</span>}
+              {showBal === "gateway" && <span style={{ fontSize: 11, color: MUTED, fontFamily: "'Geist Mono', ui-monospace, monospace" }}>{bal ? bal[c.key].available.toFixed(2) : "…"} USDC</span>}
+              {showBal === "wallet" && <span style={{ fontSize: 11, color: MUTED, fontFamily: "'Geist Mono', ui-monospace, monospace" }}>{walletBal[c.key] === undefined ? "…" : walletBal[c.key].toFixed(2)} USDC</span>}
             </span>
           </button>
         );
@@ -411,27 +412,13 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
             </div>
           ))}
         </div>
-        {(() => {
-          const idle = CHAINS.filter((c) => (walletBal[c.key] ?? 0) >= 0.01);
-          if (!idle.length) return <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>Spend it on any of these chains in seconds. Circle delivers on the destination, so you need no gas there.</div>;
-          return (
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.14)", fontSize: 12.5 }}>
-              <span>In your {source === "browser" ? "wallet" : "Circle Wallet"}, not in Gateway yet:</span>
-              {idle.map((c) => (
-                <button key={c.key} type="button" onClick={() => { setDepChain(c.key); setDepAmount(String(Math.floor((walletBal[c.key] ?? 0) * 100) / 100)); document.getElementById("gw-dep-amount")?.focus(); }}
-                  style={{ display: "flex", alignItems: "center", gap: 6, height: 30, padding: "0 10px", borderRadius: 999, border: "none", background: "#FFFFFF", color: BLUE, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                  <ChainLogo chain={c.key as ChainKey} size={16} /> {(walletBal[c.key] ?? 0).toFixed(2)} · Deposit
-                </button>
-              ))}
-            </div>
-          );
-        })()}
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>Spend it on any of these chains in seconds. Circle delivers on the destination, so you need no gas there.</div>
       </section>
 
       <section style={card}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}><ArrowDownLeft size={18} color={BLUE} /><span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Deposit</span></div>
         <span style={label}>From your {source === "browser" ? "wallet" : "Circle Wallet"} on</span>
-        {chainPicker(depChain, setDepChain, dStep === "busy", "Deposit from chain")}
+        {chainPicker(depChain, setDepChain, dStep === "busy", "Deposit from chain", "wallet")}
         <label htmlFor="gw-dep-amount" style={{ ...label, display: "flex", alignItems: "center", gap: 6 }}><TokenLogo symbol="USDC" size={16} /> Amount (USDC)</label>
         <input id="gw-dep-amount" inputMode="decimal" value={depAmount} placeholder="0.00" disabled={dStep === "busy"} style={input}
           onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setDepAmount(e.target.value); }} />
@@ -464,7 +451,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
       <section style={card}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}><ArrowRight size={18} color={BLUE} /><span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Send across chains</span></div>
         <span style={label}>From balance on</span>
-        {chainPicker(fromChain, (k) => { setFromChain(k); if (k === toChain) setToChain(CHAINS.find((c) => c.key !== k)!.key); }, tStep === "busy", "Send from chain", true)}
+        {chainPicker(fromChain, (k) => { setFromChain(k); if (k === toChain) setToChain(CHAINS.find((c) => c.key !== k)!.key); }, tStep === "busy", "Send from chain", "gateway")}
         <span style={label}>To</span>
         {chainPicker(toChain, setToChain, tStep === "busy", "Send to chain", false, fromChain)}
         <label htmlFor="gw-t-amount" style={{ ...label, display: "flex", alignItems: "center", gap: 6 }}><TokenLogo symbol="USDC" size={16} /> Amount (USDC)</label>
