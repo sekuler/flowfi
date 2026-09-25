@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, isAddress } from "viem";
 import type { Chain, EIP1193Provider } from "viem";
 import { mainnet, base, arbitrum } from "viem/chains";
-import { ArrowUpRight, ArrowDownLeft, Copy, Check, ShieldCheck, LogOut, RefreshCw, QrCode, Send } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+import { ArrowUpRight, ArrowDownLeft, Copy, Check, ShieldCheck, LogOut, RefreshCw } from "lucide-react";
 import { arcMainnet } from "../chains";
 import { TokenOnChain, type ChainKey } from "./AssetLogos";
 
@@ -162,35 +161,6 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
     setWallet(null); setStatus(null); setBalances({}); setStep("email"); setCode(""); setError(null);
   }
 
-  // Send: same backend action as withdraw (always allowed, even over the cap), but to any
-  // recipient the user types in, e.g. a friend's address.
-  const [sKey, setSKey] = useState("arc-usdc");
-  const [sAmount, setSAmount] = useState("");
-  const [sTo, setSTo] = useState("");
-  const [sStep, setSStep] = useState<"idle" | "sending" | "done" | "error">("idle");
-  const [sMsg, setSMsg] = useState<string | null>(null);
-  const [sHash, setSHash] = useState<string | null>(null);
-  const [recvCopied, setRecvCopied] = useState(false);
-  const sAsset = ASSETS.find((a) => a.key === sKey)!;
-
-  async function sendOut() {
-    if (!wallet) return;
-    const walletId = wallet.walletsByChain[sAsset.chainCode]?.walletId;
-    if (!walletId) { setSStep("error"); setSMsg(`No ${sAsset.chainName} wallet on this account.`); return; }
-    setSStep("sending"); setSMsg("Sending..."); setSHash(null);
-    try {
-      const { transactionId } = await post({ action: "withdraw", walletId, tokenAddress: sAsset.token, amount: sAmount.trim(), destinationAddress: sTo.trim() });
-      const start = Date.now();
-      while (Date.now() - start < 180000) {
-        const st = await post({ action: "getTransaction", transactionId });
-        if (st.state === "COMPLETE") { setSHash(st.txHash ?? null); setSStep("done"); setSMsg(`${sAmount} ${sAsset.symbol} sent.`); setSAmount(""); refresh(wallet); return; }
-        if (["FAILED", "CANCELLED", "DENIED"].includes(st.state)) throw new Error(st.errorReason ?? `Send ${String(st.state).toLowerCase()}.`);
-        await new Promise((r) => setTimeout(r, 3000));
-      }
-      throw new Error("Still processing. Check your balance again in a minute.");
-    } catch (e) { setSStep("error"); setSMsg(e instanceof Error ? e.message : "Send failed."); }
-  }
-
   async function withdraw() {
     if (!wallet) return;
     const walletId = wallet.walletsByChain[asset.chainCode]?.walletId;
@@ -301,12 +271,6 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
     : depAmt > room ? `Max $${room.toFixed(2)} (limit)`
     : `Deposit ${depAmount} ${depAsset.symbol}`;
 
-  const sBal = Number(balances[sKey] ?? 0);
-  const sAmt = Number(sAmount);
-  const sValidAmt = Number.isFinite(sAmt) && sAmt > 0 && sAmt <= sBal;
-  const sValidTo = isAddress(sTo.trim());
-  const canSend = sValidAmt && sValidTo && sStep !== "sending";
-
   const balNum = Number(balances[asset.key] ?? 0);
   const amt = Number(amount);
   const validAmt = Number.isFinite(amt) && amt > 0 && amt <= balNum;
@@ -362,54 +326,6 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
             </div>
           ))}
         </div>
-      </div>
-
-      <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <QrCode size={18} color={BLUE} />
-          <span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Receive</span>
-        </div>
-        <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ padding: 10, borderRadius: 14, border: `1px solid ${LINE}`, background: "#FFFFFF", flexShrink: 0 }}>
-            <QRCodeSVG value={wallet.address} size={132} fgColor={INK} bgColor="#FFFFFF" />
-          </div>
-          <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 12.5, color: INK, wordBreak: "break-all", lineHeight: 1.5 }}>{wallet.address}</div>
-            <button type="button" onClick={() => { navigator.clipboard.writeText(wallet.address); setRecvCopied(true); setTimeout(() => setRecvCopied(false), 1500); }}
-              style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, height: 40, padding: "0 16px", borderRadius: 10, border: "none", background: recvCopied ? "#0E9F6E" : BLUE, color: "#FFFFFF", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
-              {recvCopied ? <Check size={15} /> : <Copy size={15} />} {recvCopied ? "Copied" : "Copy address"}
-            </button>
-          </div>
-        </div>
-        <div style={{ padding: "10px 12px", borderRadius: 12, background: "#FFF4E0", color: "#6A4308", fontSize: 12.5, lineHeight: 1.5 }}>
-          Send <strong>USDC or EURC on the Arc network</strong> to this address, from an exchange or any wallet. Other networks aren't supported here: funds sent on Base, Ethereum or Arbitrum need ETH for gas that this wallet doesn't have.
-        </div>
-      </div>
-
-      <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Send size={18} color={BLUE} />
-          <span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Send</span>
-        </div>
-        <span style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Asset</span>
-        {assetPicker(ASSETS.filter((a) => a.chainCode === "ARC"), sKey, (k) => { setSKey(k); setSAmount(""); }, sStep === "sending", "Asset to send")}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <label htmlFor="cw-live-send-amount" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Amount · available {sBal.toLocaleString("en-US", { maximumFractionDigits: sAsset.decimals === 8 ? 8 : 2 })} {sAsset.symbol}</label>
-          <button type="button" onClick={() => setSAmount(balances[sKey] ?? "")} style={{ border: "none", background: "#E3E8FD", color: BLUE, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, cursor: "pointer" }}>MAX</button>
-        </div>
-        <input id="cw-live-send-amount" inputMode="decimal" value={sAmount} placeholder="0.00" disabled={sStep === "sending"} style={input}
-          onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setSAmount(e.target.value); }} />
-        <label htmlFor="cw-live-send-to" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Recipient address on Arc</label>
-        <input id="cw-live-send-to" value={sTo} onChange={(e) => setSTo(e.target.value)} placeholder="0x..." disabled={sStep === "sending"} style={{ ...input, fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 13 }} />
-        {sMsg && sStep !== "idle" && (
-          <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, background: sStep === "done" ? "#E7F7EF" : sStep === "error" ? "#FDECEC" : "#F5F7FF", color: sStep === "done" ? "#0B7A53" : sStep === "error" ? "#B91C1C" : INK }}>
-            {sMsg}{" "}
-            {sHash && <a href={`https://arc.etherscan.io/tx/${sHash}`} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 600 }}>View tx ↗</a>}
-          </div>
-        )}
-        <button type="button" onClick={sendOut} disabled={!canSend} style={primary(canSend)}>
-          {sStep === "sending" ? "Sending..." : !sAmount ? "Enter an amount" : sAmt > sBal ? "Not enough balance" : !sValidTo ? "Enter a valid address" : `Send ${sAmount} ${sAsset.symbol}`}
-        </button>
       </div>
 
       <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>

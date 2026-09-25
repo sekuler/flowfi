@@ -102,7 +102,7 @@ async function circleCallAndWait(body: Record<string, unknown>) {
   throw new Error("Still processing. Check again in a minute.");
 }
 
-export default function GatewayMainnet({ browserAddress, provider, circleLive, onOpenNativeBridge }: { browserAddress?: string; provider?: EIP1193Provider; circleLive?: LiveCircleWallet | null; onOpenNativeBridge?: () => void }) {
+export default function GatewayMainnet({ browserAddress, provider, circleLive, onOpenNativeBridge, onConnect }: { browserAddress?: string; provider?: EIP1193Provider; circleLive?: LiveCircleWallet | null; onOpenNativeBridge?: () => void; onConnect?: () => void }) {
   const [source, setSource] = useState<"browser" | "circle">(browserAddress ? "browser" : "circle");
   const hasBrowser = !!browserAddress && !!provider;
   const hasCircle = !!circleLive;
@@ -324,7 +324,8 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
-      {hasBrowser && hasCircle && (
+      {(
+
         <div role="group" aria-label="Wallet" style={{ display: "flex", gap: 2, padding: 3, borderRadius: 12, background: "#ECEAE4" }}>
           {(["browser", "circle"] as const).map((k) => {
             const on = source === k;
@@ -338,6 +339,13 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         </div>
       )}
 
+      {!owner ? (
+        <div style={{ ...card, alignItems: "center", textAlign: "center", color: MUTED, fontSize: 13.5 }}>
+          {source === "circle" ? "Sign in with Circle Wallet to use Gateway with it." : "Connect a browser wallet to use Gateway with it."}
+          {onConnect && <button type="button" onClick={onConnect} style={{ ...primary(true), maxWidth: 260 }}>{source === "circle" ? "Sign in with Circle Wallet" : "Connect wallet"}</button>}
+        </div>
+      ) : (
+      <>
       <section style={{ ...card, background: BLUE, border: "none", color: "#FFFFFF" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,0.85)" }}><TokenLogo symbol="USDC" size={20} /> Unified USDC balance <Layers size={14} /></span>
@@ -404,6 +412,8 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         {note(tStep, tMsg)}
         <button type="button" onClick={transfer} disabled={!canTransfer} style={primary(canTransfer)}>{tLabel}</button>
       </section>
+      </>
+      )}
     </div>
   );
 }
