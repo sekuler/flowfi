@@ -60,8 +60,8 @@ const BLUE = "#3D5AF1";
 // Cards use the Arc navy gradient, so text/line tokens are light. PAGE_* are for text that
 // sits on the light page background outside the cards.
 const INK = "#FFFFFF";
-const MUTED = "rgba(255,255,255,0.72)";
-const LINE = "rgba(255,255,255,0.16)";
+const MUTED = "rgba(255,255,255,0.85)";
+const LINE = "rgba(255,255,255,0.28)";
 const PAGE_INK = "#16151C";
 const PAGE_MUTED = "#5E5B6B";
 
@@ -323,11 +323,11 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     }
   }
 
-  const card = { background: "linear-gradient(150deg, #0B1B3A 0%, #1E3A8A 45%, #3D5AF1 100%)", color: "#FFFFFF", border: "none", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" };
+  const card = { background: "#3D5AF1", color: "#FFFFFF", border: "none", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 16px 40px -22px rgba(29,52,170,0.7)" };
   const sectionTitle = (Icon: typeof ArrowRight, text: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
-        <Icon size={18} color="#FFFFFF" />
+      <span style={{ width: 36, height: 36, borderRadius: 11, background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -8px rgba(11,27,58,0.5)" }}>
+        <Icon size={18} color={BLUE} />
       </span>
       <span style={{ fontSize: 19, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.01em" }}>{text}</span>
     </div>
@@ -348,7 +348,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         return (
           <button key={c.key} type="button" role="radio" aria-checked={on} disabled={off} onClick={() => onPick(c.key)}
             style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 44, padding: "6px 10px", borderRadius: 12, textAlign: "left",
-              border: on ? "1.5px solid #8FB0FF" : `1px solid ${LINE}`, background: on ? "rgba(143,176,255,0.22)" : "rgba(255,255,255,0.06)",
+              border: on ? "1.5px solid #FFFFFF" : `1px solid ${LINE}`, background: on ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)",
               opacity: c.key === exclude ? 0.35 : 1, cursor: off ? "not-allowed" : "pointer" }}>
             <ChainLogo chain={c.key as ChainKey} size={22} />
             <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
@@ -403,7 +403,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         </div>
       ) : (
       <>
-      <section style={{ ...card, background: "linear-gradient(150deg, #0B1B3A 0%, #1E3A8A 45%, #3D5AF1 100%)", border: "none", color: "#FFFFFF", boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" }}>
+      <section style={{ ...card, background: "#3D5AF1", border: "none", color: "#FFFFFF", boxShadow: "0 16px 40px -22px rgba(29,52,170,0.7)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,0.85)" }}><TokenLogo symbol="USDC" size={20} /> Unified USDC balance <Layers size={14} /></span>
           <button type="button" aria-label="Refresh" onClick={() => { refresh(); }} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.35)", background: "transparent", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
