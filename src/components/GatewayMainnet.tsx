@@ -319,7 +319,15 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     }
   }
 
-  const card = { background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12 };
+  const card = { background: "linear-gradient(180deg, #EEF2FF 0%, #FFFFFF 160px)", border: "1px solid #D9E1F7", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 10px 30px -18px rgba(11,27,58,0.35)" };
+  const sectionTitle = (Icon: typeof ArrowRight, text: string) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
+        <Icon size={18} color="#FFFFFF" />
+      </span>
+      <span style={{ fontSize: 19, fontWeight: 700, color: BLUE, letterSpacing: "-0.01em" }}>{text}</span>
+    </div>
+  );
   const input = { width: "100%", boxSizing: "border-box" as const, height: 46, padding: "0 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 14, color: INK, background: "#FFFFFF" };
   const label = { fontSize: 12, fontWeight: 600, color: MUTED } as const;
   const primary = (on: boolean) => ({ width: "100%", height: 48, borderRadius: 12, border: "none", background: on ? BLUE : "#EEEDF5", color: on ? "#FFFFFF" : "#8A8798", fontSize: 15, fontWeight: 600, cursor: on ? "pointer" : "not-allowed" });
@@ -391,7 +399,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         </div>
       ) : (
       <>
-      <section style={{ ...card, background: BLUE, border: "none", color: "#FFFFFF" }}>
+      <section style={{ ...card, background: "linear-gradient(150deg, #0B1B3A 0%, #1E3A8A 45%, #3D5AF1 100%)", border: "none", color: "#FFFFFF", boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,0.85)" }}><TokenLogo symbol="USDC" size={20} /> Unified USDC balance <Layers size={14} /></span>
           <button type="button" aria-label="Refresh" onClick={() => { refresh(); }} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.35)", background: "transparent", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
@@ -416,7 +424,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
       </section>
 
       <section style={card}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><ArrowDownLeft size={18} color={BLUE} /><span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Deposit</span></div>
+        {sectionTitle(ArrowDownLeft, "Deposit")}
         <span style={label}>From your {source === "browser" ? "wallet" : "Circle Wallet"} on</span>
         {chainPicker(depChain, setDepChain, dStep === "busy", "Deposit from chain", "wallet")}
         <label htmlFor="gw-dep-amount" style={{ ...label, display: "flex", alignItems: "center", gap: 6 }}><TokenLogo symbol="USDC" size={16} /> Amount (USDC)</label>
@@ -449,7 +457,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
       </section>
 
       <section style={card}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><ArrowRight size={18} color={BLUE} /><span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Send across chains</span></div>
+        {sectionTitle(ArrowRight, "Send across chains")}
         <span style={label}>From balance on</span>
         {chainPicker(fromChain, (k) => { setFromChain(k); if (k === toChain) setToChain(CHAINS.find((c) => c.key !== k)!.key); }, tStep === "busy", "Send from chain", "gateway")}
         <span style={label}>To</span>
