@@ -323,7 +323,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     }
   }
 
-  const card = { background: "linear-gradient(160deg, #0B1B3A 0%, #12305A 55%, #3E6A94 100%)", color: "#FFFFFF", border: "none", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" };
+  const card = { background: "linear-gradient(150deg, #0B1B3A 0%, #1E3A8A 45%, #3D5AF1 100%)", color: "#FFFFFF", border: "none", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" };
   const sectionTitle = (Icon: typeof ArrowRight, text: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
