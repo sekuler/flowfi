@@ -59,9 +59,9 @@ const ZERO32 = `0x${"0".repeat(64)}` as `0x${string}`;
 const BLUE = "#3D5AF1";
 // Cards use the Arc navy gradient, so text/line tokens are light. PAGE_* are for text that
 // sits on the light page background outside the cards.
-const INK = "#FFFFFF";
-const MUTED = "rgba(255,255,255,0.85)";
-const LINE = "rgba(255,255,255,0.28)";
+const INK = "#16151C";
+const MUTED = "#5E5B6B";
+const LINE = "#DCE2F7";
 const PAGE_INK = "#16151C";
 const PAGE_MUTED = "#5E5B6B";
 
@@ -104,6 +104,25 @@ async function circleCallAndWait(body: Record<string, unknown>) {
     await sleep(3000);
   }
   throw new Error("Still processing. Check again in a minute.");
+}
+
+
+// Soft lavender/blue waves behind the cards, matching the landing hero artwork. Decorative only.
+function GlassBackdrop() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice"
+      style={{ position: "absolute", inset: "-40px -80px", width: "calc(100% + 160px)", height: "calc(100% + 80px)", zIndex: -1, pointerEvents: "none" }}>
+      <defs>
+        <linearGradient id="ffw1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#C9D3FF" stopOpacity="0" /><stop offset="0.5" stopColor="#B9C6FF" stopOpacity="0.55" /><stop offset="1" stopColor="#D8CCFF" stopOpacity="0" /></linearGradient>
+        <linearGradient id="ffw2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#D8CCFF" stopOpacity="0" /><stop offset="0.5" stopColor="#C4B8FF" stopOpacity="0.45" /><stop offset="1" stopColor="#B9C6FF" stopOpacity="0" /></linearGradient>
+        <radialGradient id="ffglow" cx="0.5" cy="0.2" r="0.6"><stop offset="0" stopColor="#DCE3FF" stopOpacity="0.9" /><stop offset="1" stopColor="#F6F5F2" stopOpacity="0" /></radialGradient>
+      </defs>
+      <rect width="1200" height="900" fill="url(#ffglow)" />
+      <path d="M0 260 C 200 180, 380 360, 600 280 S 1000 180, 1200 260 L1200 340 C 1000 260, 820 420, 600 360 S 200 280, 0 340 Z" fill="url(#ffw1)" />
+      <path d="M0 520 C 240 440, 420 620, 640 540 S 1020 440, 1200 520 L1200 590 C 1010 520, 840 670, 620 610 S 220 530, 0 600 Z" fill="url(#ffw2)" />
+      <path d="M0 760 C 220 690, 400 850, 620 780 S 1000 690, 1200 760 L1200 820 C 1000 760, 820 890, 600 840 S 200 770, 0 830 Z" fill="url(#ffw1)" />
+    </svg>
+  );
 }
 
 export default function GatewayMainnet({ browserAddress, provider, circleLive, onOpenNativeBridge, onConnect }: { browserAddress?: string; provider?: EIP1193Provider; circleLive?: LiveCircleWallet | null; onOpenNativeBridge?: () => void; onConnect?: () => void }) {
@@ -323,20 +342,20 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     }
   }
 
-  const card = { background: "#3D5AF1", color: "#FFFFFF", border: "none", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 16px 40px -22px rgba(29,52,170,0.7)" };
+  const card = { background: "linear-gradient(160deg, rgba(255,255,255,0.82) 0%, rgba(236,240,255,0.74) 100%)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", color: INK, border: "1px solid rgba(255,255,255,0.95)", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 22px 50px -30px rgba(61,90,241,0.55), inset 0 1px 0 rgba(255,255,255,0.9)" };
   const sectionTitle = (Icon: typeof ArrowRight, text: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <span style={{ width: 36, height: 36, borderRadius: 11, background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -8px rgba(11,27,58,0.5)" }}>
-        <Icon size={18} color={BLUE} />
+      <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
+        <Icon size={18} color="#FFFFFF" />
       </span>
-      <span style={{ fontSize: 19, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.01em" }}>{text}</span>
+      <span style={{ fontSize: 19, fontWeight: 700, color: BLUE, letterSpacing: "-0.01em" }}>{text}</span>
     </div>
   );
-  const input = { width: "100%", boxSizing: "border-box" as const, height: 46, padding: "0 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 14, color: INK, background: "rgba(255,255,255,0.08)" };
+  const input = { width: "100%", boxSizing: "border-box" as const, height: 46, padding: "0 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 14, color: INK, background: "rgba(255,255,255,0.85)" };
   const label = { fontSize: 12, fontWeight: 600, color: MUTED } as const;
-  const primary = (on: boolean) => ({ width: "100%", height: 48, borderRadius: 12, border: "none", background: on ? "#FFFFFF" : "rgba(255,255,255,0.12)", color: on ? BLUE : "rgba(255,255,255,0.45)", fontSize: 15, fontWeight: 600, cursor: on ? "pointer" : "not-allowed" });
+  const primary = (on: boolean) => ({ width: "100%", height: 48, borderRadius: 12, border: "none", background: on ? BLUE : "rgba(61,90,241,0.10)", color: on ? "#FFFFFF" : "#8A93B8", boxShadow: on ? "0 10px 24px -12px rgba(61,90,241,0.8)" : "none", fontSize: 15, fontWeight: 600, cursor: on ? "pointer" : "not-allowed" });
   const note = (st: string, msg: string | null) => msg && st !== "idle" && (
-    <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.5, background: st === "done" ? "#E7F7EF" : st === "error" ? "#FDECEC" : "rgba(255,255,255,0.1)", color: st === "done" ? "#0B7A53" : st === "error" ? "#B91C1C" : INK }}>{msg}</div>
+    <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.5, background: st === "done" ? "#E7F7EF" : st === "error" ? "#FDECEC" : "rgba(61,90,241,0.08)", color: st === "done" ? "#0B7A53" : st === "error" ? "#B91C1C" : INK }}>{msg}</div>
   );
 
   // Chain picker: logo buttons instead of a plain <select>.
@@ -348,7 +367,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         return (
           <button key={c.key} type="button" role="radio" aria-checked={on} disabled={off} onClick={() => onPick(c.key)}
             style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 44, padding: "6px 10px", borderRadius: 12, textAlign: "left",
-              border: on ? "1.5px solid #FFFFFF" : `1px solid ${LINE}`, background: on ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)",
+              border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "rgba(61,90,241,0.10)" : "rgba(255,255,255,0.7)",
               opacity: c.key === exclude ? 0.35 : 1, cursor: off ? "not-allowed" : "pointer" }}>
             <ChainLogo chain={c.key as ChainKey} size={22} />
             <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
@@ -380,7 +399,8 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     : !tAmount ? "Enter an amount" : tAmt >= fromAvail ? `Not enough on ${from.name} (fee included)` : !validRecipient ? "Enter a valid address" : `Send ${tAmount} USDC to ${to.name}`;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
+    <div style={{ position: "relative", isolation: "isolate", display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
+      <GlassBackdrop />
       {(
 
         <div role="group" aria-label="Wallet" style={{ display: "flex", gap: 2, padding: 3, borderRadius: 12, background: "#ECEAE4" }}>
@@ -403,7 +423,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         </div>
       ) : (
       <>
-      <section style={{ ...card, background: "#3D5AF1", border: "none", color: "#FFFFFF", boxShadow: "0 16px 40px -22px rgba(29,52,170,0.7)" }}>
+      <section style={{ ...card, background: "linear-gradient(135deg, #2F4DE8 0%, #3D5AF1 45%, #6C8BFF 100%)", border: "none", color: "#FFFFFF", backdropFilter: "none", boxShadow: "0 24px 50px -24px rgba(61,90,241,0.75)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,0.85)" }}><TokenLogo symbol="USDC" size={20} /> Unified USDC balance <Layers size={14} /></span>
           <button type="button" aria-label="Refresh" onClick={() => { refresh(); }} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.35)", background: "transparent", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
