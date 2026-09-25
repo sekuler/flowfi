@@ -114,6 +114,20 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
   const owner = source === "browser" ? browserAddress : circleLive?.address;
 
   const [bal, setBal] = useState<Record<string, { available: number; pending: number }> | null>(null);
+  // USDC sitting in the wallet itself (not yet deposited into Gateway), per chain.
+  const [walletBal, setWalletBal] = useState<Record<string, number>>({});
+  // A deposit Gateway hasn't credited yet. Kept in localStorage so it survives leaving the page.
+  const [arriving, setArriving] = useState<{ chain: string; amount: number; eta: number; baseline: number } | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const arrivingKey = owner ? `flowfi-gw-arriving-${owner.toLowerCase()}` : null;
+  useEffect(() => {
+    if (!arrivingKey) { setArriving(null); return; }
+    try { const p = JSON.parse(localStorage.getItem(arrivingKey) ?? "null"); setArriving(p && p.eta + 15 * 60000 > Date.now() ? p : null); } catch { setArriving(null); }
+  }, [arrivingKey]);
+  function saveArriving(v: typeof arriving) {
+    setArriving(v);
+    try { if (arrivingKey) { if (v) localStorage.setItem(arrivingKey, JSON.stringify(v)); else localStorage.removeItem(arrivingKey); } } catch { /* ignore */ }
+  }
   const [loadingBal, setLoadingBal] = useState(false);
 
   const [depChain, setDepChain] = useState("arc");
@@ -134,9 +148,16 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
 
   useEffect(() => { if (owner) setRecipient(owner); }, [owner]);
 
-  async function refresh() {
-    if (!owner) return;
+  async function refresh(): Promise<Record<string, { available: number; pending: number }> | null> {
+    if (!owner) return null;
     setLoadingBal(true);
+    Promise.all(CHAINS.map(async (c) => {
+      try {
+        const pc = createPublicClient({ chain: c.chain, transport: http() });
+        const raw = await pc.readContract({ address: c.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner as `0x${string}`] });
+        return [c.key, Number(raw) / 1e6] as const;
+      } catch { return [c.key, 0] as const; }
+    })).then((e) => setWalletBal(Object.fromEntries(e)));
     try {
       const res = await fetch(`${GATEWAY_API}/v1/balances`, {
         method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
@@ -150,7 +171,8 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         out[c.key] = { available: Math.max(0, (Number(e?.balance ?? 0) || 0) - pending), pending };
       }
       setBal(out);
-    } catch { setBal(null); }
+      return out;
+    } catch { setBal(null); return null; }
     finally { setLoadingBal(false); }
   }
 
@@ -160,6 +182,28 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     const t = setInterval(refresh, 20000);
     return () => clearInterval(t);
   }, [owner]);
+
+  // While a deposit is on its way, check often (Arc: every 3 s, other chains: every 15 s) and
+  // clear it the moment Gateway credits it.
+  useEffect(() => {
+    if (!arriving) return;
+    const fast = arriving.chain === "arc";
+    const tick = async () => {
+      setNow(Date.now());
+      const out = await refresh();
+      const got = out?.[arriving.chain]?.available ?? 0;
+      if (got >= arriving.baseline + arriving.amount * 0.99) {
+        saveArriving(null);
+        setDStep("done");
+        setDMsg(`${arriving.amount} USDC is now in your Gateway balance.`);
+      } else if (Date.now() > arriving.eta + 15 * 60000) {
+        saveArriving(null);
+      }
+    };
+    const t = setInterval(tick, fast ? 3000 : 15000);
+    const clock = setInterval(() => setNow(Date.now()), 1000);
+    return () => { clearInterval(t); clearInterval(clock); };
+  }, [arriving]);
 
   const total = bal ? Object.values(bal).reduce((s, x) => s + x.available, 0) : 0;
 
@@ -186,13 +230,13 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         setDMsg("2/2 Depositing...");
         await circleCallAndWait({ walletId, contractAddress: GATEWAY_WALLET, abiFunctionSignature: "deposit(address,uint256)", abiParameters: [dep.usdc, amountRaw.toString()] });
       }
+      const etaMs = Date.now() + (dep.slow ? 20 * 60000 : 60000);
+      saveArriving({ chain: dep.key, amount: Number(depAmount), eta: etaMs, baseline: bal?.[dep.key]?.available ?? 0 });
       setDStep("done");
-      const eta = new Date(Date.now() + 20 * 60 * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       setDMsg(dep.slow
-        ? `Deposited. Gateway adds it once ${dep.name} finalizes, around ${eta} (about 20 min). You can leave this page; it will be in your ${dep.name} balance, ready to send anywhere in seconds.`
-        : "Deposited. It shows up in your balance in a few seconds.");
+        ? `Deposit sent. Gateway credits it once ${dep.name} finalizes (about 20 min). You can leave this page; it will appear here automatically.`
+        : "Deposit sent. Gateway is crediting it, usually within a minute...");
       setDepAmount("");
-      setTimeout(refresh, 4000);
     } catch (e: unknown) {
       const err = e as { shortMessage?: string; message?: string };
       setDStep("error"); setDMsg(err.shortMessage || err.message || "Deposit failed.");
@@ -349,7 +393,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
       <section style={{ ...card, background: BLUE, border: "none", color: "#FFFFFF" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,0.85)" }}><TokenLogo symbol="USDC" size={20} /> Unified USDC balance <Layers size={14} /></span>
-          <button type="button" aria-label="Refresh" onClick={refresh} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.35)", background: "transparent", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <button type="button" aria-label="Refresh" onClick={() => { refresh(); }} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.35)", background: "transparent", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <RefreshCw size={14} />
           </button>
         </div>
@@ -363,11 +407,25 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
                 <span style={{ borderRadius: "50%", background: "#FFFFFF", padding: 1, display: "flex" }}><ChainLogo chain={c.key as ChainKey} size={16} /></span>{c.name}
               </div>
               <div style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 14 }}>{bal ? bal[c.key].available.toFixed(2) : "…"}</div>
-              {bal && bal[c.key].pending > 0 && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)" }}>+{bal[c.key].pending.toFixed(2)} pending</div>}
+              {arriving?.chain === c.key && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.85)" }}>+{arriving.amount.toFixed(2)} arriving</div>}
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>Spend it on any of these chains in seconds. Circle delivers on the destination, so you need no gas there.</div>
+        {(() => {
+          const idle = CHAINS.filter((c) => (walletBal[c.key] ?? 0) >= 0.01);
+          if (!idle.length) return <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>Spend it on any of these chains in seconds. Circle delivers on the destination, so you need no gas there.</div>;
+          return (
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.14)", fontSize: 12.5 }}>
+              <span>In your {source === "browser" ? "wallet" : "Circle Wallet"}, not in Gateway yet:</span>
+              {idle.map((c) => (
+                <button key={c.key} type="button" onClick={() => { setDepChain(c.key); setDepAmount(String(Math.floor((walletBal[c.key] ?? 0) * 100) / 100)); document.getElementById("gw-dep-amount")?.focus(); }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, height: 30, padding: "0 10px", borderRadius: 999, border: "none", background: "#FFFFFF", color: BLUE, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                  <ChainLogo chain={c.key as ChainKey} size={16} /> {(walletBal[c.key] ?? 0).toFixed(2)} · Deposit
+                </button>
+              ))}
+            </div>
+          );
+        })()}
       </section>
 
       <section style={card}>
@@ -393,6 +451,13 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         )}
         {source === "circle" && <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Your Gateway balance counts toward the Circle Wallet limit.</p>}
         {note(dStep, dMsg)}
+        {arriving && (
+          <div style={{ fontSize: 12.5, color: MUTED }}>
+            {arriving.eta > now
+              ? `Arriving in about ${Math.max(1, Math.ceil((arriving.eta - now) / 60000))} min (${new Date(arriving.eta).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}).`
+              : "Almost there, still checking..."}
+          </div>
+        )}
         <button type="button" onClick={deposit} disabled={!canDeposit} style={primary(canDeposit)}>{dStep === "busy" ? "Depositing..." : !depAmount ? "Enter an amount" : `Deposit ${depAmount} USDC`}</button>
       </section>
 

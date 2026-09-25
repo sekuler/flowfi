@@ -4,7 +4,6 @@ import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import LiveBlock from "./components/LiveBlock";
 import CircleWalletMainnet from "./components/CircleWalletMainnet";
 import GatewayMainnet from "./components/GatewayMainnet";
-import SendMainnet from "./components/SendMainnet";
 import TokenLaunch from "./components/TokenLaunch";
 import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
@@ -36,7 +35,6 @@ import {
   Home, Repeat, Droplet,
   Rocket, Hexagon, CircleDollarSign, Layers, LayoutDashboard, BarChart3, History as HistoryIcon,
   Sparkles, Moon, Power, HelpCircle, Check, Lock, Mail, Zap, ShieldCheck as ShieldCheckIcon,
-  Send as SendIcon,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -93,7 +91,6 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     { id: "home", label: "Home", Icon: Home },
     { id: "mainnetbridge", label: "Bridge", Icon: Zap },
     { id: "mainnetswap", label: "Swap", Icon: Repeat },
-    { id: "sendmainnet", label: "Send", Icon: SendIcon },
     // Circle Wallet on mainnet was fully removed (2026-09-18), not just
     // hidden from nav -- component file, Tab union entry, and safe-tab
     // list entries are all gone (an earlier pass only removed the nav
@@ -920,7 +917,6 @@ function AppInner() {
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
             {tab === "mainnethistory" && wallet && <TxHistory address={wallet.address} network="mainnet" />}
             {tab === "circlewalletmainnet" && <CircleWalletMainnet browserAddress={wallet?.address} provider={wallet?.provider} />}
-            {tab === "sendmainnet" && <SendMainnet browserAddress={wallet?.address} provider={wallet?.provider} circleLive={circleLive} onConnect={() => setShowConnectModal(true)} />}
             {tab === "gatewaymainnet" && <GatewayMainnet browserAddress={wallet?.address} provider={wallet?.provider} circleLive={circleLive} onConnect={() => setShowConnectModal(true)} onOpenNativeBridge={() => { try { sessionStorage.setItem("flowfi-bridge-mode", "cctp"); } catch { /* ignore */ } goToTab("mainnetbridge"); }} />}
             {tab === "dashboardmainnet" && wallet && <DashboardMainnet address={wallet.address} balances={mainnetBalances} provider={wallet.provider} onNavigate={(t) => setTab(t as Tab)} />}
             {tab === "analytics" && <StablecoinAnalytics onNavigate={(t) => setTab(t)} />}
