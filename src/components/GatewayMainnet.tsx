@@ -101,7 +101,7 @@ async function circleCallAndWait(body: Record<string, unknown>) {
   throw new Error("Still processing. Check again in a minute.");
 }
 
-export default function GatewayMainnet({ browserAddress, provider, circleLive }: { browserAddress?: string; provider?: EIP1193Provider; circleLive?: LiveCircleWallet | null }) {
+export default function GatewayMainnet({ browserAddress, provider, circleLive, onOpenNativeBridge }: { browserAddress?: string; provider?: EIP1193Provider; circleLive?: LiveCircleWallet | null; onOpenNativeBridge?: () => void }) {
   const [source, setSource] = useState<"browser" | "circle">(browserAddress ? "browser" : "circle");
   const hasBrowser = !!browserAddress && !!provider;
   const hasCircle = !!circleLive;
@@ -186,8 +186,9 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive }:
         await circleCallAndWait({ walletId, contractAddress: GATEWAY_WALLET, abiFunctionSignature: "deposit(address,uint256)", abiParameters: [dep.usdc, amountRaw.toString()] });
       }
       setDStep("done");
+      const eta = new Date(Date.now() + 20 * 60 * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       setDMsg(dep.slow
-        ? `Deposited. It shows up in your balance once ${dep.name} finalizes, which can take several minutes.`
+        ? `Deposited. Gateway adds it once ${dep.name} finalizes, around ${eta} (about 20 min). You can leave this page; it will be in your ${dep.name} balance, ready to send anywhere in seconds.`
         : "Deposited. It shows up in your balance in a few seconds.");
       setDepAmount("");
       setTimeout(refresh, 4000);
@@ -345,7 +346,20 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive }:
         <label htmlFor="gw-dep-amount" style={label}>Amount (USDC)</label>
         <input id="gw-dep-amount" inputMode="decimal" value={depAmount} placeholder="0.00" disabled={dStep === "busy"} style={input}
           onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setDepAmount(e.target.value); }} />
-        {dep.chain.id !== arcMainnet.id && <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Needs a little ETH on {dep.name} for gas.</p>}
+        {dep.slow && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", borderRadius: 12, background: "#FFF4E0", color: "#6A4308", fontSize: 12.5, lineHeight: 1.5 }}>
+            <span>Deposits from {dep.name} take about <strong>20 minutes</strong> while {dep.name} finalizes (deposits from Arc are instant). Needs a little ETH on {dep.name} for gas.</span>
+            {onOpenNativeBridge && (
+              <span>
+                Just want your USDC on Arc now?{" "}
+                <button type="button" onClick={onOpenNativeBridge}
+                  style={{ border: "none", background: "none", padding: 0, color: BLUE, fontWeight: 700, fontSize: 12.5, cursor: "pointer", textDecoration: "underline" }}>
+                  Use Native Bridge (10–20 sec)
+                </button>
+              </span>
+            )}
+          </div>
+        )}
         {source === "circle" && <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Your Gateway balance counts toward the Circle Wallet limit.</p>}
         {note(dStep, dMsg)}
         <button type="button" onClick={deposit} disabled={!canDeposit} style={primary(canDeposit)}>{dStep === "busy" ? "Depositing..." : !depAmount ? "Enter an amount" : `Deposit ${depAmount} USDC`}</button>

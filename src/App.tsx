@@ -917,7 +917,7 @@ function AppInner() {
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
             {tab === "mainnethistory" && wallet && <TxHistory address={wallet.address} network="mainnet" />}
             {tab === "circlewalletmainnet" && <CircleWalletMainnet browserAddress={wallet?.address} provider={wallet?.provider} />}
-            {tab === "gatewaymainnet" && <GatewayMainnet browserAddress={wallet?.address} provider={wallet?.provider} circleLive={circleLive} />}
+            {tab === "gatewaymainnet" && <GatewayMainnet browserAddress={wallet?.address} provider={wallet?.provider} circleLive={circleLive} onOpenNativeBridge={() => { try { sessionStorage.setItem("flowfi-bridge-mode", "cctp"); } catch { /* ignore */ } goToTab("mainnetbridge"); }} />}
             {tab === "dashboardmainnet" && wallet && <DashboardMainnet address={wallet.address} balances={mainnetBalances} provider={wallet.provider} onNavigate={(t) => setTab(t as Tab)} />}
             {tab === "analytics" && <StablecoinAnalytics onNavigate={(t) => setTab(t)} />}
             {tab === "history" && (wallet || (circlePrimary && circleWalletInfo)) && <TxHistory address={wallet ? wallet.address : circleWalletInfo!.address} />}
