@@ -4,6 +4,7 @@ import type { Chain, EIP1193Provider } from "viem";
 import { mainnet, base, arbitrum } from "viem/chains";
 import { ArrowUpRight, ArrowDownLeft, Copy, Check, ShieldCheck, LogOut, RefreshCw } from "lucide-react";
 import { arcMainnet } from "../chains";
+import { TokenOnChain, type ChainKey } from "./AssetLogos";
 
 // Mainnet Circle Wallet (email sign-in, no seed phrase). Talks ONLY to /api/circle-wallet-mainnet
 // (LIVE key), never to the testnet endpoint, and keeps its own localStorage entry so it can't be
@@ -233,6 +234,27 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
     );
   }
 
+  const chainKeyOf = (a: Asset): ChainKey => ({ ARC: "arc", BASE: "base", ETH: "ethereum", ARB: "arbitrum" } as const)[a.chainCode as "ARC" | "BASE" | "ETH" | "ARB"];
+  // Asset picker: token-with-chain logo buttons instead of a plain <select>.
+  const assetPicker = (list: Asset[], value: string, onPick: (k: string) => void, disabled: boolean, ariaLabel: string) => (
+    <div role="radiogroup" aria-label={ariaLabel} style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
+      {list.map((a) => {
+        const on = value === a.key;
+        return (
+          <button key={a.key} type="button" role="radio" aria-checked={on} disabled={disabled} onClick={() => onPick(a.key)}
+            style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "6px 10px", borderRadius: 12, textAlign: "left",
+              border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "#FFFFFF", cursor: disabled ? "not-allowed" : "pointer" }}>
+            <TokenOnChain symbol={a.symbol} chain={chainKeyOf(a)} size={28} />
+            <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: on ? BLUE : INK }}>{a.symbol}</span>
+              <span style={{ fontSize: 11.5, color: MUTED }}>on {a.chainName}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const room = status ? Math.max(0, status.capUsd - status.stableTotal) : 0;
   const depBalNum = Number(depBal ?? 0);
   const depAmt = Number(depAmount);
@@ -290,8 +312,14 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
 
         <div style={{ display: "flex", flexDirection: "column" }}>
           {ASSETS.map((a, i) => (
-            <div key={a.key} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderTop: i ? `1px solid ${LINE}` : "none", fontSize: 13.5 }}>
-              <span style={{ color: MUTED }}>{a.symbol} <span style={{ fontSize: 12 }}>· {a.chainName}</span></span>
+            <div key={a.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: i ? `1px solid ${LINE}` : "none", fontSize: 13.5 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <TokenOnChain symbol={a.symbol} chain={chainKeyOf(a)} size={30} />
+                <span style={{ display: "flex", flexDirection: "column" }}>
+                  <span style={{ fontWeight: 600, color: INK }}>{a.symbol}</span>
+                  <span style={{ fontSize: 11.5, color: MUTED }}>{a.chainName}</span>
+                </span>
+              </span>
               <span style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontWeight: 500, color: INK }}>
                 {balances[a.key] === undefined ? "…" : balances[a.key] === null ? "—" : Number(balances[a.key]).toLocaleString("en-US", { maximumFractionDigits: a.decimals === 8 ? 8 : 2 })}
               </span>
@@ -309,10 +337,8 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
           From your connected wallet. {status ? `You can add up to $${room.toFixed(2)} more (limit $${status.capUsd}).` : ""}
         </p>
 
-        <label htmlFor="cw-live-dep-asset" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Asset</label>
-        <select id="cw-live-dep-asset" value={depKey} onChange={(e) => { setDepKey(e.target.value); setDepAmount(""); }} disabled={dStep === "sending"} style={input}>
-          {ASSETS.filter((a) => DEPOSIT_KEYS.includes(a.key)).map((a) => <option key={a.key} value={a.key}>{a.symbol} on {a.chainName}</option>)}
-        </select>
+        <span style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Asset</span>
+        {assetPicker(ASSETS.filter((a) => DEPOSIT_KEYS.includes(a.key)), depKey, (k) => { setDepKey(k); setDepAmount(""); }, dStep === "sending", "Asset to add")}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <label htmlFor="cw-live-dep-amount" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>
@@ -340,10 +366,8 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
           <span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Withdraw to my wallet</span>
         </div>
 
-        <label htmlFor="cw-live-asset" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Asset</label>
-        <select id="cw-live-asset" value={assetKey} onChange={(e) => { setAssetKey(e.target.value); setAmount(""); }} disabled={wStep === "sending"} style={input}>
-          {ASSETS.map((a) => <option key={a.key} value={a.key}>{a.symbol} on {a.chainName}</option>)}
-        </select>
+        <span style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Asset</span>
+        {assetPicker(ASSETS, assetKey, (k) => { setAssetKey(k); setAmount(""); }, wStep === "sending", "Asset to withdraw")}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <label htmlFor="cw-live-amount" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Amount</label>

@@ -5,6 +5,7 @@ import { mainnet, base, arbitrum } from "viem/chains";
 import { ArrowDownLeft, ArrowRight, RefreshCw, Layers } from "lucide-react";
 import { arcMainnet } from "../chains";
 import type { LiveCircleWallet } from "./ConnectModal";
+import { ChainLogo, TokenLogo, type ChainKey } from "./AssetLogos";
 
 // Circle Gateway on MAINNET: one USDC balance across Arc, Base, Ethereum and Arbitrum.
 // Sources (developers.circle.com, checked 2026-09-25):
@@ -282,6 +283,28 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.5, background: st === "done" ? "#E7F7EF" : st === "error" ? "#FDECEC" : "#F5F7FF", color: st === "done" ? "#0B7A53" : st === "error" ? "#B91C1C" : INK }}>{msg}</div>
   );
 
+  // Chain picker: logo buttons instead of a plain <select>.
+  const chainPicker = (value: string, onPick: (k: string) => void, disabled: boolean, ariaLabel: string, showBal = false, exclude?: string) => (
+    <div role="radiogroup" aria-label={ariaLabel} style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
+      {CHAINS.map((c) => {
+        const on = value === c.key;
+        const off = disabled || c.key === exclude;
+        return (
+          <button key={c.key} type="button" role="radio" aria-checked={on} disabled={off} onClick={() => onPick(c.key)}
+            style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 44, padding: "6px 10px", borderRadius: 12, textAlign: "left",
+              border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "#FFFFFF",
+              opacity: c.key === exclude ? 0.4 : 1, cursor: off ? "not-allowed" : "pointer" }}>
+            <ChainLogo chain={c.key as ChainKey} size={22} />
+            <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: on ? BLUE : INK }}>{c.name}</span>
+              {showBal && <span style={{ fontSize: 11, color: MUTED, fontFamily: "'Geist Mono', ui-monospace, monospace" }}>{bal ? bal[c.key].available.toFixed(2) : "…"} USDC</span>}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   if (!hasBrowser && !hasCircle) {
     return (
       <div style={{ ...card, maxWidth: 480, margin: "0 auto", textAlign: "center", color: MUTED, fontSize: 13.5 }}>
@@ -317,7 +340,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
 
       <section style={{ ...card, background: BLUE, border: "none", color: "#FFFFFF" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,0.85)" }}><Layers size={15} /> Unified USDC balance</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,0.85)" }}><TokenLogo symbol="USDC" size={20} /> Unified USDC balance <Layers size={14} /></span>
           <button type="button" aria-label="Refresh" onClick={refresh} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.35)", background: "transparent", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <RefreshCw size={14} />
           </button>
@@ -328,7 +351,9 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
           {CHAINS.map((c) => (
             <div key={c.key} style={{ padding: "8px 10px", borderRadius: 12, background: "rgba(8,20,90,0.22)" }}>
-              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.8)" }}>{c.name}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "rgba(255,255,255,0.85)" }}>
+                <span style={{ borderRadius: "50%", background: "#FFFFFF", padding: 1, display: "flex" }}><ChainLogo chain={c.key as ChainKey} size={16} /></span>{c.name}
+              </div>
               <div style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 14 }}>{bal ? bal[c.key].available.toFixed(2) : "…"}</div>
               {bal && bal[c.key].pending > 0 && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)" }}>+{bal[c.key].pending.toFixed(2)} pending</div>}
             </div>
@@ -339,11 +364,9 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
 
       <section style={card}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}><ArrowDownLeft size={18} color={BLUE} /><span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Deposit</span></div>
-        <label htmlFor="gw-dep-chain" style={label}>From your {source === "browser" ? "wallet" : "Circle Wallet"} on</label>
-        <select id="gw-dep-chain" value={depChain} onChange={(e) => setDepChain(e.target.value)} disabled={dStep === "busy"} style={input}>
-          {CHAINS.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
-        </select>
-        <label htmlFor="gw-dep-amount" style={label}>Amount (USDC)</label>
+        <span style={label}>From your {source === "browser" ? "wallet" : "Circle Wallet"} on</span>
+        {chainPicker(depChain, setDepChain, dStep === "busy", "Deposit from chain")}
+        <label htmlFor="gw-dep-amount" style={{ ...label, display: "flex", alignItems: "center", gap: 6 }}><TokenLogo symbol="USDC" size={16} /> Amount (USDC)</label>
         <input id="gw-dep-amount" inputMode="decimal" value={depAmount} placeholder="0.00" disabled={dStep === "busy"} style={input}
           onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setDepAmount(e.target.value); }} />
         {dep.slow && (
@@ -367,21 +390,11 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
 
       <section style={card}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}><ArrowRight size={18} color={BLUE} /><span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Send across chains</span></div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label htmlFor="gw-from" style={label}>From balance on</label>
-            <select id="gw-from" value={fromChain} onChange={(e) => setFromChain(e.target.value)} disabled={tStep === "busy"} style={input}>
-              {CHAINS.map((c) => <option key={c.key} value={c.key}>{c.name} ({bal ? bal[c.key].available.toFixed(2) : "…"})</option>)}
-            </select>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label htmlFor="gw-to" style={label}>To</label>
-            <select id="gw-to" value={toChain} onChange={(e) => setToChain(e.target.value)} disabled={tStep === "busy"} style={input}>
-              {CHAINS.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
-            </select>
-          </div>
-        </div>
-        <label htmlFor="gw-t-amount" style={label}>Amount (USDC)</label>
+        <span style={label}>From balance on</span>
+        {chainPicker(fromChain, (k) => { setFromChain(k); if (k === toChain) setToChain(CHAINS.find((c) => c.key !== k)!.key); }, tStep === "busy", "Send from chain", true)}
+        <span style={label}>To</span>
+        {chainPicker(toChain, setToChain, tStep === "busy", "Send to chain", false, fromChain)}
+        <label htmlFor="gw-t-amount" style={{ ...label, display: "flex", alignItems: "center", gap: 6 }}><TokenLogo symbol="USDC" size={16} /> Amount (USDC)</label>
         <input id="gw-t-amount" inputMode="decimal" value={tAmount} placeholder="0.00" disabled={tStep === "busy"} style={input}
           onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setTAmount(e.target.value); }} />
         <label htmlFor="gw-recipient" style={label}>Recipient on {to.name}</label>
