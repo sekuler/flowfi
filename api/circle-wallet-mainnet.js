@@ -25,7 +25,8 @@ const CAP_USD = Number(process.env.CIRCLE_LIVE_CAP_USD || 100);
 const WITHDRAW_ONLY = process.env.CIRCLE_LIVE_WITHDRAW_ONLY === '1';
 
 // Stablecoins counted toward the cap (1 unit ~ $1; EURC is counted 1:1, slightly
-// conservative-low, which is fine for a safety cap of this size).
+// conservative-low, which is fine for a safety cap of this size). cirBTC is counted too, at the
+// live BTC price (see capStatus).
 const CAP_SYMBOLS = new Set(['USDC', 'EURC']);
 
 // Mainnet tokens a user may withdraw, per Circle chain code. Addresses lowercase.
@@ -160,15 +161,35 @@ function chainOfWallet(record, walletId) {
   return hit ? hit[0] : null;
 }
 
-// Stablecoin total across every wallet of the account, from Circle's own balance API.
-async function stableTotal(client, record) {
+// Live BTC/USD price for valuing cirBTC against the cap. Two public sources, short timeout,
+// cached for a minute. Returns null if both fail (callers then treat cirBTC as unpriceable).
+let btcCache = { price: null, at: 0 };
+async function btcPrice() {
+  if (btcCache.price && Date.now() - btcCache.at < 60000) return btcCache.price;
+  const tries = [
+    async () => Number((await (await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot', { signal: AbortSignal.timeout(4000) })).json())?.data?.amount),
+    async () => Number((await (await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', { signal: AbortSignal.timeout(4000) })).json())?.bitcoin?.usd),
+  ];
+  for (const t of tries) {
+    try { const p = await t(); if (Number.isFinite(p) && p > 1000) { btcCache = { price: p, at: Date.now() }; return p; } } catch { /* next source */ }
+  }
+  return null;
+}
+
+// USD value held by the account for the cap: USDC + EURC (1:1) + cirBTC at the live BTC price,
+// across every wallet, plus the account's Gateway USDC balance. Uses Circle's own balance API.
+// priceOk is false when the account holds cirBTC but no BTC price could be fetched.
+async function capStatus(client, record) {
   let total = 0;
+  let cirbtc = 0;
   for (const w of Object.values(record.walletsByChain)) {
     try {
       const r = await client.getWalletTokenBalance({ id: w.walletId });
       for (const tb of r.data?.tokenBalances ?? []) {
         if (tb?.token?.isNative) continue; // Arc lists USDC twice (native + ERC-20); count the ERC-20 once
-        if (CAP_SYMBOLS.has(String(tb?.token?.symbol || '').toUpperCase())) total += Number(tb.amount) || 0;
+        const sym = String(tb?.token?.symbol || '').toUpperCase();
+        if (CAP_SYMBOLS.has(sym)) total += Number(tb.amount) || 0;
+        else if (sym === 'CIRBTC') cirbtc += Number(tb.amount) || 0;
       }
     } catch { /* a chain that fails to report doesn't lower the total */ }
   }
@@ -184,7 +205,14 @@ async function stableTotal(client, record) {
       }
     }
   } catch { /* Gateway unreachable: wallet balances still count */ }
-  return total;
+  let price = null;
+  if (cirbtc > 0) {
+    price = await btcPrice();
+    if (price) total += cirbtc * price;
+  } else {
+    price = await btcPrice(); // still returned so the UI can size cirBTC deposits
+  }
+  return { total, btcPrice: price, priceOk: cirbtc === 0 || !!price };
 }
 
 function toBytes32(addr) { return `0x${'0'.repeat(24)}${String(addr).slice(2).toLowerCase()}`; }
@@ -261,8 +289,8 @@ module.exports = async function handler(req, res) {
     if (!record) return res.status(401).json({ error: 'No wallet for this account. Please sign in again.' });
 
     if (action === 'status') {
-      const total = await stableTotal(client, record);
-      return res.status(200).json({ success: true, stableTotal: total, capUsd: CAP_USD, overCap: total > CAP_USD, withdrawOnly: WITHDRAW_ONLY });
+      const cap = await capStatus(client, record);
+      return res.status(200).json({ success: true, stableTotal: cap.total, btcPrice: cap.btcPrice, priceOk: cap.priceOk, capUsd: CAP_USD, overCap: cap.total > CAP_USD, withdrawOnly: WITHDRAW_ONLY });
     }
 
     // Withdraw: always allowed. Sends `amount` of an allowlisted token to an external address.
@@ -333,8 +361,9 @@ module.exports = async function handler(req, res) {
       const allowed = ALLOWED_CALLS.get(String(contractAddress).toLowerCase());
       if (!allowed || !allowed.has(abiFunctionSignature)) return res.status(403).json({ error: "This contract/function is not on FlowFi's mainnet allowlist." });
       if (!ownsWallet(record, walletId)) return res.status(403).json({ error: 'This wallet does not belong to the signed-in account.' });
-      const total = await stableTotal(client, record);
-      if (total > CAP_USD) return res.status(403).json({ error: `Your Circle wallet holds more than the $${CAP_USD} limit. Please withdraw the excess to your own wallet first.` });
+      const cap = await capStatus(client, record);
+      if (!cap.priceOk) return res.status(503).json({ error: "Couldn't price your cirBTC right now, so actions are paused for safety. Withdrawals still work. Please try again in a minute." });
+      if (cap.total > CAP_USD) return res.status(403).json({ error: `Your Circle wallet holds more than the $${CAP_USD} limit. Please withdraw the excess to your own wallet first.` });
       const r = await client.createContractExecutionTransaction({
         walletId,
         contractAddress,

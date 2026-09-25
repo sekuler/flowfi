@@ -25,9 +25,9 @@ const ASSETS: Asset[] = [
   { key: "arb-usdc", chainCode: "ARB", chainName: "Arbitrum", chain: arbitrum, symbol: "USDC", token: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6, explorer: "https://arbiscan.io" },
 ];
 
-// Deposits are limited to stablecoins, because only USDC/EURC count toward the holding cap.
-// (cirBTC that arrives from outside can still be withdrawn.)
-const DEPOSIT_KEYS = ["arc-usdc", "arc-eurc", "base-usdc", "eth-usdc", "arb-usdc"];
+// Assets that can be added from the browser wallet. cirBTC counts toward the holding cap at the
+// live BTC price (the backend prices it; the UI sizes deposits with the price it returns).
+const DEPOSIT_KEYS = ["arc-usdc", "arc-eurc", "arc-cirbtc", "base-usdc", "eth-usdc", "arb-usdc"];
 
 async function switchTo(provider: EIP1193Provider, chain: Chain) {
   const isArc = chain.id === arcMainnet.id;
@@ -74,7 +74,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balances, setBalances] = useState<Record<string, string | null>>({});
-  const [status, setStatus] = useState<{ stableTotal: number; capUsd: number; overCap: boolean; withdrawOnly: boolean } | null>(null);
+  const [status, setStatus] = useState<{ stableTotal: number; capUsd: number; overCap: boolean; withdrawOnly: boolean; btcPrice?: number | null; priceOk?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const [assetKey, setAssetKey] = useState("arc-usdc");
@@ -229,7 +229,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
             </>
           )}
         </div>
-        <p style={{ margin: 0, fontSize: 12, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>Real funds. Each account holds up to ${status?.capUsd ?? 100} in stablecoins, and you can withdraw to your own wallet at any time.</p>
+        <p style={{ margin: 0, fontSize: 12, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>Real funds. Each account holds up to ${status?.capUsd ?? 100} in total, and you can withdraw to your own wallet at any time.</p>
       </div>
     );
   }
@@ -258,17 +258,24 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const room = status ? Math.max(0, status.capUsd - status.stableTotal) : 0;
   const depBalNum = Number(depBal ?? 0);
   const depAmt = Number(depAmount);
-  const depMax = Math.floor(Math.min(depBalNum, room) * 100) / 100;
-  const depValid = Number.isFinite(depAmt) && depAmt > 0 && depAmt <= depBalNum && depAmt <= room;
+  const isBtc = depAsset.symbol === "cirBTC";
+  const btc = status?.btcPrice ?? null;
+  const usdPerUnit = isBtc ? (btc ?? 0) : 1;
+  const depUsd = depAmt * usdPerUnit;
+  const unitDigits = isBtc ? 8 : 2;
+  const floorTo = (n: number, d: number) => Math.floor(n * 10 ** d) / 10 ** d;
+  const depMax = usdPerUnit > 0 ? floorTo(Math.min(depBalNum, room / usdPerUnit), unitDigits) : 0;
+  const depValid = Number.isFinite(depAmt) && depAmt > 0 && depAmt <= depBalNum && usdPerUnit > 0 && depUsd <= room;
   const canDeposit = !!provider && !!browserAddress && !!status && !status.withdrawOnly && !status.overCap && depValid && dStep !== "sending";
   const depLabel = !provider || !browserAddress ? "Connect a browser wallet to deposit"
     : !status ? "Loading..."
     : status.withdrawOnly ? "Deposits are closed"
     : dStep === "sending" ? "Depositing..."
+    : isBtc && !btc ? "BTC price unavailable, try again shortly"
     : room <= 0 ? `Limit reached ($${status.capUsd})`
     : !depAmount ? "Enter an amount"
     : depAmt > depBalNum ? "Not enough balance"
-    : depAmt > room ? `Max $${room.toFixed(2)} (limit)`
+    : depUsd > room ? (isBtc ? `Max ${depMax} cirBTC (≈ $${room.toFixed(2)} limit)` : `Max $${room.toFixed(2)} (limit)`)
     : `Deposit ${depAmount} ${depAsset.symbol}`;
 
   const balNum = Number(balances[asset.key] ?? 0);
@@ -308,7 +315,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
             {copied ? <Check size={15} /> : <Copy size={15} />}
           </button>
         </div>
-        <p style={{ margin: 0, fontSize: 12, color: MUTED, lineHeight: 1.5 }}>Same address on Arc, Base, Ethereum and Arbitrum. Holding limit: ${status?.capUsd ?? 100} in stablecoins{status ? ` (now $${status.stableTotal.toFixed(2)})` : ""}.</p>
+        <p style={{ margin: 0, fontSize: 12, color: MUTED, lineHeight: 1.5 }}>Same address on Arc, Base, Ethereum and Arbitrum. Holding limit: ${status?.capUsd ?? 100} in total, cirBTC counted at the BTC price{status ? ` (now $${status.stableTotal.toFixed(2)})` : ""}.</p>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
           {ASSETS.map((a, i) => (
@@ -342,7 +349,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <label htmlFor="cw-live-dep-amount" style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>
-            Amount{depBal !== null ? ` · in your wallet: ${depBalNum.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${depAsset.symbol}` : ""}
+            Amount{depBal !== null ? ` · in your wallet: ${depBalNum.toLocaleString("en-US", { maximumFractionDigits: unitDigits })} ${depAsset.symbol}` : ""}{isBtc && btc && depAmt > 0 ? ` · ≈ $${depUsd.toFixed(2)}` : ""}
           </label>
           <button type="button" onClick={() => setDepAmount(depMax > 0 ? String(depMax) : "")} style={{ border: "none", background: "#E3E8FD", color: BLUE, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, cursor: "pointer" }}>MAX</button>
         </div>
