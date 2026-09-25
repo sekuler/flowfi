@@ -200,7 +200,19 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
     }
   }
 
-  const card = { background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 20, padding: "1.25rem" } as const;
+  const card = { background: "linear-gradient(180deg, #EEF2FF 0%, #FFFFFF 160px)", border: "1px solid #D9E1F7", borderRadius: 20, padding: "1.25rem", boxShadow: "0 10px 30px -18px rgba(11,27,58,0.35)" } as const;
+  // Arc-style navy gradient for the account card.
+  const arcCard = { background: "linear-gradient(160deg, #0B1B3A 0%, #12305A 55%, #3E6A94 100%)", borderRadius: 20, padding: "1.25rem", color: "#FFFFFF", boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" } as const;
+  const W70 = "rgba(255,255,255,0.72)";
+  const WLINE = "rgba(255,255,255,0.14)";
+  const sectionTitle = (Icon: typeof ArrowUpRight, text: string) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
+        <Icon size={18} color="#FFFFFF" />
+      </span>
+      <span style={{ fontSize: 19, fontWeight: 700, color: BLUE, letterSpacing: "-0.01em" }}>{text}</span>
+    </div>
+  );
   const input = { width: "100%", boxSizing: "border-box" as const, height: 46, padding: "0 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 14, color: INK, background: "#FFFFFF" };
   const primary = (on: boolean) => ({ width: "100%", height: 48, borderRadius: 12, border: "none", background: on ? BLUE : "#EEEDF5", color: on ? "#FFFFFF" : "#8A8798", fontSize: 15, fontWeight: 600, cursor: on ? "pointer" : "not-allowed" });
 
@@ -297,37 +309,37 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
         </div>
       )}
 
-      <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ ...arcCard, display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, color: MUTED }}>Signed in as</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wallet.email}</div>
+            <div style={{ fontSize: 12, color: W70 }}>Signed in as</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#FFFFFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wallet.email}</div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button type="button" aria-label="Refresh balances" onClick={() => refresh(wallet)} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${LINE}`, background: "#FFFFFF", color: MUTED, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={15} /></button>
-            <button type="button" aria-label="Sign out" onClick={signOut} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${LINE}`, background: "#FFFFFF", color: MUTED, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><LogOut size={15} /></button>
+            <button type="button" aria-label="Refresh balances" onClick={() => refresh(wallet)} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${WLINE}`, background: "rgba(255,255,255,0.06)", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={15} /></button>
+            <button type="button" aria-label="Sign out" onClick={signOut} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${WLINE}`, background: "rgba(255,255,255,0.06)", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><LogOut size={15} /></button>
           </div>
         </div>
-        <div style={{ padding: "10px 12px", borderRadius: 12, background: "#F5F7FF", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ flex: 1, minWidth: 0, fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 12.5, color: INK, wordBreak: "break-all" }}>{wallet.address}</span>
+        <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 12.5, color: "#FFFFFF", wordBreak: "break-all" }}>{wallet.address}</span>
           <button type="button" aria-label="Copy address" onClick={() => { navigator.clipboard.writeText(wallet.address); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-            style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: copied ? "#0E9F6E" : MUTED, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+            style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: copied ? "#5EE3B0" : W70, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
             {copied ? <Check size={15} /> : <Copy size={15} />}
           </button>
         </div>
-        <p style={{ margin: 0, fontSize: 12, color: MUTED, lineHeight: 1.5 }}>Same address on Arc, Base, Ethereum and Arbitrum. Holding limit: ${status?.capUsd ?? 100} in total, cirBTC counted at the BTC price{status ? ` (now $${status.stableTotal.toFixed(2)})` : ""}.</p>
+        <p style={{ margin: 0, fontSize: 12, color: W70, lineHeight: 1.5 }}>Same address on Arc, Base, Ethereum and Arbitrum. Holding limit: ${status?.capUsd ?? 100} in total, cirBTC counted at the BTC price{status ? ` (now $${status.stableTotal.toFixed(2)})` : ""}.</p>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
           {ASSETS.map((a, i) => (
-            <div key={a.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: i ? `1px solid ${LINE}` : "none", fontSize: 13.5 }}>
+            <div key={a.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: i ? `1px solid ${WLINE}` : "none", fontSize: 13.5 }}>
               <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <TokenOnChain symbol={a.symbol} chain={chainKeyOf(a)} size={30} />
                 <span style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ fontWeight: 600, color: INK }}>{a.symbol}</span>
-                  <span style={{ fontSize: 11.5, color: MUTED }}>{a.chainName}</span>
+                  <span style={{ fontWeight: 600, color: "#FFFFFF" }}>{a.symbol}</span>
+                  <span style={{ fontSize: 11.5, color: W70 }}>{a.chainName}</span>
                 </span>
               </span>
-              <span style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontWeight: 500, color: INK }}>
+              <span style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontWeight: 500, color: "#FFFFFF" }}>
                 {balances[a.key] === undefined ? "…" : balances[a.key] === null ? "—" : Number(balances[a.key]).toLocaleString("en-US", { maximumFractionDigits: a.decimals === 8 ? 8 : 2 })}
               </span>
             </div>
@@ -336,10 +348,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
       </div>
 
       <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <ArrowDownLeft size={18} color={BLUE} />
-          <span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Add funds</span>
-        </div>
+        {sectionTitle(ArrowDownLeft, "Add funds")}
         <p style={{ margin: 0, fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>
           From your connected wallet. {status ? `You can add up to $${room.toFixed(2)} more (limit $${status.capUsd}).` : ""}
         </p>
@@ -368,10 +377,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
       </div>
 
       <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <ArrowUpRight size={18} color={BLUE} />
-          <span style={{ fontSize: 17, fontWeight: 600, color: INK }}>Withdraw to my wallet</span>
-        </div>
+        {sectionTitle(ArrowUpRight, "Withdraw")}
 
         <span style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>Asset</span>
         {assetPicker(ASSETS, assetKey, (k) => { setAssetKey(k); setAmount(""); }, wStep === "sending", "Asset to withdraw")}
