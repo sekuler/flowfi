@@ -107,24 +107,6 @@ async function circleCallAndWait(body: Record<string, unknown>) {
 }
 
 
-// Soft lavender/blue waves behind the cards, matching the landing hero artwork. Decorative only.
-function GlassBackdrop() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice"
-      style={{ position: "absolute", inset: "-40px -80px", width: "calc(100% + 160px)", height: "calc(100% + 80px)", zIndex: -1, pointerEvents: "none" }}>
-      <defs>
-        <linearGradient id="ffw1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#C9D3FF" stopOpacity="0" /><stop offset="0.5" stopColor="#B9C6FF" stopOpacity="0.55" /><stop offset="1" stopColor="#D8CCFF" stopOpacity="0" /></linearGradient>
-        <linearGradient id="ffw2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#D8CCFF" stopOpacity="0" /><stop offset="0.5" stopColor="#C4B8FF" stopOpacity="0.45" /><stop offset="1" stopColor="#B9C6FF" stopOpacity="0" /></linearGradient>
-        <radialGradient id="ffglow" cx="0.5" cy="0.2" r="0.6"><stop offset="0" stopColor="#DCE3FF" stopOpacity="0.9" /><stop offset="1" stopColor="#F6F5F2" stopOpacity="0" /></radialGradient>
-      </defs>
-      <rect width="1200" height="900" fill="url(#ffglow)" />
-      <path d="M0 260 C 200 180, 380 360, 600 280 S 1000 180, 1200 260 L1200 340 C 1000 260, 820 420, 600 360 S 200 280, 0 340 Z" fill="url(#ffw1)" />
-      <path d="M0 520 C 240 440, 420 620, 640 540 S 1020 440, 1200 520 L1200 590 C 1010 520, 840 670, 620 610 S 220 530, 0 600 Z" fill="url(#ffw2)" />
-      <path d="M0 760 C 220 690, 400 850, 620 780 S 1000 690, 1200 760 L1200 820 C 1000 760, 820 890, 600 840 S 200 770, 0 830 Z" fill="url(#ffw1)" />
-    </svg>
-  );
-}
-
 export default function GatewayMainnet({ browserAddress, provider, circleLive, onOpenNativeBridge, onConnect }: { browserAddress?: string; provider?: EIP1193Provider; circleLive?: LiveCircleWallet | null; onOpenNativeBridge?: () => void; onConnect?: () => void }) {
   const [source, setSource] = useState<"browser" | "circle">(browserAddress ? "browser" : "circle");
   const hasBrowser = !!browserAddress && !!provider;
@@ -399,8 +381,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     : !tAmount ? "Enter an amount" : tAmt >= fromAvail ? `Not enough on ${from.name} (fee included)` : !validRecipient ? "Enter a valid address" : `Send ${tAmount} USDC to ${to.name}`;
 
   return (
-    <div style={{ position: "relative", isolation: "isolate", display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
-      <GlassBackdrop />
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
       {(
 
         <div role="group" aria-label="Wallet" style={{ display: "flex", gap: 2, padding: 3, borderRadius: 12, background: "#ECEAE4" }}>

@@ -71,24 +71,6 @@ function loadSaved(): LiveWallet | null {
 }
 
 
-// Soft lavender/blue waves behind the cards, matching the landing hero artwork. Decorative only.
-function GlassBackdrop() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice"
-      style={{ position: "absolute", inset: "-40px -80px", width: "calc(100% + 160px)", height: "calc(100% + 80px)", zIndex: -1, pointerEvents: "none" }}>
-      <defs>
-        <linearGradient id="ffw1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#C9D3FF" stopOpacity="0" /><stop offset="0.5" stopColor="#B9C6FF" stopOpacity="0.55" /><stop offset="1" stopColor="#D8CCFF" stopOpacity="0" /></linearGradient>
-        <linearGradient id="ffw2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#D8CCFF" stopOpacity="0" /><stop offset="0.5" stopColor="#C4B8FF" stopOpacity="0.45" /><stop offset="1" stopColor="#B9C6FF" stopOpacity="0" /></linearGradient>
-        <radialGradient id="ffglow" cx="0.5" cy="0.2" r="0.6"><stop offset="0" stopColor="#DCE3FF" stopOpacity="0.9" /><stop offset="1" stopColor="#F6F5F2" stopOpacity="0" /></radialGradient>
-      </defs>
-      <rect width="1200" height="900" fill="url(#ffglow)" />
-      <path d="M0 260 C 200 180, 380 360, 600 280 S 1000 180, 1200 260 L1200 340 C 1000 260, 820 420, 600 360 S 200 280, 0 340 Z" fill="url(#ffw1)" />
-      <path d="M0 520 C 240 440, 420 620, 640 540 S 1020 440, 1200 520 L1200 590 C 1010 520, 840 670, 620 610 S 220 530, 0 600 Z" fill="url(#ffw2)" />
-      <path d="M0 760 C 220 690, 400 850, 620 780 S 1000 690, 1200 760 L1200 820 C 1000 760, 820 890, 600 840 S 200 770, 0 830 Z" fill="url(#ffw1)" />
-    </svg>
-  );
-}
-
 export default function CircleWalletMainnet({ browserAddress, provider }: { browserAddress?: string; provider?: EIP1193Provider }) {
   const [wallet, setWallet] = useState<LiveWallet | null>(null);
   const [step, setStep] = useState<"email" | "code">("email");
@@ -224,10 +206,8 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   }
 
   const card = { background: "linear-gradient(160deg, rgba(255,255,255,0.82) 0%, rgba(236,240,255,0.74) 100%)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", color: INK, border: "1px solid rgba(255,255,255,0.95)", borderRadius: 20, padding: "1.25rem", boxShadow: "0 22px 50px -30px rgba(61,90,241,0.55), inset 0 1px 0 rgba(255,255,255,0.9)" } as const;
-  // Arc-style navy gradient for the account card.
-  const arcCard = { background: "linear-gradient(135deg, #2F4DE8 0%, #3D5AF1 45%, #6C8BFF 100%)", borderRadius: 20, padding: "1.25rem", color: "#FFFFFF", boxShadow: "0 24px 50px -24px rgba(61,90,241,0.75)" } as const;
-  const W70 = "rgba(255,255,255,0.82)";
-  const WLINE = "rgba(255,255,255,0.14)";
+  const W70 = MUTED;
+  const WLINE = LINE;
   const sectionTitle = (Icon: typeof ArrowUpRight, text: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
@@ -241,8 +221,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
 
   if (!wallet) {
     return (
-      <div style={{ position: "relative", isolation: "isolate", display: "flex", flexDirection: "column", gap: 12, maxWidth: 460, margin: "0 auto" }}>
-        <GlassBackdrop />
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 460, margin: "0 auto" }}>
         <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: INK }}>Sign in with email</div>
           <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: MUTED }}>No seed phrase, no extension. We send a 6-digit code; the same email always opens the same wallet.</p>
@@ -321,8 +300,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const canWithdraw = validAmt && validDest && wStep !== "sending";
 
   return (
-    <div style={{ position: "relative", isolation: "isolate", display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
-      <GlassBackdrop />
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
       {status?.withdrawOnly && (
         <div style={{ padding: "12px 14px", borderRadius: 14, background: "#FFF4E0", color: "#6A4308", fontSize: 13, lineHeight: 1.5 }}>
           Circle Wallet on FlowFi is closing. Please withdraw your funds to your own wallet below.
@@ -334,21 +312,21 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
         </div>
       )}
 
-      <div style={{ ...arcCard, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 12, color: W70 }}>Signed in as</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "#FFFFFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wallet.email}</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wallet.email}</div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button type="button" aria-label="Refresh balances" onClick={() => refresh(wallet)} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${WLINE}`, background: "rgba(255,255,255,0.06)", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={15} /></button>
-            <button type="button" aria-label="Sign out" onClick={signOut} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${WLINE}`, background: "rgba(255,255,255,0.06)", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><LogOut size={15} /></button>
+            <button type="button" aria-label="Refresh balances" onClick={() => refresh(wallet)} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.8)", color: BLUE, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={15} /></button>
+            <button type="button" aria-label="Sign out" onClick={signOut} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.8)", color: BLUE, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><LogOut size={15} /></button>
           </div>
         </div>
-        <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ flex: 1, minWidth: 0, fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 12.5, color: "#FFFFFF", wordBreak: "break-all" }}>{wallet.address}</span>
+        <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(61,90,241,0.07)", display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 12.5, color: INK, wordBreak: "break-all" }}>{wallet.address}</span>
           <button type="button" aria-label="Copy address" onClick={() => { navigator.clipboard.writeText(wallet.address); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-            style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: copied ? "#5EE3B0" : W70, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+            style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: copied ? "#0E9F6E" : BLUE, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
             {copied ? <Check size={15} /> : <Copy size={15} />}
           </button>
         </div>
@@ -360,11 +338,11 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
               <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <TokenOnChain symbol={a.symbol} chain={chainKeyOf(a)} size={30} />
                 <span style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ fontWeight: 600, color: "#FFFFFF" }}>{a.symbol}</span>
+                  <span style={{ fontWeight: 600, color: INK }}>{a.symbol}</span>
                   <span style={{ fontSize: 11.5, color: W70 }}>{a.chainName}</span>
                 </span>
               </span>
-              <span style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontWeight: 500, color: "#FFFFFF" }}>
+              <span style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontWeight: 600, color: INK }}>
                 {balances[a.key] === undefined ? "…" : balances[a.key] === null ? "—" : Number(balances[a.key]).toLocaleString("en-US", { maximumFractionDigits: a.decimals === 8 ? 8 : 2 })}
               </span>
             </div>
