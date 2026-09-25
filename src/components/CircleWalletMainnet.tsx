@@ -204,9 +204,9 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
     }
   }
 
-  const card = { background: "linear-gradient(160deg, #0B1B3A 0%, #12305A 55%, #3E6A94 100%)", color: "#FFFFFF", border: "none", borderRadius: 20, padding: "1.25rem", boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" } as const;
+  const card = { background: "linear-gradient(150deg, #0B1B3A 0%, #1E3A8A 45%, #3D5AF1 100%)", color: "#FFFFFF", border: "none", borderRadius: 20, padding: "1.25rem", boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" } as const;
   // Arc-style navy gradient for the account card.
-  const arcCard = { background: "linear-gradient(160deg, #0B1B3A 0%, #12305A 55%, #3E6A94 100%)", borderRadius: 20, padding: "1.25rem", color: "#FFFFFF", boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" } as const;
+  const arcCard = { background: "linear-gradient(150deg, #0B1B3A 0%, #1E3A8A 45%, #3D5AF1 100%)", borderRadius: 20, padding: "1.25rem", color: "#FFFFFF", boxShadow: "0 16px 40px -20px rgba(11,27,58,0.6)" } as const;
   const W70 = MUTED;
   const WLINE = "rgba(255,255,255,0.14)";
   const sectionTitle = (Icon: typeof ArrowUpRight, text: string) => (
