@@ -43,8 +43,14 @@ const WITHDRAWABLE = {
 
 // Contract calls allowed through `contractCall` (mainnet only). Token transfer() is NOT here:
 // moving funds out goes through `withdraw` only, so it can be exempt from the cap and audited
-// separately. Gateway entries get added in the Gateway step, once its mainnet addresses are
-// verified from Circle's docs.
+// separately.
+// Circle Gateway mainnet (same address on every chain), per
+// developers.circle.com/gateway/references/contract-addresses. API: gateway-api.circle.com.
+const GATEWAY_WALLET = '0x77777777dcc4d5a8b6e418fd04d8997ef11000ee';
+const GATEWAY_MINTER = '0x2222222d7164433c4c09b0b0d809a9b52c04c205';
+const GATEWAY_API = 'https://gateway-api.circle.com';
+const GATEWAY_DOMAIN_BY_CHAIN = { ARC: 26, BASE: 6, ETH: 0, ARB: 3 };
+
 const USDC_APPROVE = new Set(['approve(address,uint256)']);
 const ALLOWED_CALLS = new Map([
   ['0x3600000000000000000000000000000000000000', USDC_APPROVE], // Arc USDC
@@ -57,6 +63,10 @@ const ALLOWED_CALLS = new Map([
     'depositForBurnWithHook(uint256,uint32,bytes32,address,bytes32,uint256,uint32,bytes)',
   ])],
   ['0x81d40f21f12a8f0e3252bccb954d722d4c464b64', new Set(['receiveMessage(bytes,bytes)'])],
+  // Circle Gateway: deposit USDC into the unified balance. Transfers out of Gateway are
+  // signed burn intents (see `gatewaySign`), and minted on the destination by Circle's
+  // Forwarding Service, so gatewayMint never has to run from these wallets.
+  [GATEWAY_WALLET, new Set(['deposit(address,uint256)'])],
 ]);
 
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
@@ -162,8 +172,22 @@ async function stableTotal(client, record) {
       }
     } catch { /* a chain that fails to report doesn't lower the total */ }
   }
+  try {
+    const sources = Object.entries(record.walletsByChain)
+      .filter(([chain]) => GATEWAY_DOMAIN_BY_CHAIN[chain] !== undefined)
+      .map(([chain, w]) => ({ domain: GATEWAY_DOMAIN_BY_CHAIN[chain], depositor: w.address }));
+    if (sources.length) {
+      const r = await fetch(`${GATEWAY_API}/v1/balances`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'USDC', sources }) });
+      if (r.ok) {
+        const d = await r.json();
+        for (const b of d?.balances ?? []) total += Number(b.balance) || 0;
+      }
+    }
+  } catch { /* Gateway unreachable: wallet balances still count */ }
   return total;
 }
+
+function toBytes32(addr) { return `0x${'0'.repeat(24)}${String(addr).slice(2).toLowerCase()}`; }
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -173,21 +197,16 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    // Tolerate common copy/paste mistakes in the Vercel values: surrounding quotes/spaces, a key
+    // saved without its "LIVE_API_KEY:" prefix, or a secret pasted together with a label.
     const clean = (v) => String(v || '').trim().replace(/^["']+|["']+$/g, '').trim();
     const rawKey = clean(process.env.CIRCLE_LIVE_API_KEY);
     const liveKey = rawKey.split(':').length === 2 ? `LIVE_API_KEY:${rawKey}` : rawKey;
-    const keyParts = liveKey.split(':');
-    if (keyParts.length !== 3 || keyParts[0] !== 'LIVE_API_KEY') {
-      return res.status(500).json({ error: `Key check: ${keyParts.length} part(s), starts with LIVE_API_KEY: ${keyParts[0] === 'LIVE_API_KEY'}, length ${liveKey.length}` });
+    const entitySecret = (clean(process.env.CIRCLE_LIVE_ENTITY_SECRET).match(/[0-9a-fA-F]{64}/) || [''])[0];
+    if (!liveKey.startsWith('LIVE_API_KEY:') || liveKey.split(':').length !== 3 || !entitySecret) {
+      return res.status(500).json({ error: 'Server misconfigured: Circle live credentials look malformed.' });
     }
-    const entitySecret = clean(process.env.CIRCLE_LIVE_ENTITY_SECRET).replace(/^0x/i, '');
-    if (!/^[0-9a-fA-F]{64}$/.test(entitySecret)) {
-      return res.status(500).json({ error: `Secret check: length ${entitySecret.length}, hex only: ${/^[0-9a-fA-F]*$/.test(entitySecret)}` });
-    }
-    const client = initiateDeveloperControlledWalletsClient({
-      apiKey: liveKey,
-      entitySecret,
-    });
+    const client = initiateDeveloperControlledWalletsClient({ apiKey: liveKey, entitySecret });
     const { action } = req.body || {};
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
 
@@ -268,6 +287,34 @@ module.exports = async function handler(req, res) {
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
       });
       return res.status(200).json({ success: true, transactionId: r.data?.id, state: r.data?.state });
+    }
+
+    // Sign a Circle Gateway burn intent (moves USDC out of this account's Gateway balance).
+    // Like `withdraw`, it is always allowed (cap or withdraw-only), because it only moves funds
+    // out of Gateway. Strictly limited to Gateway burn intents whose depositor AND signer are
+    // this wallet and whose contracts are the real mainnet Gateway contracts, so it can never be
+    // used to sign any other typed data.
+    // Body: { action: "gatewaySign", walletId, data: { domain, types, primaryType, message } }
+    if (action === 'gatewaySign') {
+      const { walletId, data } = req.body;
+      if (!ownsWallet(record, walletId)) return res.status(403).json({ error: 'This wallet does not belong to the signed-in account.' });
+      const chain = chainOfWallet(record, walletId);
+      const own = toBytes32(record.walletsByChain[chain].address);
+      const spec = data?.message?.spec;
+      const ok = data?.domain?.name === 'GatewayWallet' && String(data?.domain?.version) === '1'
+        && data?.primaryType === 'BurnIntent' && spec
+        && String(spec.sourceDepositor).toLowerCase() === own
+        && String(spec.sourceSigner).toLowerCase() === own
+        && String(spec.sourceContract).toLowerCase() === toBytes32(GATEWAY_WALLET)
+        && String(spec.destinationContract).toLowerCase() === toBytes32(GATEWAY_MINTER)
+        && Number(spec.sourceDomain) === GATEWAY_DOMAIN_BY_CHAIN[chain]
+        && (spec.hookData === '0x' || spec.hookData === undefined);
+      if (!ok) return res.status(403).json({ error: 'Only Gateway transfers from your own Circle Wallet can be signed.' });
+      const r = await client.signTypedData({
+        walletId,
+        data: JSON.stringify(data, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)),
+      });
+      return res.status(200).json({ success: true, signature: r.data?.signature });
     }
 
     if (action === 'getTransaction') {

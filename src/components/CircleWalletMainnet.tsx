@@ -147,6 +147,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
       const d = await post({ action: "verifyCode", email: email.trim(), code: code.trim() });
       const w: LiveWallet = { address: d.address, walletsByChain: d.walletsByChain, email: d.email };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(w));
+      window.dispatchEvent(new Event("circle-live-changed"));
       setWallet(w);
     } catch (e) { setError(e instanceof Error ? e.message : "Unexpected error."); }
     finally { setBusy(false); }
@@ -154,6 +155,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
 
   function signOut() {
     localStorage.removeItem(STORAGE_KEY);
+    window.dispatchEvent(new Event("circle-live-changed"));
     fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "logout" }) }).catch(() => {});
     setWallet(null); setStatus(null); setBalances({}); setStep("email"); setCode(""); setError(null);
   }

@@ -3,13 +3,14 @@ import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import LiveBlock from "./components/LiveBlock";
 import CircleWalletMainnet from "./components/CircleWalletMainnet";
+import GatewayMainnet from "./components/GatewayMainnet";
 import TokenLaunch from "./components/TokenLaunch";
 import { useState, useEffect, Component, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet, arcMainnet, formatUsdcErc20, formatArcNative } from "./chains";
 import { discoverWallets, restoreWalletConnect } from "./components/WalletConnect";
-import ConnectModal from "./components/ConnectModal";
+import ConnectModal, { LIVE_STORAGE_KEY, type LiveCircleWallet } from "./components/ConnectModal";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
 import TransferHub from "./components/TransferHub";
 import SwapForm from "./components/SwapForm";
@@ -32,7 +33,7 @@ import { showToast } from "./toast";
 import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./contracts";
 import {
   Home, Repeat, Droplet,
-  Rocket, Hexagon, CircleDollarSign, LayoutDashboard, BarChart3, History as HistoryIcon,
+  Rocket, Hexagon, CircleDollarSign, Layers, LayoutDashboard, BarChart3, History as HistoryIcon,
   Sparkles, Moon, Power, HelpCircle, Check, Lock, Mail, Zap, ShieldCheck as ShieldCheckIcon,
 } from "lucide-react";
 
@@ -50,7 +51,7 @@ interface Balances {
   native: string | null;
 }
 
-type Tab = "home" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "dashboardmainnet" | "mainnetswap" | "mainnethistory" | "circlewalletmainnet";
+type Tab = "home" | "swap" | "pools" | "launch" | "analytics" | "dashboard" | "history" | "bridge" | "circlewallet" | "mainnetbridge" | "dashboardmainnet" | "mainnetswap" | "mainnethistory" | "circlewalletmainnet" | "gatewaymainnet";
 
 const ARC_USDC = USDC_ADDRESS;
 // Arc mainnet USDC -- the only mainnet stablecoin address confirmed so
@@ -73,7 +74,7 @@ const ARC_EURC = EURC_ADDRESS;
 const ARC_USYC = USYC_ADDRESS;
 const ARC_CIRBTC = CIRBTC_ADDRESS;
 
-const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnetswap"];
+const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnetswap", "circlewalletmainnet", "gatewaymainnet"];
 // Bridge/Swap/History already read their own Circle Wallet from localStorage
 // internally (independent of the provider/address props) — so a Circle-primary
 // session can use them today. Portfolio only ever does read-only balance
@@ -90,9 +91,6 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     { id: "home", label: "Home", Icon: Home },
     { id: "mainnetbridge", label: "Bridge", Icon: Zap },
     { id: "mainnetswap", label: "Swap", Icon: Repeat },
-    { id: "circlewalletmainnet", label: "Circle Wallet", Icon: CircleDollarSign },
-    { id: "dashboardmainnet", label: "Dashboard", Icon: LayoutDashboard },
-    { id: "mainnethistory", label: "History", Icon: HistoryIcon },
     // Circle Wallet on mainnet was fully removed (2026-09-18), not just
     // hidden from nav -- component file, Tab union entry, and safe-tab
     // list entries are all gone (an earlier pass only removed the nav
@@ -113,6 +111,22 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     // untouched. Token Launch and Liquidity Pools stay Testnet-only for
     // the same reasoning -- never ported to mainnet, and won't be until
     // both a professional audit and the licensing question are settled.
+  ],
+},
+{
+  group: "Wallet",
+  variant: "mainnet",
+  tabs: [
+    { id: "circlewalletmainnet", label: "Circle Wallet", Icon: CircleDollarSign },
+    { id: "gatewaymainnet", label: "Gateway", Icon: Layers },
+  ],
+},
+{
+  group: "Activity",
+  variant: "mainnet",
+  tabs: [
+    { id: "dashboardmainnet", label: "Dashboard", Icon: LayoutDashboard },
+    { id: "mainnethistory", label: "History", Icon: HistoryIcon },
   ],
 },
  {
@@ -233,6 +247,9 @@ function AppInner() {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [guestMode, setGuestMode] = useState(false);
   const [circlePrimary, setCirclePrimary] = useState(false);
+  // Mainnet Circle Wallet session (email sign-in from the connect screen). Runs on top of guest
+  // mode: the Circle Wallet page works without a browser wallet; Bridge/Swap still need one.
+  const [circleLive, setCircleLive] = useState<LiveCircleWallet | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 860);
@@ -291,6 +308,24 @@ function AppInner() {
   }, []);
 
   useEffect(() => {
+    function readLive(): LiveCircleWallet | null {
+      try { const p = JSON.parse(localStorage.getItem(LIVE_STORAGE_KEY) ?? "null"); return p?.email && p?.address ? p : null; } catch { return null; }
+    }
+    const initial = readLive();
+    if (initial) { setCircleLive(initial); setGuestMode(true); }
+    function sync() { setCircleLive(readLive()); }
+    window.addEventListener("circle-live-changed", sync);
+    return () => window.removeEventListener("circle-live-changed", sync);
+  }, []);
+
+  function signOutCircleLive() {
+    try { localStorage.removeItem(LIVE_STORAGE_KEY); } catch { /* ignore */ }
+    fetch("/api/circle-wallet-mainnet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "logout" }) }).catch(() => {});
+    setCircleLive(null);
+    if (!wallet) { setGuestMode(false); setTab("home"); }
+  }
+
+  useEffect(() => {
     function refresh() {
       setCircleWalletInfo(getCircleWallet());
     }
@@ -317,12 +352,12 @@ function AppInner() {
   if (!hasSeenOnboarding()) setShowOnboarding(true);
 }
 
-  function handleCircleConnected(info: CircleWalletInfo) {
-    setCircleWalletInfo(info);
-    setCirclePrimary(true);
-    setGuestMode(false);
+  function handleCircleConnected(info: LiveCircleWallet) {
+    setCircleLive(info);
+    setCirclePrimary(false);
+    if (!wallet) setGuestMode(true);
     setShowConnectModal(false);
-    setTab("pools");
+    setTab("circlewalletmainnet");
     showToast("Circle Wallet connected", "success");
   }
 
@@ -687,7 +722,7 @@ function AppInner() {
           {(() => {
             const renderGroup = ({ group, variant, tabs }: (typeof TAB_GROUPS)[number]) => (
             <div key={group} style={{ marginBottom: 4 }}>
-              {variant === "testnet" && <div style={{ display: "block", fontSize: 10.5, color: "#6B6876", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.9rem 0.75rem 0.35rem", margin: 0 }}>{group}</div>}
+              {(variant === "testnet" || group !== "Mainnet") && <div style={{ display: "block", fontSize: 10.5, color: "#6B6876", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.9rem 0.75rem 0.35rem", margin: 0 }}>{group}</div>}
               {tabs.map(({ id, label, Icon }) => {
                 const active = tab === id;
                 const locked = !wallet && (circlePrimary ? !CIRCLE_SAFE_TABS.includes(id) : !GUEST_SAFE_TABS.includes(id));
@@ -757,11 +792,30 @@ function AppInner() {
               <button onClick={() => { setCirclePrimary(false); forgetCircleWallet(); setTab("home"); }} style={{ marginTop: 6, fontSize: 11, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", width: "100%" }}>Disconnect</button>
             </>
           ) : (
+            circleLive ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 10, borderRadius: 14, background: "#FFFFFF", border: "1px solid #E7E4DD" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "#3D5AF1", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
+                  {circleLive.email.charAt(0).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#16151C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{circleLive.email}</div>
+                  <div style={{ fontSize: 11.5, color: "#5E5B6B" }}>Circle Wallet</div>
+                </div>
+                <button onClick={signOutCircleLive} title="Sign out" aria-label="Sign out"
+                  style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: "#6B6876", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                  <Power size={14} />
+                </button>
+              </div>
+              <button onClick={() => setShowConnectModal(true)} style={{ height: 34, fontSize: 12.5, fontWeight: 600, color: "#3D5AF1", background: "#EEF1FE", border: "none", borderRadius: 10, cursor: "pointer" }}>Add browser wallet</button>
+            </div>
+            ) : (
             <>
               <div style={{ fontSize: 10, color: "#8B7CF9", fontWeight: 700, letterSpacing: "1px", marginBottom: 4 }}>GUEST MODE</div>
               <p style={{ fontSize: 11.5, color: "#6B7280", margin: "0 0 10px 0", lineHeight: 1.5 }}>Browsing read-only. Connect a wallet to swap, bridge, and manage your own funds.</p>
-              <button onClick={() => setShowConnectModal(true)} style={{ fontSize: 12, color: "#fff", background: "#6D5EF7", border: "none", borderRadius: 999, padding: "7px 12px", cursor: "pointer", width: "100%", fontWeight: 700 }}>Connect Wallet</button>
+              <button onClick={() => setShowConnectModal(true)} style={{ fontSize: 12, color: "#fff", background: "#3D5AF1", border: "none", borderRadius: 999, padding: "7px 12px", cursor: "pointer", width: "100%", fontWeight: 700 }}>Connect Wallet</button>
             </>
+            )
           )}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 10px", padding: "0.6rem 0.9rem 0", justifyContent: "center" }}>
@@ -850,10 +904,10 @@ function AppInner() {
           <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" || tab === "mainnetbridge" || tab === "mainnethistory" ? 900 : 520), margin: "0 auto" }}>
             {tab !== "home" && <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 32, fontWeight: 600, color: "#16151C", marginBottom: 6, letterSpacing: "-0.02em" }}>
-                {tab === "circlewalletmainnet" ? <span className="flowfi-shimmer-title">Circle Wallet</span> : tab === "dashboard" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "dashboardmainnet" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "mainnethistory" ? <span className="flowfi-shimmer-title">History</span> : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "mainnetswap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
+                {tab === "circlewalletmainnet" ? <span className="flowfi-shimmer-title">Circle Wallet</span> : tab === "gatewaymainnet" ? <span className="flowfi-shimmer-title">Gateway</span> : tab === "dashboard" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "dashboardmainnet" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "mainnethistory" ? <span className="flowfi-shimmer-title">History</span> : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "mainnetswap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>
-               {tab === "circlewalletmainnet" ? "Email wallet on Arc Mainnet: no seed phrase, withdraw anytime" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "mainnethistory" ? "Recent transactions on Arc Mainnet" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : tab === "mainnetbridge" ? "Bridge USDC and other assets onto Arc, via LI.FI or Circle's native CCTP" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
+               {tab === "circlewalletmainnet" ? "Email wallet on Arc Mainnet: no seed phrase, withdraw anytime" : tab === "gatewaymainnet" ? "One USDC balance across Arc, Base, Ethereum and Arbitrum, powered by Circle Gateway" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "mainnethistory" ? "Recent transactions on Arc Mainnet" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : tab === "mainnetbridge" ? "Bridge USDC and other assets onto Arc, via LI.FI or Circle's native CCTP" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
             </div>}
 {tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} provider={wallet.provider} />}
@@ -863,6 +917,7 @@ function AppInner() {
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
             {tab === "mainnethistory" && wallet && <TxHistory address={wallet.address} network="mainnet" />}
             {tab === "circlewalletmainnet" && <CircleWalletMainnet browserAddress={wallet?.address} provider={wallet?.provider} />}
+            {tab === "gatewaymainnet" && <GatewayMainnet browserAddress={wallet?.address} provider={wallet?.provider} circleLive={circleLive} />}
             {tab === "dashboardmainnet" && wallet && <DashboardMainnet address={wallet.address} balances={mainnetBalances} provider={wallet.provider} onNavigate={(t) => setTab(t as Tab)} />}
             {tab === "analytics" && <StablecoinAnalytics onNavigate={(t) => setTab(t)} />}
             {tab === "history" && (wallet || (circlePrimary && circleWalletInfo)) && <TxHistory address={wallet ? wallet.address : circleWalletInfo!.address} />}
@@ -946,7 +1001,7 @@ function AppInner() {
         )}
       </main>
 
-      {wallet && tab !== "home" && ((tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet" || tab === "mainnethistory" || tab === "circlewalletmainnet") ? (
+      {wallet && tab !== "home" && ((tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet" || tab === "mainnethistory" || tab === "circlewalletmainnet" || tab === "gatewaymainnet") ? (
         <AiCopilotMainnet onNavigate={(t) => setTab(t)} />
       ) : (
         <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
