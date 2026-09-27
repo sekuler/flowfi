@@ -416,7 +416,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       <div style={{ display: "flex", justifyContent: "center" }}>{createElement("powered-by-morpho", { theme: "light" })}</div>
 
       <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>
-        FlowFi is an interface to Morpho. Your wallet talks to Morpho's contracts directly; FlowFi never holds your funds.
+        Non-custodial: your funds stay under your control, FlowFi never holds them.
         Borrowing carries liquidation risk if BTC falls.
       </p>
 
