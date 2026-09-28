@@ -381,7 +381,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     : !tAmount ? "Enter an amount" : tAmt >= fromAvail ? `Not enough on ${from.name} (fee included)` : !validRecipient ? "Enter a valid address" : `Send ${tAmount} USDC to ${to.name}`;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto", padding: 16, borderRadius: 32, background: "linear-gradient(180deg, #F7F8FF 0%, #EEF1FF 30%, #B9C6FF 72%, #5B7BFF 100%)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
       {(
 
         <div role="group" aria-label="Wallet" style={{ display: "flex", gap: 2, padding: 3, borderRadius: 14, background: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.8)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>

@@ -299,7 +299,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const canWithdraw = validAmt && validDest && wStep !== "sending";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto", padding: 16, borderRadius: 32, background: "linear-gradient(180deg, #F7F8FF 0%, #EEF1FF 30%, #B9C6FF 72%, #5B7BFF 100%)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
       {status?.withdrawOnly && (
         <div style={{ padding: "12px 14px", borderRadius: 14, background: "#FFF4E0", color: "#6A4308", fontSize: 13, lineHeight: 1.5 }}>
           Circle Wallet on FlowFi is closing. Please withdraw your funds to your own wallet below.
@@ -339,12 +339,13 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {ASSETS.map((a) => (
-            <div key={a.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 18, background: "rgba(244,246,252,0.75)", border: "1px solid rgba(255,255,255,0.7)" }}>
+            <div key={a.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 18, background: "linear-gradient(180deg, #FFFFFF 0%, #F0F3FF 100%)", border: "1px solid #FFFFFF", boxShadow: "inset 0 1px 0 #FFFFFF, inset 0 -2px 0 rgba(61,90,241,0.06), 0 8px 18px -10px rgba(61,90,241,0.45), 0 1px 2px rgba(22,21,28,0.06)" }}>
               <TokenOnChain symbol={a.symbol} chain={chainKeyOf(a)} size={40} />
               <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: W70 }}>{a.chainName}</span>
-                <span style={{ fontFamily: "'Bricolage Grotesque', 'Geist', system-ui, sans-serif", fontSize: 22, fontWeight: 800, color: INK, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
-                  {balances[a.key] === undefined ? "…" : balances[a.key] === null ? "—" : Number(balances[a.key]).toLocaleString("en-US", { maximumFractionDigits: a.decimals === 8 ? 8 : 2 })} {a.symbol}
+                <span style={{ fontFamily: "'Bricolage Grotesque', 'Geist', system-ui, sans-serif", fontSize: 22, fontWeight: 800, color: Number(balances[a.key] ?? 0) > 0 ? INK : "#A3A7B8", letterSpacing: "-0.01em", lineHeight: 1.2 }}>
+                  {balances[a.key] === undefined ? "…" : balances[a.key] === null ? "—" : Number(balances[a.key]).toLocaleString("en-US", { maximumFractionDigits: a.decimals === 8 ? 8 : 2 })}{" "}
+                  <span style={{ color: Number(balances[a.key] ?? 0) > 0 ? BLUE : "#A3A7B8" }}>{a.symbol}</span>
                 </span>
               </span>
             </div>
