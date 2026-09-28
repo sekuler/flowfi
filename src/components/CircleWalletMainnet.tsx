@@ -205,9 +205,8 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
     }
   }
 
-  const card = { background: "linear-gradient(160deg, rgba(255,255,255,0.82) 0%, rgba(236,240,255,0.74) 100%)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", color: INK, border: "1px solid rgba(255,255,255,0.95)", borderRadius: 20, padding: "1.25rem", boxShadow: "0 22px 50px -30px rgba(61,90,241,0.55), inset 0 1px 0 rgba(255,255,255,0.9)" } as const;
+  const card = { background: "rgba(255,255,255,0.6)", backdropFilter: "blur(20px) saturate(160%)", WebkitBackdropFilter: "blur(20px) saturate(160%)", color: INK, border: "1px solid rgba(255,255,255,0.8)", borderRadius: 24, padding: "1.25rem", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" } as const;
   const W70 = MUTED;
-  const WLINE = LINE;
   const sectionTitle = (Icon: typeof ArrowUpRight, text: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
@@ -300,7 +299,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const canWithdraw = validAmt && validDest && wStep !== "sending";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto", padding: 16, borderRadius: 32, background: "linear-gradient(180deg, #F7F8FF 0%, #EEF1FF 30%, #B9C6FF 72%, #5B7BFF 100%)" }}>
       {status?.withdrawOnly && (
         <div style={{ padding: "12px 14px", borderRadius: 14, background: "#FFF4E0", color: "#6A4308", fontSize: 13, lineHeight: 1.5 }}>
           Circle Wallet on FlowFi is closing. Please withdraw your funds to your own wallet below.
@@ -332,18 +331,21 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
         </div>
         <p style={{ margin: 0, fontSize: 12, color: W70, lineHeight: 1.5 }}>Same address on Arc, Base, Ethereum and Arbitrum. Holding limit: ${status?.capUsd ?? 100} in total, cirBTC counted at the BTC price{status ? ` (now $${status.stableTotal.toFixed(2)})` : ""}.</p>
 
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {ASSETS.map((a, i) => (
-            <div key={a.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: i ? `1px solid ${WLINE}` : "none", fontSize: 13.5 }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <TokenOnChain symbol={a.symbol} chain={chainKeyOf(a)} size={30} />
-                <span style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ fontWeight: 600, color: INK }}>{a.symbol}</span>
-                  <span style={{ fontSize: 11.5, color: W70 }}>{a.chainName}</span>
+        {status && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: W70 }}>Total value</span>
+            <span style={{ fontFamily: "'Bricolage Grotesque', 'Geist', system-ui, sans-serif", fontSize: 38, fontWeight: 800, color: INK, letterSpacing: "-0.02em", lineHeight: 1.1 }}>${status.stableTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {ASSETS.map((a) => (
+            <div key={a.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 18, background: "rgba(244,246,252,0.75)", border: "1px solid rgba(255,255,255,0.7)" }}>
+              <TokenOnChain symbol={a.symbol} chain={chainKeyOf(a)} size={40} />
+              <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: W70 }}>{a.chainName}</span>
+                <span style={{ fontFamily: "'Bricolage Grotesque', 'Geist', system-ui, sans-serif", fontSize: 22, fontWeight: 800, color: INK, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
+                  {balances[a.key] === undefined ? "…" : balances[a.key] === null ? "—" : Number(balances[a.key]).toLocaleString("en-US", { maximumFractionDigits: a.decimals === 8 ? 8 : 2 })} {a.symbol}
                 </span>
-              </span>
-              <span style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontWeight: 600, color: INK }}>
-                {balances[a.key] === undefined ? "…" : balances[a.key] === null ? "—" : Number(balances[a.key]).toLocaleString("en-US", { maximumFractionDigits: a.decimals === 8 ? 8 : 2 })}
               </span>
             </div>
           ))}

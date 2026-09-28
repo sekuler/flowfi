@@ -324,7 +324,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     }
   }
 
-  const card = { background: "linear-gradient(160deg, rgba(255,255,255,0.82) 0%, rgba(236,240,255,0.74) 100%)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", color: INK, border: "1px solid rgba(255,255,255,0.95)", borderRadius: 20, padding: "1.25rem", display: "flex", flexDirection: "column" as const, gap: 12, boxShadow: "0 22px 50px -30px rgba(61,90,241,0.55), inset 0 1px 0 rgba(255,255,255,0.9)" };
+  const card = { background: "rgba(255,255,255,0.6)", backdropFilter: "blur(20px) saturate(160%)", WebkitBackdropFilter: "blur(20px) saturate(160%)", color: INK, border: "1px solid rgba(255,255,255,0.8)", borderRadius: 24, padding: "1.25rem", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)", display: "flex", flexDirection: "column" as const, gap: 12 };
   const sectionTitle = (Icon: typeof ArrowRight, text: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <span style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #3D5AF1 0%, #6C8BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(61,90,241,0.7)" }}>
@@ -381,10 +381,10 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     : !tAmount ? "Enter an amount" : tAmt >= fromAvail ? `Not enough on ${from.name} (fee included)` : !validRecipient ? "Enter a valid address" : `Send ${tAmount} USDC to ${to.name}`;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560, margin: "0 auto", padding: 16, borderRadius: 32, background: "linear-gradient(180deg, #F7F8FF 0%, #EEF1FF 30%, #B9C6FF 72%, #5B7BFF 100%)" }}>
       {(
 
-        <div role="group" aria-label="Wallet" style={{ display: "flex", gap: 2, padding: 3, borderRadius: 12, background: "#ECEAE4" }}>
+        <div role="group" aria-label="Wallet" style={{ display: "flex", gap: 2, padding: 3, borderRadius: 14, background: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.8)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
           {(["browser", "circle"] as const).map((k) => {
             const on = source === k;
             return (
@@ -411,16 +411,16 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
             <RefreshCw size={14} />
           </button>
         </div>
-        <div style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 40, fontWeight: 500, letterSpacing: "-0.02em" }}>
+        <div style={{ fontFamily: "'Bricolage Grotesque', 'Geist', system-ui, sans-serif", fontSize: 46, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
           {bal === null ? (loadingBal ? "…" : "—") : `$${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
           {CHAINS.map((c) => (
-            <div key={c.key} style={{ padding: "8px 10px", borderRadius: 12, background: "rgba(8,20,90,0.22)" }}>
+            <div key={c.key} style={{ padding: "8px 10px", borderRadius: 16, background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.22)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "rgba(255,255,255,0.85)" }}>
                 <span style={{ borderRadius: "50%", background: "#FFFFFF", padding: 1, display: "flex" }}><ChainLogo chain={c.key as ChainKey} size={16} /></span>{c.name}
               </div>
-              <div style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 14 }}>{bal ? bal[c.key].available.toFixed(2) : "…"}</div>
+              <div style={{ fontFamily: "'Bricolage Grotesque', 'Geist', system-ui, sans-serif", fontSize: 18, fontWeight: 800, marginTop: 2 }}>{bal ? bal[c.key].available.toFixed(2) : "…"}</div>
               {arriving?.chain === c.key && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.85)" }}>+{arriving.amount.toFixed(2)} arriving</div>}
             </div>
           ))}
