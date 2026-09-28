@@ -16,6 +16,7 @@ import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal
 import TransferHub from "./components/TransferHub";
 import SwapForm from "./components/SwapForm";
 import TxHistory from "./components/TxHistory";
+import TxHistoryMainnet from "./components/TxHistoryMainnet";
 import Dashboard from "./components/Dashboard";
 import DashboardMainnet from "./components/DashboardMainnet";
 import MainnetSwap from "./components/MainnetSwap";
@@ -197,9 +198,18 @@ function FlowFiMark({ size = 32 }: { size?: number }) {
   );
 }
 
-function PastelBackground() {
+// Mainnet pages sit on a soft white -> lilac-blue wash; testnet and the landing page keep the plain background.
+const MAINNET_BG = [
+  "radial-gradient(60% 55% at 0% 0%, #FFFFFF 0%, rgba(255,255,255,0) 100%)",
+  "radial-gradient(55% 60% at 100% 15%, rgba(176,194,247,0.85) 0%, rgba(176,194,247,0) 100%)",
+  "radial-gradient(50% 45% at 40% 100%, rgba(198,188,244,0.75) 0%, rgba(198,188,244,0) 100%)",
+  "radial-gradient(45% 45% at 100% 100%, rgba(150,172,245,0.8) 0%, rgba(150,172,245,0) 100%)",
+  "linear-gradient(160deg, #F7F8FD 0%, #E6EBFA 100%)",
+].join(", ");
+
+function PastelBackground({ mainnet = false }: { mainnet?: boolean }) {
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: "#F6F5F2" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: mainnet ? MAINNET_BG : "#F6F5F2" }}>
     </div>
   );
 }
@@ -688,7 +698,7 @@ function AppInner() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", color: "#111827", position: "relative" }}>
       {sharedStyle}
-      <PastelBackground />
+      <PastelBackground mainnet={activeVariant === "mainnet"} />
       <ToastContainer />
       {isMobile && mobileMenuOpen && (
         <div onClick={() => setMobileMenuOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.4)", zIndex: 3 }} />
@@ -903,7 +913,7 @@ function AppInner() {
           </div>
         )}
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
-          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" || tab === "mainnetbridge" || tab === "mainnethistory" ? 900 : 520), margin: "0 auto" }}>
+          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "dashboardmainnet" || tab === "mainnethistory" ? 1120 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "dashboardmainnet" || tab === "mainnetswap" || tab === "mainnetbridge" || tab === "mainnethistory" ? 900 : 520), margin: "0 auto" }}>
             {tab !== "home" && <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 32, fontWeight: 600, color: "#16151C", marginBottom: 6, letterSpacing: "-0.02em" }}>
                 {tab === "circlewalletmainnet" ? <span className="flowfi-shimmer-title">Circle Wallet</span> : tab === "gatewaymainnet" ? <span className="flowfi-shimmer-title">Gateway</span> : tab === "morphomainnet" ? <span className="flowfi-shimmer-title">Earn & Borrow</span> : tab === "dashboard" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "dashboardmainnet" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "mainnethistory" ? <span className="flowfi-shimmer-title">History</span> : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "mainnetswap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
@@ -917,7 +927,7 @@ function AppInner() {
             {tab === "mainnetbridge" && <MainnetBridge address={wallet?.address} provider={wallet?.provider} />}
             {tab === "mainnetswap" && <MainnetSwap provider={wallet?.provider} />}
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
-            {tab === "mainnethistory" && wallet && <TxHistory address={wallet.address} network="mainnet" />}
+            {tab === "mainnethistory" && wallet && <TxHistoryMainnet address={wallet.address} />}
             {tab === "circlewalletmainnet" && <CircleWalletMainnet browserAddress={wallet?.address} provider={wallet?.provider} />}
             {tab === "morphomainnet" && <MorphoMainnet browserAddress={wallet?.address} provider={wallet?.provider} onConnect={() => setShowConnectModal(true)} />}
             {tab === "gatewaymainnet" && <GatewayMainnet browserAddress={wallet?.address} provider={wallet?.provider} circleLive={circleLive} onConnect={() => setShowConnectModal(true)} onOpenNativeBridge={() => { try { sessionStorage.setItem("flowfi-bridge-mode", "cctp"); } catch { /* ignore */ } goToTab("mainnetbridge"); }} />}

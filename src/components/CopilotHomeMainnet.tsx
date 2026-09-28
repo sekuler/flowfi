@@ -9,6 +9,7 @@ import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
 import { loadLifiDiamond, describeTx, counterpartOf, fetchActivity, type Tx } from "./txUtils";
+import { T, glass, heroBlue } from "./mainnetTheme";
 
 // Mainnet counterpart to CopilotHome.tsx (which stays as-is, Arc Testnet
 // only). Two states:
@@ -41,12 +42,12 @@ const ANALYSIS_SECTION_HEADERS = new Set([
 ]);
 
 // Design tokens (home only)
-const INK = "#16151C";
+const INK = T.ink;
 const ACCENT = "#3D5AF1";
 const ACCENT_SOFT = "#EEF1FE";
-const LINE = "#E7E4DD";
-const MUTED = "#5E5B6B";
-const SOFT_BG = "#FBFAF8";
+const LINE = "rgba(15,27,61,0.08)";
+const MUTED = T.muted;
+const SOFT_BG = "rgba(255,255,255,0.75)";
 
 function isAnalysisMessage(text: string): boolean {
   const firstLine = text.split("\n")[0] ?? "";
@@ -156,31 +157,28 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   const balancesLoading = balances.usdc === null;
   const isNew = !balancesLoading && owned.length === 0;
 
-  const card = { background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 20 } as const;
+  const card = glass;
   const statusIcon = (s: string) =>
-    s === "ok" ? <CheckCircle2 size={20} color="#0E9F6E" /> : s === "error" ? <XCircle size={20} color="#DC2626" /> : <Clock size={20} color="#B45309" />;
-
-  function openNativeBridge() {
-    try { sessionStorage.setItem("flowfi-bridge-mode", "cctp"); } catch { /* ignore */ }
-    onNavigate("mainnetbridge");
-  }
+    <span style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: s === "ok" ? "#E3F6EA" : s === "error" ? "#FDECEC" : "#FFF4E0", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+      {s === "ok" ? <CheckCircle2 size={22} color="#16A34A" /> : s === "error" ? <XCircle size={22} color="#DC2626" /> : <Clock size={22} color="#B45309" />}
+    </span>;
 
   const steps = [
-    { title: "Add USDC to your wallet", sub: "Bring USDC from Base, Ethereum, Arbitrum and more. No Arc gas needed.", done: owned.length > 0, action: openNativeBridge },
+    { title: "Add USDC to your wallet", sub: "Bridge USDC onto Arc from Ethereum, Base, Arbitrum and more.", done: owned.length > 0, action: () => onNavigate("mainnetbridge") },
     { title: "Make your first swap", sub: "Trade USDC for EURC, cirBTC or other tokens on Arc.", done: !loading && txs.length > 0, action: () => onNavigate("mainnetswap") },
     { title: "Ask the Copilot", sub: "Get plain-language answers about your wallet and the market.", done: messages.length > 0, action: () => document.getElementById("ffh-ask")?.focus() },
   ];
   const doneCount = steps.filter((s) => s.done).length;
   const currentStep = steps.findIndex((s) => !s.done);
 
-  const primaryBtn = { display: "flex", alignItems: "center", gap: 8, height: 48, padding: "0 22px", border: "none", borderRadius: 12, background: "#FFFFFF", color: ACCENT, fontSize: 15, fontWeight: 600, cursor: "pointer" } as const;
-  const ghostBtn = { display: "flex", alignItems: "center", gap: 8, height: 48, padding: "0 20px", borderRadius: 12, background: "transparent", border: "1px solid rgba(255,255,255,0.5)", color: "#FFFFFF", fontSize: 15, fontWeight: 500, cursor: "pointer" } as const;
+  const primaryBtn = { display: "flex", alignItems: "center", gap: 8, height: 52, padding: "0 24px", border: "none", borderRadius: 12, background: "#FFFFFF", color: T.blueDeep, fontSize: 16, fontWeight: 600, cursor: "pointer", boxShadow: "0 10px 22px -12px rgba(10,20,80,0.55)" } as const;
+  const ghostBtn = { display: "flex", alignItems: "center", gap: 8, height: 52, padding: "0 22px", borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.6)", color: "#FFFFFF", fontSize: 16, fontWeight: 600, cursor: "pointer" } as const;
 
   const hero = (
-    <section style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.6fr) minmax(0, 1fr)", gap: isMobile ? 24 : 40, padding: isMobile ? "1.75rem 1.4rem" : "2.5rem 2.75rem", borderRadius: 24, background: ACCENT, color: "#FFFFFF" }}>
+    <section style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.6fr) minmax(0, 1fr)", gap: isMobile ? 24 : 40, padding: isMobile ? "1.75rem 1.4rem" : "2.25rem 2.75rem", ...heroBlue }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,0.85)" }}>
-          <ShieldCheck size={15} /> Self-custody · you sign every transaction
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15, color: "rgba(255,255,255,0.9)" }}>
+          <ShieldCheck size={17} /> Self-custody · you sign every transaction
         </div>
         {isNew ? (
           <>
@@ -193,17 +191,17 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
           </>
         ) : (
           <>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Net worth</div>
-            <div className="ffh-mono" style={{ fontSize: isMobile ? 40 : 56, fontWeight: 500, lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+            <div style={{ fontSize: 17, color: "rgba(255,255,255,0.9)", marginBottom: -6 }}>Net worth</div>
+            <div style={{ fontSize: isMobile ? 52 : 80, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.035em", fontVariantNumeric: "tabular-nums", textShadow: "0 6px 24px rgba(10,20,90,0.25)" }}>
               {balancesLoading ? "…" : `$${money(total)}`}
             </div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>
-              {balancesLoading ? "Loading balances…" : `${owned.length} asset${owned.length === 1 ? "" : "s"} · ${owned.map((d) => d.label).join(", ")}`}
+            <div style={{ fontSize: 17, color: "rgba(255,255,255,0.92)" }}>
+              {balancesLoading ? "Loading balances…" : `${owned.length} asset${owned.length === 1 ? "" : "s"} - ${owned.map((d) => d.label).join(", ")}`}
             </div>
           </>
         )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 4 }}>
-          <button onClick={openNativeBridge} style={primaryBtn}>
+          <button onClick={() => onNavigate("mainnetbridge")} style={primaryBtn}>
             <Plus size={18} /> Add funds
           </button>
           {isNew ? (
@@ -217,7 +215,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 20, padding: 24, borderRadius: 18, background: "rgba(8,20,90,0.22)", border: "1px solid rgba(255,255,255,0.18)", minWidth: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 20, padding: 26, borderRadius: 20, background: "linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)", border: "1px solid rgba(255,255,255,0.28)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)", minWidth: 0 }}>
         {isNew ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.82)" }}>Total balance</span>
@@ -225,14 +223,14 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
           </div>
         ) : hasChart ? (
           <div>
-            <Sparkline points={chartPoints} height={96} color="#FFFFFF" />
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.82)", textAlign: "right", marginTop: 6 }}>{chartPoints.length} days</div>
+            <Sparkline points={chartPoints} height={140} color="#FFFFFF" />
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", textAlign: "right", marginTop: 8 }}>{chartPoints.length} days</div>
           </div>
         ) : (
           <div style={{ fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)" }}>Your balance chart appears after a couple of days of visits.</div>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ height: 1, background: "rgba(255,255,255,0.18)" }} />
+          <div style={{ height: 1, background: "rgba(255,255,255,0.25)" }} />
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.82)" }}>
             <span>Assets</span><span style={{ color: "#FFFFFF" }}>{isNew ? "None yet" : balancesLoading ? "…" : owned.length}</span>
           </div>
@@ -245,9 +243,9 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   );
 
   const checklist = (
-    <section style={{ ...card, padding: isMobile ? "1.25rem" : 28, display: "flex", flexDirection: "column", gap: 18 }}>
+    <section style={{ ...card, padding: isMobile ? "1.25rem" : 32, display: "flex", flexDirection: "column", gap: 18 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-        <h3 className="ffh-display" style={{ margin: 0, fontSize: 20, fontWeight: 600, color: INK }}>Get started in 3 steps</h3>
+        <h3 className="ffh-display" style={{ margin: 0, fontSize: 25, fontWeight: 600, color: INK, letterSpacing: "-0.01em" }}>Get started in 3 steps</h3>
         <span style={{ fontSize: 13, color: MUTED }}>{doneCount} of 3 done</span>
       </div>
       <div style={{ height: 6, borderRadius: 3, background: "#EFEDE8" }}>
@@ -282,11 +280,11 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   );
 
   const assets = (
-    <section style={{ ...card, padding: isMobile ? "1.25rem" : 28, display: "flex", flexDirection: "column" }}>
+    <section style={{ ...card, padding: isMobile ? "1.25rem" : 32, display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <h3 className="ffh-display" style={{ margin: 0, fontSize: 20, fontWeight: 600, color: INK }}>Your assets</h3>
-        <button onClick={() => onNavigate("mainnetbridge")} style={{ background: "none", border: "none", color: ACCENT, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-          <Plus size={14} /> Add
+        <h3 className="ffh-display" style={{ margin: 0, fontSize: 25, fontWeight: 600, color: INK, letterSpacing: "-0.01em" }}>Your assets</h3>
+        <button onClick={() => onNavigate("mainnetbridge")} style={{ background: "none", border: "none", color: ACCENT, fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+          <Plus size={16} /> Add
         </button>
       </div>
       <div style={{ display: "flex", flexDirection: "column" }}>
@@ -295,14 +293,14 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
           <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 0", borderTop: i > 0 ? `1px solid ${LINE}` : "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {d.label === "USDC" || d.label === "EURC"
-                ? <img src={d.label === "USDC" ? USDC_LOGO : EURC_LOGO} alt="" width={38} height={38} style={{ width: 38, height: 38, borderRadius: "50%" }} />
-                : <TokenIcon symbol={d.label} size={38} />}
+                ? <img src={d.label === "USDC" ? USDC_LOGO : EURC_LOGO} alt="" width={46} height={46} style={{ width: 46, height: 46, borderRadius: "50%", boxShadow: "0 4px 10px -4px rgba(39,117,202,0.5)" }} />
+                : <TokenIcon symbol={d.label} size={46} />}
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: INK }}>{d.label}</div>
-                <div className="ffh-mono" style={{ fontSize: 12, color: MUTED, fontVariantNumeric: "tabular-nums" }}>{d.amount} {d.label}</div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: INK }}>{d.label}</div>
+                <div className="ffh-mono" style={{ fontSize: 13, color: MUTED, fontVariantNumeric: "tabular-nums", marginTop: 2 }}>{d.amount} {d.label}</div>
               </div>
             </div>
-            <div className="ffh-mono" style={{ fontSize: 16, fontWeight: 500, color: INK, fontVariantNumeric: "tabular-nums" }}>{d.value !== null ? `$${money(d.value)}` : "—"}</div>
+            <div className="ffh-mono" style={{ fontSize: 18, fontWeight: 600, color: INK, fontVariantNumeric: "tabular-nums" }}>{d.value !== null ? `$${money(d.value)}` : "—"}</div>
           </div>
         ))}
       </div>
@@ -312,13 +310,13 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   const suggestions = isNew ? QUESTIONS_NEW : QUESTIONS_FUNDED;
 
   const copilot = (
-    <section style={{ ...card, padding: isMobile ? "1.25rem" : 28, display: "flex", flexDirection: "column", gap: 16 }}>
+    <section style={{ ...card, padding: isMobile ? "1.25rem" : 32, display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ width: 36, height: 36, borderRadius: 10, background: ACCENT_SOFT, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Sparkles size={18} color={ACCENT} />
+        <span style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.95)", boxShadow: "0 4px 12px -6px rgba(36,58,150,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Sparkles size={20} color={ACCENT} />
         </span>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <label htmlFor="ffh-ask" className="ffh-display" style={{ fontSize: 18, fontWeight: 600, color: INK }}>FlowFi Copilot</label>
+          <label htmlFor="ffh-ask" className="ffh-display" style={{ fontSize: 22, fontWeight: 600, color: INK }}>FlowFi Copilot</label>
           <span style={{ fontSize: 13, color: MUTED }}>{isNew ? "New to DeFi? Just ask." : "Ask anything about your wallet."}</span>
         </div>
       </div>
@@ -346,33 +344,33 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {suggestions.map((q) => (
             <button key={q} onClick={() => ask(q)} disabled={asking} className="ffh-suggest"
-              style={{ textAlign: "left", minHeight: 44, padding: "10px 14px", borderRadius: 12, border: `1px solid ${LINE}`, background: SOFT_BG, fontSize: 14, color: INK, cursor: "pointer" }}>
+              style={{ textAlign: "left", minHeight: 50, padding: "12px 18px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.95)", background: "rgba(255,255,255,0.8)", boxShadow: "0 3px 10px -6px rgba(36,58,150,0.3)", fontSize: 15, color: INK, cursor: "pointer" }}>
               {q}
             </button>
           ))}
         </div>
       )}
 
-      <div className="ffh-ask-wrap" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "auto", padding: "6px 6px 6px 14px", borderRadius: 14, border: "1px solid #D6D3CC", background: "#FFFFFF" }}>
+      <div className="ffh-ask-wrap" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "auto", padding: "6px 6px 6px 14px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.95)", background: "rgba(255,255,255,0.85)", boxShadow: "0 3px 10px -6px rgba(36,58,150,0.3)" }}>
         <input id="ffh-ask" type="text" placeholder="Ask anything…" value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") ask(input); }}
           disabled={asking}
           style={{ flex: 1, minWidth: 0, height: 36, border: "none", outline: "none", boxShadow: "none", fontSize: 14, background: "transparent", color: INK }} />
         <button onClick={() => ask(input)} disabled={asking || !input.trim()} aria-label="Send"
-          style={{ width: 40, height: 40, border: "none", borderRadius: 10, background: INK, color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: asking || !input.trim() ? "not-allowed" : "pointer", opacity: asking || !input.trim() ? 0.5 : 1 }}>
-          <Send size={16} />
+          style={{ width: 44, height: 44, border: "none", borderRadius: 11, background: "#5B6478", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: asking || !input.trim() ? "not-allowed" : "pointer", opacity: asking || !input.trim() ? 0.5 : 1 }}>
+          <Send size={18} />
         </button>
       </div>
     </section>
   );
 
   const activity = (
-    <section style={{ ...card, padding: isMobile ? "1.25rem" : 28 }}>
+    <section style={{ ...card, padding: isMobile ? "1.25rem" : 32 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <h3 className="ffh-display" style={{ margin: 0, fontSize: 20, fontWeight: 600, color: INK }}>Recent activity</h3>
-        <button onClick={() => onNavigate("mainnethistory")} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", color: ACCENT, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-          View all <ArrowRight size={14} />
+        <h3 className="ffh-display" style={{ margin: 0, fontSize: 25, fontWeight: 600, color: INK, letterSpacing: "-0.01em" }}>Recent activity</h3>
+        <button onClick={() => onNavigate("mainnethistory")} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", color: ACCENT, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+          View all <ArrowRight size={16} />
         </button>
       </div>
       {loading && <div style={{ fontSize: 13, color: MUTED, padding: "0.5rem 0" }}>Loading…</div>}
@@ -380,15 +378,15 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
       <div style={{ display: "flex", flexDirection: "column" }}>
         {txs.map((tx, i) => (
           <a key={tx.hash} href={`https://arc.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="ffh-row"
-            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "0.8rem 0.5rem", textDecoration: "none", borderTop: i > 0 ? `1px solid ${LINE}` : "none", borderRadius: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "0.9rem 0.5rem", textDecoration: "none", borderTop: i > 0 ? `1px solid ${LINE}` : "none", borderRadius: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
               {statusIcon(tx.status)}
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{describeTx(tx, address, "mainnet", diamond, true)}</div>
-                <div className="ffh-mono" style={{ fontSize: 12, color: MUTED, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{counterpartOf(tx, address)}</div>
+                <div style={{ fontSize: 16, color: INK, fontWeight: 600 }}>{describeTx(tx, address, "mainnet", diamond, true)}</div>
+                <div className="ffh-mono" style={{ fontSize: 13, color: MUTED, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{counterpartOf(tx, address)}</div>
               </div>
             </div>
-            <span style={{ fontSize: 12, color: MUTED, flexShrink: 0 }}>{tx.age}</span>
+            <span style={{ fontSize: 14, color: MUTED, flexShrink: 0 }}>{tx.age}</span>
           </a>
         ))}
       </div>
@@ -405,8 +403,8 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         .ffh .ffh-display { font-family: 'Bricolage Grotesque', 'Geist', system-ui, sans-serif; }
         .ffh .ffh-mono { font-family: 'Geist Mono', ui-monospace, monospace; }
         .ffh .ffh-step:hover { background: ${ACCENT_SOFT} !important; transform: none !important; }
-        .ffh .ffh-suggest:hover { border-color: #C3CCF8 !important; background: #FFFFFF !important; }
-        .ffh .ffh-row:hover { background: ${SOFT_BG}; }
+        .ffh .ffh-suggest:hover { background: #FFFFFF !important; }
+        .ffh .ffh-row:hover { background: rgba(255,255,255,0.55); }
         .ffh .ffh-ask-wrap:focus-within { border-color: ${ACCENT} !important; box-shadow: 0 0 0 3px rgba(61,90,241,0.14); }
         .ffh #ffh-ask:focus { box-shadow: none; }
       `}</style>

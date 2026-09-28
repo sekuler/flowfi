@@ -1,11 +1,12 @@
 import { useState, useEffect, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
-import { ExternalLink, ArrowRight, RefreshCw, ShieldCheck } from "lucide-react";
+import { ArrowRight, RefreshCw, ShieldCheck } from "lucide-react";
 import EmptyState from "./EmptyState";
 import NetworkGuard from "./NetworkGuard";
 import { useIsMobile } from "../useIsMobile";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
-import { TYPE_ICON, loadLifiDiamond, metaFor, amountCell, assetOf, counterpartOf, shortHash, fetchActivity, type Tx } from "./txUtils";
+import { loadLifiDiamond, metaFor, amountCell, assetOf, counterpartOf, fetchActivity, type Tx } from "./txUtils";
+import { T, glass, glassRow, pill } from "./mainnetTheme";
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 
@@ -35,33 +36,35 @@ interface Props {
   onNavigate?: (tab: string) => void;
 }
 
-function Donut({ segments, size = 132, thickness = 14, children }: { segments: { value: number; color: string }[]; size?: number; thickness?: number; children?: ReactNode }) {
+function Donut({ segments, size = 172, thickness = 22, children }: { segments: { value: number; color: string }[]; size?: number; thickness?: number; children?: ReactNode }) {
   const r = (size - thickness) / 2;
   const c = 2 * Math.PI * r;
   const total = segments.reduce((a, s) => a + s.value, 0) || 1;
+  const glow = segments.slice().sort((a, b) => b.value - a.value)[0]?.color ?? T.blue;
   let offset = 0;
   return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0, filter: `drop-shadow(0 8px 16px ${glow}40)` }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EEF1FE" strokeWidth={thickness} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(61,90,241,0.08)" strokeWidth={thickness} />
         {segments.map((s, i) => {
           const len = (s.value / total) * c;
           const el = (
             <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.color} strokeWidth={thickness}
-              strokeDasharray={`${Math.max(len - (segments.length > 1 ? 2 : 0), 0)} ${c}`} strokeDashoffset={-offset} strokeLinecap="butt" />
+              strokeDasharray={`${Math.max(len - (segments.length > 1 ? 3 : 0), 0)} ${c}`} strokeDashoffset={-offset} strokeLinecap="butt" />
           );
           offset += len;
           return el;
         })}
       </svg>
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>{children}</div>
+      <div style={{ position: "absolute", inset: thickness, borderRadius: "50%", background: "rgba(255,255,255,0.75)", boxShadow: "inset 0 2px 8px rgba(36,58,150,0.08)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>{children}</div>
     </div>
   );
 }
 
-const card = { background: "#ffffff", border: "1px solid #E7E4DD", borderRadius: 20, boxShadow: "0 8px 30px -14px rgba(61,90,241,0.2)" } as const;
-const kpiLabel = { display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#6B7280", fontWeight: 600 } as const;
-const bigNum = { fontSize: 28, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.5px" } as const;
+const card = glass;
+const kpiLabel = { fontSize: 17, color: T.text, fontWeight: 500 } as const;
+const bigNum = { fontFamily: T.display, fontSize: 42, fontWeight: 600, color: T.ink, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em", lineHeight: 1.1 } as const;
+const cardTitle = { fontSize: 21, fontWeight: 600, color: T.ink, letterSpacing: "-0.01em" } as const;
 
 export default function DashboardMainnet({ address, balances, provider, onNavigate }: Props) {
   const isMobile = useIsMobile();
@@ -116,187 +119,164 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
   const recent = txs.slice(0, 6);
   const updatedText = updatedAt === null ? "—" : Math.floor((Date.now() - updatedAt) / 60000) < 1 ? "just now" : `${Math.floor((Date.now() - updatedAt) / 60000)}m ago`;
 
-  const assetChip = (sym: string | null) => {
-    if (!sym) return <span style={{ color: "#9CA3AF" }}>—</span>;
-    return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontWeight: 700, color: "#111827" }}>
-        {sym === "USDC" || sym === "EURC"
-          ? <img src={sym === "USDC" ? USDC_LOGO : EURC_LOGO} alt="" width={20} height={20} style={{ width: 20, height: 20, borderRadius: "50%" }} />
-          : <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#E3E8FD", color: "#3D5AF1", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{sym.slice(0, 1)}</span>}
-        {sym}
-      </span>
-    );
-  };
 
-  const TABLE_GRID = "112px 110px 120px minmax(150px, 1fr) 84px 60px";
+  const kpiPad = isMobile ? "1.1rem 1.2rem" : "1.5rem 1.6rem";
+  const tokenRow = (logo: string, sym: string) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 18, fontSize: 18, fontWeight: 500, color: T.text }}>
+      <img src={logo} alt="" width={34} height={34} style={{ width: 34, height: 34, borderRadius: "50%", boxShadow: "0 4px 10px -4px rgba(39,117,202,0.55)" }} /> {sym}
+    </div>
+  );
+  const up = !change || change.abs >= 0;
+  const legendRow = (color: string, label: string, right: ReactNode) => (
+    <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 17, color: T.text }}>
+        <span style={{ width: 11, height: 11, borderRadius: "50%", background: color, boxShadow: `0 0 0 3px ${color}22` }} />{label}
+      </span>
+      {right}
+    </div>
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       <NetworkGuard provider={provider} />
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1.25fr 1fr 1fr 1fr", gap: "0.75rem" }}>
-        <div className="flowfi-glow-card" style={{ ...card, padding: "1.1rem 1.2rem", gridColumn: isMobile ? "1 / -1" : undefined }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1.2fr 1fr 1fr 1fr", gap: "1rem" }}>
+        <div style={{ ...card, padding: kpiPad, gridColumn: isMobile ? "1 / -1" : undefined, background: "linear-gradient(160deg, rgba(246,249,255,0.9) 0%, rgba(214,225,255,0.8) 100%)", border: "1.5px solid rgba(93,125,245,0.45)", boxShadow: "0 16px 36px -20px rgba(61,90,241,0.55), inset 0 1px 0 rgba(255,255,255,0.95)" }}>
           <div style={kpiLabel}>Net worth</div>
-          <div className="flowfi-mono" style={{ ...bigNum, fontSize: 32, marginTop: 6 }}>${money(total)}</div>
-          <div style={{ marginTop: 8, minHeight: 44 }}>
-            {hasChart ? <Sparkline points={chartPoints} /> : <div style={{ fontSize: 11.5, color: "#9CA3AF", paddingTop: 10 }}>Chart builds as you visit. Not enough history yet.</div>}
+          <div style={{ ...bigNum, fontSize: 46, fontWeight: 700, marginTop: 10 }}>${money(total)}</div>
+          <div style={{ marginTop: 10, minHeight: 60 }}>
+            {hasChart ? <Sparkline points={chartPoints} height={64} color="#4F6BF6" /> : <div style={{ fontSize: 13, color: T.faint, paddingTop: 12 }}>Chart builds as you visit. Not enough history yet.</div>}
           </div>
-          {hasChart && <div style={{ fontSize: 10.5, color: "#9CA3AF", textAlign: "right", marginTop: 2 }}>{chartPoints.length} days</div>}
         </div>
 
-        <div className="flowfi-glow-card" style={{ ...card, padding: "1.1rem 1.2rem" }}>
+        <div style={{ ...card, padding: kpiPad }}>
           <div style={kpiLabel}>Available USDC</div>
-          <div className="flowfi-mono" style={{ ...bigNum, marginTop: 6 }}>{balances.usdc ?? "…"}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 13, fontWeight: 700, color: "#374151" }}>
-            <img src={USDC_LOGO} alt="" width={26} height={26} style={{ width: 26, height: 26, borderRadius: "50%" }} /> USDC
-          </div>
+          <div style={{ ...bigNum, marginTop: 10 }}>{balances.usdc ?? "…"}</div>
+          {tokenRow(USDC_LOGO, "USDC")}
         </div>
 
-        <div className="flowfi-glow-card" style={{ ...card, padding: "1.1rem 1.2rem" }}>
+        <div style={{ ...card, padding: kpiPad }}>
           <div style={kpiLabel}>Available EURC</div>
-          <div className="flowfi-mono" style={{ ...bigNum, marginTop: 6 }}>{balances.eurc ?? "…"}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 13, fontWeight: 700, color: "#374151" }}>
-            <img src={EURC_LOGO} alt="" width={26} height={26} style={{ width: 26, height: 26, borderRadius: "50%" }} /> EURC
-          </div>
+          <div style={{ ...bigNum, marginTop: 10 }}>{balances.eurc ?? "…"}</div>
+          {tokenRow(EURC_LOGO, "EURC")}
         </div>
 
-        <div className="flowfi-glow-card" style={{ ...card, padding: "1.1rem 1.2rem", gridColumn: isMobile ? "1 / -1" : undefined }}>
+        <div style={{ ...card, padding: kpiPad, gridColumn: isMobile ? "1 / -1" : undefined, ...(change ? (up
+          ? { background: "linear-gradient(160deg, rgba(246,252,248,0.9) 0%, rgba(214,244,226,0.85) 100%)", border: "1.5px solid rgba(34,197,94,0.35)", boxShadow: "0 16px 36px -20px rgba(22,163,74,0.5), inset 0 1px 0 rgba(255,255,255,0.95)" }
+          : { background: "linear-gradient(160deg, rgba(255,248,248,0.9) 0%, rgba(252,224,224,0.85) 100%)", border: "1.5px solid rgba(220,38,38,0.3)" }) : {}) }}>
           <div style={kpiLabel}>7-day change</div>
           {change ? (
             <>
-              <div className="flowfi-mono" style={{ ...bigNum, marginTop: 6, color: change.abs >= 0 ? "#15803D" : "#DC2626" }}>
-                {change.abs >= 0 ? "+" : "−"}${money(Math.abs(change.abs))}
+              <div style={{ ...bigNum, marginTop: 10, color: up ? "#15803D" : "#DC2626" }}>
+                {up ? "+" : "−"}${money(Math.abs(change.abs))}
               </div>
-              <div style={{ marginTop: 14, fontSize: 13, fontWeight: 700, color: change.abs >= 0 ? "#15803D" : "#DC2626" }}>
-                {change.abs >= 0 ? "▲" : "▼"} {Math.abs(change.pct).toFixed(1)}%
+              <div style={{ marginTop: 20, fontSize: 18, fontWeight: 600, color: up ? "#15803D" : "#DC2626" }}>
+                {up ? "▲" : "▼"} {Math.abs(change.pct).toFixed(1)}%
               </div>
             </>
           ) : (
             <>
-              <div className="flowfi-mono" style={{ ...bigNum, marginTop: 6, color: "#9CA3AF" }}>—</div>
-              <div style={{ marginTop: 14, fontSize: 13, fontWeight: 700, color: "#B45309" }}>Not enough history</div>
+              <div style={{ ...bigNum, marginTop: 10, color: T.faint }}>—</div>
+              <div style={{ marginTop: 20, fontSize: 15, fontWeight: 600, color: "#B45309" }}>Not enough history</div>
             </>
           )}
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
-        <div className="flowfi-glow-card" style={{ ...card, padding: "1.2rem" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Portfolio</div>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
+        <div style={{ ...card, padding: isMobile ? "1.2rem" : "1.6rem 1.75rem" }}>
+          <div style={{ ...cardTitle, marginBottom: 18 }}>Portfolio</div>
           {total === 0 ? (
             <EmptyState icon="💰" title="No balances yet" subtitle="Bridge USDC to Arc or buy with a card to get started" />
           ) : (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-                <Donut segments={distribution.map((d) => ({ value: d.value, color: d.color }))}>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>{Math.round(topPct)}%</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280" }}>{top?.label}</div>
-                </Donut>
-                <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 10 }}>
-                  {distribution.map((d) => (
-                    <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, fontSize: 13 }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#374151", fontWeight: 600 }}>
-                        <span style={{ width: 9, height: 9, borderRadius: "50%", background: d.color }} />{d.label}
-                      </span>
-                      <span style={{ textAlign: "right" }}>
-                        <span style={{ display: "block", fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>${money(d.value)}</span>
-                        <span style={{ display: "block", fontSize: 11, color: "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>{((d.value / total) * 100).toFixed(1)}%</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
+              <Donut segments={distribution.map((d) => ({ value: d.value, color: d.color }))}>
+                <div style={{ fontFamily: T.display, fontSize: 34, fontWeight: 600, color: T.ink, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{Math.round(topPct)}%</div>
+                <div style={{ fontSize: 16, color: T.muted, marginTop: 4 }}>{top?.label}</div>
+              </Donut>
+              <div style={{ flex: 1, minWidth: 170, display: "flex", flexDirection: "column", gap: 16 }}>
+                {distribution.map((d) => legendRow(d.color, d.label, (
+                  <span style={{ textAlign: "right" }}>
+                    <span style={{ display: "block", fontSize: 17, fontWeight: 600, color: T.ink, fontVariantNumeric: "tabular-nums" }}>${money(d.value)}</span>
+                    <span style={{ display: "block", fontSize: 13.5, color: T.faint, fontVariantNumeric: "tabular-nums" }}>{((d.value / total) * 100).toFixed(1)}%</span>
+                  </span>
+                )))}
               </div>
-              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #EEF1FE", fontSize: 12, color: "#6B7280" }}>
-                {distribution.filter((d) => d.value > 0).length === 1 || topPct >= 80 ? `Concentrated in ${top?.label}` : `Spread across ${distribution.filter((d) => d.value > 0).length} assets`}
-              </div>
-            </>
+            </div>
           )}
         </div>
 
-        <div className="flowfi-glow-card" style={{ ...card, padding: "1.2rem" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Activity mix</div>
+        <div style={{ ...card, padding: isMobile ? "1.2rem" : "1.6rem 1.75rem" }}>
+          <div style={{ ...cardTitle, marginBottom: 18 }}>Activity mix</div>
           {mix.length === 0 ? (
-            <div style={{ fontSize: 12.5, color: "#9CA3AF", padding: "1.5rem 0" }}>{loading ? "Loading..." : "No transactions yet."}</div>
+            <div style={{ fontSize: 14, color: T.faint, padding: "1.5rem 0" }}>{loading ? "Loading..." : "No transactions yet."}</div>
           ) : (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-                <Donut segments={mix.map((m) => ({ value: m.value, color: m.color }))}>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>{txs.length}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280" }}>recent tx</div>
-                </Donut>
-                <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 10 }}>
-                  {mix.map((m) => (
-                    <div key={m.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, fontSize: 13 }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#374151", fontWeight: 600 }}>
-                        <span style={{ width: 9, height: 9, borderRadius: "50%", background: m.color }} />{m.label}
-                      </span>
-                      <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>{m.pct.toFixed(0)}%</span>
-                    </div>
-                  ))}
-                </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
+              <Donut segments={mix.map((m) => ({ value: m.value, color: m.color }))}>
+                <div style={{ fontFamily: T.display, fontSize: 34, fontWeight: 600, color: T.ink, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{txs.length}</div>
+                <div style={{ fontSize: 15, color: T.muted, marginTop: 4 }}>recent tx</div>
+              </Donut>
+              <div style={{ flex: 1, minWidth: 170, display: "flex", flexDirection: "column", gap: 18 }}>
+                {mix.map((m) => legendRow(m.color, m.label, (
+                  <span style={{ fontSize: 17, fontWeight: 500, color: T.ink, fontVariantNumeric: "tabular-nums" }}>{m.pct.toFixed(0)}%</span>
+                )))}
               </div>
-              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #EEF1FE", fontSize: 12, color: "#6B7280" }}>
-                Based on your last {txs.length} transactions.
-              </div>
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      <div style={{ ...card, overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, padding: "1rem 1.2rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Recent activity</span>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0D9488" }}>{loading ? "…" : incoming} incoming</span>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: "#16A34A" }}>{loading ? "…" : sent} sent</span>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: "#D97706" }}>{loading ? "…" : txCount === null ? "—" : txCount >= 100 ? "100+" : txCount} all-time tx</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, padding: "0.5rem 0.4rem 0.25rem" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 22, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 25, fontWeight: 600, color: T.ink, letterSpacing: "-0.01em" }}>Recent activity</span>
+            <span style={{ fontSize: 17, fontWeight: 500, color: "#16A34A" }}>{loading ? "…" : incoming} incoming</span>
+            <span style={{ fontSize: 17, fontWeight: 500, color: T.muted }}>{loading ? "…" : sent} sent</span>
+            <span style={{ fontSize: 17, fontWeight: 500, color: "#E07A10" }}>{loading ? "…" : txCount === null ? "—" : txCount >= 100 ? "100+" : txCount} all-time</span>
           </div>
           {onNavigate && (
             <button onClick={() => onNavigate("mainnethistory")}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#3D5AF1", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-              View all activity <ArrowRight size={15} />
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: T.blue, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+              View all <ArrowRight size={16} />
             </button>
           )}
         </div>
 
-        {loading && <div style={{ fontSize: 12.5, color: "#6B7280", padding: "0 1.2rem 1.2rem" }}>Loading...</div>}
-        {!loading && recent.length === 0 && <div style={{ padding: "0 1.2rem 1.2rem" }}><EmptyState icon="📭" title="No transactions yet" subtitle="Your recent activity will show up here" /></div>}
+        {loading && <div style={{ ...card, padding: "1.2rem", fontSize: 14, color: T.muted }}>Loading...</div>}
+        {!loading && recent.length === 0 && <div style={{ ...card, padding: "1.2rem" }}><EmptyState icon="📭" title="No transactions yet" subtitle="Your recent activity will show up here" /></div>}
 
-        {recent.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
-            <div style={{ minWidth: 640 }}>
-              <div style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, padding: "0.6rem 1.2rem", background: "#F5F7FF", borderTop: "1px solid #E7E4DD", borderBottom: "1px solid #E7E4DD", fontSize: 10.5, color: "#6B7280", fontWeight: 700, letterSpacing: "0.6px" }}>
-                <span>TYPE</span><span>ASSET</span><span style={{ textAlign: "right", paddingRight: 14 }}>AMOUNT</span><span>FROM / TO</span><span>TIME</span><span style={{ textAlign: "right" }}>TX</span>
-              </div>
-              {recent.map((tx) => {
-                const meta = metaFor(tx, address, diamond);
-                const amt = amountCell(tx, address);
-                return (
-                  <div key={tx.hash} style={{ display: "grid", gridTemplateColumns: TABLE_GRID, gap: 10, alignItems: "center", padding: "0.7rem 1.2rem", borderBottom: "1px solid #EEF1FE", fontSize: 13 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: meta.color, background: `${meta.color}1a`, border: `1px solid ${meta.color}33`, padding: "4px 10px", borderRadius: 8, width: "fit-content" }}>
-                      {TYPE_ICON[meta.label]}{meta.label}
-                    </span>
-                    {assetChip(assetOf(tx))}
-                    <span style={{ textAlign: "right", paddingRight: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums", fontFamily: "ui-monospace, 'JetBrains Mono', monospace", color: amt ? (amt.tone === "in" ? "#15803D" : "#111827") : "#9CA3AF" }}>{amt ? amt.text.replace(/ [A-Z]+$/, "") : "—"}</span>
-                    <span style={{ color: "#6B7280", fontFamily: "ui-monospace, 'JetBrains Mono', monospace", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{counterpartOf(tx, address)}</span>
-                    <span style={{ color: "#6B7280", fontSize: 12 }}>{tx.age}</span>
-                    <a href={`https://arc.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" title={shortHash(tx.hash)}
-                      style={{ display: "flex", justifyContent: "flex-end", color: "#4B5563" }}><ExternalLink size={15} /></a>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {recent.map((tx) => {
+          const meta = metaFor(tx, address, diamond);
+          const amt = amountCell(tx, address);
+          const sym = assetOf(tx);
+          return (
+            <a key={tx.hash} href={`https://arc.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="ffd-row"
+              style={{ ...glassRow, display: "grid", gridTemplateColumns: isMobile ? "auto 1fr auto" : "130px 150px 150px minmax(0, 1fr) 90px", alignItems: "center", gap: 14, padding: isMobile ? "10px 14px" : "10px 22px", textDecoration: "none", color: T.ink }}>
+              <span style={{ ...pill(meta.color), minWidth: 84, justifySelf: "start" }}>{meta.label}</span>
+              {!isMobile && (
+                <span style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 17, color: T.text }}>
+                  {sym === "USDC" || sym === "EURC"
+                    ? <img src={sym === "USDC" ? USDC_LOGO : EURC_LOGO} alt="" width={28} height={28} style={{ width: 28, height: 28, borderRadius: "50%" }} />
+                    : <span style={{ width: 28, height: 28, borderRadius: "50%", background: "#E6EBFF", color: T.blue, fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{(sym ?? "?").slice(0, 1)}</span>}
+                  {sym ?? "—"}
+                </span>
+              )}
+              <span style={{ fontSize: 18, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: amt ? (amt.tone === "in" ? "#15803D" : T.ink) : T.faint, whiteSpace: "nowrap" }}>{amt ? amt.text : "—"}</span>
+              {!isMobile && <span style={{ fontSize: 15, color: T.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontFamily: T.mono }}>{counterpartOf(tx, address)}</span>}
+              <span style={{ fontSize: 15, color: T.muted, textAlign: "right", whiteSpace: "nowrap" }}>{tx.age}</span>
+            </a>
+          );
+        })}
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "0.75rem 1.2rem", background: "#F7F8FF", borderTop: recent.length > 0 ? "none" : "1px solid #E7E4DD", fontSize: 12, color: "#6B7280" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}><ShieldCheck size={14} color="#3D5AF1" /> All data sourced from Arc Mainnet explorer</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "0.4rem 0.5rem", fontSize: 13, color: T.muted }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}><ShieldCheck size={15} color={T.blue} /> All data sourced from Arc Mainnet explorer</span>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             Last updated: {updatedText}
-            <button onClick={() => setReloadKey((k) => k + 1)} title="Refresh" style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 2, color: "#3D5AF1" }}><RefreshCw size={14} /></button>
+            <button onClick={() => setReloadKey((k) => k + 1)} title="Refresh" style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 2, color: T.blue }}><RefreshCw size={15} /></button>
           </span>
         </div>
       </div>
+      <style>{`.ffd-row { transition: transform 0.15s ease, background 0.15s ease; } .ffd-row:hover { background: rgba(255,255,255,0.9) !important; transform: translateY(-1px); }`}</style>
     </div>
   );
 }
