@@ -186,10 +186,12 @@ function FlowFiMark({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" style={{ flexShrink: 0, display: "block" }}>
       <defs>
-        <linearGradient id="ffm-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8FB0FF" /><stop offset="1" stopColor="#3D5AF1" /></linearGradient>
-        <linearGradient id="ffm-bot" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#22D3EE" /><stop offset="1" stopColor="#4F6BF6" /></linearGradient>
+        <linearGradient id="ffm-tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#EEF2FF" /><stop offset="1" stopColor="#D9E1FF" /></linearGradient>
+        <linearGradient id="ffm-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#6F8CFF" /><stop offset="1" stopColor="#3D5AF1" /></linearGradient>
+        <linearGradient id="ffm-bot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3D5AF1" /><stop offset="1" stopColor="#2238C9" /></linearGradient>
       </defs>
-      <rect width="100" height="100" rx="28" fill="#0B0B12" />
+      <rect width="100" height="100" rx="28" fill="url(#ffm-tile)" />
+      <rect x="1" y="1" width="98" height="98" rx="27" fill="none" stroke="#FFFFFF" strokeWidth="2" />
       <g transform="translate(22 15) scale(0.7)">
         <path fill="url(#ffm-top)" d="M0 14C0 6 6 0 14 0H78C82 0 84 4 82 7L72 26C69 31 64 34 58 34H22C10 34 3 40 0 48Z" />
         <path fill="url(#ffm-bot)" d="M0 62C0 53 7 46 16 46H66C70 46 72 50 70 53L62 64C59 68 55 70 50 70H36C28 70 22 74 18 80L8 97C6 100 0 100 0 96Z" />
@@ -544,7 +546,7 @@ function AppInner() {
       <header style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 3rem", maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <FlowFiMark size={34} />
-          <div className="flowfi-display" style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1, color: "#111827" }}>FlowFi</div>
+          <div className="flowfi-display" style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1, color: "#111827" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 14px", borderRadius: 999, border: "1px solid #E5DEFA", fontSize: 11.5, fontWeight: 700, color: "#374151" }}>
@@ -557,7 +559,7 @@ function AppInner() {
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "3rem 3rem 2rem", display: "flex", alignItems: "center", gap: "3rem", flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 460px", minWidth: 320 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", padding: "6px 16px", borderRadius: 30, background: "rgba(109,94,247,0.1)", fontSize: 12, fontWeight: 700, color: "#6D5EF7", marginBottom: 24, letterSpacing: "0.4px" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", padding: "6px 16px", borderRadius: 30, background: "rgba(61,90,241,0.1)", fontSize: 12, fontWeight: 700, color: "#3D5AF1", marginBottom: 24, letterSpacing: "0.4px" }}>
             ON ARC MAINNET
           </div>
           <h1 className="flowfi-display" style={{ fontSize: 52, fontWeight: 800, lineHeight: 1.1, letterSpacing: "-1.5px", marginBottom: 20, color: "#111827" }}>
@@ -639,7 +641,7 @@ function AppInner() {
           <div style={{ maxWidth: 320 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
               <FlowFiMark size={30} />
-              <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>FlowFi</span>
+              <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></span>
             </div>
             <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
               Self-custodial bridging and swapping on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Every transaction signed by your own wallet, never by FlowFi.
@@ -713,7 +715,7 @@ function AppInner() {
         <div style={{ padding: "0 1.25rem 1rem", marginBottom: "0.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <FlowFiMark size={32} />
-            <div className="flowfi-display" style={{ fontSize: 18, fontWeight: 700, color: "#16151C", letterSpacing: "-0.02em" }}>FlowFi</div>
+            <div className="flowfi-display" style={{ fontSize: 18, fontWeight: 700, color: "#0F1B3D", letterSpacing: "-0.02em" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></div>
           </div>
           <div role="group" aria-label="Network" style={{ display: "flex", gap: 2, padding: 3, marginTop: 18, borderRadius: 11, background: "#ECEAE4" }}>
             {([
@@ -854,7 +856,7 @@ function AppInner() {
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <FlowFiMark size={26} />
-              <span className="flowfi-display" style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>FlowFi</span>
+              <span className="flowfi-display" style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></span>
             </div>
             <div style={{ width: 32 }} />
           </div>
@@ -970,7 +972,7 @@ function AppInner() {
             <div style={{ maxWidth: 320 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                 <FlowFiMark size={30} />
-                <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>FlowFi</span>
+                <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></span>
               </div>
               <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
                 Self-custodial bridging and swapping on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Every transaction signed by your own wallet, never by FlowFi.
