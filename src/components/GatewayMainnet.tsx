@@ -147,7 +147,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
   const [toChain, setToChain] = useState("base");
   const [tAmount, setTAmount] = useState("");
   const [recipient, setRecipient] = useState("");
-  const [tStep, setTStep] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const [tStep, setTStep] = useState<"idle" | "busy" | "pending" | "done" | "error">("idle");
   const [tMsg, setTMsg] = useState<string | null>(null);
 
   const dep = CHAINS.find((c) => c.key === depChain)!;
@@ -155,6 +155,8 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
   const to = CHAINS.find((c) => c.key === toChain)!;
 
   useEffect(() => { if (owner) setRecipient(owner); }, [owner]);
+  // Circle Wallet deposits run on Arc only (its other wallets would need ETH for gas).
+  useEffect(() => { if (source === "circle" && depChain !== "arc") setDepChain("arc"); }, [source]);
 
   async function refresh(): Promise<Record<string, { available: number; pending: number }> | null> {
     if (!owner) return null;
@@ -320,7 +322,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         if (status === "failed" || status === "expired") throw new Error(`Transfer ${status}. Your Gateway balance was not spent.`);
         await sleep(3000);
       }
-      setTStep("done"); setTMsg("Submitted. Delivery is taking longer than usual; check your balance in a minute.");
+      setTStep("pending"); setTMsg("Submitted, but delivery isn't confirmed yet. Check your balance on the destination in a few minutes before trying again.");
     } catch (e: unknown) {
       const err = e as { shortMessage?: string; message?: string };
       setTStep("error"); setTMsg(err.shortMessage || err.message || "Transfer failed.");
@@ -336,16 +338,17 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
   );
 
   // Chain picker: logo buttons instead of a plain <select>.
-  const chainPicker = (value: string, onPick: (k: string) => void, disabled: boolean, ariaLabel: string, showBal: false | "gateway" | "wallet" = false, exclude?: string) => (
+  const chainPicker = (value: string, onPick: (k: string) => void, disabled: boolean, ariaLabel: string, showBal: false | "gateway" | "wallet" = false, exclude?: string | string[]) => (
     <div role="radiogroup" aria-label={ariaLabel} style={{ display: "grid", gridTemplateColumns: `repeat(${isMobile ? 2 : 4}, minmax(0, 1fr))`, gap: 8 }}>
       {CHAINS.map((c) => {
         const on = value === c.key;
-        const off = disabled || c.key === exclude;
+        const excluded = Array.isArray(exclude) ? exclude.includes(c.key) : c.key === exclude;
+        const off = disabled || excluded;
         return (
           <button key={c.key} type="button" role="radio" aria-checked={on} disabled={off} onClick={() => onPick(c.key)}
             style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 52, padding: "8px 10px", borderRadius: 14, textAlign: "left",
               border: on ? `1.5px solid ${BLUE}` : "1px solid rgba(255,255,255,0.95)", background: on ? "rgba(61,90,241,0.10)" : "rgba(255,255,255,0.8)", boxShadow: on ? "none" : "0 3px 10px -6px rgba(36,58,150,0.3)",
-              opacity: c.key === exclude ? 0.35 : 1, cursor: off ? "not-allowed" : "pointer" }}>
+              opacity: excluded ? 0.35 : 1, cursor: off ? "not-allowed" : "pointer" }}>
             <ChainLogo chain={c.key as ChainKey} size={26} />
             <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
               <span style={{ fontSize: 13.5, fontWeight: 600, color: INK }}>{c.name}</span>
@@ -410,7 +413,8 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
   const depositPane = (
     <>
       <span style={label}>From your {source === "browser" ? "wallet" : "Circle Wallet"} on</span>
-      {chainPicker(depChain, setDepChain, dStep === "busy", "Deposit from chain", "wallet")}
+      {chainPicker(depChain, setDepChain, dStep === "busy", "Deposit from chain", "wallet", source === "circle" ? ["base", "ethereum", "arbitrum"] : undefined)}
+      {source === "circle" && <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Circle Wallet deposits into Gateway from Arc, where gas is paid in USDC.</p>}
       {bigAmount("gw-dep-amount", depAmount, setDepAmount, dStep === "busy", depMax)}
       {dep.slow && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", borderRadius: 12, background: "#FFF4E0", color: "#6A4308", fontSize: 12.5, lineHeight: 1.5 }}>

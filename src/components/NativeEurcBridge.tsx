@@ -214,7 +214,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
         value: q.fee,
         data: encodeFunctionData({
           abi: SERVICE_ABI, functionName: "crossChainTransfer",
-          args: [tok.id, amountRaw, ARC_DOMAIN, encodePacked(["address"], [address as `0x${string}`]), ZERO_BYTES32, q.fast ? 1000 : 2000, { signedQuote: q.signedQuote, refundAddress: zeroAddress }, false, "0x"],
+          args: [tok.id, amountRaw, ARC_DOMAIN, encodePacked(["address"], [address as `0x${string}`]), ZERO_BYTES32, q.fast ? 1000 : 2000, { signedQuote: q.signedQuote, refundAddress: address as `0x${string}` }, false, "0x"],
         }),
       });
       setTxHash(hash); setPendingSrc(srcIdx); savePending(hash, srcIdx, amount.trim());

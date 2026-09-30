@@ -179,9 +179,12 @@ async function btcPrice() {
 // USD value held by the account for the cap: USDC + EURC (1:1) + cirBTC at the live BTC price,
 // across every wallet, plus the account's Gateway USDC balance. Uses Circle's own balance API.
 // priceOk is false when the account holds cirBTC but no BTC price could be fetched.
+// `complete` is false when any balance source failed to answer; actions that add risk are then
+// refused (fail closed) instead of trusting a total that may be too low.
 async function capStatus(client, record) {
   let total = 0;
   let cirbtc = 0;
+  let complete = true;
   for (const w of Object.values(record.walletsByChain)) {
     try {
       const r = await client.getWalletTokenBalance({ id: w.walletId });
@@ -191,7 +194,7 @@ async function capStatus(client, record) {
         if (CAP_SYMBOLS.has(sym)) total += Number(tb.amount) || 0;
         else if (sym === 'CIRBTC') cirbtc += Number(tb.amount) || 0;
       }
-    } catch { /* a chain that fails to report doesn't lower the total */ }
+    } catch { complete = false; }
   }
   try {
     const sources = Object.entries(record.walletsByChain)
@@ -202,9 +205,11 @@ async function capStatus(client, record) {
       if (r.ok) {
         const d = await r.json();
         for (const b of d?.balances ?? []) total += Number(b.balance) || 0;
+      } else {
+        complete = false;
       }
     }
-  } catch { /* Gateway unreachable: wallet balances still count */ }
+  } catch { complete = false; }
   let price = null;
   if (cirbtc > 0) {
     price = await btcPrice();
@@ -212,7 +217,7 @@ async function capStatus(client, record) {
   } else {
     price = await btcPrice(); // still returned so the UI can size cirBTC deposits
   }
-  return { total, btcPrice: price, priceOk: cirbtc === 0 || !!price };
+  return { total, btcPrice: price, priceOk: cirbtc === 0 || !!price, complete };
 }
 
 function toBytes32(addr) { return `0x${'0'.repeat(24)}${String(addr).slice(2).toLowerCase()}`; }
@@ -290,7 +295,7 @@ module.exports = async function handler(req, res) {
 
     if (action === 'status') {
       const cap = await capStatus(client, record);
-      return res.status(200).json({ success: true, stableTotal: cap.total, btcPrice: cap.btcPrice, priceOk: cap.priceOk, capUsd: CAP_USD, overCap: cap.total > CAP_USD, withdrawOnly: WITHDRAW_ONLY });
+      return res.status(200).json({ success: true, stableTotal: cap.total, btcPrice: cap.btcPrice, priceOk: cap.priceOk, complete: cap.complete, capUsd: CAP_USD, overCap: cap.total > CAP_USD, withdrawOnly: WITHDRAW_ONLY });
     }
 
     // Withdraw: always allowed. Sends `amount` of an allowlisted token to an external address.
@@ -361,7 +366,12 @@ module.exports = async function handler(req, res) {
       const allowed = ALLOWED_CALLS.get(String(contractAddress).toLowerCase());
       if (!allowed || !allowed.has(abiFunctionSignature)) return res.status(403).json({ error: "This contract/function is not on FlowFi's mainnet allowlist." });
       if (!ownsWallet(record, walletId)) return res.status(403).json({ error: 'This wallet does not belong to the signed-in account.' });
+      // Wallets are EOAs: on Base/Ethereum/Arbitrum they need ETH for gas, which users can't add or
+      // withdraw here. Contract calls (approve, Gateway deposit, CCTP) are allowed on Arc only,
+      // where gas is paid in USDC.
+      if (record.walletsByChain.ARC?.walletId !== walletId) return res.status(403).json({ error: 'Circle Wallet actions run on Arc only (gas there is paid in USDC).' });
       const cap = await capStatus(client, record);
+      if (!cap.complete) return res.status(503).json({ error: "Couldn't read all of your balances right now, so actions are paused for safety. Withdrawals still work. Please try again in a minute." });
       if (!cap.priceOk) return res.status(503).json({ error: "Couldn't price your cirBTC right now, so actions are paused for safety. Withdrawals still work. Please try again in a minute." });
       if (cap.total > CAP_USD) return res.status(403).json({ error: `Your Circle wallet holds more than the $${CAP_USD} limit. Please withdraw the excess to your own wallet first.` });
       const r = await client.createContractExecutionTransaction({

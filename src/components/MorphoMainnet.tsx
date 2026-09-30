@@ -207,7 +207,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const fullRepay = borrowAction === "repay" && debt > 0n && amt >= debt;
   const fullWithdrawEarn = earnAction === "withdraw" && vs.assets > 0n && amt >= vs.assets;
 
-  const can = !!owner && amt > 0n && step !== "sending" && (fullRepay ? walletLoan >= debt : amt <= max) && !!mkt;
+  const can = !!owner && amt > 0n && step !== "sending" && (fullRepay ? loanSpendable >= debt : amt <= max) && !!mkt;
   const verb = isEarn ? (earnAction === "deposit" ? "Deposit" : "Withdraw")
     : ({ collateral: "Add collateral", borrow: "Borrow", repay: fullRepay ? "Repay all" : "Repay", withdraw: "Withdraw collateral" } as const)[borrowAction];
   const btn = step === "sending" ? "Confirm in your wallet..." : !amount ? "Enter an amount" : amt > max && !fullRepay ? (actionKey === "borrow" ? "Above the 70% safe limit" : actionKey === "withdraw" ? "Would go above the 70% safe limit" : "Not enough balance") : `${verb} ${amount} ${tokenSymbol}`;
@@ -269,7 +269,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         await wait(await wc.writeContract(request));
       } else if (borrowAction === "repay") {
         // Full repay goes by shares so no dust debt is left; approve a small buffer for interest accrued meanwhile.
-        const need = fullRepay ? minB(walletLoan, (debt * 1001n) / 1000n + 10_000n) : amt;
+        const need = fullRepay ? minB(loanSpendable, (debt * 1001n) / 1000n + 10_000n) : amt;
         await approve(M.loan, MORPHO_BLUE, need, loanSym);
         setMsg("Confirm the repayment...");
         const [repayAssets, repayShares] = fullRepay ? [0n, pos.borrowShares] : [amt, 0n];
@@ -354,7 +354,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
     : `Debt ${usd(u6(debt))} ${loanSym} · wallet ${usd(u6(walletLoan))} ${loanSym}`;
 
   const setMax = () => {
-    if (!isEarn && borrowAction === "repay" && debt > 0n && walletLoan >= debt) { setAmount(formatUnits(debt, USDC_DECIMALS)); return; }
+    if (!isEarn && borrowAction === "repay" && debt > 0n && loanSpendable >= debt) { setAmount(formatUnits(debt, USDC_DECIMALS)); return; }
     if (isEarn && earnAction === "withdraw" && !withdrawLimited && vs.assets > 0n) { setAmount(formatUnits(vs.assets, USDC_DECIMALS)); return; }
     setAmount(formatUnits(max, tokenDecimals));
   };

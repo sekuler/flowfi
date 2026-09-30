@@ -28,7 +28,9 @@ const ASSETS: Asset[] = [
 
 // Assets that can be added from the browser wallet. cirBTC counts toward the holding cap at the
 // live BTC price (the backend prices it; the UI sizes deposits with the price it returns).
-const DEPOSIT_KEYS = ["arc-usdc", "arc-eurc", "arc-cirbtc", "base-usdc", "eth-usdc", "arb-usdc"];
+// Arc only: the Base/Ethereum/Arbitrum wallets are EOAs that would need ETH for gas to move funds
+// back out, and ETH can't be added or withdrawn here. On Arc, gas is paid in USDC.
+const DEPOSIT_KEYS = ["arc-usdc", "arc-eurc", "arc-cirbtc"];
 
 async function switchTo(provider: EIP1193Provider, chain: Chain) {
   const isArc = chain.id === arcMainnet.id;
@@ -80,7 +82,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balances, setBalances] = useState<Record<string, string | null>>({});
-  const [status, setStatus] = useState<{ stableTotal: number; capUsd: number; overCap: boolean; withdrawOnly: boolean; btcPrice?: number | null; priceOk?: boolean } | null>(null);
+  const [status, setStatus] = useState<{ stableTotal: number; capUsd: number; overCap: boolean; withdrawOnly: boolean; btcPrice?: number | null; priceOk?: boolean; complete?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
   const isMobile = useIsMobile();
   const [tab, setTab] = useState<"add" | "withdraw">("add");
@@ -274,10 +276,11 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const floorTo = (n: number, d: number) => Math.floor(n * 10 ** d) / 10 ** d;
   const depMax = usdPerUnit > 0 ? floorTo(Math.min(depBalNum, room / usdPerUnit), unitDigits) : 0;
   const depValid = Number.isFinite(depAmt) && depAmt > 0 && depAmt <= depBalNum && usdPerUnit > 0 && depUsd <= room;
-  const canDeposit = !!provider && !!browserAddress && !!status && !status.withdrawOnly && !status.overCap && depValid && dStep !== "sending";
+  const canDeposit = !!provider && !!browserAddress && !!status && status.complete !== false && !status.withdrawOnly && !status.overCap && depValid && dStep !== "sending";
   const depLabel = !provider || !browserAddress ? "Connect a browser wallet to deposit"
     : !status ? "Loading..."
     : status.withdrawOnly ? "Deposits are closed"
+    : status.complete === false ? "Balances unavailable, try again shortly"
     : dStep === "sending" ? "Depositing..."
     : isBtc && !btc ? "BTC price unavailable, try again shortly"
     : room <= 0 ? `Limit reached ($${status.capUsd})`
@@ -374,7 +377,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
         Amount{depBal !== null ? ` · in your wallet: ${depBalNum.toLocaleString("en-US", { maximumFractionDigits: unitDigits })} ${depAsset.symbol}` : ""}{isBtc && btc && depAmt > 0 ? ` · ≈ $${depUsd.toFixed(2)}` : ""}
       </span>
       {bigAmount("cw-live-dep-amount", depAmount, setDepAmount, dStep === "sending", () => setDepAmount(depMax > 0 ? String(depMax) : ""), depAsset.symbol)}
-      {depAsset.chainCode !== "ARC" && <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Your wallet pays a little ETH gas on {depAsset.chainName}.</p>}
+      <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Funds are added on Arc, where gas is paid in USDC.</p>
       {msgBox(dStep, dMsg, dHash, depAsset.explorer)}
       <button type="button" onClick={deposit} disabled={!canDeposit} style={primary(canDeposit)}>{depLabel}</button>
     </>
@@ -391,7 +394,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
       {browserAddress && dest.trim().toLowerCase() !== browserAddress.toLowerCase() && (
         <button type="button" onClick={() => setDest(browserAddress)} style={{ alignSelf: "flex-start", border: "none", background: "none", color: LINK, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0 }}>Use my connected wallet</button>
       )}
-      {asset.chainCode !== "ARC" && <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Withdrawing on {asset.chainName} needs a little ETH in this Circle wallet for gas.</p>}
+      {asset.chainCode !== "ARC" && <p style={{ margin: 0, fontSize: 12, color: "#B45309", lineHeight: 1.5 }}>Withdrawing on {asset.chainName} needs a little ETH for gas in this Circle wallet. Send a small amount of ETH on {asset.chainName} to the address above from your own wallet first.</p>}
       {msgBox(wStep, wMsg, wHash, asset.explorer)}
       <button type="button" onClick={withdraw} disabled={!canWithdraw} style={primary(canWithdraw)}>
         {wStep === "sending" ? "Withdrawing..." : !amount ? "Enter an amount" : amt > balNum ? "Not enough balance" : !validDest ? "Enter a valid address" : `Withdraw ${amount} ${asset.symbol}`}

@@ -433,6 +433,8 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
         const amountRaw = parseUnits(amount.trim(), USDC_ERC20_DECIMALS);
         const plan = forwarding ? await fetchForwardPlan(amountRaw) : null;
+        // The screen promised gasless delivery; never quietly switch to a burn that needs Arc gas.
+        if (forwarding && plan === null) throw new Error("Couldn't get Circle's delivery quote right now, so nothing was sent. Please try again in a moment.");
         forwardedBurn = plan !== null;
         const maxFee = plan ? plan.maxFee : await fetchMaxFee(amountRaw);
         const finality = plan ? (plan.fast ? 1000 : 2000) : (useFast ? 1000 : 2000);
