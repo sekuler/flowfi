@@ -105,7 +105,7 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
     if (address) load();
   }, [address, reloadKey]);
 
-  const { total, distribution, top, topPct, chartPoints, hasChart, change } = usePortfolio(address, balances);
+  const { total, gross, debt, distribution, top, topPct, chartPoints, hasChart, change } = usePortfolio(address, balances);
 
   // Activity mix: last 20 transactions, labelled the same way as the History page.
   const mixCounts: Record<string, { count: number; color: string }> = {};
@@ -205,9 +205,12 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
                 {distribution.map((d) => legendRow(d.color, d.label, (
                   <span style={{ textAlign: "right" }}>
                     <span style={{ display: "block", fontSize: 17, fontWeight: 600, color: T.ink, fontVariantNumeric: "tabular-nums" }}>${money(d.value)}</span>
-                    <span style={{ display: "block", fontSize: 13.5, color: T.faint, fontVariantNumeric: "tabular-nums" }}>{((d.value / total) * 100).toFixed(1)}%</span>
+                    <span style={{ display: "block", fontSize: 13.5, color: T.faint, fontVariantNumeric: "tabular-nums" }}>{((d.value / gross) * 100).toFixed(1)}%</span>
                   </span>
                 )))}
+                {debt > 0 && legendRow("#DC2626", "Borrowed (Morpho)", (
+                  <span style={{ textAlign: "right", fontSize: 17, fontWeight: 600, color: "#DC2626", fontVariantNumeric: "tabular-nums" }}>−${money(debt)}</span>
+                ))}
               </div>
             </div>
           )}
