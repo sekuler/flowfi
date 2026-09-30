@@ -47,15 +47,25 @@ async function getWcProvider() {
       return EthereumProvider.init({
         projectId: WALLETCONNECT_PROJECT_ID,
         showQrModal: true,
-        optionalChains: [5042, 5042002, 1, 8453, 42161, 11155111],
+        // Every chain the app can ask the wallet to switch to: Arc (mainnet + testnet), every source
+        // chain of the native USDC/EURC bridges, Gateway's chains, and Sepolia (testnet bridge).
+        // A chain missing here can't be switched to over WalletConnect. Keep in sync with
+        // SOURCE_CHAINS in NativeCctpBridge.tsx.
+        optionalChains: [
+          5042, 5042002, 1, 43114, 10, 42161, 8453, 137, 130, 59144, 81224, 146, 480, 143, 1329, 50, 999, 57073, 98865, 2818,
+          11155111,
+        ],
         // Arc's real RPC has no CORS headers, so route reads through our own proxy (full URL required).
-        rpcMap: { "5042002": `${window.location.origin}/api/rpc-proxy` },
+        rpcMap: {
+          "5042": `${window.location.origin}/api/rpc-proxy?network=mainnet`,
+          "5042002": `${window.location.origin}/api/rpc-proxy`,
+        },
         qrModalOptions: { themeVariables: { "--wcm-z-index": "9999" } },
         metadata: {
           name: "FlowFi",
-          description: "The AI-powered DeFi operating system for Arc.",
+          description: "Bridge, swap and earn with USDC on Arc.",
           url: window.location.origin,
-          icons: [`${window.location.origin}/favicon.ico`],
+          icons: [`${window.location.origin}/favicon.svg`],
         },
       });
     })().catch((e) => { wcPromise = null; throw e; });
