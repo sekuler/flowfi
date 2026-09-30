@@ -75,9 +75,11 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
   : null;
 
 const OTP_TTL_SECONDS = 600;
+const FAILS_PER_CODE = 5;   // wrong guesses before a code is burned
+const MAX_DAILY_FAILS = 15; // wrong guesses per email per 24h before sign-in locks
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_COOKIE_NAME = 'flowfi_circle_live_session';
-const KEY = { otp: (e) => `circle-live-otp:${e}`, wallet: (e) => `circle-live-wallet:${e}`, sv: (e) => `circle-live-session-version:${e}` };
+const KEY = { otp: (e) => `circle-live-otp:${e}`, wallet: (e) => `circle-live-wallet:${e}`, sv: (e) => `circle-live-session-version:${e}`, fails: (e) => `circle-live-otp-fails:${e}` };
 
 function normalizeEmail(email) { return String(email || '').trim().toLowerCase(); }
 function isValidEmail(email) { return /^[^\s@|]+@[^\s@|]+\.[^\s@|]+$/.test(email) && email.length <= 254; }
@@ -272,13 +274,26 @@ module.exports = async function handler(req, res) {
       const email = normalizeEmail(req.body.email);
       const code = String(req.body.code || '').trim();
       if (!isValidEmail(email) || !code) return res.status(400).json({ error: 'email and code are required.' });
-      const { success } = await verifyRatelimit.limit(email);
-      if (!success) return res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
+      const [vByEmail, vByIp] = await Promise.all([verifyRatelimit.limit(email), verifyRatelimit.limit(`ip:${ip}`)]);
+      if (!vByEmail.success || !vByIp.success) return res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
+      if ((Number(await redis.get(KEY.fails(email))) || 0) >= MAX_DAILY_FAILS) {
+        return res.status(429).json({ error: 'Too many wrong codes today. Please try again tomorrow.' });
+      }
       const stored = await redis.get(KEY.otp(email));
-      if (!stored || String(stored) !== code) return res.status(401).json({ error: 'Invalid or expired code.' });
+      if (!stored) return res.status(401).json({ error: 'Invalid or expired code.' });
+      if (String(stored) !== code) {
+        // Wrong guesses are counted per email for 24h (not reset by requesting a new code),
+        // and every 5th one burns the current code, so a 6-digit code can't be brute-forced.
+        const n = await redis.incr(KEY.fails(email));
+        if (n === 1) await redis.expire(KEY.fails(email), 86400);
+        const burned = n % FAILS_PER_CODE === 0 || n >= MAX_DAILY_FAILS;
+        if (burned) await redis.del(KEY.otp(email));
+        return res.status(401).json({ error: burned ? 'Too many wrong codes. Please request a new code.' : 'Invalid or expired code.' });
+      }
       // Only the request that actually deletes the code may continue. Two quick submits of the
       // same code used to both pass and create two wallet sets, orphaning the first one.
       if ((await redis.del(KEY.otp(email))) !== 1) return res.status(401).json({ error: 'Invalid or expired code.' });
+      await redis.del(KEY.fails(email));
 
       let record = await loadRecord(email);
       if (!record) {
