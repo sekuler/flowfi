@@ -216,10 +216,10 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 
 | | |
 |---|---|
-| **Landing**<br>Connect a wallet, sign in with email, or explore | ![Landing](./screenshots/1-landing.jpg) |
-| **Home**<br>Net worth, assets, Copilot, recent activity | ![Home](./screenshots/2-home.jpg) |
-| **Bridge**<br>Gasless native USDC, EURC & cirBTC, any token via LI.FI | ![Bridge](./screenshots/3-bridge.jpg) |
-| **Swap**<br>Same-chain swaps on Arc, opens on USDC → EURC | ![Swap](./screenshots/4-swap.jpg) |
+| **Landing**<br>Connect a wallet, sign in with email, or explore | ![Landing](./screenshots/1-Landing.jpg) |
+| **Home**<br>Net worth, assets, Copilot, recent activity | ![Home](./screenshots/2-Home.jpg) |
+| **Bridge**<br>Gasless native USDC, EURC & cirBTC, any token via LI.FI | ![Bridge](./screenshots/3-Bridge.jpg) |
+| **Swap**<br>Same-chain swaps on Arc, opens on USDC → EURC | ![Swap](./screenshots/4-Swap.jpg) |
 | **Earn & Borrow**<br>Morpho vaults for USDC/EURC, borrow against cirBTC | ![Earn & Borrow](./screenshots/5-earn-borrow.jpg) |
 | **Circle Wallet**<br>Email sign-in, balances on four chains, add funds / withdraw | ![Circle Wallet](./screenshots/6-circle-wallet.jpg) |
 | **Gateway**<br>One USDC balance across four chains: deposit, send, withdraw | ![Gateway](./screenshots/7-gateway.jpg) |
