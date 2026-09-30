@@ -41,7 +41,8 @@ function loadMorphoBadge() {
 }
 
 type Mkt = { totalSupplyAssets: bigint; totalSupplyShares: bigint; totalBorrowAssets: bigint; totalBorrowShares: bigint; lastUpdate: bigint; fee: bigint };
-type VaultState = { tvl: bigint; shares: bigint; assets: bigint; maxW: bigint };
+// assetOk: the vault's onchain asset() matches the token FlowFi thinks it is (checked on every load).
+type VaultState = { tvl: bigint; shares: bigint; assets: bigint; maxW: bigint; assetOk: boolean };
 type EarnAction = "deposit" | "withdraw";
 type BorrowAction = "collateral" | "borrow" | "repay" | "withdraw";
 
@@ -98,6 +99,12 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   useEffect(() => { loadMorphoBadge(); }, []);
   useEffect(() => { setAcked(owner ? readAck(owner) : false); }, [owner]);
 
+  // Switching USDC <-> EURC borrow market: drop the old market's numbers right away, so nothing
+  // (max, LTV, Repay all) is computed from the previous market while the new one loads.
+  useEffect(() => {
+    setMkt(null); setPrice(null); setRate(null); setPos({ borrowShares: 0n, collateral: 0n });
+  }, [borrowAsset]);
+
   // Market, oracle, rate, vault TVLs, and the user's balances/positions.
   useEffect(() => {
     let cancelled = false;
@@ -112,7 +119,11 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
 
         const vs: Record<string, VaultState> = {};
         await Promise.all(VAULTS.map(async (v) => {
-          const tvl = await pc.readContract({ address: v.address, abi: VAULT_ABI, functionName: "totalAssets" });
+          const [tvl, underlying] = await Promise.all([
+            pc.readContract({ address: v.address, abi: VAULT_ABI, functionName: "totalAssets" }),
+            pc.readContract({ address: v.address, abi: VAULT_ABI, functionName: "asset" }).catch(() => null),
+          ]);
+          const assetOk = !!underlying && underlying.toLowerCase() === (v.asset === "EURC" ? EURC : USDC).toLowerCase();
           let shares = 0n, assets = 0n, maxW = 0n;
           if (owner) {
             [shares, maxW] = await Promise.all([
@@ -121,7 +132,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
             ]);
             if (shares > 0n) assets = await pc.readContract({ address: v.address, abi: VAULT_ABI, functionName: "convertToAssets", args: [shares] });
           }
-          vs[v.key] = { tvl, shares, assets, maxW };
+          vs[v.key] = { tvl, shares, assets, maxW, assetOk };
         }));
 
         let p = { borrowShares: 0n, collateral: 0n }, wu = 0n, wb = 0n, we = 0n;
@@ -181,7 +192,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   // Gas on Arc is paid in USDC, so only a USDC deposit keeps a little back for fees.
   const earnWallet = earnAsset === "EURC" ? walletEurc : pos0(walletUsdc - GAS_BUFFER);
   const earnWalletRaw = earnAsset === "EURC" ? walletEurc : walletUsdc;
-  const vs = vaults[vaultKey] ?? { tvl: 0n, shares: 0n, assets: 0n, maxW: 0n };
+  const vs = vaults[vaultKey] ?? { tvl: 0n, shares: 0n, assets: 0n, maxW: 0n, assetOk: true };
   // Some vaults report maxWithdraw = 0 for everyone; then the real limit is checked when the tx is simulated.
   const withdrawable = vs.maxW > 0n ? minB(vs.maxW, vs.assets) : vs.assets;
   const withdrawLimited = vs.maxW > 0n && vs.maxW < vs.assets;
@@ -212,7 +223,8 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const fullRepay = borrowAction === "repay" && debt > 0n && amt >= debt;
   const fullWithdrawEarn = earnAction === "withdraw" && vs.assets > 0n && amt >= vs.assets;
 
-  const can = !!owner && amt > 0n && step !== "sending" && (fullRepay ? loanSpendable >= debt : amt <= max) && !!mkt;
+  const vaultBlocked = isEarn && earnAction === "deposit" && !vs.assetOk;
+  const can = !!owner && amt > 0n && step !== "sending" && (fullRepay ? loanSpendable >= debt : amt <= max) && !!mkt && !vaultBlocked;
   const verb = isEarn ? (earnAction === "deposit" ? "Deposit" : "Withdraw")
     : ({ collateral: "Add collateral", borrow: "Borrow", repay: fullRepay ? "Repay all" : "Repay", withdraw: "Withdraw collateral" } as const)[borrowAction];
   const btn = step === "sending" ? "Confirm in your wallet..." : !amount ? "Enter an amount" : amt > max && !fullRepay ? (actionKey === "borrow" ? "Above the 70% safe limit" : actionKey === "withdraw" ? "Would go above the 70% safe limit" : "Not enough balance") : `${verb} ${amount} ${tokenSymbol}`;
@@ -425,6 +437,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
             })}
           </div>
           {segmented([{ k: "deposit", t: "Deposit" }, { k: "withdraw", t: "Withdraw" }], earnAction, setEarnAction, "Deposit or withdraw")}
+          {!vs.assetOk && <p style={{ margin: 0, fontSize: 12, color: "#B91C1C" }}>This vault didn't pass FlowFi's safety check, so deposits are paused. Withdrawals still work.</p>}
           {withdrawLimited && earnAction === "withdraw" && <p style={{ margin: 0, fontSize: 12, color: "#B45309" }}>The vault's funds are mostly lent out right now, so only part of your deposit can be withdrawn at once.</p>}
           {amountBox()}
         </section>

@@ -67,6 +67,7 @@ export const IRM_ABI = parseAbi([
 export const ORACLE_ABI = parseAbi(["function price() view returns (uint256)"]);
 
 export const VAULT_ABI = parseAbi([
+  "function asset() view returns (address)",
   "function totalAssets() view returns (uint256)",
   "function balanceOf(address account) view returns (uint256)",
   "function maxWithdraw(address owner) view returns (uint256)",
