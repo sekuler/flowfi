@@ -23,6 +23,10 @@ const crypto = require('crypto');
 const CHAINS = (process.env.CIRCLE_LIVE_CHAINS || 'ARC,BASE,ETH,ARB').split(',').map((s) => s.trim()).filter(Boolean);
 const CAP_USD = Number(process.env.CIRCLE_LIVE_CAP_USD || 100);
 const WITHDRAW_ONLY = process.env.CIRCLE_LIVE_WITHDRAW_ONLY === '1';
+// Total number of mainnet Circle Wallet accounts. The per-account cap alone doesn't bound total
+// exposure (one person can open many emails), so new sign-ups close once this is reached.
+const MAX_ACCOUNTS = Number(process.env.CIRCLE_LIVE_MAX_ACCOUNTS || 100);
+const ACCOUNT_COUNT_KEY = 'circle-live-account-count';
 
 // Stablecoins counted toward the cap (1 unit ~ $1; EURC is counted 1:1, slightly
 // conservative-low, which is fine for a safety cap of this size). cirBTC is counted too, at the
@@ -163,6 +167,21 @@ if (redis) {
   actionRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, '600 s'), prefix: 'ratelimit:circle-live-action' });
 }
 
+// Current account count. The first time it runs, it counts the accounts that already exist.
+async function accountCount() {
+  const c = await redis.get(ACCOUNT_COUNT_KEY);
+  if (c !== null && c !== undefined) return Number(c);
+  let cursor = 0;
+  let n = 0;
+  do {
+    const [next, keys] = await redis.scan(cursor, { match: 'circle-live-wallet:*', count: 1000 });
+    cursor = Number(next);
+    n += keys.length;
+  } while (cursor !== 0);
+  await redis.set(ACCOUNT_COUNT_KEY, n, { nx: true });
+  return Number(await redis.get(ACCOUNT_COUNT_KEY));
+}
+
 async function loadRecord(email) {
   const stored = await redis.get(KEY.wallet(email));
   if (!stored) return null;
@@ -264,6 +283,10 @@ module.exports = async function handler(req, res) {
       if (!isValidEmail(email)) return res.status(400).json({ error: 'A valid email address is required.' });
       const [byEmail, byIp] = await Promise.all([otpRatelimit.limit(`email:${email}`), otpRatelimit.limit(`ip:${ip}`)]);
       if (!byEmail.success || !byIp.success) return res.status(429).json({ error: 'Too many code requests. Please wait a bit and try again.' });
+      // Full: existing users can still sign in, new emails don't get a code.
+      if (!(await loadRecord(email)) && (await accountCount()) >= MAX_ACCOUNTS) {
+        return res.status(403).json({ error: 'Circle Wallet is not accepting new sign-ups right now. Please try again later.' });
+      }
       const code = String(crypto.randomInt(100000, 1000000));
       await redis.set(KEY.otp(email), code, { ex: OTP_TTL_SECONDS });
       await sendVerificationEmail(email, code);
@@ -298,13 +321,24 @@ module.exports = async function handler(req, res) {
       let record = await loadRecord(email);
       if (!record) {
         if (WITHDRAW_ONLY) return res.status(403).json({ error: 'New sign-ups are closed.' });
-        const ws = await client.createWalletSet({ name: `FlowFi Live ${Date.now()}` });
-        const walletSetId = ws.data?.walletSet?.id;
-        const created = await client.createWallets({ blockchains: CHAINS, count: 1, walletSetId, accountType: 'EOA' });
-        const walletsByChain = {};
-        for (const w of created.data?.wallets ?? []) walletsByChain[w.blockchain] = { walletId: w.id, address: w.address };
-        record = { address: created.data?.wallets?.[0]?.address ?? null, walletsByChain };
-        await redis.set(KEY.wallet(email), JSON.stringify(record));
+        // Reserve a slot first (atomic), so two sign-ups at once can't both squeeze past the limit.
+        await accountCount();
+        if ((await redis.incr(ACCOUNT_COUNT_KEY)) > MAX_ACCOUNTS) {
+          await redis.decr(ACCOUNT_COUNT_KEY);
+          return res.status(403).json({ error: 'Circle Wallet is not accepting new sign-ups right now. Please try again later.' });
+        }
+        try {
+          const ws = await client.createWalletSet({ name: `FlowFi Live ${Date.now()}` });
+          const walletSetId = ws.data?.walletSet?.id;
+          const created = await client.createWallets({ blockchains: CHAINS, count: 1, walletSetId, accountType: 'EOA' });
+          const walletsByChain = {};
+          for (const w of created.data?.wallets ?? []) walletsByChain[w.blockchain] = { walletId: w.id, address: w.address };
+          record = { address: created.data?.wallets?.[0]?.address ?? null, walletsByChain };
+          await redis.set(KEY.wallet(email), JSON.stringify(record));
+        } catch (e) {
+          await redis.decr(ACCOUNT_COUNT_KEY); // creation failed, give the slot back
+          throw e;
+        }
       }
       setSessionCookie(res, await issueSessionToken(email));
       return res.status(200).json({ success: true, address: record.address, walletsByChain: record.walletsByChain, email, capUsd: CAP_USD, withdrawOnly: WITHDRAW_ONLY });
