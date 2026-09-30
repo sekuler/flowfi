@@ -31,6 +31,17 @@ FlowFi is provided "as is," without warranties of any kind. FlowFi's own Testnet
 
 You must be legally permitted to use cryptocurrency-related services in your jurisdiction. It's your responsibility to determine whether your local laws restrict or prohibit your use of FlowFi.
 
+## Earn & Borrow (Morpho)
+
+FlowFi's Earn & Borrow features use the Morpho protocol and third-party vaults curated by independent curators (such as Galaxy, Keyrock, Steakhouse and Gauntlet). FlowFi does not operate these vaults or markets and never holds your funds; every deposit, withdrawal, borrow and repayment is signed by your own wallet.
+
+- Vault returns are variable and not guaranteed. Vault funds are lent out, so withdrawals can be temporarily limited when a market is heavily borrowed.
+- Borrowing against cirBTC carries liquidation risk. If the value of your collateral falls and your loan-to-value reaches the market's liquidation threshold (86%), part or all of your collateral can be sold to repay the loan. FlowFi caps new borrows at a lower 70% LTV as a safety buffer, but this does not remove the risk.
+- Borrow rates are variable and can rise sharply when a market is nearly fully borrowed.
+- Smart contracts, oracles and third-party protocols can fail or be exploited.
+
+By using Earn & Borrow you accept these risks and Morpho's own terms and disclaimers: https://morpho.org/disclaimers/
+
 ## Changes
 
 These terms may be updated as FlowFi changes. Material changes will be reflected here with an updated date.

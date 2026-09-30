@@ -10,6 +10,7 @@ export const MORPHO_BLUE = "0x34CD04070dD72b14E241112F6d83812Df5Af7fCD" as const
 export const MARKET_ID = "0xc2db905f174e5defcce01d321b09f15f78856a36a21b90cc7e1abbc29225815d" as const;
 export const USDC = "0x3600000000000000000000000000000000000000" as const;
 export const CIRBTC = "0x171A4217b86A807A64eB94757Db6849fb4bDbAA0" as const;
+export const EURC = "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1" as const;
 
 export const MARKET_PARAMS = {
   loanToken: USDC,
@@ -19,10 +20,14 @@ export const MARKET_PARAMS = {
   lltv: 860000000000000000n, // 86%
 } as const;
 
+// EURC vaults (Morpho VaultV2, underlying EURC) checked on arc.etherscan.io on 2026-09-30.
 export const VAULTS = [
-  { key: "galaxy", name: "Galaxy USDC", curator: "Galaxy", address: "0x8E357432CC12ff425c36432F312968aEb16112AF" },
-  { key: "keyrock", name: "Keyrock Prime USDC", curator: "Keyrock", address: "0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123" },
+  { key: "galaxy", name: "Galaxy USDC", curator: "Galaxy", asset: "USDC", address: "0x8E357432CC12ff425c36432F312968aEb16112AF" },
+  { key: "keyrock", name: "Keyrock Prime USDC", curator: "Keyrock", asset: "USDC", address: "0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123" },
+  { key: "steakhouse-eurc", name: "Steakhouse Prime EURC", curator: "Steakhouse", asset: "EURC", address: "0xbeef00be37BdE921BAE06fad223125BAB16c41D1" },
+  { key: "gauntlet-eurc", name: "Gauntlet EURC Prime", curator: "Gauntlet", asset: "EURC", address: "0x05863F54B05e96092069eF30c9Ca6060336e50B9" },
 ] as const;
+export type EarnAsset = (typeof VAULTS)[number]["asset"];
 
 export const USDC_DECIMALS = 6;
 export const CIRBTC_DECIMALS = 8;
