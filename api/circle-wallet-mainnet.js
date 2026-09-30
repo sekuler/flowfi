@@ -77,10 +77,10 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
 const OTP_TTL_SECONDS = 600;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_COOKIE_NAME = 'flowfi_circle_live_session';
-const KEY = { otp: (e) => `circle-live-otp:${e}`, wallet: (e) => `circle-live-wallet:${e}` };
+const KEY = { otp: (e) => `circle-live-otp:${e}`, wallet: (e) => `circle-live-wallet:${e}`, sv: (e) => `circle-live-session-version:${e}` };
 
 function normalizeEmail(email) { return String(email || '').trim().toLowerCase(); }
-function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+function isValidEmail(email) { return /^[^\s@|]+@[^\s@|]+\.[^\s@|]+$/.test(email) && email.length <= 254; }
 function isAddress(a) { return /^0x[0-9a-fA-F]{40}$/.test(String(a || '')); }
 
 function cookieAttrs(maxAge) {
@@ -99,20 +99,27 @@ function parseCookies(req) {
   return out;
 }
 
-// Same HMAC session scheme as testnet, but the signed payload is prefixed with "live|" so a
-// testnet session token can never be replayed against this mainnet endpoint.
-function issueSessionToken(email) {
-  const payload = `live|${email}.${Date.now() + SESSION_TTL_MS}`;
-  const sig = crypto.createHmac('sha256', process.env.WALLET_AUTH_SECRET).update(payload).digest('hex');
+// Mainnet sessions are signed with their OWN secret (CIRCLE_LIVE_AUTH_SECRET), never the
+// testnet one, and carry a per-email version so signing out invalidates old cookies.
+// Payload: "live|<email>|<version>.<expiryMs>". Emails containing "|" are refused at sign-in.
+function liveSecret() {
+  const s = process.env.CIRCLE_LIVE_AUTH_SECRET;
+  if (!s || s.length < 32) throw new Error('Server misconfigured: CIRCLE_LIVE_AUTH_SECRET is missing or too short.');
+  return s;
+}
+async function sessionVersion(email) { return Number(await redis.get(KEY.sv(email))) || 0; }
+async function issueSessionToken(email) {
+  const payload = `live|${email}|${await sessionVersion(email)}.${Date.now() + SESSION_TTL_MS}`;
+  const sig = crypto.createHmac('sha256', liveSecret()).update(payload).digest('hex');
   return `${Buffer.from(payload).toString('base64url')}.${sig}`;
 }
-function sessionEmail(req) {
+async function sessionEmail(req) {
   const token = parseCookies(req)[SESSION_COOKIE_NAME];
   if (!token || !token.includes('.')) return null;
   const dot = token.lastIndexOf('.');
   let payload;
   try { payload = Buffer.from(token.slice(0, dot), 'base64url').toString(); } catch { return null; }
-  const expected = crypto.createHmac('sha256', process.env.WALLET_AUTH_SECRET).update(payload).digest('hex');
+  const expected = crypto.createHmac('sha256', liveSecret()).update(payload).digest('hex');
   const a = Buffer.from(token.slice(dot + 1), 'hex');
   const b = Buffer.from(expected, 'hex');
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
@@ -120,8 +127,14 @@ function sessionEmail(req) {
   const body = payload.slice(5);
   const p = body.lastIndexOf('.');
   if (p === -1 || Date.now() > Number(body.slice(p + 1))) return null;
-  return body.slice(0, p);
+  const head = body.slice(0, p);
+  const bar = head.lastIndexOf('|');
+  if (bar === -1) return null;
+  const email = head.slice(0, bar);
+  if (Number(head.slice(bar + 1)) !== (await sessionVersion(email))) return null;
+  return email;
 }
+
 
 async function sendVerificationEmail(email, code) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -263,7 +276,9 @@ module.exports = async function handler(req, res) {
       if (!success) return res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
       const stored = await redis.get(KEY.otp(email));
       if (!stored || String(stored) !== code) return res.status(401).json({ error: 'Invalid or expired code.' });
-      await redis.del(KEY.otp(email));
+      // Only the request that actually deletes the code may continue. Two quick submits of the
+      // same code used to both pass and create two wallet sets, orphaning the first one.
+      if ((await redis.del(KEY.otp(email))) !== 1) return res.status(401).json({ error: 'Invalid or expired code.' });
 
       let record = await loadRecord(email);
       if (!record) {
@@ -276,17 +291,21 @@ module.exports = async function handler(req, res) {
         record = { address: created.data?.wallets?.[0]?.address ?? null, walletsByChain };
         await redis.set(KEY.wallet(email), JSON.stringify(record));
       }
-      setSessionCookie(res, issueSessionToken(email));
+      setSessionCookie(res, await issueSessionToken(email));
       return res.status(200).json({ success: true, address: record.address, walletsByChain: record.walletsByChain, email, capUsd: CAP_USD, withdrawOnly: WITHDRAW_ONLY });
     }
 
     if (action === 'logout') {
+      // Bumping the version makes every older session cookie for this email invalid,
+      // so a copied cookie stops working once the user signs out.
+      const who = await sessionEmail(req);
+      if (who) await redis.incr(KEY.sv(who));
       clearSessionCookie(res);
       return res.status(200).json({ success: true });
     }
 
     // ---- everything below requires a valid mainnet session ----
-    const email = sessionEmail(req);
+     const email = await sessionEmail(req);
     if (!email) return res.status(401).json({ error: 'Session expired or invalid. Please sign in again with your email.' });
     const { success: actionOk } = await actionRatelimit.limit(email);
     if (!actionOk) return res.status(429).json({ error: 'Too many requests. Please slow down.' });

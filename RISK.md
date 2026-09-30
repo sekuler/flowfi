@@ -1,8 +1,8 @@
 # Risk Disclosure
 
-Last updated: September 19, 2026
+Last updated: September 30, 2026
 
-Read this before using any Arc Mainnet feature (Bridge, Swap, Dashboard). It's a plain list of what can go wrong — not a scare tactic, just an honest account so you can decide with real information.
+Read this before using any Arc Mainnet feature (Bridge, Swap, Earn & Borrow, Gateway, Circle Wallet, Dashboard). It's a plain list of what can go wrong — not a scare tactic, just an honest account so you can decide with real information.
 
 ## You are using real funds on Mainnet
 
@@ -24,9 +24,22 @@ Bridge and swap quotes can move between the moment you see a quote and the momen
 
 Arc Mainnet launched September 16, 2026. Some bridge routes may be new, may have limited liquidity, or may not yet support every direction (for example, certain routes out of Arc were not yet available from every provider as of this writing). A route that looks reasonable may fail, or fail to complete quickly — FlowFi surfaces what the underlying providers report, but can't guarantee any specific route's reliability.
 
+## Circle Wallet is not self-custody
+
+The mainnet Circle Wallet is a Circle Developer-Controlled Wallet. Its key is secured by Circle and FlowFi controls it through Circle's API, acting only on your signed-in requests. That means:
+
+- Whoever can read your email can sign in to your wallet.
+- Actions depend on FlowFi's backend and Circle's service being up. Withdrawals can be delayed during an outage.
+- Each account has a holding limit (default $100). Above it, only withdrawal works. Don't keep more in it than you need.
+- The feature may be closed or switched to withdraw-only. Withdrawal stays available so you can move your funds out.
+
+## Earn & Borrow
+
+Earn deposits go into third-party Morpho vaults: returns are variable, and withdrawals can be limited while a vault's funds are lent out. Borrowing against cirBTC can be liquidated if the price of BTC falls. See [TERMS.md](./TERMS.md) for details.
+
 ## Testnet assets have no value
 
-Everything on Arc Testnet (Circle Wallet, Token Launch, Liquidity Pools, CCTP, Gateway) uses test tokens with **zero monetary value**, obtainable free from a faucet. Nothing there should ever be treated as, purchased as, or sold as if it had real value.
+Everything on Arc Testnet (the testnet Circle Wallet, Token Launch, Liquidity Pools, Bridge, Gateway) uses test tokens with **zero monetary value**, obtainable free from a faucet. Nothing there should ever be treated as, purchased as, or sold as if it had real value.
 
 ## FlowFi's own contracts (Testnet only) are not professionally audited
 
@@ -34,7 +47,7 @@ FlowFi's Testnet smart contracts have had a manual security self-review by the p
 
 ## Self-custody means self-responsibility
 
-On mainnet, you hold your own keys via your own wallet. FlowFi cannot recover a lost seed phrase, a mis-typed address, or a transaction sent to the wrong recipient. Treat your wallet's own security (extension source, seed phrase storage, phishing awareness) as entirely your responsibility.
+With a browser wallet, you hold your own keys. FlowFi cannot recover a lost seed phrase, a mis-typed address, or a transaction sent to the wrong recipient. Treat your wallet's own security (extension source, seed phrase storage, phishing awareness) as entirely your responsibility.
 
 ## No warranty
 

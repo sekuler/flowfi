@@ -6,7 +6,7 @@ Internal reference for FlowFi's serverless backend endpoints (Vercel functions u
 
 ## `GET /api/market-analysis`
 
-Real-time market data and technical analysis for any coin, computed server-side from CoinGecko data. No AI involved — pure data and math.
+Real-time market data and technical analysis for any coin, computed server-side from CoinGecko data. The numbers are pure data and math; a short AI-written summary (`insight`) is added on top.
 
 **Query params:**
 | Param | Required | Description |
@@ -14,6 +14,8 @@ Real-time market data and technical analysis for any coin, computed server-side 
 | `coinId` | Yes | CoinGecko coin id, e.g. `bitcoin`, `morpho` |
 
 **Caching:** 90 seconds per coin (in-memory). Repeated requests for the same coin within that window return the cached result instantly, regardless of how many users ask.
+
+**Rate limit:** 10 requests/minute per IP via Upstash Redis. `coinId` must be a CoinGecko-style id (lowercase letters, digits, dashes).
 
 **Response shape:**
 ```json
@@ -72,9 +74,9 @@ Live token unlock/vesting data via the DropsTab Builders Program API.
 
 Proxy for all Claude API calls. The Anthropic key lives only here (`ANTHROPIC_API_KEY` env var).
 
-**Body:** `{ model, max_tokens, system, messages }` — same shape as calling Anthropic's `/v1/messages` directly.
+**Body:** `{ model, max_tokens, system, messages }` — same shape as calling Anthropic's `/v1/messages` directly, with limits: `model` must be on the allowlist, `max_tokens` ≤ 1000, `system` a string ≤ 8,000 chars, 1–4 messages with plain-string content ≤ 8,000 chars each, 16,000 chars in total. Only these fields are forwarded.
 
-**Rate limit:** 20 requests/minute per IP, via Upstash Redis — shared across every serverless instance (not an in-memory per-instance approximation, which was never a real limit under concurrent traffic). Skipped entirely, not approximated, if `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` aren't set. Protects the shared API credit balance from abuse, since every user's AI usage draws from the same key.
+**Rate limit:** 20 requests/minute and 300 requests/day per IP, via Upstash Redis — shared across every serverless instance (not an in-memory per-instance approximation, which was never a real limit under concurrent traffic). Skipped entirely, not approximated, if `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` aren't set. Protects the shared API credit balance from abuse, since every user's AI usage draws from the same key.
 
 **Response:** Anthropic's raw response, passed through unmodified.
 
@@ -96,7 +98,9 @@ Generic proxy for Circle's IRIS API (`iris-api-sandbox.circle.com`) — attestat
 
 Proxy for Arcscan's (Blockscout-style) explorer API — used for transaction history everywhere the app shows it (Home, Dashboard, History, Swap activity, etc.). Calling `testnet.arcscan.app/api` directly from the browser is unreliable (CORS), so this proxies it server-side.
 
-**Query params:** forwarded as-is to Arcscan's `/api` endpoint (e.g. `module`, `action`, `address`, `limit`).
+**Query params:** `network=mainnet` routes to Etherscan's V2 API for Arc Mainnet (uses `ETHERSCAN_API_KEY`); otherwise testnet Arcscan. Only allowlisted queries pass: `module=account` with `txlist`, `tokentx`, `txlistinternal`, `balance`, `tokenbalance`, and `module=logs` with `getLogs`. Unknown params are dropped.
+
+**Rate limit:** 60 requests/minute per IP. Successful responses are cached for 30 seconds in Upstash Redis.
 
 **Response:** Arcscan's raw response body and status code, passed through unmodified.
 
@@ -104,9 +108,11 @@ Proxy for Arcscan's (Blockscout-style) explorer API — used for transaction his
 
 ## `POST /api/rpc-proxy`
 
-JSON-RPC proxy for Arc Testnet. Two reasons this exists rather than calling an RPC directly from the browser: Arc's own public RPC (`rpc.testnet.arc.network`) doesn't return CORS headers, so direct browser calls to it fail; and a keyed provider (e.g. Alchemy) would otherwise require exposing that key in client-side source. This keeps any such key server-side only.
+JSON-RPC proxy for Arc Testnet, and Arc Mainnet with `?network=mainnet`. Two reasons this exists rather than calling an RPC directly from the browser: Arc's own public RPC (`rpc.testnet.arc.network`) doesn't return CORS headers, so direct browser calls to it fail; and a keyed provider (e.g. Alchemy) would otherwise require exposing that key in client-side source. This keeps any such key server-side only.
 
-**Body:** any standard JSON-RPC 2.0 payload (`{ jsonrpc, method, params, id }`) — forwarded verbatim.
+**Body:** a JSON-RPC 2.0 call or a batch of up to 64 calls. Methods must be on the allowlist in the file; `eth_getLogs` must be scoped to 1–5 contract addresses and explicit numeric ranges are capped at 100,000 blocks.
+
+**Rate limit:** 300 calls/minute per IP (each call in a batch counts). Refuses to serve in production without Upstash Redis.
 
 **Env vars:** `ARC_RPC_URL` (optional) — a keyed RPC provider URL. Falls back to the public `https://rpc.testnet.arc.network` if unset.
 
@@ -126,8 +132,20 @@ Creates and operates Circle Developer-Controlled Wallets, and executes allowlist
 
 ---
 
+## `POST /api/circle-wallet-mainnet`
+
+Mainnet Circle Wallet (LIVE key, separate from testnet). Email one-time code sign-in, httpOnly session cookie, a per-account holding cap, and a `withdraw` action that always works. See the file header for the full list of actions and env vars.
+
+---
+
+## `POST /api/upload-image`
+
+Uploads a Token Launch image (Testnet) to Vercel Blob. PNG/JPEG/WebP/GIF up to 5 MB; the file's bytes must match its declared type. **Rate limit:** 5 uploads/hour per IP.
+
+---
+
 ## Shared conventions
 
 - All secrets are read from `process.env.*` with **no `VITE_` prefix** — Vite bundles `VITE_`-prefixed env vars into client-side JS, so anything with that prefix is effectively public. Server-only secrets must never use it.
-- All endpoints apply a basic per-IP rate limit where the underlying resource is a shared, metered secret (Claude, DropsTab).
+- Endpoints backed by a shared, metered secret or storage (Claude, market analysis, DropsTab, explorer, RPC, uploads, Circle Wallet) apply a per-IP rate limit via Upstash Redis.
 - Errors return a JSON body `{ error: string }` with an appropriate HTTP status — never a bare crash or an HTML error page.

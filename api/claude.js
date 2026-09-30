@@ -46,20 +46,54 @@ const MAX_TOKENS_CEILING = 1000;
 // abusive client and a huge input-token bill, since cost scales with
 // prompt size too, not just request count.
 const MAX_SYSTEM_CHARS = 8000;
-const MAX_MESSAGE_CHARS = 4000;
+// The wallet assistant sends up to 30 recent transactions as JSON in one
+// message (~4-5 KB), which the old 4000 cap silently rejected with a 400.
+const MAX_MESSAGE_CHARS = 8000;
+// Every caller in src/ sends exactly one user message. A small ceiling on the
+// count plus a total-size budget closes the old gap where the per-message
+// cap was the only limit (1000 messages x 4000 chars each passed validation).
+const MAX_MESSAGES = 4;
+const MAX_TOTAL_CHARS = 16000;
+
+// Returns an error string, or null when the body is acceptable. Content must
+// be a plain string: arrays of content blocks (images, documents, huge text
+// blocks) previously skipped the length check entirely.
+function validateBody(system, messages) {
+  if (system !== undefined && typeof system !== "string") return "system must be a string.";
+  if (typeof system === "string" && system.length > MAX_SYSTEM_CHARS) return `system prompt exceeds the ${MAX_SYSTEM_CHARS}-character limit.`;
+  if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) return `messages must be an array of 1-${MAX_MESSAGES} items.`;
+  let total = typeof system === "string" ? system.length : 0;
+  for (const m of messages) {
+    if (!m || (m.role !== "user" && m.role !== "assistant")) return "Each message needs role \"user\" or \"assistant\".";
+    if (typeof m.content !== "string" || !m.content) return "Each message's content must be a non-empty string.";
+    if (m.content.length > MAX_MESSAGE_CHARS) return `Each message's content must be under ${MAX_MESSAGE_CHARS} characters.`;
+    total += m.content.length;
+  }
+  if (total > MAX_TOTAL_CHARS) return `Request is too large (over ${MAX_TOTAL_CHARS} characters in total).`;
+  return null;
+}
 
 const { Ratelimit } = require("@upstash/ratelimit");
 const { Redis } = require("@upstash/redis");
 
 let ratelimit = null;
+let dailyLimit = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
   ratelimit = new Ratelimit({
-    redis: new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    }),
+    redis,
     limiter: Ratelimit.slidingWindow(20, "60 s"), // 20 requests per IP per minute, shared across all instances
     prefix: "ratelimit:claude",
+  });
+  // Per-minute alone still allows ~28,800 calls/day from one IP. A daily
+  // ceiling well above real use caps the worst case for a single client.
+  dailyLimit = new Ratelimit({
+    redis,
+    limiter: Ratelimit.fixedWindow(300, "86400 s"),
+    prefix: "ratelimit:claude-daily",
   });
 } else if (process.env.NODE_ENV === "production") {
   // Hard requirement in production (2026-09-19): this endpoint spends
@@ -90,6 +124,10 @@ module.exports = async function handler(req, res) {
     if (!success) {
       return res.status(429).json({ error: "Too many requests — please wait a moment and try again." });
     }
+    const daily = await dailyLimit.limit(ip);
+    if (!daily.success) {
+      return res.status(429).json({ error: "Daily AI limit reached. Please try again tomorrow." });
+    }
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -111,13 +149,8 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: `max_tokens must be a number between 1 and ${MAX_TOKENS_CEILING}.` });
     }
 
-    if (typeof system === "string" && system.length > MAX_SYSTEM_CHARS) {
-      return res.status(400).json({ error: `system prompt exceeds the ${MAX_SYSTEM_CHARS}-character limit.` });
-    }
-
-    if (!Array.isArray(messages) || messages.some((m) => typeof m?.content === "string" && m.content.length > MAX_MESSAGE_CHARS)) {
-      return res.status(400).json({ error: `Each message's content must be under ${MAX_MESSAGE_CHARS} characters.` });
-    }
+    const invalid = validateBody(system, messages);
+    if (invalid) return res.status(400).json({ error: invalid });
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -126,12 +159,20 @@ module.exports = async function handler(req, res) {
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify({ model, max_tokens, system, messages }),
+      // Only the validated fields are forwarded, rebuilt from scratch, so no
+      // extra client-supplied field (tools, images, metadata...) reaches Anthropic.
+      body: JSON.stringify({
+        model,
+        max_tokens,
+        ...(typeof system === "string" ? { system } : {}),
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      }),
     });
 
     const data = await response.json();
     return res.status(response.status).json(data);
   } catch (err) {
-    return res.status(500).json({ error: err.message || "Internal error" });
+    console.error("api/claude.js error:", err?.message);
+    return res.status(500).json({ error: "AI service error. Please try again." });
   }
 };

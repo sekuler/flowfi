@@ -81,7 +81,7 @@ Use "bridge" for anything crossing chains (e.g. "bring my USDC from Base to Arc"
     }),
   });
   const data = await response.json();
-  if (!data.content) throw new Error(`RAW RESPONSE: ${JSON.stringify(data)}`);
+  if (!data.content) throw new Error(data?.error?.message ?? data?.error ?? "The AI service did not answer. Please try again.");
   const raw = data.content?.[0]?.text ?? "{}";
   return JSON.parse(raw.replace(/```json|```/g, "").trim());
 }
@@ -100,7 +100,7 @@ async function answerGeneralQuestion(text: string): Promise<string> {
     }),
   });
   const data = await response.json();
-  if (!data.content) return `(Error: ${data.error?.message || JSON.stringify(data)})`;
+  if (!data.content) return data?.error?.message ?? data?.error ?? "The AI service did not answer. Please try again.";
   return data.content?.[0]?.text ?? "I couldn't find an answer to that.";
 }
 

@@ -39,12 +39,22 @@
 // unreliable (a real, confirmed issue on Arc Testnet's public RPC) — this reads from
 // Arcscan's own indexed database instead, same query shape, no extra code needed here.
 const { Redis } = require('@upstash/redis');
+const { Ratelimit } = require('@upstash/ratelimit');
 
 const ARCSCAN_TESTNET_ORIGIN = 'https://testnet.arcscan.app';
 const ETHERSCAN_V2_ORIGIN = 'https://api.etherscan.io';
 const ARC_MAINNET_CHAIN_ID = 5042;
 const CACHE_TTL_SECONDS = 30;
-const RETRY_DELAYS_MS = [0, 600, 1500, 3000, 5000];
+// Was [0, 600, 1500, 3000, 5000] -- up to ~10s of waiting inside one function call, per request.
+const RETRY_DELAYS_MS = [0, 800, 2000];
+
+// Only the explorer queries the app actually makes. Without this, anyone could run any
+// Etherscan V2 module/action for chain 5042 on FlowFi's own ETHERSCAN_API_KEY quota.
+const ALLOWED_ACTIONS = {
+  account: new Set(['txlist', 'tokentx', 'txlistinternal', 'balance', 'tokenbalance']),
+  logs: new Set(['getLogs']),
+};
+const ALLOWED_PARAMS = new Set(['module', 'action', 'address', 'contractaddress', 'sort', 'page', 'offset', 'limit', 'startblock', 'endblock', 'fromBlock', 'toBlock', 'topic0', 'tag']);
 
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
@@ -53,6 +63,12 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
 // Falls back to a plain in-memory Map if Redis isn't configured — still better than
 // nothing within a single warm instance, but this is the degraded path, not the fix.
 const memCache = new Map();
+
+// Per-IP limit, same shared-Redis pattern as the other endpoints. Generous: pages call this
+// on load and on refresh, and cached hits still count (cheap, but not free).
+const ratelimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, '60 s'), prefix: 'ratelimit:arcscan-proxy' })
+  : null;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -80,6 +96,12 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (ratelimit) {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    const { success } = await ratelimit.limit(ip);
+    if (!success) return res.status(429).json({ error: 'Too many explorer requests. Please slow down.' });
+  }
+
   try {
     const query = req.query || {};
     const isMainnet = query.network === 'mainnet';
@@ -87,13 +109,23 @@ module.exports = async function handler(req, res) {
     const params = new URLSearchParams();
     for (const key of Object.keys(query)) {
       if (key === 'network') continue; // routing flag only, not forwarded
-      const value = query[key];
-      if (Array.isArray(value)) {
-        params.set(key, value[0]);
-      } else if (value !== undefined) {
-        params.set(key, value);
-      }
+      if (!ALLOWED_PARAMS.has(key)) continue; // drops apikey/chainid overrides and anything unexpected
+      const value = Array.isArray(query[key]) ? query[key][0] : query[key];
+      if (value !== undefined) params.set(key, String(value).slice(0, 100));
     }
+    const mod = params.get('module');
+    if (!ALLOWED_ACTIONS[mod]?.has(params.get('action'))) {
+      return res.status(400).json({ error: 'Unsupported explorer query.' });
+    }
+    if (params.has('address') && !/^0x[0-9a-fA-F]{40}$/.test(params.get('address'))) {
+      return res.status(400).json({ error: 'Invalid address.' });
+    }
+
+    // Cache key includes which network this is, so testnet and mainnet
+    // results for the same module/action/address never collide. Built BEFORE
+    // the API key is added, so the key never ends up inside a Redis key name.
+    params.sort();
+    const cacheKey = `${isMainnet ? 'mainnet' : 'testnet'}:${params.toString()}`;
 
     let targetUrl;
     if (isMainnet) {
@@ -106,10 +138,6 @@ module.exports = async function handler(req, res) {
     } else {
       targetUrl = `${ARCSCAN_TESTNET_ORIGIN}/api?${params.toString()}`;
     }
-
-    // Cache key includes which network this is, so testnet and mainnet
-    // results for the same module/action/address never collide.
-    const cacheKey = `${isMainnet ? 'mainnet' : 'testnet'}:${params.toString()}`;
 
     const cached = await getCached(cacheKey);
     if (cached) {
@@ -135,8 +163,10 @@ module.exports = async function handler(req, res) {
     const contentType = response.headers.get('content-type') || 'application/json';
 
     // Only cache genuine successes — never cache a 429/5xx, or a real fix would
-    // get masked behind a stale error for the rest of the cache window.
-    if (response.status >= 200 && response.status < 300) {
+    // get masked behind a stale error for the rest of the cache window. Etherscan
+    // also reports rate limits as HTTP 200 with a "Max rate limit" result, so
+    // those are skipped too.
+    if (response.status >= 200 && response.status < 300 && !/rate limit/i.test(text.slice(0, 300))) {
       await setCached(cacheKey, { status: response.status, contentType, body: text });
     }
 
@@ -144,6 +174,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', contentType);
     res.send(text);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('arcscan-proxy error:', error?.message);
+    res.status(502).json({ error: 'Explorer unavailable. Please try again.' });
   }
 };

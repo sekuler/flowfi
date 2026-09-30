@@ -43,14 +43,38 @@ const ALLOWED_METHODS = new Set([
   'net_version', 'net_listening', 'net_peerCount', 'web3_clientVersion', 'web3_sha3',
 ]);
 
+// A JSON-RPC batch is one HTTP request but many node calls. Without a cap, a single
+// 1000-call batch cost only one rate-limit token. Batches are capped, and every call
+// in a batch now counts toward the per-IP limit.
+const MAX_BATCH = 64; // LI.FI's SDK batches up to 64 calls per request (sdk-provider-ethereum publicClient.js)
+// eth_getLogs over the whole chain with no address is the heaviest query a node serves.
+// Every getLogs in this app is scoped to one contract, so address-less queries are refused,
+// and explicit numeric ranges are capped.
+const MAX_LOG_BLOCK_SPAN = 100000n;
+
+function logsQueryError(call) {
+  const f = Array.isArray(call.params) ? call.params[0] : null;
+  if (!f || typeof f !== 'object') return 'eth_getLogs needs a filter object.';
+  if (f.blockHash) return f.address ? null : 'eth_getLogs must be scoped to a contract address.';
+  if (!f.address || (Array.isArray(f.address) && (f.address.length === 0 || f.address.length > 5))) {
+    return 'eth_getLogs must be scoped to 1-5 contract addresses.';
+  }
+  const isHex = (v) => typeof v === 'string' && /^0x[0-9a-fA-F]+$/.test(v);
+  if (isHex(f.fromBlock) && isHex(f.toBlock) && BigInt(f.toBlock) - BigInt(f.fromBlock) > MAX_LOG_BLOCK_SPAN) {
+    return `eth_getLogs block range is limited to ${MAX_LOG_BLOCK_SPAN} blocks.`;
+  }
+  return null;
+}
+
 let ratelimit = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  // Generous limit — a normal session makes many legitimate RPC calls
-  // (balance/reserve reads, tx status polling, etc.). This is a brake on
-  // sustained abuse from one IP, not a cap on normal usage.
+  // Generous limit, counted per CALL (a batch of 10 costs 10) — a normal
+  // session makes many legitimate RPC calls (balance/reserve reads, tx
+  // status polling, LI.FI's batched reads). This is a brake on sustained
+  // abuse from one IP, not a cap on normal usage.
   ratelimit = new Ratelimit({
     redis: new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN }),
-    limiter: Ratelimit.slidingWindow(120, '60 s'),
+    limiter: Ratelimit.slidingWindow(300, '60 s'),
     prefix: 'ratelimit:rpc-proxy',
   });
 } else if (process.env.NODE_ENV === 'production') {
@@ -75,20 +99,27 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ error: 'Service temporarily unavailable — rate limiting is not configured.' });
   }
 
-  if (ratelimit) {
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
-    const { success } = await ratelimit.limit(ip);
-    if (!success) {
-      return res.status(429).json({ error: 'Too many RPC requests — please slow down.' });
-    }
-  }
-
   // A JSON-RPC request can be a single object or a batch array — check
   // every method name in either shape before forwarding anything.
   const calls = Array.isArray(req.body) ? req.body : [req.body];
+  if (calls.length === 0 || calls.length > MAX_BATCH) {
+    return res.status(400).json({ error: `A batch may contain 1-${MAX_BATCH} calls.` });
+  }
   for (const call of calls) {
     if (!call || typeof call.method !== 'string' || !ALLOWED_METHODS.has(call.method)) {
-      return res.status(403).json({ error: `RPC method "${call?.method}" is not on the allowlist.` });
+      return res.status(403).json({ error: `RPC method "${String(call?.method).slice(0, 60)}" is not on the allowlist.` });
+    }
+    if (call.method === 'eth_getLogs') {
+      const why = logsQueryError(call);
+      if (why) return res.status(400).json({ error: why });
+    }
+  }
+
+  if (ratelimit) {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    const { success } = await ratelimit.limit(ip, { rate: calls.length });
+    if (!success) {
+      return res.status(429).json({ error: 'Too many RPC requests — please slow down.' });
     }
   }
 
@@ -106,6 +137,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
     res.send(text);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('rpc-proxy upstream error:', error?.message);
+    res.status(502).json({ error: 'RPC upstream unavailable. Please try again.' });
   }
 };

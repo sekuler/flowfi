@@ -83,7 +83,10 @@ function normalizeEmail(email) {
 }
 
 function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  // "|" is refused because the mainnet endpoint signs sessions as "live|<email>":
+  // a testnet account named "live|someone@x.com" must never be able to produce a
+  // token that looks like a mainnet session for someone@x.com.
+  return /^[^\s@|]+@[^\s@|]+\.[^\s@|]+$/.test(email) && email.length <= 254;
 }
 
 const SESSION_COOKIE_NAME = 'flowfi_circle_session';
@@ -230,7 +233,7 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const code = String(crypto.randomInt(100000, 1000000)); // CSPRNG, same as mainnet
       await redis.set(`circle-otp:${normEmail}`, code, { ex: OTP_TTL_SECONDS });
       await sendVerificationEmail(normEmail, code);
 
@@ -359,6 +362,13 @@ module.exports = async function handler(req, res) {
 
       const response = await client.getTransaction({ id: transactionId });
       const tx = response.data?.transaction;
+      // Only let an account read its own wallets' transactions (mirrors the mainnet endpoint).
+      const storedRec = redis ? await redis.get(`circle-wallet:${normEmail}`) : null;
+      const rec = typeof storedRec === 'string' ? JSON.parse(storedRec) : storedRec;
+      const mine = rec ? Object.values(rec.walletsByChain).some((w) => w.walletId === tx?.walletId) : false;
+      if (!tx || !mine) {
+        return res.status(403).json({ error: 'This transaction does not belong to the signed-in account.' });
+      }
 
       return res.status(200).json({
         success: true,

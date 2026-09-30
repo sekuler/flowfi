@@ -31,8 +31,8 @@ Your dollars on Arc, all in one flow. Live on **Arc Mainnet**: a gasless native 
 | **Swap** | Same-chain swaps on Arc through LI.FI. Opens on USDC → EURC |
 | **Earn** | Deposit USDC (Galaxy, Keyrock vaults) or EURC (Steakhouse, Gauntlet vaults) into curated Morpho vaults, with live APY, vault size and withdrawable amount |
 | **Borrow** | Borrow USDC or EURC against cirBTC on Morpho Blue markets on Arc. Markets liquidate at 86% LTV; FlowFi caps new borrows and collateral withdrawals at 70% and shows live LTV, liquidation price and borrow rate. Every call is simulated before the wallet opens |
-| **Circle Wallet** | Email one-time-code sign-in to a Circle Developer-Controlled Wallet with the same address on Arc, Base, Ethereum and Arbitrum. Add funds from a browser wallet; withdraw to your own wallet at any time |
-| **Gateway** | A unified USDC balance across Arc, Base, Ethereum and Arbitrum. Deposit on any of them, then Send or Withdraw to any other in seconds through an EIP-712 burn intent with Circle's Forwarding Service. Works from a browser wallet or the Circle Wallet |
+| **Circle Wallet** | Email one-time-code sign-in to a Circle Developer-Controlled Wallet on Arc. Add funds from a browser wallet on Arc; withdraw to your own wallet at any time. Holdings are capped (default $100) |
+| **Gateway** | A unified USDC balance across Arc, Base, Ethereum and Arbitrum. Deposit from a browser wallet on any of them (from the Circle Wallet: on Arc), then Send or Withdraw to any other in seconds through an EIP-712 burn intent with Circle's Forwarding Service. Works from a browser wallet or the Circle Wallet |
 | **Dashboard** | Net worth, live balances, portfolio split, activity mix and recent activity, read from the chain and Arc's Etherscan-run explorer (`arc.etherscan.io`) |
 | **History** | Every transaction and token transfer on the address, including ones made in other apps, with amounts, status and explorer links |
 | **AI Copilot (Mainnet)** | Answers questions about balances and activity and points to the right page; it never signs or executes anything itself on mainnet |
@@ -273,15 +273,16 @@ cp .env.example .env
 # CIRCLE_ENTITY_SECRET=
 # CIRCLE_LIVE_API_KEY=     (Mainnet Circle Wallet, server-side only)
 # CIRCLE_LIVE_ENTITY_SECRET=
-# WALLET_AUTH_SECRET=      (signs the Circle Wallet session cookie)
+# WALLET_AUTH_SECRET=      (signs the Testnet Circle Wallet session cookie)
+# CIRCLE_LIVE_AUTH_SECRET= (signs the Mainnet Circle Wallet session cookie — must differ from the one above)
 # RESEND_API_KEY=          (sends the email sign-in codes)
 # VITE_LIFI_API_KEY=       (client-exposed by design, like a publishable key — powers Mainnet Bridge/Swap)
 # ETHERSCAN_API_KEY=       (server-side only — powers Mainnet Home/Dashboard/History activity and token-transfer reads via arc.etherscan.io)
 # DROPSTAB_API_KEY=        (optional — live token unlock data; falls back to the manual list without it)
 # ARC_RPC_URL=             (optional — a keyed RPC provider for Arc Testnet; falls back to the public RPC)
 # ARC_MAINNET_RPC_URL=     (optional — falls back to Arc's own public mainnet RPC)
-# UPSTASH_REDIS_REST_URL=  (required for the mainnet Circle Wallet sign-in; also used for rate limiting
-# UPSTASH_REDIS_REST_TOKEN= on /api/claude and /api/dropstab and the explorer-proxy cache)
+# UPSTASH_REDIS_REST_URL=  (required for Circle Wallet sign-in and for rate limiting on every backend
+# UPSTASH_REDIS_REST_TOKEN= endpoint; in production /api/claude, /api/rpc-proxy and /api/upload-image refuse to run without it)
 
 npm run dev
 ```

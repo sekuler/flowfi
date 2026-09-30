@@ -116,7 +116,7 @@ export default function ConnectModal({ onClose, onConnected, onCircleConnected }
             )}
 
             <p style={{ fontSize: 11.5, color: MUTED, margin: 0, textAlign: "center", lineHeight: 1.5 }}>
-              Real funds. Holds up to $100 and you can withdraw anytime. Bridge and Swap still need a browser wallet.
+              Real funds. Up to $100 can be used for actions (above that, only withdrawals work), and you can withdraw anytime. Bridge and Swap still need a browser wallet.
             </p>
           </div>
         )}

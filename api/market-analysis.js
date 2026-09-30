@@ -17,8 +17,24 @@
 //
 // GET /api/market-analysis?coinId=bitcoin
 
+const { Ratelimit } = require("@upstash/ratelimit");
+const { Redis } = require("@upstash/redis");
+
 const CACHE_TTL_MS = 90 * 1000;
 const cache = new Map();
+
+// Every uncached coin costs 3 CoinGecko calls and one Anthropic call, and this
+// endpoint had no limit at all. Same shared-Redis per-IP pattern as api/claude.js.
+const ratelimit = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Ratelimit({
+      redis: new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN }),
+      limiter: Ratelimit.slidingWindow(10, "60 s"),
+      prefix: "ratelimit:market-analysis",
+    })
+  : null;
+
+// CoinGecko ids are lowercase letters, digits and dashes (e.g. "usd-coin").
+const COIN_ID_RE = /^[a-z0-9-]{1,80}$/;
 
 function computeRSI(closes, period = 14) {
   if (closes.length < period + 1) return null;
@@ -142,8 +158,15 @@ function timeframeSummary(candles) {
 }
 
 module.exports = async function handler(req, res) {
-  const coinId = req.query.coinId;
-  if (!coinId) return res.status(400).json({ error: "Missing coinId query parameter" });
+  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  const coinId = typeof req.query.coinId === "string" ? req.query.coinId.trim().toLowerCase() : "";
+  if (!COIN_ID_RE.test(coinId)) return res.status(400).json({ error: "Missing or invalid coinId query parameter" });
+
+  if (ratelimit) {
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
+    const { success } = await ratelimit.limit(ip);
+    if (!success) return res.status(429).json({ error: "Too many analysis requests. Please wait a moment." });
+  }
 
   const cached = cache.get(coinId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -248,7 +271,8 @@ module.exports = async function handler(req, res) {
     cache.set(coinId, { data: result, timestamp: Date.now() });
     return res.status(200).json(result);
   } catch (err) {
-    return res.status(500).json({ error: err.message || "Internal error" });
+    console.error("market-analysis error:", err?.message);
+    return res.status(500).json({ error: "Market analysis is unavailable right now." });
   }
 };
 

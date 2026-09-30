@@ -1,33 +1,36 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import StablecoinAnalytics from "./components/StablecoinAnalytics";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import LiveBlock from "./components/LiveBlock";
-import CircleWalletMainnet from "./components/CircleWalletMainnet";
-import GatewayMainnet from "./components/GatewayMainnet";
-import MorphoMainnet from "./components/MorphoMainnet";
-import TokenLaunch from "./components/TokenLaunch";
-import { useState, useEffect, Component, type ReactNode } from "react";
+import { useState, useEffect, Component, lazy, Suspense, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet, arcMainnet, formatUsdcErc20, formatArcNative } from "./chains";
 import { discoverWallets, restoreWalletConnect } from "./components/WalletConnect";
 import ConnectModal, { LIVE_STORAGE_KEY, type LiveCircleWallet } from "./components/ConnectModal";
 import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal";
-import TransferHub from "./components/TransferHub";
-import SwapForm from "./components/SwapForm";
-import TxHistory from "./components/TxHistory";
-import TxHistoryMainnet from "./components/TxHistoryMainnet";
-import Dashboard from "./components/Dashboard";
-import DashboardMainnet from "./components/DashboardMainnet";
-import MainnetSwap from "./components/MainnetSwap";
-import CircleWallet from "./components/CircleWallet";
-import LiquidityPools from "./components/LiquidityPools";
-import AiCopilot from "./components/AiCopilot";
-import AiCopilotMainnet from "./components/AiCopilotMainnet";
 import ToastContainer from "./components/ToastContainer";
 import MarketTicker from "./components/MarketTicker";
 import NotificationCenter from "./components/NotificationCenter";
-import MainnetBridge from "./components/MainnetBridge";
+
+// Page components load on demand: the first screen no longer downloads every
+// testnet page and the LI.FI widget up front (the main chunk was ~2.4 MB).
+const StablecoinAnalytics = lazy(() => import("./components/StablecoinAnalytics"));
+const CircleWalletMainnet = lazy(() => import("./components/CircleWalletMainnet"));
+const GatewayMainnet = lazy(() => import("./components/GatewayMainnet"));
+const MorphoMainnet = lazy(() => import("./components/MorphoMainnet"));
+const TokenLaunch = lazy(() => import("./components/TokenLaunch"));
+const TransferHub = lazy(() => import("./components/TransferHub"));
+const SwapForm = lazy(() => import("./components/SwapForm"));
+const TxHistory = lazy(() => import("./components/TxHistory"));
+const TxHistoryMainnet = lazy(() => import("./components/TxHistoryMainnet"));
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const DashboardMainnet = lazy(() => import("./components/DashboardMainnet"));
+const MainnetSwap = lazy(() => import("./components/MainnetSwap"));
+const CircleWallet = lazy(() => import("./components/CircleWallet"));
+const LiquidityPools = lazy(() => import("./components/LiquidityPools"));
+const AiCopilot = lazy(() => import("./components/AiCopilot"));
+const AiCopilotMainnet = lazy(() => import("./components/AiCopilotMainnet"));
+const MainnetBridge = lazy(() => import("./components/MainnetBridge"));
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
 import { getDCAPlan, isDCADue } from "./dca";
 import { getCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
@@ -76,7 +79,7 @@ const ARC_EURC = EURC_ADDRESS;
 const ARC_USYC = USYC_ADDRESS;
 const ARC_CIRBTC = CIRBTC_ADDRESS;
 
-const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnetswap", "circlewalletmainnet", "gatewaymainnet"];
+const GUEST_SAFE_TABS: Tab[] = ["pools", "analytics", "mainnetbridge", "mainnetswap", "morphomainnet", "circlewalletmainnet", "gatewaymainnet"];
 // Bridge/Swap/History already read their own Circle Wallet from localStorage
 // internally (independent of the provider/address props) — so a Circle-primary
 // session can use them today. Portfolio only ever does read-only balance
@@ -94,26 +97,9 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     { id: "mainnetbridge", label: "Bridge", Icon: Zap },
     { id: "mainnetswap", label: "Swap", Icon: Repeat },
     { id: "morphomainnet", label: "Earn & Borrow", Icon: PiggyBank },
-    // Circle Wallet on mainnet was fully removed (2026-09-18), not just
-    // hidden from nav -- component file, Tab union entry, and safe-tab
-    // list entries are all gone (an earlier pass only removed the nav
-    // item, leaving the tab reachable via any lingering setTab() call).
-    // Turkish law (7518 sayılı Kanun, SPK's 02.07.2024 announcement)
-    // brings anyone managing users' private keys ("kripto varlıklara
-    // ilişkin cüzdandan transfer hakkı sağlayan özel anahtarların
-    // saklanması ve yönetimi") under SPK licensing, with both
-    // administrative and criminal penalties for operating unlicensed.
-    // Circle Developer-Controlled Wallets does exactly that (FlowFi's
-    // backend holds the signing authority, not the user), so it's the
-    // wrong shape for mainnet real funds -- self-custody only from here:
-    // Bridge and Swap sign entirely through the user's own browser
-    // wallet (LI.FI's EthereumProvider, no backend key/entity secret
-    // involved), a very different, much lower-risk legal category (a
-    // frontend to public infra, not a custodian). Circle Wallet stays as
-    // -is on Testnet (no real funds, no risk) -- see CircleWallet.tsx,
-    // untouched. Token Launch and Liquidity Pools stay Testnet-only for
-    // the same reasoning -- never ported to mainnet, and won't be until
-    // both a professional audit and the licensing question are settled.
+    // Circle Wallet + Gateway are back on mainnet (see the "Wallet" group below and
+    // api/circle-wallet-mainnet.js): email sign-in, a per-account holding cap, and a
+    // withdraw that always works. Token Launch and Liquidity Pools stay Testnet-only.
   ],
 },
 {
@@ -168,17 +154,16 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
 
 const LANDING_FEATURE_ICONS = [Mail, Zap, Sparkles, Hexagon, Rocket, Repeat];
 
-// Self-custody leads — genuinely rare in most bridge/swap aggregator
-// frontends (many quietly route through a hosted signer or custodial
-// step somewhere). Every card below describes what's actually live on
-// Arc Mainnet today, nothing from the Testnet showcase.
+// Every card below describes what's actually live on Arc Mainnet today,
+// nothing from the Testnet showcase. Keep the wording true: the optional
+// Circle Wallet is not self-custody, so "never holds a key" claims are out.
 const LANDING_FEATURES = [
-  { title: "Self-Custody, Always", desc: "Every transaction is signed by your own connected wallet. FlowFi never holds a key, a balance, or signing authority over your funds." },
+  { title: "Self-Custody by Default", desc: "Bridge, Swap and Earn are signed by your own connected wallet. Prefer email? The optional Circle Wallet holds up to $100 and you can withdraw anytime." },
   { title: "Circle CCTP V2", desc: "Genuine native USDC bridging via Circle's own official burn/attest/mint protocol — not a wrapped-asset bridge." },
-  { title: "LI.FI Aggregation", desc: "Bridge or swap any token across Arc and dozens of other chains, routed through the best available rate." },
+  { title: "LI.FI Aggregation", desc: "Bridge or swap tokens across Arc and dozens of other chains, with routes compared across many bridges and DEXs." },
   { title: "AI Copilot", desc: "Tell it what you want in plain language — it takes you straight to the right page to confirm with your own wallet." },
   { title: "Native USDC on Arc", desc: "USDC is Arc's actual gas token, not a wrapped placeholder — funds are productive the moment they land." },
-  { title: "Real-Time Activity", desc: "Balances and transaction history read live from Arc's own official explorer — nothing cached or FlowFi-side." },
+  { title: "Real-Time Activity", desc: "Balances and transaction history read from Arc's official explorer, arc.etherscan.io." },
 ];
 
 /* ---------- Soft pastel blob background ---------- */
@@ -326,7 +311,9 @@ function AppInner() {
       try { const p = JSON.parse(localStorage.getItem(LIVE_STORAGE_KEY) ?? "null"); return p?.email && p?.address ? p : null; } catch { return null; }
     }
     const initial = readLive();
-    if (initial) { setCircleLive(initial); setGuestMode(true); }
+    // Home needs a browser wallet, so an email-only session reopens on its Circle Wallet page
+    // instead of an empty Home.
+    if (initial) { setCircleLive(initial); setGuestMode(true); setTab((t) => (t === "home" ? "circlewalletmainnet" : t)); }
     function sync() { setCircleLive(readLive()); }
     window.addEventListener("circle-live-changed", sync);
     return () => window.removeEventListener("circle-live-changed", sync);
@@ -377,7 +364,10 @@ function AppInner() {
 
   function goToTab(id: Tab) {
     if (!wallet && guestMode && !GUEST_SAFE_TABS.includes(id)) {
-      setGuestMode(false); // bounce back to the connect screen — this tab needs a real wallet
+      // This tab needs a browser wallet. Offer to connect one in place instead of
+      // dropping guest mode, which used to throw guests (and email-only Circle
+      // Wallet users) all the way back to the landing page.
+      setShowConnectModal(true);
       return;
     }
     if (!wallet && circlePrimary && !CIRCLE_SAFE_TABS.includes(id)) {
@@ -567,10 +557,10 @@ function AppInner() {
             <span style={{ background: "linear-gradient(90deg, #7C3AED, #3B82F6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>All in one flow.</span>
           </h1>
           <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 460, marginBottom: 32 }}>
-            Send, bridge, and swap your USDC on Arc Mainnet with FlowFi — manage everything from one fast, secure platform. Every transaction signed by your own wallet, never by FlowFi.
+            Bridge, swap, and earn with your USDC on Arc Mainnet — everything from one fast, secure platform. Connect your own wallet, or sign in with email.
           </p>
           <div style={{ display: "flex", gap: 8, marginBottom: 26 }} aria-hidden="true">
-            {["Send", "Bridge", "Swap"].map((w, i) => (
+            {["Bridge", "Swap", "Earn"].map((w, i) => (
               <span key={w} className="flowfi-chip" style={{ animationDelay: `${i * 2}s`, padding: "6px 16px", borderRadius: 999, border: "1px solid #E5DEFA", backgroundColor: "#ffffff", color: "#4B5563", fontSize: 13, fontWeight: 700 }}>{w}</span>
             ))}
           </div>
@@ -603,7 +593,7 @@ function AppInner() {
           {[
             { title: "Fast Transactions", sub: "Seconds, not minutes", Icon: Zap },
             { title: "Multi-Route Aggregation", sub: "LI.FI + Circle CCTP V2", Icon: Repeat },
-            { title: "Secure & Transparent", sub: "Self-custody, always", Icon: ShieldCheckIcon },
+            { title: "Secure & Transparent", sub: "Self-custody by default", Icon: ShieldCheckIcon },
             { title: "Easy to Use", sub: "DeFi for everyone", Icon: Sparkles },
           ].map((f) => (
             <div key={f.title} style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -644,7 +634,7 @@ function AppInner() {
               <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></span>
             </div>
             <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
-              Self-custodial bridging and swapping on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Every transaction signed by your own wallet, never by FlowFi.
+              Bridging, swapping and earning on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Browser-wallet transactions are signed by you, never by FlowFi.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <a href="https://x.com/flowfifinance" target="_blank" rel="noopener noreferrer"
@@ -667,7 +657,7 @@ function AppInner() {
                 { label: "Docs", href: "https://github.com/sekuler/flowfi" },
                 { label: "Watch Demo", href: "https://youtu.be/rdTz-h3mHFs" },
               ].map(({ label, href }) => (
-                <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>{label}</a>
+                <a key={label} href={href} {...(href.startsWith("#") ? {} : { target: "_blank", rel: "noopener noreferrer" })} style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>{label}</a>
               ))}
             </div>
           </div>
@@ -719,7 +709,7 @@ function AppInner() {
           </div>
           <div role="group" aria-label="Network" style={{ display: "flex", gap: 2, padding: 3, marginTop: 18, borderRadius: 11, background: "#ECEAE4" }}>
             {([
-              { v: "mainnet", label: "Mainnet", dot: "#0E9F6E", go: () => goToTab("home") },
+              { v: "mainnet", label: "Mainnet", dot: "#0E9F6E", go: () => goToTab(wallet ? "home" : "mainnetbridge") },
               { v: "testnet", label: "Testnet", dot: "#C77B12", go: () => goToTab(wallet ? "dashboard" : "pools") },
             ] as const).map((n) => {
               const on = activeVariant === n.v;
@@ -924,6 +914,7 @@ function AppInner() {
                {tab === "circlewalletmainnet" ? "Email wallet on Arc Mainnet: no seed phrase, withdraw anytime" : tab === "gatewaymainnet" ? "One USDC balance across Arc, Base, Ethereum and Arbitrum, powered by Circle Gateway" : tab === "morphomainnet" ? "Earn on USDC or borrow against cirBTC, powered by Morpho" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "mainnethistory" ? "Recent transactions on Arc Mainnet" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : tab === "mainnetbridge" ? "Bridge USDC and other assets onto Arc, via LI.FI or Circle's native CCTP" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
             </div>}
+<Suspense fallback={<div style={{ padding: "3rem 0", textAlign: "center", fontSize: 13, color: "#6B7280" }}>Loading…</div>}>
 {tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} provider={wallet.provider} />}
 
             {tab === "mainnetbridge" && <MainnetBridge address={wallet?.address} provider={wallet?.provider} />}
@@ -962,6 +953,7 @@ function AppInner() {
               />
             )}
           {tab === "launch" && wallet && <TokenLaunch provider={wallet.provider} address={wallet.address} />}
+          </Suspense>
           </div>
         </div>
         </div>
@@ -975,7 +967,7 @@ function AppInner() {
                 <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></span>
               </div>
               <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
-                Self-custodial bridging and swapping on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Every transaction signed by your own wallet, never by FlowFi.
+                Bridging, swapping and earning on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Browser-wallet transactions are signed by you, never by FlowFi.
               </p>
               <div style={{ display: "flex", gap: 10 }}>
                 <a href="https://x.com/flowfifinance" target="_blank" rel="noopener noreferrer"
@@ -1016,11 +1008,13 @@ function AppInner() {
         )}
       </main>
 
+      <Suspense fallback={null}>
       {wallet && tab !== "home" && ((tab === "mainnetbridge" || tab === "mainnetswap" || tab === "dashboardmainnet" || tab === "mainnethistory" || tab === "circlewalletmainnet" || tab === "gatewaymainnet" || tab === "morphomainnet") ? (
         <AiCopilotMainnet onNavigate={(t) => setTab(t)} />
       ) : (
         <AiCopilot provider={wallet.provider} address={wallet.address} balances={balances} onRefresh={() => loadBalances(wallet.address)} onNavigate={(t) => setTab(t)} />
       ))}
+      </Suspense>
       {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
       {showConnectModal && <ConnectModal onClose={() => setShowConnectModal(false)} onConnected={handleConnected} onCircleConnected={handleCircleConnected} />}
     </div>

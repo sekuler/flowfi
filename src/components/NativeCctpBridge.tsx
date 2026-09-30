@@ -379,12 +379,18 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   async function pollAttestation(txHash: string, domain: number, maxMin: number): Promise<{ message: string; attestation: string }> {
     const attempts = Math.ceil((maxMin * 60) / 5);
     for (let i = 0; i < attempts; i++) {
-      const res = await fetch(`${IRIS_API}/v2/messages/${domain}?transactionHash=${txHash}`);
-      const data = await res.json();
-      const msg = data?.messages?.[0];
-      if (msg?.status === "complete" && msg.message && msg.attestation) {
-        return { message: msg.message, attestation: msg.attestation };
-      }
+      // A single network error, 429 or non-JSON reply used to abort the whole wait. Now it
+      // just counts as "not ready yet" and polling carries on.
+      try {
+        const res = await fetch(`${IRIS_API}/v2/messages/${domain}?transactionHash=${txHash}`);
+        if (res.ok) {
+          const data = await res.json();
+          const msg = data?.messages?.[0];
+          if (msg?.status === "complete" && msg.message && msg.attestation) {
+            return { message: msg.message, attestation: msg.attestation };
+          }
+        }
+      } catch { /* retry */ }
       await new Promise((r) => setTimeout(r, 5000));
     }
     throw new Error("Attestation is taking longer than expected. Your burn is confirmed on-chain, so don't send again. Use Resume to finish the transfer once Circle's attestation is ready.");

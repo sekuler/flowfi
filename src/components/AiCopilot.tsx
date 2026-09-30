@@ -207,7 +207,7 @@ Respond with ONLY the JSON object.`,
     });
     const data = await response.json();
     if (!data.content) {
-      throw new Error(`RAW RESPONSE: ${JSON.stringify(data)}`);
+      throw new Error(data?.error?.message ?? data?.error ?? "The AI service did not answer. Please try again.");
     }
     const raw = data.content?.[0]?.text ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
