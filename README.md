@@ -1,22 +1,22 @@
 # FlowFi
 
-Native USDC on Arc — live on **Arc Mainnet** for Home, Bridge, Swap, Dashboard, and History; a full permissionless DeFi showcase (Circle Wallet, Token Launch, Liquidity Pools, CCTP, Gateway) still running on **Arc Testnet**.
+Your dollars on Arc, all in one flow. Live on **Arc Mainnet**: a gasless native USDC bridge, native EURC and cirBTC bridging, swaps, a unified USDC balance with Circle Gateway, an email-based Circle Wallet, and Earn & Borrow on Morpho. A permissionless DeFi showcase (Token Launch, Liquidity Pools, AI Copilot actions) keeps running on **Arc Testnet**.
 
-**App:** [flowfi.finance](https://flowfi.finance) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
-
-One loop on mainnet: connect a wallet → bridge or swap real USDC on Arc, through already-live infrastructure (LI.FI, and Circle's own CCTP V2 contracts) — not FlowFi's own contracts.
+**App:** [flowfi.finance](https://flowfi.finance) · **Demo:** [youtu.be/Icu8qTiYMqw](https://youtu.be/Icu8qTiYMqw) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
 | | |
 |---|---|
-| **Mainnet Bridge & Swap** | Routed through LI.FI, or sent directly through Circle's CCTP V2 contracts — real funds never touch a FlowFi-run contract |
-| **Self-custody only, mainnet** | Every mainnet transaction is signed by the user's own wallet. FlowFi holds no keys, no custody, no hot wallet |
-| **Circle Wallet** *(Testnet)* | Seedless — sign in with email. Full Developer-Controlled Wallet flow, kept on testnet by design — see "Why Circle Wallet stays on Testnet" below |
-| **Gateway & CCTP V2** *(Testnet)* | One USDC balance across 4 chains; official Circle burn/attest/mint |
+| **Gasless USDC bridge** | Circle CCTP V2 + Forwarding Service: sign once on the source chain, Circle mints on Arc, no Arc gas needed |
+| **EURC & cirBTC** | Native burn-and-mint through Circle's CCTP for non-USDC, no wrapped tokens |
+| **Circle Gateway** | One USDC balance across Arc, Base, Ethereum and Arbitrum, spendable on any of them in seconds |
+| **Circle Wallet** | Sign in with email, no seed phrase, withdraw to your own wallet anytime |
+| **Earn & Borrow** | Curated Morpho vaults for USDC and EURC; borrow USDC or EURC against cirBTC |
+| **No FlowFi contracts on mainnet** | Every mainnet flow runs on Circle, Morpho and LI.FI contracts that were already live |
 | **Safe 2-of-3** | Owns every privileged testnet contract |
 
 [![CI](https://github.com/sekuler/flowfi/actions/workflows/ci.yml/badge.svg)](https://github.com/sekuler/flowfi/actions/workflows/ci.yml)
 
-> **Two environments, on purpose.** Mainnet (real funds) is intentionally the smaller surface: Home, Bridge, Swap, Dashboard, History, and an AI Copilot that never signs or executes anything — all built on third-party infrastructure that was already live before FlowFi touched it, with every signature coming from the user's own wallet. Testnet (test USDC/EURC, no monetary value) is where FlowFi's own contracts — Token Launch, Liquidity Pools, Circle Wallet, CCTP, Gateway — live as a full working showcase. See [SECURITY.md](./SECURITY.md) for the reasoning behind that split.
+> **Two environments, on purpose.** Mainnet (real funds) runs only on third-party infrastructure that was already live: Circle CCTP, Gateway and Wallets, Morpho, and LI.FI. Testnet (test assets, no monetary value) is where FlowFi's own contracts (Token Launch, Liquidity Pools, Swap) and the AI Copilot's transaction execution live as a full working showcase. See [SECURITY.md](./SECURITY.md) for the reasoning behind that split.
 
 ---
 
@@ -24,17 +24,22 @@ One loop on mainnet: connect a wallet → bridge or swap real USDC on Arc, throu
 
 | Feature | What it does |
 |---|---|
-| **Home** | Net worth in dollars, the assets held (USDC, EURC, USYC, cirBTC), quick actions for Bridge / Swap / Add funds, an "Ask your wallet" box that answers questions about your balance and activity (read-only), and recent activity in plain language ("Received 1.4713 EURC") |
-| **Bridge — Any token** | Move USDC or any other asset onto or off Arc from any chain LI.FI supports, with LI.FI's route comparison so the user picks the fastest or cheapest route. Signed entirely by the user's connected wallet |
-| **Bridge — Native USDC** | A direct integration with Circle's own CCTP V2 contracts from 18 source chains: the USDC is burned on the source chain, Circle attests the burn, and native USDC is minted on Arc — no wrapped token. Shows Circle's published fee and the average wait for the chosen chain (from Circle's finality docs). A transfer interrupted after the burn can be resumed, so it is never burned twice |
-| **Swap** | Same-chain swaps on Arc through LI.FI. Opens on USDC → EURC, with quick token picks from the tokens LI.FI lists on Arc |
-| **Dashboard** | Net worth, live USDC / EURC balances, portfolio split, activity mix, and recent activity. Balances are read from the chain; activity comes from Arc's official Etherscan-run explorer (`arc.etherscan.io`) |
-| **History** | Every transaction and token transfer on the wallet's address, including ones made in other apps: sends, receives, approvals, swaps, bridge mints, and LI.FI routes, with amounts and explorer links |
-| **AI Copilot (Mainnet)** | Recognizes a bridge/swap request in plain language and takes the user to the right page to confirm with their own wallet — it never signs or executes anything itself on mainnet |
+| **Home** | Net worth in dollars, the assets held (USDC, EURC, USYC, cirBTC), quick actions for Add funds / Swap / Bridge, an "Ask your wallet" Copilot (read-only), and recent activity in plain language |
+| **Bridge: Native USDC (gasless)** | Circle CCTP V2 `depositForBurnWithHook` with Circle's Forwarding Service, from 18 source chains. The user signs only on the source chain; Circle mints native USDC on Arc, so no Arc gas is needed. A transfer interrupted after the burn resumes without burning twice (`MessageTransmitterV2.usedNonces` is checked before any manual mint) |
+| **Bridge: EURC & cirBTC** | Circle's CCTP for non-USDC (`CrossChainTokenService`): native burn-and-mint, no wrapped tokens. EURC from Ethereum, Base and Avalanche; cirBTC from Ethereum. The fee is paid in the source chain's gas token, so the full amount arrives |
+| **Bridge: Any token** | Any asset onto or off Arc through LI.FI, with route comparison. Signed by the user's wallet |
+| **Swap** | Same-chain swaps on Arc through LI.FI. Opens on USDC → EURC |
+| **Earn** | Deposit USDC (Galaxy, Keyrock vaults) or EURC (Steakhouse, Gauntlet vaults) into curated Morpho vaults, with live APY, vault size and withdrawable amount |
+| **Borrow** | Borrow USDC or EURC against cirBTC on Morpho Blue markets on Arc. Markets liquidate at 86% LTV; FlowFi caps new borrows and collateral withdrawals at 70% and shows live LTV, liquidation price and borrow rate. Every call is simulated before the wallet opens |
+| **Circle Wallet** | Email one-time-code sign-in to a Circle Developer-Controlled Wallet with the same address on Arc, Base, Ethereum and Arbitrum. Add funds from a browser wallet; withdraw to your own wallet at any time |
+| **Gateway** | A unified USDC balance across Arc, Base, Ethereum and Arbitrum. Deposit on any of them, then Send or Withdraw to any other in seconds through an EIP-712 burn intent with Circle's Forwarding Service. Works from a browser wallet or the Circle Wallet |
+| **Dashboard** | Net worth, live balances, portfolio split, activity mix and recent activity, read from the chain and Arc's Etherscan-run explorer (`arc.etherscan.io`) |
+| **History** | Every transaction and token transfer on the address, including ones made in other apps, with amounts, status and explorer links |
+| **AI Copilot (Mainnet)** | Answers questions about balances and activity and points to the right page; it never signs or executes anything itself on mainnet |
 
-No FlowFi-deployed contract is involved in any of the above. FlowFi is a frontend and router here, not a counterparty. The net-worth chart and 7-day change are drawn from daily snapshots saved in the user's own browser (not on a FlowFi server); until enough days have been recorded they say "Not enough history" instead of showing a made-up curve. USD values for EURC, USYC, and cirBTC use live prices; if a price can't be fetched, that token is left out of the dollar total rather than guessed.
+No FlowFi-deployed contract is involved in any of the above. The net-worth chart and 7-day change are drawn from daily snapshots saved in the user's own browser (not on a FlowFi server); until enough days have been recorded they say "Not enough history" instead of showing a made-up curve. USD values for EURC, USYC, and cirBTC use live prices; if a price can't be fetched, that token is left out of the dollar total rather than guessed.
 
-**Mainnet contracts the frontend reads or calls** (none deployed by FlowFi):
+**Mainnet contracts FlowFi reads or calls** (none deployed by FlowFi):
 
 | Contract | Address |
 |---|---|
@@ -44,6 +49,18 @@ No FlowFi-deployed contract is involved in any of the above. FlowFi is a fronten
 | cirBTC *(Circle-official, 8 decimals)* | `0x171A4217b86A807A64eB94757Db6849fb4bDbAA0` |
 | CCTP V2 TokenMessengerV2 *(Circle-official)* | `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d` |
 | CCTP V2 MessageTransmitterV2 *(Circle-official)* | `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` |
+| CCTP for non-USDC CrossChainTokenService *(Circle-official)* | `0x431871229103b780868f8C6BB820cd16ECf942BC` |
+| Gateway Wallet *(Circle-official)* | `0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE` |
+| Gateway Minter *(Circle-official)* | `0x2222222d7164433c4C09B0b0D809a9b52C04C205` |
+| Morpho Blue | `0x34CD04070dD72b14E241112F6d83812Df5Af7fCD` |
+| Morpho market cirBTC / USDC (LLTV 86%) | `0xc2db905f174e5defcce01d321b09f15f78856a36a21b90cc7e1abbc29225815d` |
+| Morpho market cirBTC / EURC (LLTV 86%) | `0x6ea1ea96a1cc671615f3a3bdf51481c5b79e362a8b634396e680d1070137daf4` |
+| Galaxy USDC vault | `0x8E357432CC12ff425c36432F312968aEb16112AF` |
+| Keyrock Prime USDC vault | `0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123` |
+| Steakhouse Prime EURC vault | `0xbeef00be37BdE921BAE06fad223125BAB16c41D1` |
+| Gauntlet EURC Prime vault | `0x05863F54B05e96092069eF30c9Ca6060336e50B9` |
+
+Morpho market parameters were verified onchain (`idToMarketParams`) and each vault's underlying asset checked before integration.
 
 **Bridge routes LI.FI lists for USDC** (LI.FI `/v1/connections`, checked 21 Sep 2026)
 
@@ -61,8 +78,8 @@ A listed connection means LI.FI knows a path for that USDC pair. It does not gua
 
 | Feature | What it does |
 |---|---|
-| **Circle Wallet** | FlowFi provisions a Developer-Controlled Wallet and tracks its per-chain wallet IDs — no seed phrase, no browser extension, one consistent address surfaced across all four supported testnet chains. Can be used as your only login, or alongside a browser wallet |
-| **Bridge & Gateway** | One page, two modes. Bridge: genuine cross-chain USDC transfer via Circle's official burn/attest/mint CCTP V2 protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia. Gateway: a unified USDC balance via Circle's Gateway protocol — deposit once, held as one pooled balance instead of four separate on-chain balances. Both work from either a browser wallet or the Circle Wallet |
+| **Circle Wallet (Testnet)** | The original testnet Developer-Controlled Wallet flow, kept alongside the mainnet version for demos with no real funds |
+| **Bridge & Gateway (Testnet)** | One page, two modes. Bridge: genuine cross-chain USDC transfer via Circle's official burn/attest/mint CCTP V2 protocol — Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia. Gateway: a unified USDC balance via Circle's Gateway protocol — deposit once, held as one pooled balance instead of four separate on-chain balances. Both work from either a browser wallet or the Circle Wallet |
 | **Smart Swap** | USDC ⇄ EURC with an AI advisor that reads real pool liquidity and warns before a swap moves the price too much |
 | **Permissionless Token Launch** | Deploy your own ERC-20 on Arc and open its own trading pool immediately — no waiting on anyone's approval, scoped so it never touches the curated pools' security model |
 | **Liquidity Pools** | A working showcase pool (USDC/EURC) demonstrating the swap rail — anyone can add/remove liquidity or swap against it |
@@ -70,15 +87,11 @@ A listed connection means LI.FI knows a path for that USDC pair. It does not gua
 | **AI Copilot (Testnet)** | Type what you want — "swap 10 USDC to EURC", "send 20 USDC to 0x..." — Copilot parses it and executes the on-chain transaction directly, signed by the connected wallet |
 | **AI Market Analysis** | Ask "analyze BTC" or "analyze Morpho" and get real technical analysis (RSI, EMA, MACD, pivot support/resistance across 1H/4H/1D/1W/1M) and tokenomics/unlock data — all numbers computed server-side from live data, with the AI only writing the interpretive summary, never the figures. Works from either environment |
 
-### Why Circle Wallet stays on Testnet
-
-Circle's own console confirms Arc Mainnet wallet creation is technically available now. FlowFi still isn't turning it on for real funds: a custodial wallet product — FlowFi's backend holding signing authority over a user's private key, even briefly, even non-exportable — is a regulated activity in a growing number of jurisdictions, including Türkiye (7518 sayılı Kanun brought custody and transfer/exchange services under SPK licensing as of July 2024). Rather than operate that model for real money without the applicable license, FlowFi kept every mainnet flow strictly self-custodial: the user's own wallet signs every transaction, FlowFi never holds a key or a balance. Circle Wallet, Token Launch, and Liquidity Pools stay exactly where they've been fully exercised and demonstrated — Testnet, no monetary value, no licensing question — rather than being rushed onto mainnet under real-money rules they weren't built for.
-
 ---
 
 ## Smart contracts (Arc Testnet)
 
-The live testnet product surface only — every `onlyOwner` contract here is owned by a 2-of-3 Safe multisig (`0xa50FFedfC93eDB81F8Bcc23507db8aDdE7EE8Be0`), not a single wallet. Superseded/legacy versions (still live on-chain, no longer where the app sends traffic) are documented separately in [`contracts/LEGACY.md`](./contracts/LEGACY.md), not deleted from the record. Arc Mainnet has no equivalent contracts — Bridge/Swap there route through LI.FI, and native USDC transfers go through Circle's own CCTP V2 contracts, not a FlowFi deployment.
+The live testnet product surface only — every `onlyOwner` contract here is owned by a 2-of-3 Safe multisig (`0xa50FFedfC93eDB81F8Bcc23507db8aDdE7EE8Be0`), not a single wallet. Superseded/legacy versions (still live on-chain, no longer where the app sends traffic) are documented separately in [`contracts/LEGACY.md`](./contracts/LEGACY.md), not deleted from the record. Arc Mainnet has no equivalent FlowFi contracts: mainnet flows use Circle, Morpho and LI.FI contracts only.
 
 | Contract | Address |
 |---|---|
@@ -103,6 +116,7 @@ One more deployed and verified contract, Escrow v4, isn't in the table above bec
 Every claim above is checkable on-chain. Rather than asking anyone to take our word for it, here are real transaction hashes from live demo runs — click through to the relevant explorer to see them settle.
 
 **Mainnet demo videos**
+- [FlowFi on Arc Mainnet, full walkthrough (Sept 2026)](https://youtu.be/Icu8qTiYMqw)
 - [Native USDC bridge (Base → Arc, CCTP V2 burn & mint)](https://youtu.be/j5hJ95oeA7E)
 - [Any-token bridge via LI.FI (Base ETH → Arc USDC)](https://youtu.be/f4Luu0ic3ek)
 
@@ -135,7 +149,7 @@ FlowFi is designed around stablecoins, not speculation.
 
 Being honest about it: CCTP V2 and Circle Developer-Controlled Wallets aren't Arc-exclusive — they work on other supported EVM chains too. What's actually Arc-specific is what happens after funds arrive. USDC is Arc's native gas asset, not a wrapped placeholder bolted onto a general-purpose chain — so cross-chain USDC becomes immediately productive the moment it lands, with no synthetic-asset discount and no "why is gas a random token" friction to explain away.
 
-FlowFi is built around that arrival point — bridging, swaps, and token tools all settle through the same native-USDC rail, instead of being stitched together across incompatible chains and bridge providers.
+FlowFi is built around that arrival point: bridging, swaps, Gateway and Earn & Borrow all settle through the same native-USDC rail, and the Morpho markets and vaults FlowFi uses live on Arc itself.
 
 There's a second, independent reason Arc specifically: it runs on Malachite, a consensus engine built for sub-second deterministic finality — once a transaction confirms, it's final, no reorg risk. That's not a Circle-product claim that applies elsewhere; it's Arc's own chain-level property, and it's why FlowFi doesn't need to hedge language like "should be confirmed" around settlement.
 
@@ -143,26 +157,27 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 
 ## Architecture
 
-**Mainnet — real funds, self-custody only:**
+**Mainnet: real funds, no FlowFi contracts:**
 
 ```
-┌─────────────────────────────────────────────┐
-│                  Frontend                    │
-│        React + TypeScript + viem             │
-└──────────────────┬────────────────────────────┘
-                    │
-            ┌───────▼────────┐
-            │ Browser Wallet   │
-            │ (EIP-6963)       │  ← every mainnet tx signed here, never by FlowFi
-            └───────┬────────┘
-                     │
-       ┌─────────────▼──────────────┐
-       │  LI.FI + Circle CCTP V2      │  ← third-party, already live
-       └─────────────┬───────────────┘
-                      │
-              ┌───────▼────────┐
-              │   Arc Mainnet    │
-              └─────────────────┘
+┌──────────────────────────────────────────────────┐
+│                     Frontend                      │
+│             React + TypeScript + viem             │
+└───────────────┬──────────────────────┬────────────┘
+                │                      │
+      ┌─────────▼─────────┐  ┌─────────▼──────────┐
+      │  Browser Wallet    │  │   Circle Wallet     │
+      │  (EIP-6963, WC)    │  │ email OTP, Vercel   │
+      │  user signs        │  │ API + allowlist     │
+      └─────────┬─────────┘  └─────────┬──────────┘
+                └──────────┬───────────┘
+   ┌───────────────────────▼────────────────────────┐
+   │ Circle CCTP V2 + Forwarding · CCTP non-USDC ·   │
+   │ Circle Gateway · Morpho Blue + vaults · LI.FI   │  ← third-party, already live
+   └───────────────────────┬────────────────────────┘
+                   ┌───────▼────────┐
+                   │   Arc Mainnet   │
+                   └────────────────┘
 ```
 
 **Testnet — full FlowFi-built showcase:**
@@ -201,14 +216,17 @@ There's a second, independent reason Arc specifically: it runs on Malachite, a c
 
 | | |
 |---|---|
-| **Landing**<br>Connect a wallet or explore without connecting | ![Landing](./screenshots/1-Landing.jpg) |
-| **Home**<br>Net worth, assets, Ask your wallet, recent activity | ![Home](./screenshots/2-Home.jpg) |
-| **Bridge**<br>Any token via LI.FI, or native USDC via Circle CCTP V2 | ![Bridge](./screenshots/3-Bridge.jpg) |
-| **Swap**<br>Same-chain swaps on Arc, opens on USDC → EURC | ![Swap](./screenshots/4-Swap.jpg) |
-| **Dashboard**<br>Balances, portfolio split, activity mix | ![Dashboard](./screenshots/5-Dashboard.jpg) |
-| **History**<br>Transactions and token transfers, with amounts | ![History](./screenshots/6-History.jpg) |
+| **Landing**<br>Connect a wallet, sign in with email, or explore | ![Landing](./screenshots/1-landing.jpg) |
+| **Home**<br>Net worth, assets, Copilot, recent activity | ![Home](./screenshots/2-home.jpg) |
+| **Bridge**<br>Gasless native USDC, EURC & cirBTC, any token via LI.FI | ![Bridge](./screenshots/3-bridge.jpg) |
+| **Swap**<br>Same-chain swaps on Arc, opens on USDC → EURC | ![Swap](./screenshots/4-swap.jpg) |
+| **Earn & Borrow**<br>Morpho vaults for USDC/EURC, borrow against cirBTC | ![Earn & Borrow](./screenshots/5-earn-borrow.jpg) |
+| **Circle Wallet**<br>Email sign-in, balances on four chains, add funds / withdraw | ![Circle Wallet](./screenshots/6-circle-wallet.jpg) |
+| **Gateway**<br>One USDC balance across four chains: deposit, send, withdraw | ![Gateway](./screenshots/7-gateway.jpg) |
+| **Dashboard**<br>Net worth, portfolio split, activity mix | ![Dashboard](./screenshots/8-dashboard.jpg) |
+| **History**<br>Every transaction with status and explorer links | ![History](./screenshots/9-history.jpg) |
 
-These are the Arc Mainnet screens. The Testnet showcase (Circle Wallet, Token Launch, Liquidity Pools, Stablecoin Analytics) is in the same app under the Testnet menu.
+These are the Arc Mainnet screens. The Testnet showcase (Token Launch, Liquidity Pools, Stablecoin Analytics, Copilot actions) is in the same app under the Testnet menu.
 
 ---
 
@@ -231,8 +249,9 @@ If a data point isn't available from a real source, FlowFi says so rather than g
 
 - **Frontend** — React, TypeScript, Vite
 - **Chain interaction** — [viem](https://viem.sh)
-- **Wallets** — EIP-6963 (MetaMask, Rabby, etc.) and WalletConnect for mobile browsers; Circle Developer-Controlled Wallets on Testnet only
-- **Mainnet routing** — LI.FI (bridge/swap aggregation, route comparison) and Circle CCTP V2 called directly for native USDC transfers
+- **Wallets** — EIP-6963 (MetaMask, Rabby, etc.), WalletConnect for mobile browsers, and Circle Developer-Controlled Wallets with email sign-in
+- **Mainnet routing** — Circle CCTP V2 + Forwarding Service (gasless USDC), CCTP for non-USDC (EURC, cirBTC), Circle Gateway (unified balance) and LI.FI (bridge/swap aggregation)
+- **Earn & Borrow** — Morpho Blue markets and Morpho vaults (ERC-4626), called directly with viem
 - **Testnet bridging** — Circle CCTP V2
 - **AI** — Claude Sonnet, used for natural-language transaction parsing, swap risk analysis, and market analysis summaries (never for computing the underlying numbers)
 - **Charts** — lightweight-charts
@@ -250,20 +269,24 @@ npm install
 cp .env.example .env
 # then fill in:
 # ANTHROPIC_API_KEY=       (server-side only — no VITE_ prefix, or it gets bundled into client-side JS)
-# CIRCLE_API_KEY=          (Testnet-scoped — Circle Wallet stays on Testnet, see "Why Circle Wallet stays on Testnet" above)
+# CIRCLE_API_KEY=          (Testnet Circle Wallet)
 # CIRCLE_ENTITY_SECRET=
+# CIRCLE_LIVE_API_KEY=     (Mainnet Circle Wallet, server-side only)
+# CIRCLE_LIVE_ENTITY_SECRET=
+# WALLET_AUTH_SECRET=      (signs the Circle Wallet session cookie)
+# RESEND_API_KEY=          (sends the email sign-in codes)
 # VITE_LIFI_API_KEY=       (client-exposed by design, like a publishable key — powers Mainnet Bridge/Swap)
 # ETHERSCAN_API_KEY=       (server-side only — powers Mainnet Home/Dashboard/History activity and token-transfer reads via arc.etherscan.io)
 # DROPSTAB_API_KEY=        (optional — live token unlock data; falls back to the manual list without it)
 # ARC_RPC_URL=             (optional — a keyed RPC provider for Arc Testnet; falls back to the public RPC)
 # ARC_MAINNET_RPC_URL=     (optional — falls back to Arc's own public mainnet RPC)
-# UPSTASH_REDIS_REST_URL=  (optional — shared rate limiting for /api/claude and /api/dropstab, and the
-# UPSTASH_REDIS_REST_TOKEN= explorer-proxy cache; rate limiting/caching is off entirely, not approximated, if unset)
+# UPSTASH_REDIS_REST_URL=  (required for the mainnet Circle Wallet sign-in; also used for rate limiting
+# UPSTASH_REDIS_REST_TOKEN= on /api/claude and /api/dropstab and the explorer-proxy cache)
 
 npm run dev
 ```
 
-Local dev defaults to Arc Testnet for the full showcase — no real funds are ever involved there. Get test USDC from [faucet.circle.com](https://faucet.circle.com). Mainnet features (Home/Bridge/Swap/Dashboard/History) work locally too, against real Arc Mainnet, the moment a browser wallet is connected — same as production.
+Local dev defaults to Arc Testnet for the full showcase — no real funds are ever involved there. Get test USDC from [faucet.circle.com](https://faucet.circle.com). Mainnet features (Home, Bridge, Swap, Earn & Borrow, Gateway, Dashboard, History) work locally too, against real Arc Mainnet, the moment a browser wallet is connected — same as production.
 
 ---
 
@@ -285,15 +308,17 @@ CI ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) runs this suite pl
 
 ## Known Limitations
 
-FlowFi's own Testnet contracts have been through a manual security review, not a professional third-party audit. Deliberate design trade-offs from that review (no oracle on ArcSwap's pricing, no TWAP on pools, no admin kill-switch on individual pools by design) are documented in full — not hidden — in [`SECURITY.md`](./SECURITY.md). Mainnet real-money flows (Bridge/Swap/Dashboard/History) sidestep this question entirely by never running a FlowFi contract in the first place — see [`SECURITY.md`](./SECURITY.md) for the full reasoning.
+FlowFi's own Testnet contracts have been through a manual security review, not a professional third-party audit. Deliberate design trade-offs from that review (no oracle on ArcSwap's pricing, no TWAP on pools, no admin kill-switch on individual pools by design) are documented in full — not hidden — in [`SECURITY.md`](./SECURITY.md). Mainnet real-money flows sidestep this question by never running a FlowFi contract in the first place — see [`SECURITY.md`](./SECURITY.md) for the full reasoning.
 
 ---
 
 ## Roadmap
 
-- [ ] Mainnet Liquidity Pools / Token Launch — revisit once a professional third-party audit and appropriate regulatory footing are both in place; deliberately not rushed
-- [ ] Cross-chain intent engine — extend mainnet routing to handle multi-step actions automatically
-- [ ] Native yield routing across liquidity positions, once Pools has a mainnet path
+- [x] Gasless USDC bridging, EURC & cirBTC rails, Circle Gateway, Circle Wallet and Earn & Borrow on mainnet
+- [ ] Card funding straight to Arc
+- [ ] AI Copilot actions on mainnet, with confirm-before-sign
+- [ ] More assets and Gateway chains as Circle adds them
+- [ ] Mainnet Liquidity Pools / Token Launch, revisited once an independent review is in place
 
 **Not on the roadmap:** Perpetuals was fully removed (app, Copilot, and frontend code) after a security review found no oracle backs the pricing. A contract from that era is still deployed and verified on Arcscan for historical/audit reference, but there's no plan to rebuild the feature without a real decentralized oracle integration.
 
@@ -312,4 +337,4 @@ These are also linked from the app itself (sidebar footer).
 
 ## Disclaimer
 
-Arc Mainnet features (Bridge, Swap) move real USDC and other assets — every transaction is signed by the user's own connected wallet, at the user's own discretion; FlowFi never holds a key, a balance, or signing authority over mainnet funds. Everything else in this README (Circle Wallet, Token Launch, Liquidity Pools, CCTP, Gateway) runs on Arc Testnet with test assets that carry no monetary value. An earlier Perpetuals contract remains deployed and verified on Arcscan for historical reference — it was fully removed from the app and isn't reachable through the product; if you interact with its bytecode directly, be aware its pricing was client-submitted with no decentralized oracle behind it. See [`TERMS.md`](./TERMS.md), [`PRIVACY.md`](./PRIVACY.md), and [`RISK.md`](./RISK.md) for the full terms.
+Arc Mainnet features move real USDC and other assets. Browser-wallet flows are signed by the user's own wallet, at the user's own discretion. The mainnet Circle Wallet is a Circle Developer-Controlled Wallet: FlowFi's backend signs on the user's behalf only for an allowlisted set of actions, holdings are capped, and withdrawals to the user's own wallet are always available. Earn & Borrow use third-party Morpho vaults and markets; returns are variable and borrowing carries liquidation risk. The Testnet showcase runs with test assets that carry no monetary value. An earlier Perpetuals contract remains deployed and verified on Arcscan for historical reference — it was fully removed from the app and isn't reachable through the product; if you interact with its bytecode directly, be aware its pricing was client-submitted with no decentralized oracle behind it. See [`TERMS.md`](./TERMS.md), [`PRIVACY.md`](./PRIVACY.md), and [`RISK.md`](./RISK.md) for the full terms.

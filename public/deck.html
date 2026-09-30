@@ -2,21 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>FlowFi — Live on Arc Mainnet</title>
+<title>FlowFi: Live on Arc Mainnet</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #F6F5FC;
-    --ink: #17162B;
-    --ink-soft: #55516F;
-    --violet: #6D4FE0;
-    --violet-deep: #4C34B8;
+    --bg: #F4F6FD;
+    --ink: #0F1B3D;
+    --ink-soft: #5B6478;
+    --violet: #3D5AF1;
+    --violet-deep: #2448DD;
     --mint: #17A673;
     --card: #FFFFFF;
-    --line: #E4E0F5;
-    --lavender-2: #EFEBFC;
+    --line: #DCE2F7;
+    --lavender-2: #EEF1FE;
     --amber: #D98A2B;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -66,13 +66,8 @@
   /* ===== COVER ===== */
   .cover-body{ flex:1; display:flex; flex-direction:column; justify-content:center; }
   .brandmark{ display:flex; align-items:center; gap:10px; }
-  .brandmark .glyph{
-    width:34px; height:34px; border-radius:9px;
-    background:linear-gradient(135deg,var(--violet),var(--violet-deep));
-    display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 6px 16px rgba(109,79,224,.35);
-  }
-  .brandmark .glyph svg{ width:18px; height:18px; }
+  .brandmark .glyph{ width:38px; height:38px; display:flex; box-shadow: 0 6px 16px rgba(61,90,241,.25); border-radius:11px; }
+  .brandmark .glyph svg{ width:38px; height:38px; }
   .brandmark span{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px; }
   .brandmark small{ font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--violet-deep); letter-spacing:.1em; display:block; margin-top:-2px;}
 
@@ -107,20 +102,20 @@
   /* browser chrome frame for screenshots */
   .browser-frame{
     background:var(--card); border-radius:16px; border:1px solid var(--line);
-    box-shadow: 0 30px 60px -20px rgba(76,52,184,.28), 0 8px 24px -10px rgba(23,22,43,.12);
+    box-shadow: 0 30px 60px -20px rgba(36,72,221,.28), 0 8px 24px -10px rgba(23,22,43,.12);
     overflow:hidden; height:100%; display:flex; flex-direction:column;
   }
   .browser-bar{
     display:flex; align-items:center; gap:8px; padding:10px 14px;
-    background:linear-gradient(180deg,#FBFAFF,#F3F1FC); border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#FBFCFF,#F1F4FE); border-bottom:1px solid var(--line);
   }
   .browser-bar .dots{ display:flex; gap:6px; }
-  .browser-bar .dots span{ width:9px; height:9px; border-radius:50%; background:#DEDAF0; }
+  .browser-bar .dots span{ width:9px; height:9px; border-radius:50%; background:#D5DCF5; }
   .browser-bar .url{
     flex:1; margin-left:8px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft);
     background:#fff; border:1px solid var(--line); border-radius:7px; padding:4px 10px;
   }
-  .frame-media{ flex:1; overflow:hidden; background:#F6F5FC; display:flex; align-items:flex-start; justify-content:center;}
+  .frame-media{ flex:1; overflow:hidden; background:#F4F6FD; display:flex; align-items:flex-start; justify-content:center;}
   .frame-media img{ width:100%; display:block; }
 
   /* ===== CLOSING SLIDE ===== */
@@ -178,12 +173,12 @@
   <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#6D4FE0" stop-opacity="0.16"/>
-        <stop offset="100%" stop-color="#6D4FE0" stop-opacity="0"/>
+        <stop offset="0%" stop-color="#3D5AF1" stop-opacity="0.16"/>
+        <stop offset="100%" stop-color="#3D5AF1" stop-opacity="0"/>
       </linearGradient>
     </defs>
     <path d="M 550 50 A 500 500 0 0 1 50 550" stroke="url(#arcGrad)" stroke-width="90" fill="none"/>
-    <path d="M 560 120 A 440 440 0 0 1 120 560" stroke="#6D4FE0" stroke-opacity="0.06" stroke-width="2" fill="none"/>
+    <path d="M 560 120 A 440 440 0 0 1 120 560" stroke="#3D5AF1" stroke-opacity="0.06" stroke-width="2" fill="none"/>
   </svg>
 </div>
 
@@ -194,23 +189,24 @@
   <!-- SLIDE 0: COVER -->
   <section class="slide active">
     <div class="brandmark">
-      <div class="glyph"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2 L22 12 L12 22 L2 12 Z" fill="white" fill-opacity="0.95"/></svg></div>
-      <div><span>FlowFi</span><small>ARC MAINNET</small></div>
+      <div class="glyph"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#EEF2FF"/><stop offset="1" stop-color="#D9E1FF"/></linearGradient><linearGradient id="la" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6F8CFF"/><stop offset="1" stop-color="#3D5AF1"/></linearGradient><linearGradient id="lb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3D5AF1"/><stop offset="1" stop-color="#2238C9"/></linearGradient></defs><rect width="100" height="100" rx="28" fill="url(#lt)"/><rect x="1" y="1" width="98" height="98" rx="27" fill="none" stroke="#fff" stroke-width="2"/><g transform="translate(22 15) scale(0.7)"><path fill="url(#la)" d="M0 14C0 6 6 0 14 0H78C82 0 84 4 82 7L72 26C69 31 64 34 58 34H22C10 34 3 40 0 48Z"/><path fill="url(#lb)" d="M0 62C0 53 7 46 16 46H66C70 46 72 50 70 53L62 64C59 68 55 70 50 70H36C28 70 22 74 18 80L8 97C6 100 0 100 0 96Z"/></g></svg></div>
+      <div><span>Flow<span style="color:var(--violet)">Fi</span></span><small>ARC MAINNET</small></div>
     </div>
     <div class="cover-body">
       <div class="eyebrow"><span class="dot"></span> LIVE ON ARC MAINNET</div>
-      <h1 class="hero-title">Do more with USDC.<br><span class="accent-word">All in one flow.</span></h1>
-      <p class="lede" style="max-width:640px; font-size:17px;">Send, bridge, and swap USDC on Arc Mainnet from one fast, secure app. Every transaction is signed by your own wallet, never by FlowFi.</p>
+      <h1 class="hero-title">Your dollars on Arc.<br><span class="accent-word">All in one flow.</span></h1>
+      <p class="lede" style="max-width:640px; font-size:17px;">Bring dollars onto Arc without gas, hold USDC, EURC and cirBTC, move them across chains with one balance, and put them to work with Earn & Borrow. Live on Arc Mainnet.</p>
       <div class="cover-tags">
-        <div class="tag">Native USDC</div>
-        <div class="tag">Circle CCTP V2</div>
-        <div class="tag">LI.FI routing</div>
-        <div class="tag">Self-custody</div>
+        <div class="tag">Gasless USDC bridge</div>
+        <div class="tag">EURC &amp; cirBTC</div>
+        <div class="tag">Circle Gateway</div>
+        <div class="tag">Email wallet</div>
+        <div class="tag">Earn &amp; Borrow</div>
         <div class="tag">Live on Arc Mainnet</div>
       </div>
     </div>
     <div class="cover-foot">
-      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft);">Real funds &middot; Self-custody only</div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft);">Real funds &middot; Built on Circle &amp; Morpho</div>
       <div class="cover-meta">
         <div><b>Kazım</b> — sekuler.eth</div>
         <div>github.com/sekuler/flowfi</div>
@@ -221,19 +217,19 @@
 
   <section class="slide">
     <div class="eyebrow"><span class="dot"></span> 01 &middot; ENTRY</div>
-    <h2 class="slide-title">Landing: connect a wallet, or look around first.</h2>
+    <h2 class="slide-title">Landing: connect a wallet, sign in with email, or look around first.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">Connect with a browser wallet or a mobile wallet through WalletConnect, or explore the app without connecting at all. Nothing moves until you sign it yourself.</p>
+        <p class="lede">Connect a browser wallet or WalletConnect, sign in with just your email for a Circle Wallet, or explore without connecting. Nothing moves until you approve it.</p>
         <div class="callout">
           <span class="ic">◆</span>
-          <p><b>Self-custody, always:</b> FlowFi never holds a key, a balance, or signing authority over your funds. It is a frontend and a router, not a counterparty.</p>
+          <p><b>Your choice of wallet:</b> browser wallets stay fully self-custodial; the email wallet removes the seed phrase for newcomers and lets them withdraw to their own wallet anytime.</p>
         </div>
-        <div class="stat-row"><div class="stat"><div class="v">0</div><div class="l">Keys FlowFi holds</div></div><div class="stat"><div class="v">2</div><div class="l">Ways to connect</div></div></div>
+        <div class="stat-row"><div class="stat"><div class="v">3</div><div class="l">Ways to get in</div></div><div class="stat"><div class="v">0</div><div class="l">Seed phrases needed</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
-        <div class="frame-media"><img src="screenshots/1-Landing.jpg" alt="FlowFi landing page" loading="lazy"></div>
+        <div class="frame-media"><img src="screenshots/1-landing.jpg" alt="FlowFi landing page" loading="lazy"></div>
       </div>
     </div>
   </section>
@@ -243,35 +239,35 @@
     <h2 class="slide-title">Home: net worth, assets, and a Copilot that reads your wallet.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">Your net worth in dollars, the assets you hold (USDC, EURC, USYC, cirBTC), and one-tap shortcuts to Bridge, Swap, and Add funds. Ask your wallet answers questions about your balance and activity, and recent activity is written in plain language.</p>
+        <p class="lede">Your net worth in dollars, the assets you hold (USDC, EURC, USYC, cirBTC), and one-tap shortcuts to Add funds, Swap and Bridge. The Copilot answers questions about your balance and activity in plain language.</p>
         <div class="callout">
           <span class="ic">◆</span>
-          <p><b>Read-only by design:</b> the Copilot on mainnet answers from your on-chain data and never signs or executes anything itself.</p>
+          <p><b>Read-only by design:</b> on mainnet the Copilot answers from your onchain data and never signs anything.</p>
         </div>
         <div class="stat-row"><div class="stat"><div class="v">4</div><div class="l">Assets tracked</div></div><div class="stat"><div class="v">0</div><div class="l">Transactions the Copilot signs</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
-        <div class="frame-media"><img src="screenshots/2-Home.jpg" alt="FlowFi Home" loading="lazy"></div>
+        <div class="frame-media"><img src="screenshots/2-home.jpg" alt="FlowFi Home" loading="lazy"></div>
       </div>
     </div>
   </section>
 
   <section class="slide">
     <div class="eyebrow"><span class="dot"></span> 03 &middot; CROSS-CHAIN</div>
-    <h2 class="slide-title">Bridge: LI.FI for any token, Circle CCTP V2 for native USDC.</h2>
+    <h2 class="slide-title">Bridge: gasless USDC, native EURC &amp; cirBTC, any token via LI.FI.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">Any token tab: LI.FI compares routes so you pick the fastest or cheapest. Native USDC tab: FlowFi calls Circle's own CCTP V2 contracts directly. USDC is burned on the source chain, Circle attests, and native USDC is minted on Arc, with no wrapped token.</p>
+        <p class="lede">Native USDC uses Circle CCTP V2 with the Forwarding Service: you sign once on the source chain and Circle mints on Arc, so no Arc gas is needed. EURC and cirBTC arrive natively through CCTP for non-USDC, and LI.FI covers everything else.</p>
         <div class="callout">
           <span class="ic">◆</span>
-          <p><b>Built to be safe to interrupt:</b> if a transfer stops after the burn, it can be resumed without burning a second time. The expected wait for each source chain comes from Circle's own finality docs.</p>
+          <p><b>Safe to interrupt:</b> a transfer that stops after the burn resumes without burning twice, checked against Circle's usedNonces onchain.</p>
         </div>
-        <div class="stat-row"><div class="stat"><div class="v">18</div><div class="l">Source chains, native USDC</div></div><div class="stat"><div class="v">0</div><div class="l">FlowFi contracts on the path</div></div></div>
+        <div class="stat-row"><div class="stat"><div class="v">1</div><div class="l">Signature to reach Arc</div></div><div class="stat"><div class="v">0</div><div class="l">Arc gas needed</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
-        <div class="frame-media"><img src="screenshots/3-Bridge.jpg" alt="FlowFi Bridge" loading="lazy"></div>
+        <div class="frame-media"><img src="screenshots/3-bridge.jpg" alt="FlowFi Bridge" loading="lazy"></div>
       </div>
     </div>
   </section>
@@ -281,71 +277,129 @@
     <h2 class="slide-title">Swap: same-chain on Arc, routed through LI.FI.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">Swap opens on USDC to EURC and lists the tokens LI.FI supports on Arc as quick picks. FlowFi is built to be a router, not a market maker: it sends you to real, deep liquidity instead of holding its own reserves.</p>
+        <p class="lede">Swap opens on USDC to EURC and lists the tokens LI.FI supports on Arc as quick picks. FlowFi routes to real, deep liquidity instead of running its own pools.</p>
         <div class="callout">
           <span class="ic">◆</span>
-          <p><b>No FlowFi contract touches your funds:</b> the route, the swap, and the signature all happen with third-party infrastructure that was already live, and you sign in your own wallet.</p>
+          <p><b>No FlowFi contract on the path:</b> the route and the swap run on established infrastructure, and you sign in your own wallet.</p>
         </div>
-        <div class="stat-row"><div class="stat"><div class="v">USDC → EURC</div><div class="l">Default pair</div></div><div class="stat"><div class="v">0</div><div class="l">FlowFi contracts on the path</div></div></div>
+        <div class="stat-row"><div class="stat"><div class="v">USDC → EURC</div><div class="l">Default pair</div></div><div class="stat"><div class="v">0</div><div class="l">FlowFi fees</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
-        <div class="frame-media"><img src="screenshots/4-Swap.jpg" alt="FlowFi Swap" loading="lazy"></div>
+        <div class="frame-media"><img src="screenshots/4-swap.jpg" alt="FlowFi Swap" loading="lazy"></div>
       </div>
     </div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow"><span class="dot"></span> 05 &middot; ANALYTICS</div>
+    <div class="eyebrow"><span class="dot"></span> 05 &middot; PUT DOLLARS TO WORK</div>
+    <h2 class="slide-title">Earn &amp; Borrow: yield on USDC and EURC, loans against cirBTC.</h2>
+    <div class="product-slide">
+      <div class="panel-left">
+        <p class="lede">Deposit USDC or EURC into curated Morpho vaults (Galaxy, Keyrock, Steakhouse, Gauntlet), or borrow USDC or EURC against cirBTC on Morpho markets on Arc, with live APY, LTV and liquidation price on screen.</p>
+        <div class="callout">
+          <span class="ic">◆</span>
+          <p><b>Guardrails built in:</b> markets liquidate at 86% LTV; FlowFi caps new borrows at 70%, and every call is simulated before your wallet opens.</p>
+        </div>
+        <div class="stat-row"><div class="stat"><div class="v">4</div><div class="l">Curated vaults</div></div><div class="stat"><div class="v">70%</div><div class="l">Safe LTV cap</div></div></div>
+      </div>
+      <div class="browser-frame">
+        <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
+        <div class="frame-media"><img src="screenshots/5-earn-borrow.jpg" alt="FlowFi Earn and Borrow" loading="lazy"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> 06 &middot; NO SEED PHRASE</div>
+    <h2 class="slide-title">Circle Wallet: sign in with email, hold on four chains.</h2>
+    <div class="product-slide">
+      <div class="panel-left">
+        <p class="lede">A one-time email code opens a Circle Wallet with the same address on Arc, Base, Ethereum and Arbitrum. Add funds from your browser wallet and withdraw to your own wallet at any time.</p>
+        <div class="callout">
+          <span class="ic">◆</span>
+          <p><b>Made for newcomers:</b> powered by Circle's Developer-Controlled Wallets, with a strict allowlist of actions and withdrawals that are always open.</p>
+        </div>
+        <div class="stat-row"><div class="stat"><div class="v">4</div><div class="l">Chains, one address</div></div><div class="stat"><div class="v">Anytime</div><div class="l">Withdraw to your wallet</div></div></div>
+      </div>
+      <div class="browser-frame">
+        <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
+        <div class="frame-media"><img src="screenshots/6-circle-wallet.jpg" alt="FlowFi Circle Wallet" loading="lazy"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> 07 &middot; ONE BALANCE</div>
+    <h2 class="slide-title">Gateway: one USDC balance across Arc, Base, Ethereum and Arbitrum.</h2>
+    <div class="product-slide">
+      <div class="panel-left">
+        <p class="lede">Deposit USDC on any supported chain and spend it on any other in seconds. Transfers use an EIP-712 burn intent and Circle's Forwarding Service, so no gas is needed on the destination.</p>
+        <div class="callout">
+          <span class="ic">◆</span>
+          <p><b>Works with both wallets:</b> browser wallets sign the intent themselves; the Circle Wallet signs it server-side, limited to Gateway burn intents only.</p>
+        </div>
+        <div class="stat-row"><div class="stat"><div class="v">4</div><div class="l">Chains, one balance</div></div><div class="stat"><div class="v">Seconds</div><div class="l">Deposits credited on Arc</div></div></div>
+      </div>
+      <div class="browser-frame">
+        <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
+        <div class="frame-media"><img src="screenshots/7-gateway.jpg" alt="FlowFi Gateway" loading="lazy"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> 08 &middot; ANALYTICS</div>
     <h2 class="slide-title">Dashboard: net worth, allocation, and activity mix.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">Balances are read straight from the chain and activity from Arc's official Etherscan-run explorer. The portfolio split shows where your money sits, and the activity mix shows what you actually do: receive, send, approve, swap, bridge.</p>
+        <p class="lede">Balances come straight from the chain and activity from Arc's Etherscan-run explorer. The portfolio split shows where your money sits, and the activity mix shows what you actually do.</p>
         <div class="callout">
           <span class="ic">◆</span>
-          <p><b>No invented charts:</b> the net-worth chart and 7-day change are built from daily snapshots saved in your own browser. Until enough days exist, the dashboard says "Not enough history" instead of drawing a curve.</p>
+          <p><b>No invented charts:</b> the net-worth chart and 7-day change come from daily snapshots saved in your own browser, never from made-up data.</p>
         </div>
         <div class="stat-row"><div class="stat"><div class="v">Live</div><div class="l">Balances from the chain</div></div><div class="stat"><div class="v">0</div><div class="l">Made-up data points</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
-        <div class="frame-media"><img src="screenshots/5-Dashboard.jpg" alt="FlowFi Dashboard" loading="lazy"></div>
+        <div class="frame-media"><img src="screenshots/8-dashboard.jpg" alt="FlowFi Dashboard" loading="lazy"></div>
       </div>
     </div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow"><span class="dot"></span> 06 &middot; TRANSPARENCY</div>
-    <h2 class="slide-title">History: every transaction and token transfer, checkable.</h2>
+    <div class="eyebrow"><span class="dot"></span> 09 &middot; TRANSPARENCY</div>
+    <h2 class="slide-title">History: every transaction, checkable.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">History lists everything that happened on your address, including what you did in other apps: sends, receives, approvals, swaps, bridge mints, and aggregator routes, with the amount and a link to the explorer on every row.</p>
+        <p class="lede">Every send, receive, approval, swap, bridge mint and route on your address, including what you did in other apps, with the amount, status and a link to the explorer on every row.</p>
         <div class="callout">
           <span class="ic">◆</span>
-          <p><b>Receipts, not promises:</b> a swap made through another app shows up as tokens leaving and arriving, so anything on this page can be checked against the block explorer.</p>
+          <p><b>Receipts, not promises:</b> anything on this page can be checked against the block explorer in one click.</p>
         </div>
         <div class="stat-row"><div class="stat"><div class="v">1-click</div><div class="l">From any row to the explorer</div></div><div class="stat"><div class="v">Arc</div><div class="l">Mainnet, real funds</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
-        <div class="frame-media"><img src="screenshots/6-History.jpg" alt="FlowFi History" loading="lazy"></div>
+        <div class="frame-media"><img src="screenshots/9-history.jpg" alt="FlowFi History" loading="lazy"></div>
       </div>
     </div>
   </section>
 
-  <!-- SLIDE 7: CLOSING -->
+  <!-- CLOSING -->
   <section class="slide">
-    <div class="eyebrow"><span class="dot"></span> 07 &middot; SUMMARY</div>
-    <h2 class="slide-title" style="max-width:100%;">Built on Arc, on Circle's rails, self-custody end to end.</h2>
+    <div class="eyebrow"><span class="dot"></span> 10 &middot; SUMMARY</div>
+    <h2 class="slide-title" style="max-width:100%;">Built on Arc, on Circle and Morpho rails.</h2>
     <div class="closing-grid">
       <div>
         <p class="lede" style="max-width:100%;">FlowFi is live on Arc Mainnet with real funds. Everything you saw is the running product, and every claim can be checked on-chain.</p>
         <div class="stack-list">
-          <div class="stack-item"><div class="n">01</div><p><b>Bridge</b> — LI.FI for any token, Circle CCTP V2 for native USDC</p></div>
-          <div class="stack-item"><div class="n">02</div><p><b>Swap</b> — same-chain on Arc through LI.FI</p></div>
-          <div class="stack-item"><div class="n">03</div><p><b>Wallet</b> — browser wallets and WalletConnect, signed by you</p></div>
-          <div class="stack-item"><div class="n">04</div><p><b>Insight</b> — Home, Dashboard, and History, all read from the chain</p></div>
-          <div class="stack-item"><div class="n">05</div><p><b>Testnet showcase</b> — Circle Wallet, Token Launch, and Liquidity Pools stay live with no real funds</p></div>
+          <div class="stack-item"><div class="n">01</div><p><b>Bridge</b>: gasless USDC via CCTP + Forwarding, native EURC &amp; cirBTC, any token via LI.FI</p></div>
+          <div class="stack-item"><div class="n">02</div><p><b>Swap</b>: same-chain on Arc through LI.FI</p></div>
+          <div class="stack-item"><div class="n">03</div><p><b>Earn &amp; Borrow</b>: curated Morpho vaults and cirBTC-backed loans</p></div>
+          <div class="stack-item"><div class="n">04</div><p><b>Wallets</b>: browser wallets, WalletConnect, and an email-based Circle Wallet</p></div>
+          <div class="stack-item"><div class="n">05</div><p><b>Gateway</b>: one USDC balance across four chains</p></div>
+          <div class="stack-item"><div class="n">06</div><p><b>Testnet showcase</b>: AI Copilot actions, Token Launch and Liquidity Pools</p></div>
         </div>
       </div>
       <div class="link-card">
@@ -353,8 +407,9 @@
         <div class="link-row"><span>Live app</span><span>flowfi.finance</span></div>
         <div class="link-row"><span>Repository</span><span>github.com/sekuler/flowfi</span></div>
         <div class="link-row"><span>Explorer</span><span>arc.etherscan.io</span></div>
-        <div class="link-row"><span>Testnet faucet</span><span>faucet.circle.com</span></div>
+        <div class="link-row"><span>Demo video</span><span>youtu.be/Icu8qTiYMqw</span></div>
         <div class="link-row"><span>Network</span><span>Arc Mainnet</span></div>
+        <div class="link-row"><span>X</span><span>@flowfifinance</span></div>
         <div class="link-row"><span>Builder</span><span>@sekulereth</span></div>
       </div>
     </div>
@@ -364,7 +419,7 @@
 <div class="nav">
   <button id="prevBtn" onclick="go(-1)">‹</button>
   <div class="progress-arc" id="progress"></div>
-  <span class="counter" id="counter">1 / 15</span>
+  <span class="counter" id="counter">1 / 11</span>
   <button id="nextBtn" onclick="go(1)">›</button>
 </div>
 
