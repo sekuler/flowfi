@@ -336,6 +336,21 @@ function AppInner() {
     return () => { clearInterval(interval); window.removeEventListener("circle-wallet-changed", refresh); };
   }, []);
 
+  // Follow account switches in the wallet (MetaMask, Rabby, WalletConnect...). Without this the
+  // app kept showing balances for, and building transactions from, the old address.
+  useEffect(() => {
+    type Listener = (accounts: string[]) => void;
+    const p = wallet?.provider as unknown as { on?: (e: string, f: Listener) => void; removeListener?: (e: string, f: Listener) => void } | undefined;
+    if (!p?.on) return;
+    const onAccounts: Listener = (accounts) => {
+      const next = accounts?.[0];
+      if (!next) { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); return; }
+      setWallet((w) => (w && w.address.toLowerCase() !== next.toLowerCase() ? { ...w, address: next } : w));
+    };
+    p.on("accountsChanged", onAccounts);
+    return () => { p.removeListener?.("accountsChanged", onAccounts); };
+  }, [wallet?.provider]);
+
   function disconnectWallet() {
     localStorage.removeItem("flowfi-last-wallet-rdns");
     const p = wallet?.provider as unknown as { disconnect?: () => Promise<void> } | undefined;
@@ -905,7 +920,7 @@ function AppInner() {
           </div>
         )}
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
-          <div key={tab} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "dashboardmainnet" || tab === "mainnethistory" ? 1120 : tab === "circlewalletmainnet" || tab === "gatewaymainnet" ? 1040 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "mainnetswap" || tab === "mainnetbridge" ? 900 : 520), margin: "0 auto" }}>
+          <div key={`${tab}-${wallet?.address ?? ""}`} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "dashboardmainnet" || tab === "mainnethistory" ? 1120 : tab === "circlewalletmainnet" || tab === "gatewaymainnet" ? 1040 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "mainnetswap" || tab === "mainnetbridge" ? 900 : 520), margin: "0 auto" }}>
             {tab !== "home" && <div style={{ marginBottom: "2rem" }}>
               <h1 className="flowfi-display" style={{ fontSize: 32, fontWeight: 600, color: "#16151C", marginBottom: 6, letterSpacing: "-0.02em" }}>
                 {tab === "circlewalletmainnet" ? <span className="flowfi-shimmer-title">Circle Wallet</span> : tab === "gatewaymainnet" ? <span className="flowfi-shimmer-title">Gateway</span> : tab === "morphomainnet" ? <span className="flowfi-shimmer-title">Earn & Borrow</span> : tab === "dashboard" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "dashboardmainnet" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "mainnethistory" ? <span className="flowfi-shimmer-title">History</span> : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "mainnetswap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
