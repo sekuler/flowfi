@@ -41,19 +41,19 @@ function Donut({ segments, size = 172, thickness = 22, children }: { segments: {
   const c = 2 * Math.PI * r;
   const total = segments.reduce((a, s) => a + s.value, 0) || 1;
   const glow = segments.slice().sort((a, b) => b.value - a.value)[0]?.color ?? T.blue;
-  let offset = 0;
+  // Each segment starts where the previous ones end (precomputed, not mutated during render).
+  const lens = segments.map((s) => (s.value / total) * c);
+  const offsets = lens.map((_, i) => lens.slice(0, i).reduce((a, b) => a + b, 0));
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0, filter: `drop-shadow(0 8px 16px ${glow}40)` }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(61,90,241,0.08)" strokeWidth={thickness} />
         {segments.map((s, i) => {
-          const len = (s.value / total) * c;
-          const el = (
+          const len = lens[i];
+          return (
             <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.color} strokeWidth={thickness}
-              strokeDasharray={`${Math.max(len - (segments.length > 1 ? 3 : 0), 0)} ${c}`} strokeDashoffset={-offset} strokeLinecap="butt" />
+              strokeDasharray={`${Math.max(len - (segments.length > 1 ? 3 : 0), 0)} ${c}`} strokeDashoffset={-offsets[i]} strokeLinecap="butt" />
           );
-          offset += len;
-          return el;
         })}
       </svg>
       <div style={{ position: "absolute", inset: thickness, borderRadius: "50%", background: "rgba(255,255,255,0.75)", boxShadow: "inset 0 2px 8px rgba(36,58,150,0.08)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>{children}</div>
@@ -72,6 +72,12 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
   const [txCount, setTxCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  // Clock for the "updated Xm ago" label, ticking every 30s so it keeps counting up on its own.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
   const [reloadKey, setReloadKey] = useState(0);
   const [diamond, setDiamond] = useState<string | null>(null);
 
@@ -117,7 +123,8 @@ export default function DashboardMainnet({ address, balances, provider, onNaviga
   }
 
   const recent = txs.slice(0, 6);
-  const updatedText = updatedAt === null ? "—" : Math.floor((Date.now() - updatedAt) / 60000) < 1 ? "just now" : `${Math.floor((Date.now() - updatedAt) / 60000)}m ago`;
+  const agoMin = updatedAt === null ? 0 : Math.max(0, Math.floor((nowMs - updatedAt) / 60000));
+  const updatedText = updatedAt === null ? "—" : agoMin < 1 ? "just now" : `${agoMin}m ago`;
 
 
   const kpiPad = isMobile ? "1.1rem 1.2rem" : "1.5rem 1.6rem";

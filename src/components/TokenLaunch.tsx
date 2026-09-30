@@ -126,7 +126,7 @@ function TokenBuyPanel({ token, provider, address }: { token: { address: string;
   const [poolAddress, setPoolAddress] = useState<`0x${string}` | null | "none">(null);
   const [usdcIsTokenA, setUsdcIsTokenA] = useState(true);
   const [launchedAt, setLaunchedAt] = useState<number | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [amount, setAmount] = useState("");
   const [quote, setQuote] = useState<string | null>(null);
   const [quoting, setQuoting] = useState(false);

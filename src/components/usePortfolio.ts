@@ -71,7 +71,8 @@ export function usePortfolio(address: string, balances: MainnetBalances) {
   const hasChart = chartPoints.length >= 2;
   // "7-day change" compares against the newest snapshot that is at least 7 days old. It is a balance
   // change, so deposits and withdrawals count too, not only price movement.
-  const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  // Day granularity, so computing it once when the hook mounts is enough.
+  const [cutoff] = useState(() => new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10));
   const ref = [...series].reverse().find((p) => p.date <= cutoff);
   const change = ref && ref.value > 0 && total > 0 ? { abs: total - ref.value, pct: ((total - ref.value) / ref.value) * 100 } : null;
 

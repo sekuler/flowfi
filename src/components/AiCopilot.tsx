@@ -145,6 +145,9 @@ interface Message {
   confirmed?: boolean;
 }
 
+// Swap deadline N seconds from now. Module-level so it runs only inside the async handlers.
+const deadlineIn = (seconds: number) => BigInt(Math.floor(Date.now() / 1000) + seconds);
+
 async function switchToArc(provider: EIP1193Provider) {
   try {
     await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX }] });
@@ -296,7 +299,7 @@ Respond with ONLY the JSON object.`,
         const aToB = action.fromToken === "USDC";
         const freshQuote = await publicClient.readContract({ address: POOL_ADDRESS, abi: SWAP_ABI, functionName: "getAmountOut", args: [aToB, amountIn] }) as bigint;
         const minOut = (freshQuote * 99n) / 100n; // 1% slippage tolerance
-        const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+        const deadline = deadlineIn(3600);
 
         const hash = await wc.writeContract({
           address: POOL_ADDRESS, abi: SWAP_ABI, functionName: "swap",
@@ -350,7 +353,7 @@ Respond with ONLY the JSON object.`,
             await waitForSuccess(publicClient, approveHash);
             const stratQuote = await publicClient.readContract({ address: POOL_ADDRESS, abi: SWAP_ABI, functionName: "getAmountOut", args: [true, amountUnits] }) as bigint;
             const stratMinOut = (stratQuote * 99n) / 100n;
-            const stratDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+            const stratDeadline = deadlineIn(3600);
             const hash = await wc.writeContract({ address: POOL_ADDRESS, abi: SWAP_ABI, functionName: "swap", args: [true, amountUnits, stratMinOut, stratDeadline], account: address as `0x${string}` });
             await waitForSuccess(publicClient, hash);
           }

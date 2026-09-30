@@ -20,13 +20,6 @@ export default function CircleWallet() {
     setWallet(getCircleWallet());
   }, []);
 
-  useEffect(() => {
-    if (!wallet) { setBalances(null); return; }
-    loadBalances(wallet.address);
-    const interval = setInterval(() => loadBalances(wallet.address), 15000);
-    return () => clearInterval(interval);
-  }, [wallet]);
-
   async function loadBalances(address: string) {
     setLoadingBalances(true);
     try {
@@ -47,6 +40,13 @@ export default function CircleWallet() {
       setLoadingBalances(false);
     }
   }
+
+  useEffect(() => {
+    if (!wallet) { setBalances(null); return; }
+    loadBalances(wallet.address);
+    const interval = setInterval(() => loadBalances(wallet.address), 15000);
+    return () => clearInterval(interval);
+  }, [wallet]);
 
   async function sendCode() {
     setLoading(true);

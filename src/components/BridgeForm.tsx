@@ -380,7 +380,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       } catch (e: unknown) {
         const msg = (e as { message?: string })?.message ?? "";
         if (msg.includes("HTTP 404") || msg.includes("HTTP 500")) {
-          throw new Error(`${msg} — this looks like our own /api/iris-proxy endpoint failing, not Circle. Check that it's actually deployed.`);
+          throw new Error(`${msg} — this looks like our own /api/iris-proxy endpoint failing, not Circle. Check that it's actually deployed.`, { cause: e });
         }
         // Otherwise: not indexed yet, or a transient error — keep polling.
       }
@@ -538,7 +538,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       });
     } catch (simErr: unknown) {
       const msg = (simErr as { shortMessage?: string; message?: string })?.shortMessage ?? (simErr as { message?: string })?.message ?? "unknown reason";
-      throw new Error(`This burn would fail on-chain (${msg}). Most likely ${assetLabel} isn't registered for CCTP burning on ${sourceKey} yet, even though the token is deployed there. No transaction was sent, no gas spent.`);
+      throw new Error(`This burn would fail on-chain (${msg}). Most likely ${assetLabel} isn't registered for CCTP burning on ${sourceKey} yet, even though the token is deployed there. No transaction was sent, no gas spent.`, { cause: simErr });
     }
     const burnHash = await sourceWallet.writeContract({
       address: TOKEN_MESSENGER,
@@ -642,7 +642,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
       });
     } catch (simErr: unknown) {
       const msg = (simErr as { shortMessage?: string; message?: string })?.shortMessage ?? (simErr as { message?: string })?.message ?? "unknown reason";
-      throw new Error(`This transfer would fail on-chain (${msg}). No transaction was sent, no gas spent.`);
+      throw new Error(`This transfer would fail on-chain (${msg}). No transaction was sent, no gas spent.`, { cause: simErr });
     }
     const burnHash = await sourceWallet.writeContract({
       address: ccts, abi: CROSS_CHAIN_TRANSFER_ABI, functionName: "crossChainTransfer",
@@ -761,7 +761,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
               <div>
                 <label style={{ fontSize: 12, color: "#4B5563", fontWeight: 600 }}>From</label>
                 <div style={{ marginTop: 6 }}>
-                  <ChainRow chainKey={sourceKey} open={sourceOpen} setOpen={setSourceOpen} onSelect={changeSource} />
+                  {ChainRow({ chainKey: sourceKey, open: sourceOpen, setOpen: setSourceOpen, onSelect: changeSource })}
                 </div>
               </div>
               <button onClick={flipChains} disabled={isLoading}
@@ -771,7 +771,7 @@ export default function BridgeForm({ provider, address, onNavigate }: Props) {
               <div>
                 <label style={{ fontSize: 12, color: "#4B5563", fontWeight: 600 }}>To</label>
                 <div style={{ marginTop: 6 }}>
-                  <ChainRow chainKey={destKey} open={destOpen} setOpen={setDestOpen} onSelect={changeDest} />
+                  {ChainRow({ chainKey: destKey, open: destOpen, setOpen: setDestOpen, onSelect: changeDest })}
                 </div>
               </div>
             </div>

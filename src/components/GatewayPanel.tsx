@@ -414,7 +414,7 @@ export default function GatewayPanel({ provider, address }: Props) {
           });
         } catch (mintErr: unknown) {
           const mintMsg = (mintErr as { message?: string })?.message ?? "unknown reason";
-          throw new Error(`Gateway approved the transfer (attestation received) — the mint on ${transferDest} didn't go through (${mintMsg}). This is most likely the destination Circle Wallet needing a small amount of native gas token on ${transferDest}. Your funds aren't lost; check back or retry once that's funded.`);
+          throw new Error(`Gateway approved the transfer (attestation received) — the mint on ${transferDest} didn't go through (${mintMsg}). This is most likely the destination Circle Wallet needing a small amount of native gas token on ${transferDest}. Your funds aren't lost; check back or retry once that's funded.`, { cause: mintErr });
         }
         setTransferAmount("");
         setShowTransferConfirm(false);

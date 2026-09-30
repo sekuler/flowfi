@@ -297,6 +297,10 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     return () => { cancelled = true; };
   }, [pickerOpen]);
 
+  function preferFastTier(fast: unknown) {
+    return PREFER_FAST && !!fast;
+  }
+
   // Circle's published fee for the Standard tier on this route (display only; hidden if the API shape differs).
   useEffect(() => {
     let cancelled = false;
@@ -319,10 +323,6 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       .catch(() => {});
     return () => { cancelled = true; };
   }, [source]);
-
-  function preferFastTier(fast: unknown) {
-    return PREFER_FAST && !!fast;
-  }
 
   // Fresh quote right before burning (the forwarding fee is dynamic). Returns null if the API
   // gives no usable forwardFee, in which case we must NOT send a forwarding burn.
@@ -591,7 +591,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
         : { text: "Pending", bg: "#FEF6D8", fg: "#A16207", border: "#EAB308" };
 
   // CTA per view / state
-  let ctaLabel = "";
+  let ctaLabel: string;
   let ctaEnabled = false;
   let ctaAction: () => void = () => {};
   if (view === "form") {

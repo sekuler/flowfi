@@ -635,7 +635,7 @@ function PoolRow({ pool, provider, address, expanded, onToggle, onRefresh, onMet
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    let tvl: number | null = null;
+    let tvl: number | null;
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const [resA, resB] = await client.readContract({ address: pool.poolAddress, abi, functionName: "getReserves" });

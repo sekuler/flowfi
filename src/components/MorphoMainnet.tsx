@@ -149,7 +149,12 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   }, []);
 
   // ---- derived market + position numbers ----
-  const now = BigInt(Math.floor(Date.now() / 1000));
+  // Clock for interest accrual, ticking every 15s (not read during render).
+  const [now, setNow] = useState(() => BigInt(Math.floor(Date.now() / 1000)));
+  useEffect(() => {
+    const id = setInterval(() => setNow(BigInt(Math.floor(Date.now() / 1000))), 15000);
+    return () => clearInterval(id);
+  }, []);
   const interest = mkt && rate !== null && now > mkt.lastUpdate ? (mkt.totalBorrowAssets * rate * (now - mkt.lastUpdate)) / WAD : 0n;
   const totBorrow = mkt ? mkt.totalBorrowAssets + interest : 0n;
   const totSupply = mkt ? mkt.totalSupplyAssets + interest : 0n;

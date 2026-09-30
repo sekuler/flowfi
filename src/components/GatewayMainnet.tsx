@@ -126,7 +126,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
   const [walletBal, setWalletBal] = useState<Record<string, number>>({});
   // A deposit Gateway hasn't credited yet. Kept in localStorage so it survives leaving the page.
   const [arriving, setArriving] = useState<{ chain: string; amount: number; eta: number; baseline: number } | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const arrivingKey = owner ? `flowfi-gw-arriving-${owner.toLowerCase()}` : null;
   useEffect(() => {
     if (!arrivingKey) { setArriving(null); return; }
