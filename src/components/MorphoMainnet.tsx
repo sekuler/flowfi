@@ -5,12 +5,12 @@ import { PiggyBank, Landmark, RefreshCw } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenOnChain } from "./AssetLogos";
 import {
-  MORPHO_BLUE, MARKET_ID, MARKET_PARAMS, USDC, CIRBTC, EURC, VAULTS, type EarnAsset, USDC_DECIMALS, CIRBTC_DECIMALS,
+  MORPHO_BLUE, MARKETS, type BorrowAsset, USDC, CIRBTC, EURC, VAULTS, type EarnAsset, USDC_DECIMALS, CIRBTC_DECIMALS,
   WAD, ORACLE_SCALE, SAFE_LTV_PCT, MORPHO_ABI, IRM_ABI, ORACLE_ABI, VAULT_ABI, toAssetsUp, fetchVaultApy,
 } from "./morpho";
 
 // Earn & Borrow on Arc mainnet, built on Morpho. Earn = deposit USDC or EURC into a curated
-// Morpho vault (ERC-4626). Borrow = cirBTC collateral / USDC loan on the verified Morpho Blue market.
+// Morpho vault (ERC-4626). Borrow = cirBTC collateral, USDC or EURC loan on verified Morpho Blue markets.
 // Browser wallet only: every call goes from the user's wallet straight to Morpho, FlowFi holds nothing.
 
 const BLUE = "#3D5AF1";
@@ -78,6 +78,8 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const [walletUsdc, setWalletUsdc] = useState(0n);
   const [walletEurc, setWalletEurc] = useState(0n);
   const [earnAsset, setEarnAsset] = useState<EarnAsset>("USDC");
+  const [borrowAsset, setBorrowAsset] = useState<BorrowAsset>("USDC");
+  const M = MARKETS[borrowAsset];
   const [walletBtc, setWalletBtc] = useState(0n);
   const [vaults, setVaults] = useState<Record<string, VaultState>>({});
   const [apy, setApy] = useState<Record<string, number | null>>({});
@@ -102,11 +104,11 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
     (async () => {
       try {
         const [m, px] = await Promise.all([
-          pc.readContract({ address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "market", args: [MARKET_ID] }),
-          pc.readContract({ address: MARKET_PARAMS.oracle, abi: ORACLE_ABI, functionName: "price" }),
+          pc.readContract({ address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "market", args: [M.id] }),
+          pc.readContract({ address: M.params.oracle, abi: ORACLE_ABI, functionName: "price" }),
         ]);
         const market: Mkt = { totalSupplyAssets: m[0], totalSupplyShares: m[1], totalBorrowAssets: m[2], totalBorrowShares: m[3], lastUpdate: m[4], fee: m[5] };
-        const r = await pc.readContract({ address: MARKET_PARAMS.irm, abi: IRM_ABI, functionName: "borrowRateView", args: [MARKET_PARAMS, market] });
+        const r = await pc.readContract({ address: M.params.irm, abi: IRM_ABI, functionName: "borrowRateView", args: [M.params, market] });
 
         const vs: Record<string, VaultState> = {};
         await Promise.all(VAULTS.map(async (v) => {
@@ -125,7 +127,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         let p = { borrowShares: 0n, collateral: 0n }, wu = 0n, wb = 0n, we = 0n;
         if (owner) {
           const [ps, u, b, e] = await Promise.all([
-            pc.readContract({ address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "position", args: [MARKET_ID, owner] }),
+            pc.readContract({ address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "position", args: [M.id, owner] }),
             pc.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [owner] }),
             pc.readContract({ address: CIRBTC, abi: erc20Abi, functionName: "balanceOf", args: [owner] }),
             pc.readContract({ address: EURC, abi: erc20Abi, functionName: "balanceOf", args: [owner] }),
@@ -140,7 +142,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       }
     })();
     return () => { cancelled = true; };
-  }, [owner, tick]);
+  }, [owner, tick, borrowAsset]);
 
   useEffect(() => {
     VAULTS.forEach((v) => { fetchVaultApy(v.address).then((a) => setApy((s) => ({ ...s, [v.key]: a }))); });
@@ -154,6 +156,11 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const available = pos0(totSupply - totBorrow);
   const utilization = totSupply > 0n ? Number(totBorrow) / Number(totSupply) : 0;
   const borrowApy = rate !== null ? Math.exp((Number(rate) / 1e18) * 31_536_000) - 1 : null;
+  // Loan-token side of the Borrow screen (USDC or EURC; both 6 decimals).
+  const loanSym = borrowAsset;
+  const lc = M.cur;
+  const walletLoan = borrowAsset === "EURC" ? walletEurc : walletUsdc;
+  const loanSpendable = borrowAsset === "EURC" ? walletEurc : pos0(walletUsdc - GAS_BUFFER);
   const btcPrice = price !== null ? Number(price / 10n ** 30n) / 1e4 : null; // 1e36 * 10^(6-8) scale
 
   const debt = mkt ? toAssetsUp(pos.borrowShares, totBorrow, mkt.totalBorrowShares) : 0n;
@@ -177,7 +184,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   // ---- current action: token, max and the position after it ----
   const isEarn = mode === "earn";
   const tokenDecimals = !isEarn && (borrowAction === "collateral" || borrowAction === "withdraw") ? CIRBTC_DECIMALS : USDC_DECIMALS;
-  const tokenSymbol = isEarn ? earnAsset : tokenDecimals === CIRBTC_DECIMALS ? "cirBTC" : "USDC";
+  const tokenSymbol = isEarn ? earnAsset : tokenDecimals === CIRBTC_DECIMALS ? "cirBTC" : loanSym;
   let amt = 0n;
   try { amt = amount ? parseUnits(amount as `${number}`, tokenDecimals) : 0n; } catch { amt = 0n; }
 
@@ -188,7 +195,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
     withdraw_earn: withdrawable,
     collateral: walletBtc,
     borrow: minB(pos0(safeMaxDebt - debt), available),
-    repay: minB(debt, pos0(walletUsdc - GAS_BUFFER)),
+    repay: minB(debt, loanSpendable),
     withdraw: debt === 0n ? pos.collateral : pos0(pos.collateral - requiredColl),
   };
   const actionKey = isEarn ? (earnAction === "deposit" ? "deposit" : "withdraw_earn") : borrowAction;
@@ -200,7 +207,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const fullRepay = borrowAction === "repay" && debt > 0n && amt >= debt;
   const fullWithdrawEarn = earnAction === "withdraw" && vs.assets > 0n && amt >= vs.assets;
 
-  const can = !!owner && amt > 0n && step !== "sending" && (fullRepay ? walletUsdc >= debt : amt <= max) && !!mkt;
+  const can = !!owner && amt > 0n && step !== "sending" && (fullRepay ? walletLoan >= debt : amt <= max) && !!mkt;
   const verb = isEarn ? (earnAction === "deposit" ? "Deposit" : "Withdraw")
     : ({ collateral: "Add collateral", borrow: "Borrow", repay: fullRepay ? "Repay all" : "Repay", withdraw: "Withdraw collateral" } as const)[borrowAction];
   const btn = step === "sending" ? "Confirm in your wallet..." : !amount ? "Enter an amount" : amt > max && !fullRepay ? (actionKey === "borrow" ? "Above the 70% safe limit" : actionKey === "withdraw" ? "Would go above the 70% safe limit" : "Not enough balance") : `${verb} ${amount} ${tokenSymbol}`;
@@ -254,23 +261,23 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       } else if (borrowAction === "collateral") {
         await approve(CIRBTC, MORPHO_BLUE, amt, "cirBTC");
         setMsg("Confirm adding collateral...");
-        const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "supplyCollateral", args: [MARKET_PARAMS, amt, owner, "0x"] });
+        const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "supplyCollateral", args: [M.params, amt, owner, "0x"] });
         await wait(await wc.writeContract(request));
       } else if (borrowAction === "borrow") {
         setMsg("Confirm the borrow...");
-        const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "borrow", args: [MARKET_PARAMS, amt, 0n, owner, owner] });
+        const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "borrow", args: [M.params, amt, 0n, owner, owner] });
         await wait(await wc.writeContract(request));
       } else if (borrowAction === "repay") {
         // Full repay goes by shares so no dust debt is left; approve a small buffer for interest accrued meanwhile.
-        const need = fullRepay ? minB(walletUsdc, (debt * 1001n) / 1000n + 10_000n) : amt;
-        await approve(USDC, MORPHO_BLUE, need, "USDC");
+        const need = fullRepay ? minB(walletLoan, (debt * 1001n) / 1000n + 10_000n) : amt;
+        await approve(M.loan, MORPHO_BLUE, need, loanSym);
         setMsg("Confirm the repayment...");
         const [repayAssets, repayShares] = fullRepay ? [0n, pos.borrowShares] : [amt, 0n];
-        const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "repay", args: [MARKET_PARAMS, repayAssets, repayShares, owner, "0x"] });
+        const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "repay", args: [M.params, repayAssets, repayShares, owner, "0x"] });
         await wait(await wc.writeContract(request));
       } else {
         setMsg("Confirm the collateral withdrawal...");
-        const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "withdrawCollateral", args: [MARKET_PARAMS, amt, owner, owner] });
+        const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "withdrawCollateral", args: [M.params, amt, owner, owner] });
         await wait(await wc.writeContract(request));
       }
       setStep("done"); setMsg(`${verb} ${amount} ${tokenSymbol}: done.`); setAmount("");
@@ -343,11 +350,11 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
     ? earnAction === "deposit" ? `In wallet ${usd(u6(earnWalletRaw))} ${earnAsset}` : `Withdrawable ${usd(u6(withdrawable))} ${earnAsset}`
     : borrowAction === "collateral" ? `In wallet ${b8(walletBtc).toFixed(8)} cirBTC`
     : borrowAction === "withdraw" ? `Withdrawable ${b8(maxFor.withdraw).toFixed(8)} cirBTC`
-    : borrowAction === "borrow" ? `You can borrow ${usd(u6(maxFor.borrow))} USDC`
-    : `Debt ${usd(u6(debt))} USDC · wallet ${usd(u6(walletUsdc))} USDC`;
+    : borrowAction === "borrow" ? `You can borrow ${usd(u6(maxFor.borrow))} ${loanSym}`
+    : `Debt ${usd(u6(debt))} ${loanSym} · wallet ${usd(u6(walletLoan))} ${loanSym}`;
 
   const setMax = () => {
-    if (!isEarn && borrowAction === "repay" && debt > 0n && walletUsdc >= debt) { setAmount(formatUnits(debt, USDC_DECIMALS)); return; }
+    if (!isEarn && borrowAction === "repay" && debt > 0n && walletLoan >= debt) { setAmount(formatUnits(debt, USDC_DECIMALS)); return; }
     if (isEarn && earnAction === "withdraw" && !withdrawLimited && vs.assets > 0n) { setAmount(formatUnits(vs.assets, USDC_DECIMALS)); return; }
     setAmount(formatUnits(max, tokenDecimals));
   };
@@ -359,7 +366,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       {/* Hero: market numbers for the chosen side */}
       <section style={hero}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{isEarn ? vault.name : "cirBTC / USDC market"} · Morpho</span>
+          <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{isEarn ? vault.name : `cirBTC / ${loanSym} market`} · Morpho</span>
           <button type="button" aria-label="Refresh" onClick={() => setTick((t) => t + 1)} style={{ border: "none", background: "rgba(255,255,255,0.18)", color: "#FFFFFF", borderRadius: 999, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={14} /></button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
@@ -369,8 +376,8 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
             {stat("Your deposit", `${cur}${usd(u6(vs.assets))}`)}
           </>) : (<>
             {stat("Borrow APY", pct(borrowApy))}
-            {stat("Available", compact(u6(available)))}
-            {stat("BTC (oracle)", btcPrice !== null ? `$${usd(btcPrice, 0)}` : "—")}
+            {stat("Available", compact(u6(available), lc))}
+            {stat("BTC (oracle)", btcPrice !== null ? `${lc}${usd(btcPrice, 0)}` : "—")}
           </>)}
         </div>
       </section>
@@ -379,7 +386,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
 
       {!owner ? (
         <div style={{ ...card, alignItems: "center", textAlign: "center", color: MUTED, fontSize: 13.5 }}>
-          Connect a browser wallet to {isEarn ? "earn on your USDC or EURC" : "borrow USDC against cirBTC"}.
+          Connect a browser wallet to {isEarn ? "earn on your USDC or EURC" : "borrow USDC or EURC against cirBTC"}.
           {onConnect && <button type="button" onClick={onConnect} style={{ ...primary(true), maxWidth: 260 }}>Connect wallet</button>}
         </div>
       ) : isEarn ? (
@@ -420,15 +427,17 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         <>
           <section style={card}>
             {sectionTitle(Landmark, "Your position")}
-            {row("Collateral", `${b8(pos.collateral).toFixed(8)} cirBTC ($${usd(u6(collValueOf(pos.collateral)))})`)}
-            {row("Debt", `${usd(u6(debt))} USDC`, true)}
-            {row("Liquidation price", liqPriceOf(pos.collateral, debt) !== null ? `$${usd(liqPriceOf(pos.collateral, debt)!, 0)} per BTC` : "—")}
+            {segmented([{ k: "USDC", t: "Borrow USDC" }, { k: "EURC", t: "Borrow EURC" }], borrowAsset, (k) => { setBorrowAsset(k); setMkt(null); setPrice(null); setRate(null); setPos({ borrowShares: 0n, collateral: 0n }); }, "Borrow asset")}
+            <p style={{ margin: 0, fontSize: 11.5, color: MUTED }}>Each market keeps its own cirBTC collateral and debt.</p>
+            {row("Collateral", `${b8(pos.collateral).toFixed(8)} cirBTC (${lc}${usd(u6(collValueOf(pos.collateral)))})`)}
+            {row("Debt", `${usd(u6(debt))} ${loanSym}`, true)}
+            {row("Liquidation price", liqPriceOf(pos.collateral, debt) !== null ? `${lc}${usd(liqPriceOf(pos.collateral, debt)!, 0)} per BTC` : "—")}
             {ltvBar(ltv, amt > 0n ? newLtv : null)}
           </section>
           <section style={card}>
             {segmented([{ k: "collateral", t: "Add collateral" }, { k: "borrow", t: "Borrow" }, { k: "repay", t: "Repay" }, { k: "withdraw", t: "Withdraw" }], borrowAction, setBorrowAction, "Borrow action")}
             {amt > 0n && (borrowAction === "borrow" || borrowAction === "withdraw") && liqPriceOf(newColl, newDebt) !== null && (
-              <p style={{ margin: 0, fontSize: 12, color: MUTED }}>After this, you get liquidated if BTC falls to ${usd(liqPriceOf(newColl, newDebt)!, 0)}.</p>
+              <p style={{ margin: 0, fontSize: 12, color: MUTED }}>After this, you get liquidated if BTC falls to {lc}{usd(liqPriceOf(newColl, newDebt)!, 0)}.</p>
             )}
             {amountBox()}
             <p style={{ margin: 0, fontSize: 11.5, color: MUTED }}>Market utilization {(utilization * 100).toFixed(1)}%. Borrow rate is variable and rises when the market is nearly fully borrowed.</p>

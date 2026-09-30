@@ -21,6 +21,18 @@ export const MARKET_PARAMS = {
 } as const;
 
 // EURC vaults (Morpho VaultV2, underlying EURC) checked on arc.etherscan.io on 2026-09-30.
+// Borrow markets (cirBTC collateral). Both verified onchain on 2026-09-30 with idToMarketParams.
+export const MARKETS = {
+  USDC: { id: MARKET_ID, params: MARKET_PARAMS, loan: USDC, cur: "$" },
+  EURC: {
+    id: "0x6ea1ea96a1cc671615f3a3bdf51481c5b79e362a8b634396e680d1070137daf4" as `0x${string}`,
+    params: { loanToken: EURC, collateralToken: CIRBTC, oracle: "0x6945246777DfdF4744D957323857F797Ec19Ca1e", irm: "0xF02615d094Fc02fC031C35fe705e175aA4653f20", lltv: 860000000000000000n },
+    loan: EURC,
+    cur: "€",
+  },
+} as const;
+export type BorrowAsset = keyof typeof MARKETS;
+
 export const VAULTS = [
   { key: "galaxy", name: "Galaxy USDC", curator: "Galaxy", asset: "USDC", address: "0x8E357432CC12ff425c36432F312968aEb16112AF" },
   { key: "keyrock", name: "Keyrock Prime USDC", curator: "Keyrock", asset: "USDC", address: "0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123" },
