@@ -64,6 +64,7 @@ const SERVICE_ABI = [
 const ERC20_ABI = [
   { name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "ok", type: "bool" }] },
   { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "balance", type: "uint256" }] },
+  { name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "amount", type: "uint256" }] },
 ] as const;
 const RECEIVE_MESSAGE_ABI = [{ type: "function", name: "receiveMessage", stateMutability: "nonpayable", inputs: [{ name: "message", type: "bytes" }, { name: "attestation", type: "bytes" }], outputs: [{ type: "bool" }] }] as const;
 const USED_NONCES_ABI = [{ type: "function", name: "usedNonces", stateMutability: "view", inputs: [{ name: "nonce", type: "bytes32" }], outputs: [{ type: "uint256" }] }] as const;
@@ -108,6 +109,9 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
   const [txHash, setTxHash] = useState<string | null>(null);
   const [mintHash, setMintHash] = useState<string | null>(null);
   const [pendingSrc, setPendingSrc] = useState<number | null>(null);
+  // Circle's fee quoted before anything is signed, and the source-chain gas balance it's paid from.
+  const [previewFee, setPreviewFee] = useState<bigint | null>(null);
+  const [gasBal, setGasBal] = useState<bigint | null>(null);
 
   const tok = TOKENS[tokenKey];
   const src = SOURCES[pendingSrc ?? srcIdx];
@@ -146,6 +150,35 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
     })();
     return () => { cancelled = true; };
   }, [srcIdx, tokenKey, address, step === "done"]);
+
+  // Native gas balance on the source chain (Circle's fee is paid in it).
+  useEffect(() => {
+    let cancelled = false;
+    setGasBal(null);
+    createPublicClient({ chain: SOURCES[srcIdx].chain, transport: http() }).getBalance({ address: address as `0x${string}` })
+      .then((b) => { if (!cancelled) setGasBal(b); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [srcIdx, address, step === "done"]);
+
+  // Fee preview: quoted as soon as an amount is typed, so the fee is visible before anything is signed.
+  useEffect(() => {
+    if (step !== "idle") return;
+    setPreviewFee(null); setFeeText(null); setFast(null);
+    let raw: bigint;
+    try { raw = parseUnits(amount.trim() || "0", TOKENS[tokenKey].decimals); } catch { return; }
+    if (raw <= 0n) return;
+    let cancelled = false;
+    const s = SOURCES[srcIdx];
+    const t = setTimeout(() => {
+      getQuote(raw, s).then((q) => {
+        if (cancelled) return;
+        setPreviewFee(q.fee); setFast(q.fast);
+        setFeeText(`${Number(formatEther(q.fee)).toPrecision(3)} ${s.gas}`);
+      }).catch(() => {});
+    }, 600);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [amount, srcIdx, tokenKey, step]);
 
   async function getQuote(amountRaw: bigint, s: Source): Promise<{ signedQuote: `0x${string}`; fee: bigint; fast: boolean }> {
     const forward = { type: "FORWARD", params: { msgType: "TransferMessage", destinationAddress: address } };
@@ -198,15 +231,29 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
       const tokenManager = await pc.readContract({ address: CCTS, abi: SERVICE_ABI, functionName: "resolveTokenManager", args: [tok.id] });
       const token = await pc.readContract({ address: CCTS, abi: SERVICE_ABI, functionName: "resolveTokenAddress", args: [tok.id] });
 
-      setStep("approving");
-      const approveHash = await wc.sendTransaction({ to: token, data: encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [tokenManager, amountRaw] }) });
-      const ar = await pc.waitForTransactionReceipt({ hash: approveHash });
-      if (ar.status === "reverted") throw new Error("The approval reverted. Nothing was sent.");
+      // Quote and check the fee can be paid BEFORE approving, so nothing is signed for a transfer that can't go through.
+      setStep("quoting");
+      const q0 = await getQuote(amountRaw, s);
+      setFast(q0.fast);
+      setFeeText(`${Number(formatEther(q0.fee)).toPrecision(3)} ${s.gas}`);
+      const gas = await pc.getBalance({ address: address as `0x${string}` });
+      if (gas <= q0.fee) throw new Error(`Not enough ${s.gas} on ${s.name}: Circle's fee is ${Number(formatEther(q0.fee)).toPrecision(3)} ${s.gas}, plus a little for gas. Nothing was sent.`);
 
+      // Skip the approval if an earlier attempt already approved enough.
+      const allowed = await pc.readContract({ address: token, abi: ERC20_ABI, functionName: "allowance", args: [address as `0x${string}`, tokenManager] });
+      if (allowed < amountRaw) {
+        setStep("approving");
+        const approveHash = await wc.sendTransaction({ to: token, data: encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [tokenManager, amountRaw] }) });
+        const ar = await pc.waitForTransactionReceipt({ hash: approveHash });
+        if (ar.status === "reverted") throw new Error("The approval reverted. Nothing was sent.");
+      }
+
+      // Fresh quote right before sending (quotes are short-lived). Stop if the fee jumped meanwhile.
       setStep("quoting");
       const q = await getQuote(amountRaw, s);
       setFast(q.fast);
       setFeeText(`${Number(formatEther(q.fee)).toPrecision(3)} ${s.gas}`);
+      if (q.fee > (q0.fee * 13n) / 10n) throw new Error(`Circle's fee went up to ${Number(formatEther(q.fee)).toPrecision(3)} ${s.gas}. Nothing was sent. Check the new fee and try again.`);
 
       setStep("sending");
       const hash = await wc.sendTransaction({
@@ -266,11 +313,13 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
   const amt = parseFloat(amount);
   const validAmt = Number.isFinite(amt) && amt > 0;
   const insufficient = validAmt && balNum !== null && amt > balNum;
+  const noGas = previewFee !== null && gasBal !== null && gasBal <= previewFee;
 
-  let cta = `Send ${tok.symbol} to Arc`; let ctaOn = !!provider && validAmt && !insufficient && step === "idle"; let ctaFn: () => void = send;
+  let cta = `Send ${tok.symbol} to Arc`; let ctaOn = !!provider && validAmt && !insufficient && !noGas && step === "idle"; let ctaFn: () => void = send;
   if (!provider) cta = "Connect wallet";
   else if (step === "idle" && !validAmt) cta = "Enter an amount";
   else if (step === "idle" && insufficient) cta = `Insufficient ${tok.symbol} balance`;
+  else if (step === "idle" && noGas) cta = `Not enough ${src.gas} for Circle's fee`;
   if (busy) { cta = "Processing..."; ctaOn = false; }
   if (step === "done") { cta = "Send another"; ctaOn = true; ctaFn = reset; }
   if (unfinished) { cta = "Resume"; ctaOn = !!provider; ctaFn = resume; }
