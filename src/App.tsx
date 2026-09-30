@@ -574,7 +574,7 @@ function AppInner() {
                 style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
                 Explore without connecting →
               </button>
-              <a href="https://youtu.be/f4Luu0ic3ek" target="_blank" rel="noopener noreferrer"
+              <a href="https://youtu.be/Icu8qTiYMqw" target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", alignItems: "center", gap: 6, color: "#6D5EF7", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
                 <span style={{ fontSize: 11 }}>▶</span> Watch Demo
               </a>
@@ -655,7 +655,7 @@ function AppInner() {
                 { label: "Live App", href: "#top" },
                 { label: "Explorer", href: "https://arc.etherscan.io" },
                 { label: "Docs", href: "https://github.com/sekuler/flowfi" },
-                { label: "Watch Demo", href: "https://youtu.be/rdTz-h3mHFs" },
+                { label: "Watch Demo", href: "https://youtu.be/Icu8qTiYMqw" },
               ].map(({ label, href }) => (
                 <a key={label} href={href} {...(href.startsWith("#") ? {} : { target: "_blank", rel: "noopener noreferrer" })} style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>{label}</a>
               ))}
