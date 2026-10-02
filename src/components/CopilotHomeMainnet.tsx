@@ -4,7 +4,7 @@ import { TokenIcon } from "./TokenIcon";
 import NetworkGuard from "./NetworkGuard";
 import { useIsMobile } from "../useIsMobile";
 import { getFormattedMarketAnalysis } from "../marketData";
-import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, Send, CheckCircle2, XCircle, Clock, Sparkles, Check } from "lucide-react";
+import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, Send, CheckCircle2, XCircle, Clock, Sparkles, Check, Maximize2, Minimize2 } from "lucide-react";
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
@@ -92,6 +92,14 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [asking, setAsking] = useState(false);
+  // Copilot card can be opened full-size (button in its header; Esc or the backdrop closes it).
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
   async function ask(question: string) {
     if (!question.trim() || asking) return;
@@ -118,7 +126,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         body: JSON.stringify({ task: "wallet-assistant", text: question, context: { usdc: balances.usdc, txs } }),
       });
       const dataRes = await response.json();
-      const answer = dataRes.content?.[0]?.text ?? "Could not generate a response.";
+      const answer = dataRes.content?.[0]?.text ?? dataRes.error ?? "Could not generate a response.";
       setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
     } catch {
       setMessages((prev) => [...prev, { role: "assistant", content: "Something went wrong. Try again." }]);
@@ -304,8 +312,13 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
 
   const suggestions = isNew ? QUESTIONS_NEW : QUESTIONS_FUNDED;
 
+  const expandedStyle = expanded
+    ? { position: "fixed" as const, zIndex: 1001, left: 0, right: 0, top: isMobile ? 0 : "6vh", margin: "0 auto", width: isMobile ? "100%" : "min(760px, 94vw)", height: isMobile ? "100%" : "88vh", borderRadius: isMobile ? 0 : 24, background: "#F5F7FF", boxSizing: "border-box" as const }
+    : {};
   const copilot = (
-    <section style={{ ...card, padding: isMobile ? "1.25rem" : 32, display: "flex", flexDirection: "column", gap: 16 }}>
+    <>
+    {expanded && <div onClick={() => setExpanded(false)} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(15,23,42,0.45)" }} />}
+    <section style={{ ...card, padding: isMobile ? "1.25rem" : 32, display: "flex", flexDirection: "column", gap: 16, ...expandedStyle }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.95)", boxShadow: "0 4px 12px -6px rgba(36,58,150,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Sparkles size={20} color={ACCENT} />
@@ -314,10 +327,14 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
           <label htmlFor="ffh-ask" className="ffh-display" style={{ fontSize: 22, fontWeight: 600, color: INK }}>FlowFi Copilot</label>
           <span style={{ fontSize: 13, color: MUTED }}>{isNew ? "New to DeFi? Just ask." : "Ask anything about your wallet."}</span>
         </div>
+        <button onClick={() => setExpanded((v) => !v)} aria-label={expanded ? "Shrink" : "Expand"} title={expanded ? "Shrink" : "Expand"}
+          style={{ marginLeft: "auto", width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.95)", background: "rgba(255,255,255,0.85)", color: INK, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+          {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+        </button>
       </div>
 
       {messages.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 240, overflowY: "auto" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: expanded ? "none" : 240, flex: expanded ? 1 : undefined, minHeight: 0, overflowY: "auto" }}>
           {messages.map((m, i) => (
             <div key={i} style={{
               alignSelf: m.role === "user" ? "flex-end" : "flex-start",
@@ -358,6 +375,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         </button>
       </div>
     </section>
+    </>
   );
 
   const activity = (

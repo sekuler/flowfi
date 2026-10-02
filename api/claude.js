@@ -151,7 +151,9 @@ let globalLimit = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
   const redis = new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN });
   ratelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "60 s"), prefix: "ratelimit:claude" });
-  dailyLimit = new Ratelimit({ redis, limiter: Ratelimit.fixedWindow(300, "86400 s"), prefix: "ratelimit:claude-daily" });
+  // Per-person daily budget: 15 AI calls per IP (one question uses 1-3 calls, so roughly 5 questions).
+  // api/market-analysis.js shares this same counter for its AI insight.
+  dailyLimit = new Ratelimit({ redis, limiter: Ratelimit.fixedWindow(15, "86400 s"), prefix: "ratelimit:claude-daily" });
   const globalPerDay = Number(process.env.CLAUDE_GLOBAL_DAILY_LIMIT);
   globalLimit = new Ratelimit({
     redis,
@@ -181,7 +183,7 @@ module.exports = async function handler(req, res) {
   if (ratelimit) {
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
     if (!(await ratelimit.limit(ip)).success) return res.status(429).json({ error: "Too many requests — please wait a moment and try again." });
-    if (!(await dailyLimit.limit(ip)).success) return res.status(429).json({ error: "Daily AI limit reached. Please try again tomorrow." });
+    if (!(await dailyLimit.limit(ip)).success) return res.status(429).json({ error: "You've used today's free AI questions. Please come back tomorrow." });
     if (!(await globalLimit.limit("all")).success) return res.status(429).json({ error: "The AI assistant is busy today. Please try again tomorrow." });
   }
 

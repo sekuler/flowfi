@@ -44,6 +44,11 @@ const globalAiLimit = redis
     })
   : null;
 
+// Same per-IP daily AI budget as api/claude.js (same prefix and limit, so one shared counter).
+const ipAiLimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.fixedWindow(15, "86400 s"), prefix: "ratelimit:claude-daily" })
+  : null;
+
 // Shared cache in Redis. It used to be an in-memory Map, which on Vercel lives in ONE serverless
 // instance only, so most requests missed it and re-paid for CoinGecko + Claude. The Map is now just
 // the local-dev fallback when Redis isn't configured.
@@ -193,8 +198,8 @@ module.exports = async function handler(req, res) {
   const coinId = typeof req.query.coinId === "string" ? req.query.coinId.trim().toLowerCase() : "";
   if (!COIN_ID_RE.test(coinId)) return res.status(400).json({ error: "Missing or invalid coinId query parameter" });
 
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
   if (ratelimit) {
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
     const { success } = await ratelimit.limit(ip);
     if (!success) return res.status(429).json({ error: "Too many analysis requests. Please wait a moment." });
   }
@@ -299,7 +304,9 @@ module.exports = async function handler(req, res) {
     // cache window reuse it instead of triggering a new Claude call each
     // time. Tradeoff: the insight's language matches whichever request
     // first triggered this cache miss, not each individual asker.
-    const aiAllowed = globalAiLimit ? (await globalAiLimit.limit("all")).success : true;
+    // Numbers are always returned; the AI sentence only while this person and the whole site are within budget.
+    const aiAllowed = (ipAiLimit ? (await ipAiLimit.limit(ip)).success : true)
+      && (globalAiLimit ? (await globalAiLimit.limit("all")).success : true);
     result.insight = aiAllowed ? await generateInsight(result) : "";
 
     await setCached(coinId, result);
