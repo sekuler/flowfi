@@ -39,7 +39,7 @@ const globalPerDay = Number(process.env.CLAUDE_GLOBAL_DAILY_LIMIT);
 const globalAiLimit = redis
   ? new Ratelimit({
       redis,
-      limiter: Ratelimit.fixedWindow(Number.isFinite(globalPerDay) && globalPerDay > 0 ? Math.floor(globalPerDay) : 2000, "86400 s"),
+      limiter: Ratelimit.fixedWindow(Number.isFinite(globalPerDay) && globalPerDay > 0 ? Math.floor(globalPerDay) : 50, "86400 s"),
       prefix: "ratelimit:claude-global",
     })
   : null;

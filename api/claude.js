@@ -18,7 +18,9 @@
 const { Ratelimit } = require("@upstash/ratelimit");
 const { Redis } = require("@upstash/redis");
 
-const SONNET = "claude-sonnet-4-6";
+// Budget mode: every task runs on Haiku (about 3x cheaper than Sonnet). The data and prompts
+// stay exactly the same. To bring Sonnet back for the richer tasks, set this to "claude-sonnet-4-6".
+const SONNET = "claude-haiku-4-5";
 const HAIKU = "claude-haiku-4-5";
 
 const MAX_TEXT_CHARS = 1000;
@@ -153,7 +155,7 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
   const globalPerDay = Number(process.env.CLAUDE_GLOBAL_DAILY_LIMIT);
   globalLimit = new Ratelimit({
     redis,
-    limiter: Ratelimit.fixedWindow(Number.isFinite(globalPerDay) && globalPerDay > 0 ? Math.floor(globalPerDay) : 2000, "86400 s"),
+    limiter: Ratelimit.fixedWindow(Number.isFinite(globalPerDay) && globalPerDay > 0 ? Math.floor(globalPerDay) : 50, "86400 s"),
     prefix: "ratelimit:claude-global",
   });
 } else if (process.env.NODE_ENV === "production") {
