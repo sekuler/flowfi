@@ -176,37 +176,7 @@ export default function AiCopilot({ provider, address, balances, onRefresh, onNa
     const response = await fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 400,
-        system: `You are FlowFi Copilot, a DeFi command parser. Parse the user's natural-language request into STRICT JSON only, no markdown, no preamble.
-
-Schema:
-{
-  "action": "swap" | "send" | "bridge" | "strategy" | "unknown",
-  "fromToken": "USDC" | "EURC" (for swap — this is a fixed-rate USDC/EURC swap only, no other pair is executable here),
-  "toToken": "USDC" | "EURC" (for swap — same restriction as fromToken),
-  "amount": number (omit if useAllBalance is true),
-  "useAllBalance": boolean (true if user says "all my X"),
-  "recipient": string (address or .arc name, for send),
-  "destinationChain": "Arc Testnet" | "Ethereum Sepolia" | "Base Sepolia" | "Arbitrum Sepolia" (ONLY for send, ONLY if the user names a specific chain the recipient should receive funds on, e.g. "send 50 USDC to 0xABC on Base" — omit entirely if no chain is mentioned, defaulting to a normal same-chain transfer on Arc),
-  "allocations": [{ "category": "swap_to_eurc" | "idle", "amount": number, "percent": number, "note": "short reason for this allocation" }] (ONLY for action "strategy"),
-  "followUp": { "action": "swap", "toToken": "EURC" } (ONLY for action "bridge", ONLY if the user's request has a clear second step after the bridge, e.g. "bridge 50 USDC to Arc and swap it to EURC" → followUp: {"action":"swap","toToken":"EURC"}. Omit entirely if the user only asked to bridge, with no stated next step.),
-  "summary": "short one-line plain-English summary of what will happen",
-  "reasoning": "one short sentence on any relevant risk or note"
-}
-
-Use "strategy" when the user describes a total amount and asks for a plan, allocation, or strategy (e.g. "I have 500 USDC, give me the safest strategy", "how should I split my USDC"). Allocations must sum to the user's stated amount and only use the two categories above — "swap_to_eurc" diversifies into EURC, "idle" is a deliberate cash reserve. Do not invent other categories (no lending, no LP, no perps) since those require extra parameters this schema doesn't support. A "safest" strategy should favor "idle" over "swap_to_eurc". Explain each allocation's purpose briefly in its "note".
-
-Only USDC and EURC are swappable via this fixed-rate action. If the user asks to swap USYC, ARCC, cirBTC, or any other token, do NOT set fromToken/toToken to that token — set action to "unknown" and explain in summary that this pair isn't supported by the fixed-rate swap, and that they'd need an existing Liquidity Pool for that pair instead (Tools → Liquidity). If the request is otherwise ambiguous or ill-formed, also set action to "unknown" and explain in summary.
-
-Interpret goal-oriented requests, not just literal commands. If the user states an outcome they want rather than a specific mechanism (e.g. "Get me 100 EURC on Arc", "I need 50 USDC", "top up my EURC"), figure out which single supported action gets them there and use that — you do not need the user to say the word "swap" or "bridge" explicitly. As a rule of thumb: wanting a different token they don't currently hold enough of, while already having USDC on Arc, means "swap"; wanting funds moved to a specific external address means "send" (with destinationChain if a chain is named); wanting USDC specifically on a different chain than Arc, with no recipient mentioned, means "bridge". Only fall back to "unknown" if the goal genuinely can't be reached with swap, send, bridge, or strategy.
-Available user balances: USDC ${balances.usdc}, EURC ${balances.eurc}.
-${memoryText ? `What you know about this user's real recent behavior, from their actual transaction history: ${memoryText} Use this naturally when relevant — for example, weight a "strategy" allocation toward what they already do, or mention it briefly in your reasoning if it's genuinely relevant. Never state this as a fact if it isn't directly implied by the note above, and never fabricate additional behavioral claims beyond it.` : ""}
-The "summary" field must be written in the same language the user's message is written in — if they write in Turkish, write the summary in Turkish; if in English, write it in English.
-Respond with ONLY the JSON object.`,
-        messages: [{ role: "user", content: text }],
-      }),
+      body: JSON.stringify({ task: "testnet-command", text, context: { usdc: balances.usdc, eurc: balances.eurc, memory: memoryText } }),
     });
     const data = await response.json();
     if (!data.content) {
@@ -231,12 +201,7 @@ Respond with ONLY the JSON object.`,
     const response = await fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 250,
-        system: `You are FlowFi Copilot. The user's message isn't a transaction command and isn't about a specific coin — answer briefly and factually. Never recommend buying, selling, or holding anything. Always respond in the same language the user wrote in.`,
-        messages: [{ role: "user", content: text }],
-      }),
+      body: JSON.stringify({ task: "testnet-general", text }),
     });
     const data = await response.json();
     if (!data.content) {

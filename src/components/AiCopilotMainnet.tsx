@@ -71,14 +71,7 @@ async function parseIntent(text: string): Promise<ParsedIntent> {
   const response = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 200,
-      system: `You are FlowFi Copilot on the MAINNET side of the app (real funds). You do not execute anything yourself -- your only job is to recognize whether the user wants to (a) bridge/move USDC onto or off Arc mainnet from another chain, or (b) swap tokens on Arc mainnet itself, or (c) neither. Respond with STRICT JSON only, no markdown:
-{"action": "bridge" | "swap" | "unknown", "summary": "one short plain-English sentence describing what they want, in the same language they wrote in"}
-Use "bridge" for anything crossing chains (e.g. "bring my USDC from Base to Arc", "move 50 USDC to Arc"). Use "swap" for same-chain token exchange on Arc (e.g. "swap USDC for ETH on Arc"). Use "unknown" for anything else, including general questions -- do not force a bridge/swap interpretation onto unrelated requests.`,
-      messages: [{ role: "user", content: text }],
-    }),
+    body: JSON.stringify({ task: "mainnet-intent", text }),
   });
   const data = await response.json();
   if (!data.content) throw new Error(data?.error?.message ?? data?.error ?? "The AI service did not answer. Please try again.");
@@ -92,12 +85,7 @@ async function answerGeneralQuestion(text: string): Promise<string> {
   const response = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 250,
-      system: `You are FlowFi Copilot (Mainnet). The user's message isn't a bridge/swap request and isn't about a specific coin -- answer briefly and factually. Never recommend buying, selling, or holding anything. Always respond in the same language the user wrote in.`,
-      messages: [{ role: "user", content: text }],
-    }),
+    body: JSON.stringify({ task: "mainnet-general", text }),
   });
   const data = await response.json();
   if (!data.content) return data?.error?.message ?? data?.error ?? "The AI service did not answer. Please try again.";

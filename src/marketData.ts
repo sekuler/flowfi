@@ -88,12 +88,7 @@ async function extractCoinQuery(question: string): Promise<string | null> {
     const res = await fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 20,
-        system: "The user's message may be in any language and may mention a cryptocurrency (by name or ticker, e.g. 'BTC', 'dogecoin', 'ETH'). Respond with ONLY the coin's common English name or ticker, nothing else, no punctuation, no explanation. If no specific coin is mentioned, respond with exactly: NONE",
-        messages: [{ role: "user", content: question }],
-      }),
+      body: JSON.stringify({ task: "coin-detect", text: question }),
     });
     const data = await res.json();
     const text: string = (data.content?.[0]?.text ?? "").trim();

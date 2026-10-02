@@ -104,7 +104,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         setMessages((prev) => [...prev, { role: "assistant", content: marketAnswer }]);
         return;
       }
-      const res = await fetch(`/api/arcscan-proxy?network=mainnet&module=account&action=txlist&address=${address}&sort=desc&limit=30`);
+      const res = await fetch(`/api/arcscan-proxy?network=mainnet&module=account&action=txlist&address=${address}&sort=desc&page=1&offset=30`);
       const data = await res.json();
       const txs = (data.result ?? []).slice(0, 30).map((tx: any) => ({
         hash: tx.hash,
@@ -115,12 +115,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
       const response = await fetch("/api/claude", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 300,
-          system: `You are FlowFi's wallet assistant for Arc MAINNET (real funds). You are given the user's current USDC balance (${balances.usdc}) and their recent raw transaction list (method IDs, timestamps, values) from Arc Mainnet. For questions about the user's wallet, answer grounded ONLY in the data given; if the data doesn't contain enough information, say so honestly rather than guessing. For questions about how to use FlowFi, explain briefly: USDC can be brought onto Arc from other chains on FlowFi's Bridge page (routed via LI.FI or Circle's native CCTP), tokens on Arc can be swapped on the Swap page, and Bridge/Swap transactions are signed by the user's own browser wallet. Never give financial advice. Always respond in the same language the user's question is written in. Keep answers under 4 sentences.`,
-          messages: [{ role: "user", content: `Transaction data: ${JSON.stringify(txs)}\n\nQuestion: ${question}` }],
-        }),
+        body: JSON.stringify({ task: "wallet-assistant", text: question, context: { usdc: balances.usdc, txs } }),
       });
       const dataRes = await response.json();
       const answer = dataRes.content?.[0]?.text ?? "Could not generate a response.";

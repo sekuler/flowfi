@@ -99,15 +99,8 @@ export default function SwapAdvisor({ tokenIn, tokenOut, amountIn, amountOut }: 
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "claude-sonnet-4-6",
-            max_tokens: 150,
-            system: "You are a swap risk advisor for a DeFi app. You are given real on-chain pool data. Write a 2-3 sentence recommendation in English, grounded ONLY in the numbers given. Never invent data not provided. Be direct and concrete. Explain briefly WHY you're giving this recommendation, referencing the specific pool impact percentage.",
-            messages: [
-              {
-                role: "user",
-                content: `Swap: ${amountIn} ${tokenIn} -> ${amountOut} ${tokenOut}. Pool liquidity available for ${tokenOut}: ${poolOut.toFixed(4)}. This swap would consume ${(impact * 100).toFixed(2)}% of that pool's liquidity. Remaining liquidity after swap: ${(poolOut - out).toFixed(4)}. Give your recommendation and briefly explain why.`,
-              },
-            ],
+            task: "swap-advice",
+            context: { amountIn, tokenIn, amountOut, tokenOut, poolOut: Number(poolOut.toFixed(4)), impactPct: Number((impact * 100).toFixed(2)), remaining: Number((poolOut - out).toFixed(4)) },
           }),
         });
         const data = await response.json();
