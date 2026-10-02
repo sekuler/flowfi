@@ -1,6 +1,6 @@
 # FlowFi
 
-Your dollars on Arc, all in one flow. Live on **Arc Mainnet**: a gasless native USDC bridge, native EURC and cirBTC bridging, swaps, a unified USDC balance with Circle Gateway, an email-based Circle Wallet, and Earn & Borrow on Morpho. A permissionless DeFi showcase (Token Launch, Liquidity Pools, AI Copilot actions) keeps running on **Arc Testnet**.
+Your dollars on Arc, all in one flow. Live on **Arc Mainnet**: a gasless native USDC bridge, native EURC and cirBTC bridging, swaps, a unified USDC balance with Circle Gateway, and Earn & Borrow on Morpho. A permissionless DeFi showcase (Token Launch, Liquidity Pools, AI Copilot actions) keeps running on **Arc Testnet**.
 
 **App:** [flowfi.finance](https://flowfi.finance) · **Demo:** [youtu.be/Icu8qTiYMqw](https://youtu.be/Icu8qTiYMqw) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
 
@@ -9,7 +9,6 @@ Your dollars on Arc, all in one flow. Live on **Arc Mainnet**: a gasless native 
 | **Gasless USDC bridge** | Circle CCTP V2 + Forwarding Service: sign once on the source chain, Circle mints on Arc, no Arc gas needed |
 | **EURC & cirBTC** | Native burn-and-mint through Circle's CCTP for non-USDC, no wrapped tokens |
 | **Circle Gateway** | One USDC balance across Arc, Base, Ethereum and Arbitrum, spendable on any of them in seconds |
-| **Circle Wallet** | Sign in with email, no seed phrase, withdraw to your own wallet anytime |
 | **Earn & Borrow** | Curated Morpho vaults for USDC and EURC; borrow USDC or EURC against cirBTC |
 | **No FlowFi contracts on mainnet** | Every mainnet flow runs on Circle, Morpho and LI.FI contracts that were already live |
 | **Safe 2-of-3** | Owns every privileged testnet contract |
@@ -31,7 +30,6 @@ Your dollars on Arc, all in one flow. Live on **Arc Mainnet**: a gasless native 
 | **Swap** | Same-chain swaps on Arc through LI.FI. Opens on USDC → EURC |
 | **Earn** | Deposit USDC (Galaxy, Keyrock vaults) or EURC (Steakhouse, Gauntlet vaults) into curated Morpho vaults, with live APY, vault size and withdrawable amount |
 | **Borrow** | Borrow USDC or EURC against cirBTC on Morpho Blue markets on Arc. Markets liquidate at 86% LTV; FlowFi caps new borrows and collateral withdrawals at 70% and shows live LTV, liquidation price and borrow rate. Every call is simulated before the wallet opens |
-| **Circle Wallet** | Email one-time-code sign-in to a Circle Developer-Controlled Wallet on Arc. Add funds from a browser wallet on Arc; withdraw to your own wallet at any time. Holdings are capped (default $100) |
 | **Gateway** | A unified USDC balance across Arc, Base, Ethereum and Arbitrum. Deposit from a browser wallet on any of them (from the Circle Wallet: on Arc), then Send or Withdraw to any other in seconds through an EIP-712 burn intent with Circle's Forwarding Service. Works from a browser wallet or the Circle Wallet |
 | **Dashboard** | Net worth, live balances, portfolio split, activity mix and recent activity, read from the chain and Arc's Etherscan-run explorer (`arc.etherscan.io`) |
 | **History** | Every transaction and token transfer on the address, including ones made in other apps, with amounts, status and explorer links |

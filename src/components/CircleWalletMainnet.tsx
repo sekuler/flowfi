@@ -279,7 +279,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const canDeposit = !!provider && !!browserAddress && !!status && status.complete !== false && !status.withdrawOnly && !status.overCap && depValid && dStep !== "sending";
   const depLabel = !provider || !browserAddress ? "Connect a browser wallet to deposit"
     : !status ? "Loading..."
-    : status.withdrawOnly ? "Deposits are closed"
+    : status.withdrawOnly ? "Adding funds isn't available"
     : status.complete === false ? "Balances unavailable, try again shortly"
     : dStep === "sending" ? "Depositing..."
     : isBtc && !btc ? "BTC price unavailable, try again shortly"
@@ -406,7 +406,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
     <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 1040, margin: "0 auto" }}>
       {status?.withdrawOnly && (
         <div style={{ padding: "12px 14px", borderRadius: 14, background: "#FFF4E0", color: "#6A4308", fontSize: 13, lineHeight: 1.5 }}>
-          Circle Wallet on FlowFi is closing. Please withdraw your funds to your own wallet.
+          Adding funds isn't available right now. You can withdraw to your own wallet at any time.
         </div>
       )}
       {status?.overCap && !status.withdrawOnly && (

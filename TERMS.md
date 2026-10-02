@@ -1,6 +1,6 @@
 # Terms of Use
 
-Last updated: September 30, 2026
+Last updated: October 1, 2026
 
 This is a plain-English summary of how FlowFi works and what you're agreeing to by using it. It isn't a substitute for reading it carefully, and it isn't legal advice — if anything here matters to you materially, talk to your own lawyer.
 
@@ -8,19 +8,19 @@ This is a plain-English summary of how FlowFi works and what you're agreeing to 
 
 FlowFi is a **frontend and router**, not a bank, exchange, or counterparty to any trade.
 
-- **Arc Mainnet features with a browser wallet** (Bridge, Swap, Earn & Borrow, Gateway, Dashboard, History, the mainnet AI Copilot) move real funds. These transactions are signed by **your own connected wallet** — FlowFi never holds its keys and never takes the other side of a trade. Bridge and Swap route through third-party infrastructure (**LI.FI**, **Relay** and **Circle's CCTP**) that FlowFi does not operate, own, or control. Their terms and conduct are their own, not FlowFi's.
+- **Arc Mainnet features with a browser wallet** (Bridge, Swap, Earn & Borrow, Gateway, Dashboard, History, the mainnet AI Copilot) move real funds. These transactions are signed by **your own connected wallet** — FlowFi never holds its keys and never takes the other side of a trade. Bridge and Swap route through third-party infrastructure (**LI.FI** and **Circle's CCTP**) that FlowFi does not operate, own, or control. Their terms and conduct are their own, not FlowFi's.
 - **Circle Wallet on Arc Mainnet** is different; see "Circle Wallet" below.
 - **Arc Testnet features** (Token Launch, Liquidity Pools, the testnet Circle Wallet, Bridge and Gateway) use test assets with **no monetary value**. They exist to demonstrate FlowFi's own contracts and product ideas — nothing there involves real money.
 
 ## Circle Wallet (Arc Mainnet)
 
-Circle Wallet is an optional email-based wallet built on **Circle's Developer-Controlled Wallets**. Please read this before using it:
+Circle Wallet is an email-based wallet built on **Circle's Developer-Controlled Wallets**, available to existing users. New sign-ups and adding funds aren't currently available. Please read this before using it:
 
 - **Who controls the wallet.** The wallet's key is secured by Circle and never shown to you or to FlowFi. As the app developer, FlowFi controls the wallet through Circle's API: FlowFi's server uses that control only when you request an action while signed in with your email, and only for a fixed list of allowed actions. This is not self-custody.
 - **Your email is your login.** Anyone who can read your email can sign in to your Circle Wallet. Keep your email account secure.
-- **Holding limit.** Each account has a holding limit (by default $100 in USDC, EURC and cirBTC combined). While your balance is above the limit, every action except withdrawal is paused. The limit does not stop funds from arriving.
-- **Withdrawals.** You can withdraw supported tokens to your own external wallet at any time, including after new sign-ups are closed. Network fees apply.
-- **The feature may end.** FlowFi may stop offering Circle Wallet, close new sign-ups, or switch it to withdraw-only. If that happens, withdrawal stays available so you can move your funds out.
+- **Adding funds** isn't currently available, so don't send funds to a Circle Wallet address.
+- **Withdrawals.** You can withdraw supported tokens to your own external wallet at any time. Network fees apply. On Base, Ethereum and Arbitrum the Circle Wallet needs a small amount of ETH for gas, which you send to its address from your own wallet first; on Arc, gas is paid in USDC.
+- **The feature may end.** FlowFi may stop offering Circle Wallet. If that happens, withdrawal stays available so you can move your funds out.
 - **Availability.** FlowFi depends on Circle's service to operate these wallets. If Circle's service is unavailable, actions and withdrawals may be delayed.
 
 ## No investment advice

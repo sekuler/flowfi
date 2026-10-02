@@ -13,19 +13,39 @@
 //     day this feature is switched off (set CIRCLE_LIVE_WITHDRAW_ONLY=1 to allow only that).
 //
 // Env: CIRCLE_LIVE_API_KEY (full "LIVE_API_KEY:..." string), CIRCLE_LIVE_ENTITY_SECRET,
-// UPSTASH_REDIS_REST_URL/TOKEN, WALLET_AUTH_SECRET, RESEND_API_KEY (+ optional
+// UPSTASH_REDIS_REST_URL/TOKEN, CIRCLE_LIVE_AUTH_SECRET, RESEND_API_KEY (+ optional
 // RESEND_FROM_EMAIL), optional CIRCLE_LIVE_CAP_USD, CIRCLE_LIVE_CHAINS, CIRCLE_LIVE_WITHDRAW_ONLY.
 const { initiateDeveloperControlledWalletsClient } = require('@circle-fin/developer-controlled-wallets');
 const { Ratelimit } = require('@upstash/ratelimit');
 const { Redis } = require('@upstash/redis');
 const crypto = require('crypto');
 
-const CHAINS = (process.env.CIRCLE_LIVE_CHAINS || 'ARC,BASE,ETH,ARB').split(',').map((s) => s.trim()).filter(Boolean);
-const CAP_USD = Number(process.env.CIRCLE_LIVE_CAP_USD || 100);
+// Only chains the rest of this file (withdraw allowlist, Gateway domains, cap) knows about. A typo or an
+// extra chain in CIRCLE_LIVE_CHAINS used to create wallets that funds could reach but never leave.
+const SUPPORTED_CHAINS = ['ARC', 'BASE', 'ETH', 'ARB'];
+const CHAINS = (() => {
+  const list = String(process.env.CIRCLE_LIVE_CHAINS || SUPPORTED_CHAINS.join(','))
+    .split(',').map((s) => s.trim().toUpperCase()).filter((c) => SUPPORTED_CHAINS.includes(c));
+  return list.includes('ARC') ? [...new Set(list)] : ['ARC', ...new Set(list)];
+})();
+
+// Numeric settings must never fail open: an invalid value ("$100", "100 USD", "Infinity") used to
+// become NaN/Infinity and silently switch the limit off. Invalid -> default, and never above a hard ceiling.
+function envLimit(name, fallback, ceiling) {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) {
+    console.error(`circle-wallet-mainnet: invalid ${name}="${raw}", using ${fallback}`);
+    return fallback;
+  }
+  return Math.min(n, ceiling);
+}
+const CAP_USD = envLimit('CIRCLE_LIVE_CAP_USD', 100, 1000);
 const WITHDRAW_ONLY = process.env.CIRCLE_LIVE_WITHDRAW_ONLY === '1';
 // Total number of mainnet Circle Wallet accounts. The per-account cap alone doesn't bound total
 // exposure (one person can open many emails), so new sign-ups close once this is reached.
-const MAX_ACCOUNTS = Number(process.env.CIRCLE_LIVE_MAX_ACCOUNTS || 100);
+const MAX_ACCOUNTS = Math.floor(envLimit('CIRCLE_LIVE_MAX_ACCOUNTS', 100, 1000));
 const ACCOUNT_COUNT_KEY = 'circle-live-account-count';
 
 // Stablecoins counted toward the cap (1 unit ~ $1; EURC is counted 1:1, slightly
@@ -81,7 +101,7 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
 const OTP_TTL_SECONDS = 600;
 const FAILS_PER_CODE = 5;   // wrong guesses before a code is burned
 const MAX_DAILY_FAILS = 15; // wrong guesses per email per 24h before sign-in locks
-const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // real funds: one week, not a month
 const SESSION_COOKIE_NAME = 'flowfi_circle_live_session';
 const KEY = { otp: (e) => `circle-live-otp:${e}`, wallet: (e) => `circle-live-wallet:${e}`, sv: (e) => `circle-live-session-version:${e}`, fails: (e) => `circle-live-otp-fails:${e}` };
 
@@ -278,14 +298,16 @@ module.exports = async function handler(req, res) {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
 
     if (action === 'requestCode') {
-      if (WITHDRAW_ONLY) return res.status(403).json({ error: 'New sign-ups are closed. Existing users can still sign in to withdraw.' });
       const email = normalizeEmail(req.body.email);
       if (!isValidEmail(email)) return res.status(400).json({ error: 'A valid email address is required.' });
       const [byEmail, byIp] = await Promise.all([otpRatelimit.limit(`email:${email}`), otpRatelimit.limit(`ip:${ip}`)]);
       if (!byEmail.success || !byIp.success) return res.status(429).json({ error: 'Too many code requests. Please wait a bit and try again.' });
-      // Full: existing users can still sign in, new emails don't get a code.
-      if (!(await loadRecord(email)) && (await accountCount()) >= MAX_ACCOUNTS) {
-        return res.status(403).json({ error: 'Circle Wallet is not accepting new sign-ups right now. Please try again later.' });
+      // Withdraw-only or full: existing users still get a code (they must be able to sign in to
+      // withdraw); only emails without a wallet are refused. Previously withdraw-only refused
+      // everyone here, which locked existing users out of their funds.
+      if (!(await loadRecord(email))) {
+        if (WITHDRAW_ONLY) return res.status(403).json({ error: 'New Circle Wallet sign-ups aren\'t available right now.' });
+        if ((await accountCount()) >= MAX_ACCOUNTS) return res.status(403).json({ error: 'Circle Wallet is not accepting new sign-ups right now. Please try again later.' });
       }
       const code = String(crypto.randomInt(100000, 1000000));
       await redis.set(KEY.otp(email), code, { ex: OTP_TTL_SECONDS });
@@ -320,7 +342,7 @@ module.exports = async function handler(req, res) {
 
       let record = await loadRecord(email);
       if (!record) {
-        if (WITHDRAW_ONLY) return res.status(403).json({ error: 'New sign-ups are closed.' });
+        if (WITHDRAW_ONLY) return res.status(403).json({ error: 'New Circle Wallet sign-ups aren\'t available right now.' });
         // Reserve a slot first (atomic), so two sign-ups at once can't both squeeze past the limit.
         await accountCount();
         if ((await redis.incr(ACCOUNT_COUNT_KEY)) > MAX_ACCOUNTS) {
@@ -428,7 +450,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'contractCall') {
-      if (WITHDRAW_ONLY) return res.status(403).json({ error: 'This feature is closing. Only withdrawals are available.' });
+      if (WITHDRAW_ONLY) return res.status(403).json({ error: 'This action isn\'t available right now. You can still withdraw to your own wallet.' });
       const { walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel } = req.body;
       if (!walletId || !contractAddress || !abiFunctionSignature) return res.status(400).json({ error: 'walletId, contractAddress and abiFunctionSignature are required.' });
       const allowed = ALLOWED_CALLS.get(String(contractAddress).toLowerCase());

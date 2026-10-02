@@ -74,7 +74,7 @@ export default function ConnectModal({ onClose, onConnected, onCircleConnected }
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, color: INK }}>Connect to FlowFi</div>
-            <div style={{ fontSize: 12.5, color: MUTED, marginTop: 2 }}>Use your own wallet, or sign in with email.</div>
+            <div style={{ fontSize: 12.5, color: MUTED, marginTop: 2 }}>Connect your own wallet to use FlowFi.</div>
           </div>
           <button onClick={onClose} aria-label="Close" style={{ background: "#F3F4F6", border: "none", borderRadius: 999, width: 32, height: 32, fontSize: 16, color: "#4B5563", cursor: "pointer", flexShrink: 0 }}>×</button>
         </div>
@@ -91,7 +91,7 @@ export default function ConnectModal({ onClose, onConnected, onCircleConnected }
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <p style={{ margin: 0, fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
-              No extension, no seed phrase. Sign in with your email and Circle creates the wallet for you on Arc Mainnet.
+              New Circle Wallets can't be created right now, please connect a browser wallet instead. Already have a Circle Wallet? Sign in with your email below.
             </p>
             {circleError && <div style={{ background: "#FDECEC", borderRadius: 10, padding: "10px 12px", color: "#B91C1C", fontSize: 12.5, wordBreak: "break-word" }}>{circleError}</div>}
 

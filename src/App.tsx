@@ -155,10 +155,10 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
 const LANDING_FEATURE_ICONS = [Mail, Zap, Sparkles, Hexagon, Rocket, Repeat];
 
 // Every card below describes what's actually live on Arc Mainnet today,
-// nothing from the Testnet showcase. Keep the wording true: the optional
+// nothing from the Testnet showcase. Circle Wallet isn't promoted here. Keep the wording true: the optional
 // Circle Wallet is not self-custody, so "never holds a key" claims are out.
 const LANDING_FEATURES = [
-  { title: "Self-Custody by Default", desc: "Bridge, Swap and Earn are signed by your own connected wallet. Prefer email? The optional Circle Wallet holds up to $100 and you can withdraw anytime." },
+  { title: "Self-Custody", desc: "Bridge, Swap and Earn are signed by your own connected wallet. FlowFi never holds your keys or your funds." },
   { title: "Circle CCTP V2", desc: "Genuine native USDC bridging via Circle's own official burn/attest/mint protocol — not a wrapped-asset bridge." },
   { title: "LI.FI Aggregation", desc: "Bridge or swap tokens across Arc and dozens of other chains, with routes compared across many bridges and DEXs." },
   { title: "AI Copilot", desc: "Tell it what you want in plain language — it takes you straight to the right page to confirm with your own wallet." },
@@ -572,7 +572,7 @@ function AppInner() {
             <span style={{ background: "linear-gradient(90deg, #7C3AED, #3B82F6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>All in one flow.</span>
           </h1>
           <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 460, marginBottom: 32 }}>
-            Bridge, swap, and earn with your USDC on Arc Mainnet — everything from one fast, secure platform. Connect your own wallet, or sign in with email.
+            Bridge, swap, and earn with your USDC on Arc Mainnet — everything from one fast, secure platform. Connect your own wallet: you sign every transaction and stay in control of your funds.
           </p>
           <div style={{ display: "flex", gap: 8, marginBottom: 26 }} aria-hidden="true">
             {["Bridge", "Swap", "Earn"].map((w, i) => (

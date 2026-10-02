@@ -183,7 +183,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const collValueOf = (c: bigint) => (price !== null ? (c * price) / ORACLE_SCALE : 0n); // in USDC units
   const ltvOf = (c: bigint, d: bigint) => { const v = collValueOf(c); return v > 0n ? Number(d) / Number(v) : d > 0n ? Infinity : 0; };
   const ltv = ltvOf(pos.collateral, debt);
-  const liqPriceOf = (c: bigint, d: bigint) => (c > 0n && d > 0n ? u6(d) / (b8(c) * 0.86) : null);
+  const liqPriceOf = (c: bigint, d: bigint) => (c > 0n && d > 0n ? u6(d) / (b8(c) * (Number(M.params.lltv) / 1e18)) : null);
 
   const vault = VAULTS.find((v) => v.key === vaultKey)!;
   const earnVaults = VAULTS.filter((v) => v.asset === earnAsset);
