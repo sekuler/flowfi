@@ -10,6 +10,7 @@
 // MarketTicker, TradingViewChart, ...), any of which loading at once could
 // trip a 429 on its own even before considering multiple users.
 const { Redis } = require('@upstash/redis');
+const { Ratelimit } = require('@upstash/ratelimit');
 
 const COINGECKO_ORIGIN = 'https://api.coingecko.com/api/v3';
 const CACHE_TTL_SECONDS = 30;
@@ -22,6 +23,13 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
   ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
   : null;
 const memCache = new Map();
+
+// Per-IP limit. Without it, anyone could vary the query string to skip the cache and burn
+// FlowFi's shared CoinGecko quota, which then 429s for every real user. Generous: several
+// components read prices on page load, and cached hits count too.
+const ratelimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(120, '60 s'), prefix: 'ratelimit:coingecko-proxy' })
+  : null;
 
 async function getCached(key) {
   if (redis) {
@@ -43,6 +51,11 @@ async function setCached(key, entry) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (ratelimit) {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    if (!(await ratelimit.limit(ip)).success) return res.status(429).json({ error: 'Too many price requests. Please slow down.' });
   }
 
   const path = req.query.path;
@@ -70,6 +83,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
     res.send(text);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('coingecko-proxy error:', error?.message);
+    res.status(502).json({ error: 'Price data unavailable. Please try again.' });
   }
 };

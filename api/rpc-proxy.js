@@ -52,17 +52,27 @@ const MAX_BATCH = 64; // LI.FI's SDK batches up to 64 calls per request (sdk-pro
 // and explicit numeric ranges are capped.
 const MAX_LOG_BLOCK_SPAN = 100000n;
 
-function logsQueryError(call) {
+// Block tags ("latest", "earliest"...) used to skip the range check entirely, so fromBlock "earliest"
+// + toBlock "latest" (the whole chain) got through. Tags are now resolved to real numbers first;
+// the latest block is only fetched when a tag actually needs it.
+const LATEST_TAGS = new Set(['latest', 'pending', 'safe', 'finalized']);
+async function logsQueryError(call, latestBlock) {
   const f = Array.isArray(call.params) ? call.params[0] : null;
   if (!f || typeof f !== 'object') return 'eth_getLogs needs a filter object.';
   if (f.blockHash) return f.address ? null : 'eth_getLogs must be scoped to a contract address.';
   if (!f.address || (Array.isArray(f.address) && (f.address.length === 0 || f.address.length > 5))) {
     return 'eth_getLogs must be scoped to 1-5 contract addresses.';
   }
-  const isHex = (v) => typeof v === 'string' && /^0x[0-9a-fA-F]+$/.test(v);
-  if (isHex(f.fromBlock) && isHex(f.toBlock) && BigInt(f.toBlock) - BigInt(f.fromBlock) > MAX_LOG_BLOCK_SPAN) {
-    return `eth_getLogs block range is limited to ${MAX_LOG_BLOCK_SPAN} blocks.`;
-  }
+  const toNumber = async (v) => {
+    if (v === undefined || v === null || LATEST_TAGS.has(v)) return latestBlock();
+    if (v === 'earliest') return 0n;
+    if (typeof v === 'string' && /^0x[0-9a-fA-F]+$/.test(v)) return BigInt(v);
+    return null;
+  };
+  const from = await toNumber(f.fromBlock);
+  const to = await toNumber(f.toBlock);
+  if (from === null || to === null) return 'eth_getLogs fromBlock/toBlock must be a block number or tag.';
+  if (to - from > MAX_LOG_BLOCK_SPAN) return `eth_getLogs block range is limited to ${MAX_LOG_BLOCK_SPAN} blocks.`;
   return null;
 }
 
@@ -105,13 +115,21 @@ module.exports = async function handler(req, res) {
   if (calls.length === 0 || calls.length > MAX_BATCH) {
     return res.status(400).json({ error: `A batch may contain 1-${MAX_BATCH} calls.` });
   }
+  const targetUrl = req.query?.network === 'mainnet' ? ARC_MAINNET_RPC_URL : ARC_TESTNET_RPC_URL;
+  // Fetched at most once per request, and only if a getLogs filter uses a "latest"-style tag.
+  let latestPromise = null;
+  const latestBlock = () => {
+    if (!latestPromise) {
+      latestPromise = fetch(targetUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }) })
+        .then((r) => r.json())
+        .then((d) => BigInt(d.result));
+    }
+    return latestPromise;
+  };
+
   for (const call of calls) {
     if (!call || typeof call.method !== 'string' || !ALLOWED_METHODS.has(call.method)) {
       return res.status(403).json({ error: `RPC method "${String(call?.method).slice(0, 60)}" is not on the allowlist.` });
-    }
-    if (call.method === 'eth_getLogs') {
-      const why = logsQueryError(call);
-      if (why) return res.status(400).json({ error: why });
     }
   }
 
@@ -123,7 +141,13 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  const targetUrl = req.query?.network === 'mainnet' ? ARC_MAINNET_RPC_URL : ARC_TESTNET_RPC_URL;
+  // getLogs range check runs after the rate limit, since resolving a "latest" tag costs an upstream call.
+  for (const call of calls) {
+    if (call.method !== 'eth_getLogs') continue;
+    let why;
+    try { why = await logsQueryError(call, latestBlock); } catch { return res.status(502).json({ error: 'RPC upstream unavailable. Please try again.' }); }
+    if (why) return res.status(400).json({ error: why });
+  }
 
   try {
     const response = await fetch(targetUrl, {
