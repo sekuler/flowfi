@@ -28,7 +28,7 @@ const LINE = "#E7E4DD";
 async function post(body: Record<string, unknown>) {
   const res = await fetch(LIVE_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.success) throw new Error(data.error ?? "Something went wrong.");
+  if (!res.ok || !data.success) throw Object.assign(new Error(data.error ?? "Something went wrong."), { code: data.code as string | undefined });
   return data;
 }
 
@@ -39,11 +39,16 @@ export default function ConnectModal({ onClose, onConnected, onCircleConnected }
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [circleError, setCircleError] = useState<string | null>(null);
+  const [circleInfo, setCircleInfo] = useState<string | null>(null);
 
   async function sendCode() {
-    setBusy(true); setCircleError(null);
+    setBusy(true); setCircleError(null); setCircleInfo(null);
     try { await post({ action: "requestCode", email: email.trim() }); setCircleStep("code"); }
-    catch (e) { setCircleError(e instanceof Error ? e.message : "Unexpected error."); }
+    catch (e) {
+      // No wallet for this email and sign-ups are off: a friendly notice, not an error.
+      if ((e as { code?: string }).code === "signups_closed") setCircleInfo((e as Error).message);
+      else setCircleError(e instanceof Error ? e.message : "Unexpected error.");
+    }
     finally { setBusy(false); }
   }
 
@@ -94,6 +99,15 @@ export default function ConnectModal({ onClose, onConnected, onCircleConnected }
               New Circle Wallets can't be created right now, please connect a browser wallet instead. Already have a Circle Wallet? Sign in with your email below.
             </p>
             {circleError && <div style={{ background: "#FDECEC", borderRadius: 10, padding: "10px 12px", color: "#B91C1C", fontSize: 12.5, wordBreak: "break-word" }}>{circleError}</div>}
+            {circleInfo && (
+              <div style={{ background: "#EEF1FE", borderRadius: 10, padding: "10px 12px", color: INK, fontSize: 12.5, lineHeight: 1.5, display: "flex", flexDirection: "column", gap: 8 }}>
+                <span>{circleInfo}</span>
+                <button onClick={() => { setCircleInfo(null); setTab("browser"); }}
+                  style={{ alignSelf: "flex-start", background: "#3D5AF1", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                  Connect a browser wallet
+                </button>
+              </div>
+            )}
 
             {circleStep === "email" ? (
               <>

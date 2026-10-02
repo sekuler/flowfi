@@ -306,8 +306,10 @@ module.exports = async function handler(req, res) {
       // withdraw); only emails without a wallet are refused. Previously withdraw-only refused
       // everyone here, which locked existing users out of their funds.
       if (!(await loadRecord(email))) {
-        if (WITHDRAW_ONLY) return res.status(403).json({ error: 'New Circle Wallet sign-ups aren\'t available right now.' });
-        if ((await accountCount()) >= MAX_ACCOUNTS) return res.status(403).json({ error: 'Circle Wallet is not accepting new sign-ups right now. Please try again later.' });
+        // `code` lets the connect window show this as a friendly notice, not a red error.
+        if (WITHDRAW_ONLY || (await accountCount()) >= MAX_ACCOUNTS) {
+          return res.status(403).json({ code: 'signups_closed', error: 'There is no Circle Wallet for this email. To use FlowFi, connect a browser wallet like MetaMask or Rabby.' });
+        }
       }
       const code = String(crypto.randomInt(100000, 1000000));
       await redis.set(KEY.otp(email), code, { ex: OTP_TTL_SECONDS });
