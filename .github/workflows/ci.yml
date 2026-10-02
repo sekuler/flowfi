@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# CI only reads the code and runs checks; it never needs to write to the repo.
+permissions:
+  contents: read
+
 jobs:
   contracts:
     name: Contract tests (Foundry)
