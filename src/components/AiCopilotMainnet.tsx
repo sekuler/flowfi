@@ -19,6 +19,7 @@ import { getFormattedMarketAnalysis } from "../marketData";
 const ANALYSIS_SECTION_HEADERS = new Set([
   "TIMEFRAME", "KEY LEVELS", "MULTI-TIMEFRAME INSIGHT", "WHAT TO WATCH",
   "Tokenomics", "Token Vesting & Unlocks", "PRICE STABILITY", "STABILITY NOTE", "Supply",
+  "TOP PROTOCOLS", "STABLECOINS", "ECOSYSTEM INSIGHT",
 ]);
 
 function renderMessageContent(content: string | undefined, expanded: boolean) {

@@ -39,6 +39,7 @@ interface ChatMessage {
 const ANALYSIS_SECTION_HEADERS = new Set([
   "TIMEFRAME", "KEY LEVELS", "MULTI-TIMEFRAME INSIGHT", "WHAT TO WATCH",
   "Tokenomics", "Token Vesting & Unlocks", "PRICE STABILITY", "STABILITY NOTE", "Supply",
+  "TOP PROTOCOLS", "STABLECOINS", "ECOSYSTEM INSIGHT",
 ]);
 
 // Design tokens (home only)
@@ -51,7 +52,7 @@ const SOFT_BG = "rgba(255,255,255,0.75)";
 
 function isAnalysisMessage(text: string): boolean {
   const firstLine = text.split("\n")[0] ?? "";
-  return /TIMEFRAME|PRICE STABILITY/.test(text) && !firstLine.startsWith("Elimdeki");
+  return /TIMEFRAME|PRICE STABILITY|TOP PROTOCOLS/.test(text) && !firstLine.startsWith("Elimdeki");
 }
 
 function renderAnalysis(content: string) {

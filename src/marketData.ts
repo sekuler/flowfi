@@ -101,7 +101,11 @@ async function extractCoinQuery(question: string): Promise<string | null> {
 
 async function resolveCoinId(question: string): Promise<string | null> {
   const extracted = await extractCoinQuery(question);
-  const searchTerm = extracted ?? question;
+  // No coin in the question: don't search CoinGecko with the whole sentence ("what is Gateway?"
+  // used to match an unrelated "Gateway" token). And Arc the chain has no token of its own, so
+  // "ARC" would only ever match unrelated tokens that happen to share the ticker.
+  if (!extracted || /^arc( network| chain)?$/i.test(extracted.trim())) return null;
+  const searchTerm = extracted;
   try {
     const searchRes = await fetch(`/api/coingecko-proxy?path=${encodeURIComponent(`/search?query=${encodeURIComponent(searchTerm)}`)}`);
     const searchData = await searchRes.json();
@@ -111,9 +115,54 @@ async function resolveCoinId(question: string): Promise<string | null> {
   }
 }
 
+// ---- Arc ecosystem (DefiLlama TVL, protocols, stablecoins) ----
+const OTHER_CHAINS = /\b(ethereum|eth|base|solana|sol|arbitrum|polygon|bsc|bnb|avalanche|avax|optimism|tron|sui|aptos)\b/i;
+
+// "Arc TVL", "analyze the Arc ecosystem", "Arc defi", or just "TVL" (FlowFi is an Arc app).
+export function isArcEcosystemQuestion(q: string): boolean {
+  const tvl = /\btvl\b/i.test(q);
+  const arc = /\barc\b/i.test(q);
+  const eco = /(defi|ecosystem|ekosistem|likidite|liquidity|stablecoin|protocol|protokol)/i.test(q);
+  return (arc && (tvl || eco)) || (tvl && !OTHER_CHAINS.test(q));
+}
+
+function fmtUsd(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
+async function getFormattedArcAnalysis(): Promise<string> {
+  let d: any;
+  try {
+    const res = await fetch("/api/market-analysis?topic=arc-tvl");
+    d = await res.json();
+    if (!res.ok || !d?.tvl) return d?.error ?? "Arc ecosystem data is unavailable right now. Please try again in a few minutes.";
+  } catch {
+    return "Arc ecosystem data is unavailable right now. Please try again in a few minutes.";
+  }
+  let out = `Arc · DeFi TVL\n${fmtUsd(d.tvl)}\n`;
+  out += `${pct(d.change?.d1)} 24H · ${pct(d.change?.d7)} 7D · ${pct(d.change?.d30)} 30D\n\n`;
+  if (d.topProtocols?.length) {
+    out += `TOP PROTOCOLS\n`;
+    for (const p of d.topProtocols) out += `${p.name} · ${p.category} — ${fmtUsd(p.tvl)} (${p.share.toFixed(1)}%)\n`;
+    out += `\n`;
+  }
+  if (d.stablecoins) {
+    out += `STABLECOINS\n${fmtUsd(d.stablecoins.total)} on Arc · ${d.stablecoins.top.map((s: any) => `${s.symbol} ${s.share.toFixed(1)}%`).join(" · ")}\n\n`;
+  }
+  if (d.insight) out += `ECOSYSTEM INSIGHT\n${d.insight}\n\n`;
+  out += `Source: DefiLlama · refreshed every 15 min`;
+  return out;
+}
+
 // Asks Claude for ONLY the interpretive insight paragraph — never the raw
 // numbers (those are already shown above it, so repeating them is banned).
 export async function getFormattedMarketAnalysis(question: string): Promise<string | null> {
+  // Arc ecosystem questions are answered from DefiLlama data, never from a coin lookup.
+  if (isArcEcosystemQuestion(question)) return getFormattedArcAnalysis();
   const coinId = await resolveCoinId(question);
   if (!coinId) return null;
 

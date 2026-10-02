@@ -193,8 +193,127 @@ function timeframeSummary(candles) {
   return { rsi: computeRSI(closes), structure: marketStructure(candles), candleCount: candles.length };
 }
 
+// ---- Arc ecosystem (DefiLlama) ----
+// GET /api/market-analysis?topic=arc-tvl
+// Arc has no token of its own, so "analyze Arc" means the chain: DeFi TVL, its trend, which
+// protocols hold it, and the stablecoin supply. All numbers come from DefiLlama's free public API
+// (no key, no Claude credit); the AI only writes a short reading of them. Cached 15 minutes in
+// Redis, so many users asking costs one fetch and at most one AI call per window.
+const ARC_CHAIN = "Arc";
+const CHAIN_CACHE_SECONDS = 15 * 60;
+
+async function getJson(url) {
+  const r = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15000) });
+  if (!r.ok) throw new Error(`${url} -> ${r.status}`);
+  return r.json();
+}
+const pctChange = (now, then) => (then > 0 ? ((now - then) / then) * 100 : null);
+
+async function buildArcChainData() {
+  const [chains, history, protocols, stables] = await Promise.all([
+    getJson("https://api.llama.fi/v2/chains"),
+    getJson(`https://api.llama.fi/v2/historicalChainTvl/${ARC_CHAIN}`),
+    getJson("https://api.llama.fi/protocols").catch(() => []),
+    getJson("https://stablecoins.llama.fi/stablecoins?includePrices=true").catch(() => null),
+  ]);
+
+  const chain = (chains || []).find((c) => c.name === ARC_CHAIN);
+  const points = (history || []).filter((h) => Number.isFinite(h?.tvl)).sort((x, y) => x.date - y.date);
+  const tvl = Number(chain?.tvl ?? points[points.length - 1]?.tvl ?? 0);
+  if (!tvl) throw new Error("No Arc TVL data");
+  // TVL n days before the latest daily point (null if history is shorter than that).
+  const ago = (days) => {
+    const last = points[points.length - 1];
+    if (!last) return null;
+    const target = last.date - days * 86400;
+    const p = [...points].reverse().find((x) => x.date <= target);
+    return p ? p.tvl : null;
+  };
+
+  // Protocol TVL on Arc only (chainTvls.Arc), largest first.
+  const onArc = (protocols || [])
+    .map((p) => ({ name: p.name, category: p.category || "Other", tvl: Number(p.chainTvls?.[ARC_CHAIN]) || 0 }))
+    .filter((p) => p.tvl > 0)
+    .sort((x, y) => y.tvl - x.tvl);
+  const topProtocols = onArc.slice(0, 5).map((p) => ({ ...p, share: (p.tvl / tvl) * 100 }));
+  const categories = {};
+  for (const p of onArc) categories[p.category] = (categories[p.category] || 0) + p.tvl;
+  const categoryShares = Object.entries(categories)
+    .map(([category, v]) => ({ category, share: (v / tvl) * 100 }))
+    .sort((x, y) => y.share - x.share).slice(0, 3);
+
+  // Stablecoins circulating on Arc, valued in USD (amount x price), with each coin's share.
+  let stablecoins = null;
+  if (stables?.peggedAssets) {
+    const list = stables.peggedAssets
+      .map((a) => {
+        const cur = a.chainCirculating?.[ARC_CHAIN]?.current;
+        const amount = cur ? Number(cur[a.pegType]) || 0 : 0;
+        const price = Number(a.price) || (a.pegType === "peggedUSD" ? 1 : 0);
+        return { symbol: a.symbol, usd: amount * price };
+      })
+      .filter((x) => x.usd > 0)
+      .sort((x, y) => y.usd - x.usd);
+    const total = list.reduce((sum, x) => sum + x.usd, 0);
+    if (total > 0) stablecoins = { total, top: list.slice(0, 3).map((x) => ({ symbol: x.symbol, share: (x.usd / total) * 100 })) };
+  }
+
+  return {
+    chain: ARC_CHAIN,
+    tvl,
+    change: { d1: pctChange(tvl, ago(1)), d7: pctChange(tvl, ago(7)), d30: pctChange(tvl, ago(30)) },
+    topProtocols,
+    categoryShares,
+    stablecoins,
+    source: "DefiLlama",
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+async function generateChainInsight(data) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return "";
+  try {
+    const system = `You write a MAXIMUM 3-sentence, maximum 400-character reading of a blockchain's DeFi data for an analytics card. Use ONLY the numbers in the data; never invent figures, protocols or reasons. Do not repeat every number (they are shown above the note); focus on what stands out: the trend direction, where the TVL is concentrated (which protocols or categories), and the stablecoin mix. Never recommend buying, selling or using any protocol, and never predict what will happen next. Output ONLY the sentences, no headers, no markdown.\n\nData:\n${JSON.stringify(data)}`;
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: "claude-haiku-4-5", max_tokens: 180, system, messages: [{ role: "user", content: `Summarize ${data.chain}'s DeFi data.` }] }),
+    });
+    if (!response.ok) return "";
+    const json = await response.json();
+    return (json.content?.[0]?.text ?? "").trim().slice(0, 450);
+  } catch {
+    return "";
+  }
+}
+
+async function handleArcChain(req, res, ip) {
+  const cacheKey = "chain:arc";
+  const cached = await getCached(cacheKey);
+  if (cached) return res.status(200).json({ ...cached, cached: true });
+  try {
+    const data = await buildArcChainData();
+    const aiAllowed = (ipAiLimit ? (await ipAiLimit.limit(ip)).success : true)
+      && (globalAiLimit ? (await globalAiLimit.limit("all")).success : true);
+    data.insight = aiAllowed ? await generateChainInsight(data) : "";
+    if (redis) await redis.set(`market-analysis:${cacheKey}`, JSON.stringify(data), { ex: CHAIN_CACHE_SECONDS }).catch(() => {});
+    else memCache.set(cacheKey, { data, expiresAt: Date.now() + CHAIN_CACHE_SECONDS * 1000 });
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error("arc chain analysis error:", err?.message);
+    return res.status(502).json({ error: "Arc ecosystem data is unavailable right now." });
+  }
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  if (req.query.topic === "arc-tvl") {
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
+    if (ratelimit && !(await ratelimit.limit(ip)).success) return res.status(429).json({ error: "Too many analysis requests. Please wait a moment." });
+    if (!redis && process.env.NODE_ENV === "production") return res.status(503).json({ error: "Service temporarily unavailable — rate limiting is not configured." });
+    return handleArcChain(req, res, ip);
+  }
   const coinId = typeof req.query.coinId === "string" ? req.query.coinId.trim().toLowerCase() : "";
   if (!COIN_ID_RE.test(coinId)) return res.status(400).json({ error: "Missing or invalid coinId query parameter" });
 
