@@ -32,7 +32,6 @@ const AiCopilot = lazy(() => import("./components/AiCopilot"));
 const AiCopilotMainnet = lazy(() => import("./components/AiCopilotMainnet"));
 const MainnetBridge = lazy(() => import("./components/MainnetBridge"));
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
-import { getDCAPlan, isDCADue } from "./dca";
 import { getCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
 import { showToast } from "./toast";
 import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./contracts";
@@ -221,6 +220,19 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
   }
   componentDidCatch(err: unknown) {
     console.error("FlowFi render error:", err);
+    // After a new deploy, a tab opened on the old version asks for page chunks that no longer
+    // exist. That isn't a real crash: reload once to get the new version (at most once a minute,
+    // so a genuine failure can't cause a reload loop).
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/dynamically imported module|Importing a module script failed|Failed to fetch dynamically/i.test(msg)) {
+      try {
+        const last = Number(sessionStorage.getItem("flowfi-chunk-reload") || 0);
+        if (Date.now() - last > 60000) {
+          sessionStorage.setItem("flowfi-chunk-reload", String(Date.now()));
+          window.location.reload();
+        }
+      } catch { /* storage blocked: show the normal error screen */ }
+    }
   }
   render() {
     if (this.state.hasError) {
@@ -271,12 +283,8 @@ function AppInner() {
     setNicknameState(getNickname());
     setPoints(getPoints());
     const interval = setInterval(() => setPoints(getPoints()), 3000);
-
-    const plan = getDCAPlan();
-    if (plan && isDCADue(plan)) {
-      showToast(`Your DCA plan is due: buy ${plan.amount} USDC → EURC. Open Swap to run it.`, "info");
-    }
-
+    // (The testnet DCA reminder used to toast here on every load, mainnet included. The testnet
+    // Swap page already shows "Due now" for a plan, so the global toast is gone.)
     return () => clearInterval(interval);
   }, []);
 
@@ -599,7 +607,7 @@ function AppInner() {
         </div>
 
         <div style={{ flex: "1 1 460px", minWidth: 320, display: "flex", justifyContent: "center" }}>
-          <img src="/usdc-hero.png" alt="USDC on Arc" className="flowfi-float" style={{ width: "100%", maxWidth: 560, height: "auto" }} />
+          <img src="/usdc-hero.webp" alt="USDC on Arc" className="flowfi-float" style={{ width: "100%", maxWidth: 560, height: "auto" }} />
         </div>
       </div>
 
@@ -791,9 +799,11 @@ function AppInner() {
                   style={{ display: "block", maxWidth: "100%", padding: 0, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#16151C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }}>
                   {nickname || shortAddr}
                 </button>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, fontSize: 11.5, color: "#5E5B6B", whiteSpace: "nowrap" }}>
-                  <Sparkles size={11} color="#3D5AF1" /> {points} pts
-                </div>
+                {activeVariant === "testnet" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, fontSize: 11.5, color: "#5E5B6B", whiteSpace: "nowrap" }}>
+                    <Sparkles size={11} color="#3D5AF1" /> {points} pts
+                  </div>
+                )}
               </div>
               <button onClick={disconnectWallet} title="Disconnect" aria-label="Disconnect"
                 style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: "#6B6876", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
