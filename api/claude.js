@@ -194,6 +194,11 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({ model: task.model, max_tokens: task.max_tokens, system, messages: [{ role: "user", content: user }] }),
     });
     const data = await response.json();
+    if (!response.ok) {
+      // Never pass Anthropic's own errors (e.g. "credit balance is too low") through to users.
+      console.error("api/claude.js upstream error:", response.status, data?.error?.message);
+      return res.status(503).json({ error: "The AI assistant is unavailable right now. Please try again later." });
+    }
     return res.status(response.status).json(data);
   } catch (err) {
     console.error("api/claude.js error:", err?.message);
