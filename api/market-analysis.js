@@ -20,18 +20,49 @@
 const { Ratelimit } = require("@upstash/ratelimit");
 const { Redis } = require("@upstash/redis");
 
-const CACHE_TTL_MS = 90 * 1000;
-const cache = new Map();
+const CACHE_TTL_SECONDS = 90;
 
-// Every uncached coin costs 3 CoinGecko calls and one Anthropic call, and this
-// endpoint had no limit at all. Same shared-Redis per-IP pattern as api/claude.js.
-const ratelimit = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+  : null;
+
+// Every uncached coin costs 3 CoinGecko calls and one Anthropic call. Per-IP limit, same
+// shared-Redis pattern as api/claude.js.
+const ratelimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "60 s"), prefix: "ratelimit:market-analysis" })
+  : null;
+
+// The AI insight counts toward the same global daily AI budget as api/claude.js (same prefix,
+// key and limit, so they share one counter). Over budget: the analysis is still returned, just
+// without the AI sentence.
+const globalPerDay = Number(process.env.CLAUDE_GLOBAL_DAILY_LIMIT);
+const globalAiLimit = redis
   ? new Ratelimit({
-      redis: new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN }),
-      limiter: Ratelimit.slidingWindow(10, "60 s"),
-      prefix: "ratelimit:market-analysis",
+      redis,
+      limiter: Ratelimit.fixedWindow(Number.isFinite(globalPerDay) && globalPerDay > 0 ? Math.floor(globalPerDay) : 2000, "86400 s"),
+      prefix: "ratelimit:claude-global",
     })
   : null;
+
+// Shared cache in Redis. It used to be an in-memory Map, which on Vercel lives in ONE serverless
+// instance only, so most requests missed it and re-paid for CoinGecko + Claude. The Map is now just
+// the local-dev fallback when Redis isn't configured.
+const memCache = new Map();
+async function getCached(coinId) {
+  if (redis) {
+    const v = await redis.get(`market-analysis:${coinId}`).catch(() => null);
+    return v ? (typeof v === "string" ? JSON.parse(v) : v) : null;
+  }
+  const e = memCache.get(coinId);
+  return e && e.expiresAt > Date.now() ? e.data : null;
+}
+async function setCached(coinId, data) {
+  if (redis) {
+    await redis.set(`market-analysis:${coinId}`, JSON.stringify(data), { ex: CACHE_TTL_SECONDS }).catch(() => {});
+    return;
+  }
+  memCache.set(coinId, { data, expiresAt: Date.now() + CACHE_TTL_SECONDS * 1000 });
+}
 
 // CoinGecko ids are lowercase letters, digits and dashes (e.g. "usd-coin").
 const COIN_ID_RE = /^[a-z0-9-]{1,80}$/;
@@ -168,10 +199,12 @@ module.exports = async function handler(req, res) {
     if (!success) return res.status(429).json({ error: "Too many analysis requests. Please wait a moment." });
   }
 
-  const cached = cache.get(coinId);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return res.status(200).json({ ...cached.data, cached: true });
+  if (!redis && process.env.NODE_ENV === "production") {
+    return res.status(503).json({ error: "Service temporarily unavailable — rate limiting is not configured." });
   }
+
+  const cached = await getCached(coinId);
+  if (cached) return res.status(200).json({ ...cached, cached: true });
 
   try {
     const detailRes = await fetch(
@@ -266,9 +299,10 @@ module.exports = async function handler(req, res) {
     // cache window reuse it instead of triggering a new Claude call each
     // time. Tradeoff: the insight's language matches whichever request
     // first triggered this cache miss, not each individual asker.
-    result.insight = await generateInsight(result);
+    const aiAllowed = globalAiLimit ? (await globalAiLimit.limit("all")).success : true;
+    result.insight = aiAllowed ? await generateInsight(result) : "";
 
-    cache.set(coinId, { data: result, timestamp: Date.now() });
+    await setCached(coinId, result);
     return res.status(200).json(result);
   } catch (err) {
     console.error("market-analysis error:", err?.message);
