@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits } from "viem";
+import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, toHex, encodeFunctionData } from "viem";
 import type { EIP1193Provider } from "viem";
 import { ArrowDown, Check } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
@@ -86,6 +86,9 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
   const [msg, setMsg] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  // Set when KyberSwap's real on-chain output was worse than its quote; it is left out until the pair or amount changes.
+  const [kyberOff, setKyberOff] = useState(false);
+  useEffect(() => { setKyberOff(false); }, [amount, fromIdx, toIdx]);
 
   const from = TOKENS[fromIdx];
   const to = TOKENS[toIdx];
@@ -108,13 +111,13 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
     let cancelled = false;
     setQuoting(true);
     const t = setTimeout(async () => {
-      const res = await Promise.all([kyberQuote(from, to, amountIn), lifiQuote(from, to, amountIn, address ?? QUOTE_ADDRESS)]);
+      const res = await Promise.all([kyberOff ? Promise.resolve(null) : kyberQuote(from, to, amountIn), lifiQuote(from, to, amountIn, address ?? QUOTE_ADDRESS)]);
       if (cancelled) return;
       setQuotes(res.filter((q): q is Quote => !!q).sort((a, b) => (b.out > a.out ? 1 : b.out < a.out ? -1 : 0)));
       setQuoting(false);
     }, 600);
     return () => { cancelled = true; clearTimeout(t); setQuoting(false); };
-  }, [amount, fromIdx, toIdx, address, tick]);
+  }, [amount, fromIdx, toIdx, address, tick, kyberOff]);
 
   const best = quotes[0];
   const insufficient = balance !== null && amountIn > balance;
@@ -173,21 +176,27 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         if ((await pc.waitForTransactionReceipt({ hash: a })).status === "reverted") throw new Error("The approval reverted. Nothing was swapped.");
       }
 
-      // KyberSwap's own numbers can differ from what the route really returns on Arc, so run the exact
-      // transaction as a dry run first and read the real output. Worse than the shown price: stop here.
+      // KyberSwap's numbers on Arc (even its router's return value) can be higher than what really arrives.
+      // So dry-run the exact transaction and measure the user's real balance change of the token they receive.
+      // If it is worse than the shown price (or can't be checked), stop, drop KyberSwap and fall back to LI.FI.
       if (best.source === "KyberSwap") {
         setMsg("Checking the real output on-chain...");
-        let simOut: bigint | null = null;
+        let realOut: bigint | null = null;
         try {
-          const sim = await pc.call({ account: me, to: txTo as `0x${string}`, data, value });
-          if (sim.data && sim.data.length >= 66) simOut = BigInt(sim.data.slice(0, 66));
-        } catch {
+          const bal = { from: me, to: to.address, data: encodeFunctionData({ abi: erc20Abi, functionName: "balanceOf", args: [me] }) };
+          const res = await pc.request({
+            method: "eth_simulateV1" as never,
+            params: [{ blockStateCalls: [{ calls: [bal, { from: me, to: txTo, data, value: toHex(value) }, bal] }] }, "latest"] as never,
+          }) as { calls: { status: string; returnData: `0x${string}` }[] }[];
+          const c = res?.[0]?.calls;
+          if (c && c.length === 3 && c.every((x) => x.status === "0x1")) realOut = BigInt(c[2].returnData) - BigInt(c[0].returnData);
+        } catch { realOut = null; }
+        if (realOut === null || realOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
+          setKyberOff(true);
           setTick((t) => t + 1);
-          throw new Error("This KyberSwap route failed an on-chain check. Nothing was sent. Prices are refreshed, please try again.");
-        }
-        if (simOut !== null && simOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
-          setTick((t) => t + 1);
-          throw new Error(`On-chain check: KyberSwap would actually give ${fmt(simOut, to)} ${to.symbol}, less than shown. Nothing was sent. Prices are refreshed, please try again.`);
+          throw new Error(realOut === null
+            ? "KyberSwap's route couldn't be verified on-chain, so we switched to LI.FI. Nothing was sent. Check the new price and press Swap again."
+            : `KyberSwap would really give ${fmt(realOut, to)} ${to.symbol}, less than shown, so we switched to LI.FI. Nothing was sent. Check the new price and press Swap again.`);
         }
       }
 
