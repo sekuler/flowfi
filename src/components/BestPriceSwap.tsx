@@ -173,6 +173,24 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         if ((await pc.waitForTransactionReceipt({ hash: a })).status === "reverted") throw new Error("The approval reverted. Nothing was swapped.");
       }
 
+      // KyberSwap's own numbers can differ from what the route really returns on Arc, so run the exact
+      // transaction as a dry run first and read the real output. Worse than the shown price: stop here.
+      if (best.source === "KyberSwap") {
+        setMsg("Checking the real output on-chain...");
+        let simOut: bigint | null = null;
+        try {
+          const sim = await pc.call({ account: me, to: txTo as `0x${string}`, data, value });
+          if (sim.data && sim.data.length >= 66) simOut = BigInt(sim.data.slice(0, 66));
+        } catch {
+          setTick((t) => t + 1);
+          throw new Error("This KyberSwap route failed an on-chain check. Nothing was sent. Prices are refreshed, please try again.");
+        }
+        if (simOut !== null && simOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
+          setTick((t) => t + 1);
+          throw new Error(`On-chain check: KyberSwap would actually give ${fmt(simOut, to)} ${to.symbol}, less than shown. Nothing was sent. Prices are refreshed, please try again.`);
+        }
+      }
+
       setMsg(`Confirm the swap in your wallet (via ${best.source})...`);
       const h = await wc.sendTransaction({ to: txTo as `0x${string}`, data, value });
       setHash(h);
