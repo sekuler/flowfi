@@ -943,7 +943,7 @@ function AppInner() {
 {tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} provider={wallet.provider} />}
 
             {tab === "mainnetbridge" && <MainnetBridge address={wallet?.address} provider={wallet?.provider} />}
-            {tab === "mainnetswap" && <MainnetSwap provider={wallet?.provider} />}
+            {tab === "mainnetswap" && <MainnetSwap address={wallet?.address} provider={wallet?.provider} onConnect={() => setShowConnectModal(true)} />}
             {tab === "dashboard" && wallet && <Dashboard address={wallet.address} balances={balances} />}
             {tab === "mainnethistory" && wallet && <TxHistoryMainnet address={wallet.address} />}
             {tab === "circlewalletmainnet" && <CircleWalletMainnet browserAddress={wallet?.address} provider={wallet?.provider} />}

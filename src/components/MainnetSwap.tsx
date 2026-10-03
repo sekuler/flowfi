@@ -1,9 +1,10 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 import ArcTokenStrip from "./ArcTokenStrip";
+import BestPriceSwap from "./BestPriceSwap";
 
 // Same-chain counterpart to MainnetBridge.tsx: fromChain and toChain are
 // both Arc, so LI.FI's widget renders as a same-chain swap (routed
@@ -62,8 +63,10 @@ const lifiWidgetConfig: WidgetConfig = {
   appearance: "light",
 };
 
-export default function MainnetSwap(_props: { provider?: EIP1193Provider }) {
+export default function MainnetSwap({ address, provider, onConnect }: { address?: string; provider?: EIP1193Provider; onConnect?: () => void }) {
   const formRef = useRef<FormState | null>(null);
+  // "best": FlowFi compares KyberSwap and LI.FI quotes for Arc tokens. "any": the LI.FI widget, for any token.
+  const [mode, setMode] = useState<"best" | "any">("best");
 
   return (
     <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1.75rem 0.75rem 2.5rem" }}>
@@ -79,7 +82,25 @@ export default function MainnetSwap(_props: { provider?: EIP1193Provider }) {
           </div>
         </div>
 
-        <>
+        <div style={{ display: "flex", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 999, width: "fit-content", maxWidth: "100%", margin: "0 auto 20px" }}>
+          {([
+            { k: "best", t: "Best price", sub: "KyberSwap + LI.FI" },
+            { k: "any", t: "Any token", sub: "Full LI.FI routing" },
+          ] as const).map((tab) => {
+            const on = mode === tab.k;
+            return (
+              <button key={tab.k} onClick={() => setMode(tab.k)}
+                style={{ padding: "0.55rem 1.1rem", borderRadius: 999, border: "none", cursor: "pointer", textAlign: "left", background: on ? "#3D5AF1" : "transparent", boxShadow: on ? "0 6px 16px rgba(61,90,241,0.3)" : "none", transition: "all 0.2s" }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: on ? "#fff" : "#111827" }}>{tab.t}</div>
+                <div style={{ fontSize: 10.5, color: on ? "rgba(255,255,255,0.8)" : "#6B7280" }}>{tab.sub}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {mode === "best" && <BestPriceSwap address={address} provider={provider} onConnect={onConnect} />}
+
+        {mode === "any" && <>
           <style>{`
             .lifi-widget-wrap input:focus {
               outline: none !important;
@@ -97,7 +118,7 @@ export default function MainnetSwap(_props: { provider?: EIP1193Provider }) {
               }} />
             <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
           </div>
-        </>
+        </>}
       </div>
     </div>
   );
