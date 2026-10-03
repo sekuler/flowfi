@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
+import { SolanaProvider } from "@lifi/widget-provider-solana";
+import { BitcoinProvider } from "@lifi/widget-provider-bitcoin";
 import type { EIP1193Provider } from "viem";
 import NativeCctpBridge, { SOURCE_CHAINS } from "./NativeCctpBridge";
 import NativeEurcBridge from "./NativeEurcBridge";
@@ -15,7 +17,8 @@ const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 const lifiWidgetConfig: WidgetConfig = {
   integrator: "flowfi",
   apiKey: import.meta.env.VITE_LIFI_API_KEY,
-  providers: [EthereumProvider()],
+  // EVM, Solana and Bitcoin wallets can be connected side by side (e.g. MetaMask + Backpack), Relay-style.
+  providers: [EthereumProvider(), SolanaProvider(), BitcoinProvider()],
   fromChain: BASE_CHAIN_ID,
   fromToken: NATIVE_TOKEN_ADDRESS,
   toChain: ARC_MAINNET_CHAIN_ID,
@@ -26,7 +29,7 @@ const lifiWidgetConfig: WidgetConfig = {
   },
   variant: "wide",
   chains: {
-    types: { allow: [ChainType.EVM] },
+    types: { allow: [ChainType.EVM, ChainType.SVM, ChainType.UTXO] },
   },
   theme: {
     colorSchemes: {
