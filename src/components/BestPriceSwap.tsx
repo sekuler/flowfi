@@ -7,7 +7,7 @@ import { TokenIcon } from "./TokenIcon";
 import { loadLifiDiamond } from "./txUtils";
 
 // Same-chain swaps on Arc Mainnet, routed to whichever source gives the most output.
-// Each source is asked for a quote in parallel (KyberSwap's aggregator and LI.FI); the best one is
+// Each source is asked for a quote in parallel (KyberSwap, De¹ and LI.FI); the best one is
 // shown and used. The swap is signed by the user's own connected wallet; FlowFi holds nothing.
 // Safety: the transaction target must be the known router of the chosen source, or nothing is sent.
 
@@ -23,10 +23,13 @@ type Tok = (typeof TOKENS)[number];
 const KYBER_ROUTER = "0x6131b5fae19ea4f9d964eac0408e4408b66337b5";
 const KYBER_API = "https://aggregator-api.kyberswap.com/arc/api/v1";
 const LIFI_API = "https://li.quest/v1";
+// De¹ Exchange router on Arc (returned by its own /quote as "exchange"), from docs.de1.exchange.
+const DE1_ROUTER = "0x6352a56caadc4f1e25cd6c75970fa768a3304e64";
+const DE1_API = "https://open-api.de1.exchange/v4/arc";
 const SLIPPAGE_BPS = 50; // 0.5%
 const QUOTE_ADDRESS = "0x000000000000000000000000000000000000dEaD"; // quotes before a wallet is connected
 
-type Source = "KyberSwap" | "LI.FI";
+type Source = "KyberSwap" | "De¹" | "LI.FI";
 interface Quote { source: Source; out: bigint; raw: unknown }
 
 const BLUE = "#3D5AF1";
@@ -44,6 +47,25 @@ async function kyberQuote(from: Tok, to: Tok, amountIn: bigint): Promise<Quote |
     if (!r.ok || !rs?.amountOut) return null;
     if (String(d.data.routerAddress).toLowerCase() !== KYBER_ROUTER) return null;
     return { source: "KyberSwap", out: BigInt(rs.amountOut), raw: rs };
+  } catch { return null; }
+}
+
+function de1Params(from: Tok, to: Tok, amountIn: bigint, gasPrice: bigint) {
+  return new URLSearchParams({
+    inTokenAddress: from.address, outTokenAddress: to.address,
+    amountDecimals: amountIn.toString(), gasPriceDecimals: gasPrice.toString(),
+    slippage: String(SLIPPAGE_BPS / 100),
+  });
+}
+
+async function de1Quote(from: Tok, to: Tok, amountIn: bigint): Promise<Quote | null> {
+  try {
+    const gp = await pc.getGasPrice();
+    const r = await fetch(`${DE1_API}/quote?${de1Params(from, to, amountIn, gp)}`);
+    const d = await r.json();
+    if (!r.ok || d?.code !== 200 || !d?.data?.outAmount) return null;
+    if (String(d.data.exchange).toLowerCase() !== DE1_ROUTER) return null;
+    return { source: "De¹", out: BigInt(d.data.outAmount), raw: d.data };
   } catch { return null; }
 }
 
@@ -86,9 +108,9 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
   const [msg, setMsg] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
-  // Set when KyberSwap's real on-chain output was worse than its quote; it is left out until the pair or amount changes.
-  const [kyberOff, setKyberOff] = useState(false);
-  useEffect(() => { setKyberOff(false); }, [amount, fromIdx, toIdx]);
+  // Sources whose real on-chain output was worse than their quote; left out until the pair or amount changes.
+  const [off, setOff] = useState<Source[]>([]);
+  useEffect(() => { setOff([]); }, [amount, fromIdx, toIdx]);
 
   const from = TOKENS[fromIdx];
   const to = TOKENS[toIdx];
@@ -111,13 +133,17 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
     let cancelled = false;
     setQuoting(true);
     const t = setTimeout(async () => {
-      const res = await Promise.all([kyberOff ? Promise.resolve(null) : kyberQuote(from, to, amountIn), lifiQuote(from, to, amountIn, address ?? QUOTE_ADDRESS)]);
+      const res = await Promise.all([
+        off.includes("KyberSwap") ? Promise.resolve(null) : kyberQuote(from, to, amountIn),
+        off.includes("De¹") ? Promise.resolve(null) : de1Quote(from, to, amountIn),
+        lifiQuote(from, to, amountIn, address ?? QUOTE_ADDRESS),
+      ]);
       if (cancelled) return;
       setQuotes(res.filter((q): q is Quote => !!q).sort((a, b) => (b.out > a.out ? 1 : b.out < a.out ? -1 : 0)));
       setQuoting(false);
     }, 600);
     return () => { cancelled = true; clearTimeout(t); setQuoting(false); };
-  }, [amount, fromIdx, toIdx, address, tick, kyberOff]);
+  }, [amount, fromIdx, toIdx, address, tick, off]);
 
   const best = quotes[0];
   const insufficient = balance !== null && amountIn > balance;
@@ -155,6 +181,23 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
           setTick((t) => t + 1);
           throw new Error(`KyberSwap's price changed to ${fmt(builtOut, to)} ${to.symbol}. Nothing was sent. Prices are refreshed, please check them and try again.`);
         }
+      } else if (best.source === "De¹") {
+        setMsg("Preparing the De¹ route...");
+        const q = de1Params(from, to, amountIn, await pc.getGasPrice());
+        q.set("account", me);
+        const r = await fetch(`${DE1_API}/swap?${q}`);
+        const d = await r.json();
+        if (!r.ok || d?.code !== 200 || !d?.data?.data) throw new Error("De¹ couldn't build this route. Please try again.");
+        txTo = String(d.data.to).toLowerCase();
+        data = d.data.data;
+        value = BigInt(d.data.value || 0);
+        spender = txTo;
+        if (txTo !== DE1_ROUTER) throw new Error("Unexpected De¹ router address. Nothing was sent.");
+        const builtOut = BigInt(d.data.outAmount ?? 0);
+        if (builtOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
+          setTick((t) => t + 1);
+          throw new Error(`De¹'s price changed to ${fmt(builtOut, to)} ${to.symbol}. Nothing was sent. Prices are refreshed, please check them and try again.`);
+        }
       } else {
         setMsg("Getting a fresh LI.FI quote...");
         const q = await lifiQuote(from, to, amountIn, me);
@@ -176,10 +219,10 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         if ((await pc.waitForTransactionReceipt({ hash: a })).status === "reverted") throw new Error("The approval reverted. Nothing was swapped.");
       }
 
-      // KyberSwap's numbers on Arc (even its router's return value) can be higher than what really arrives.
+      // Aggregator numbers on Arc (even a router's return value) can be higher than what really arrives.
       // So dry-run the exact transaction and measure the user's real balance change of the token they receive.
-      // If it is worse than the shown price (or can't be checked), stop, drop KyberSwap and fall back to LI.FI.
-      if (best.source === "KyberSwap") {
+      // If it is worse than the shown price (or can't be checked), stop, drop that source and use the next best one.
+      if (best.source !== "LI.FI") {
         setMsg("Checking the real output on-chain...");
         let realOut: bigint | null = null;
         try {
@@ -200,11 +243,12 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
           } catch { realOut = null; }
         }
         if (realOut === null || realOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
-          setKyberOff(true);
+          const src = best.source;
+          setOff((o) => [...o, src]);
           setTick((t) => t + 1);
           throw new Error(realOut === null
-            ? "KyberSwap's route couldn't be verified on-chain, so we switched to LI.FI. Nothing was sent. Check the new price and press Swap again."
-            : `KyberSwap would really give ${fmt(realOut, to)} ${to.symbol}, less than shown, so we switched to LI.FI. Nothing was sent. Check the new price and press Swap again.`);
+            ? `${src}'s route couldn't be verified on-chain, so we switched to the next best price. Nothing was sent. Check the new price and press Swap again.`
+            : `${src} would really give ${fmt(realOut, to)} ${to.symbol}, less than shown, so we switched to the next best price. Nothing was sent. Check the new price and press Swap again.`);
         }
       }
 
@@ -300,7 +344,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       </button>
 
       <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>
-        Best price across KyberSwap and LI.FI on Arc. You sign every step in your own wallet.
+        Best price across KyberSwap, De¹ and LI.FI on Arc. You sign every step in your own wallet.
       </p>
     </div>
   );

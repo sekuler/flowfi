@@ -65,7 +65,7 @@ const lifiWidgetConfig: WidgetConfig = {
 
 export default function MainnetSwap({ address, provider, onConnect }: { address?: string; provider?: EIP1193Provider; onConnect?: () => void }) {
   const formRef = useRef<FormState | null>(null);
-  // "best": FlowFi compares KyberSwap and LI.FI quotes for Arc tokens. "any": the LI.FI widget, for any token.
+  // "best": FlowFi compares KyberSwap, De¹ and LI.FI quotes for Arc tokens. "any": the LI.FI widget, for any token.
   const [mode, setMode] = useState<"best" | "any">("best");
 
   return (
@@ -84,7 +84,7 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
 
         <div style={{ display: "flex", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 999, width: "fit-content", maxWidth: "100%", margin: "0 auto 20px" }}>
           {([
-            { k: "best", t: "Best price", sub: "KyberSwap + LI.FI" },
+            { k: "best", t: "Best price", sub: "KyberSwap + De¹ + LI.FI" },
             { k: "any", t: "Any token", sub: "Full LI.FI routing" },
           ] as const).map((tab) => {
             const on = mode === tab.k;
