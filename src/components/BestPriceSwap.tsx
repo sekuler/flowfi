@@ -95,6 +95,8 @@ async function switchToArc(provider: EIP1193Provider) {
   }
 }
 
+const LOGOS: Record<Source, string> = { "KyberSwap": "/logos/kyberswap.svg", "De¹": "/logos/de1.png", "LI.FI": "/logos/lifi.svg" };
+
 const fmt = (v: bigint, t: Tok) => Number(formatUnits(v, t.decimals)).toLocaleString("en-US", { maximumFractionDigits: t.decimals === 8 ? 8 : 4 });
 
 export default function BestPriceSwap({ address, provider, onConnect }: { address?: string; provider?: EIP1193Provider; onConnect?: () => void }) {
@@ -146,6 +148,9 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
   }, [amount, fromIdx, toIdx, address, tick, off]);
 
   const best = quotes[0];
+  // USD price of the "to" token, from De¹'s quote (it returns one); hidden when De¹ didn't answer.
+  const toUsd = Number((quotes.find((q) => q.source === "De¹")?.raw as { outToken?: { usd?: string } } | undefined)?.outToken?.usd ?? 0);
+  const usd = (v: bigint) => toUsd > 0 ? `≈ $${(Number(formatUnits(v, to.decimals)) * toUsd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null;
   const insufficient = balance !== null && amountIn > balance;
   const minOut = best ? (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n : 0n;
 
@@ -314,17 +319,33 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       </div>
 
       {quotes.length > 0 && (
-        <div style={{ border: `1px solid ${LINE}`, borderRadius: 18, padding: "6px 14px" }}>
-          {quotes.map((q, i) => (
-            <div key={q.source} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < quotes.length - 1 ? `1px solid ${LINE}` : "none", fontSize: 12.5 }}>
-              <span style={{ color: MUTED, display: "flex", alignItems: "center", gap: 6 }}>
-                {q.source}
-                {i === 0 && quotes.length > 1 && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0E9F6E", background: "#E7F7EF", padding: "1px 7px", borderRadius: 999 }}>Best price</span>}
-              </span>
-              <span style={{ color: INK, fontWeight: 600 }}>{fmt(q.out, to)} {to.symbol}</span>
-            </div>
-          ))}
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 4px", fontSize: 12, color: MUTED, borderTop: `1px solid ${LINE}` }}>
+        <div style={{ border: "1px solid #C9D3FB", borderRadius: 18, padding: 8, background: "linear-gradient(135deg, #F3F6FF 0%, #E6ECFF 100%)", display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 12px 4px", fontSize: 12, fontWeight: 700, color: INK }}>
+            <span>Quotes</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: BLUE, background: "#FFFFFF", padding: "2px 9px", borderRadius: 999, border: "1px solid #C9D3FB" }}>{quotes.length} {quotes.length === 1 ? "source" : "sources"}</span>
+          </div>
+          {quotes.map((q, i) => {
+            const win = i === 0;
+            const gain = win && quotes.length > 1 ? q.out - quotes[quotes.length - 1].out : 0n;
+            return (
+              <div key={q.source} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: win ? "10px 12px" : "7px 12px", borderRadius: 12, fontSize: 12.5,
+                background: win ? "#FFFFFF" : "transparent", borderLeft: win ? `4px solid ${BLUE}` : "4px solid transparent", boxShadow: win ? "0 6px 18px -8px rgba(61,90,241,0.45)" : "none" }}>
+                <span style={{ color: win ? INK : "#8A8798", fontWeight: win ? 700 : 500, display: "flex", alignItems: "center", gap: 8 }}>
+                  <img src={LOGOS[q.source]} alt="" width={22} height={22} style={{ borderRadius: 999, flexShrink: 0, opacity: win ? 1 : 0.75 }} />
+                  {q.source}
+                  {win && quotes.length > 1 && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#FFFFFF", background: "#10B981", padding: "2px 8px", borderRadius: 999 }}>Best price</span>}
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {gain > 0n && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0E9F6E", background: "#E7F7EF", padding: "2px 7px", borderRadius: 999 }}>+{fmt(gain, to)}</span>}
+                  <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.25 }}>
+                    <span style={{ color: win ? BLUE : "#8A8798", fontWeight: win ? 800 : 500, fontSize: win ? 14.5 : 12.5 }}>{fmt(q.out, to)} {to.symbol}</span>
+                    {usd(q.out) && <span style={{ fontSize: 10.5, color: "#8A8798", fontWeight: 500 }}>{usd(q.out)}</span>}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px 4px", fontSize: 12, color: MUTED, borderTop: "1px solid #C9D3FB" }}>
             <span>Minimum received (0.5% slippage)</span>
             <span>{fmt(minOut, to)} {to.symbol}</span>
           </div>
