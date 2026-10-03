@@ -221,10 +221,15 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
 
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 20, padding: 26, borderRadius: 20, background: "linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)", border: "1px solid rgba(255,255,255,0.28)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)", minWidth: 0 }}>
         {isNew ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.82)" }}>Total balance</span>
-            <span className="ffh-mono" style={{ fontSize: 40, fontWeight: 500, letterSpacing: "-0.02em" }}>$0.00</span>
-          </div>
+          <video
+            autoPlay={!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches}
+            muted loop playsInline preload="metadata"
+            poster="/flowfi-arc-poster.jpg"
+            aria-label="How FlowFi works on Arc: bridge, swap, earn"
+            style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: 14, display: "block", objectFit: "cover", background: "#050B1F", boxShadow: "0 12px 28px -14px rgba(5,11,31,0.7)" }}>
+            <source src="/flowfi-arc-loop.webm" type="video/webm" />
+            <source src="/flowfi-arc-loop.mp4" type="video/mp4" />
+          </video>
         ) : hasChart ? (
           <div>
             <Sparkline points={chartPoints} height={140} color="#FFFFFF" />
@@ -235,6 +240,11 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ height: 1, background: "rgba(255,255,255,0.25)" }} />
+          {isNew && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.82)" }}>
+              <span>Total balance</span><span className="ffh-mono" style={{ color: "#FFFFFF" }}>$0.00</span>
+            </div>
+          )}
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.82)" }}>
             <span>Assets</span><span style={{ color: "#FFFFFF" }}>{isNew ? "None yet" : balancesLoading ? "…" : owned.length}</span>
           </div>
