@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, toHex, encodeFunctionData } from "viem";
 import type { EIP1193Provider } from "viem";
-import { ArrowDown, Check } from "lucide-react";
+import { ArrowDown, Check, ChevronDown } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenIcon } from "./TokenIcon";
 import { loadLifiDiamond } from "./txUtils";
@@ -58,9 +58,12 @@ function de1Params(from: Tok, to: Tok, amountIn: bigint, gasPrice: bigint) {
   });
 }
 
+// Gas price only tunes De¹'s route estimate; if the RPC call fails, fall back so De¹ is still asked.
+const de1Gas = () => pc.getGasPrice().catch(() => 160000000000n);
+
 async function de1Quote(from: Tok, to: Tok, amountIn: bigint): Promise<Quote | null> {
   try {
-    const gp = await pc.getGasPrice();
+    const gp = await de1Gas();
     const r = await fetch(`${DE1_API}/quote?${de1Params(from, to, amountIn, gp)}`);
     const d = await r.json();
     if (!r.ok || d?.code !== 200 || !d?.data?.outAmount) return null;
@@ -98,6 +101,8 @@ async function switchToArc(provider: EIP1193Provider) {
 const LOGOS: Record<Source, string> = { "KyberSwap": "/logos/kyberswap.svg", "De¹": "/logos/de1.png", "LI.FI": "/logos/lifi.svg" };
 
 const fmt = (v: bigint, t: Tok) => Number(formatUnits(v, t.decimals)).toLocaleString("en-US", { maximumFractionDigits: t.decimals === 8 ? 8 : 4 });
+// Short form for small extras (the "+gain" chip): 3 significant digits.
+const fmtShort = (v: bigint, t: Tok) => Number(formatUnits(v, t.decimals)).toLocaleString("en-US", { maximumSignificantDigits: 3 });
 
 export default function BestPriceSwap({ address, provider, onConnect }: { address?: string; provider?: EIP1193Provider; onConnect?: () => void }) {
   const [fromIdx, setFromIdx] = useState(0);
@@ -110,6 +115,10 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
   const [msg, setMsg] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [picker, setPicker] = useState<"from" | "to" | null>(null);
+  const [bals, setBals] = useState<Record<string, bigint>>({});
+  // USD prices by token address, taken from De¹'s quotes (it returns them); kept so they don't flicker.
+  const [px, setPx] = useState<Record<string, number>>({});
   // Sources whose real on-chain output was worse than their quote; left out until the pair or amount changes.
   const [off, setOff] = useState<Source[]>([]);
   useEffect(() => { setOff([]); }, [amount, fromIdx, toIdx]);
@@ -128,6 +137,15 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
     return () => { cancelled = true; };
   }, [address, fromIdx, tick]);
 
+  // Balances of every listed token, for the token picker and the "Receive" side.
+  useEffect(() => {
+    if (!address) { setBals({}); return; }
+    let cancelled = false;
+    Promise.all(TOKENS.map((t) => pc.readContract({ address: t.address, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => null)))
+      .then((res) => { if (cancelled) return; const m: Record<string, bigint> = {}; res.forEach((b, i) => { if (b !== null) m[TOKENS[i].symbol] = b; }); setBals(m); });
+    return () => { cancelled = true; };
+  }, [address, tick]);
+
   // Quotes from every source, in parallel, shortly after typing stops.
   useEffect(() => {
     setQuotes([]);
@@ -142,15 +160,21 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       ]);
       if (cancelled) return;
       setQuotes(res.filter((q): q is Quote => !!q).sort((a, b) => (b.out > a.out ? 1 : b.out < a.out ? -1 : 0)));
+      const d1 = res[1]?.raw as { inToken?: { address?: string; usd?: string }; outToken?: { address?: string; usd?: string } } | undefined;
+      if (d1) setPx((m) => {
+        const n = { ...m };
+        for (const t of [d1.inToken, d1.outToken]) if (t?.address && Number(t.usd) > 0) n[t.address.toLowerCase()] = Number(t.usd);
+        return n;
+      });
       setQuoting(false);
     }, 600);
     return () => { cancelled = true; clearTimeout(t); setQuoting(false); };
   }, [amount, fromIdx, toIdx, address, tick, off]);
 
   const best = quotes[0];
-  // USD price of the "to" token, from De¹'s quote (it returns one); hidden when De¹ didn't answer.
-  const toUsd = Number((quotes.find((q) => q.source === "De¹")?.raw as { outToken?: { usd?: string } } | undefined)?.outToken?.usd ?? 0);
-  const usd = (v: bigint) => toUsd > 0 ? `≈ $${(Number(formatUnits(v, to.decimals)) * toUsd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null;
+  // "≈ $" value of an amount of a token, when De¹ has given us its price.
+  const usdOf = (v: bigint, t: Tok) => { const p = px[t.address.toLowerCase()]; return p ? `≈ $${(Number(formatUnits(v, t.decimals)) * p).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null; };
+  const usd = (v: bigint) => usdOf(v, to);
   const insufficient = balance !== null && amountIn > balance;
   const minOut = best ? (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n : 0n;
 
@@ -188,7 +212,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         }
       } else if (best.source === "De¹") {
         setMsg("Preparing the De¹ route...");
-        const q = de1Params(from, to, amountIn, await pc.getGasPrice());
+        const q = de1Params(from, to, amountIn, await de1Gas());
         q.set("account", me);
         const r = await fetch(`${DE1_API}/swap?${q}`);
         const d = await r.json();
@@ -277,46 +301,85 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
     : !best ? "No route for this pair right now"
     : `Swap via ${best.source}`;
 
-  const tokenRow = (idx: number, set: (i: number) => void, other: number) => (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      {TOKENS.map((t, i) => (
-        <button key={t.symbol} type="button" disabled={i === other || step === "busy"} onClick={() => { set(i); setStep("idle"); setMsg(null); }}
-          style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px 5px 5px", borderRadius: 999, border: i === idx ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: i === idx ? "#EEF1FE" : "#FFFFFF", color: INK, fontSize: 13, fontWeight: 600, cursor: i === other ? "not-allowed" : "pointer", opacity: i === other ? 0.4 : 1 }}>
-          <TokenIcon symbol={t.symbol} size={20} /> {t.symbol}
-        </button>
-      ))}
-    </div>
-  );
+  // Choosing the token already on the other side swaps the two sides, like most swap apps.
+  function pick(side: "from" | "to", i: number) {
+    if (side === "from") { if (i === toIdx) setToIdx(fromIdx); setFromIdx(i); }
+    else { if (i === fromIdx) setFromIdx(toIdx); setToIdx(i); }
+    setPicker(null); setStep("idle"); setMsg(null);
+  }
+
+  const panel = (side: "from" | "to") => {
+    const t = side === "from" ? from : to;
+    const bal = side === "from" ? balance : (bals[to.symbol] ?? null);
+    const value = side === "from" ? amountIn : (best?.out ?? 0n);
+    const usdText = value > 0n ? usdOf(value, t) : null;
+    const chip = { border: "none", background: "#E3E8FD", color: BLUE, fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, cursor: "pointer" } as const;
+    return (
+      <div style={{ background: "#F5F7FF", borderRadius: 20, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8, position: "relative" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: MUTED, fontWeight: 600 }}>
+          <span>{side === "from" ? "Sell" : "Receive"}</span>
+          {bal !== null && (
+            <span style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+              {fmt(bal, t)} {t.symbol}
+              {side === "from" && bal > 0n && <>
+                <button type="button" onClick={() => setAmount(formatUnits(bal / 2n, t.decimals))} style={chip}>50%</button>
+                <button type="button" onClick={() => setAmount(formatUnits(bal, t.decimals))} style={chip}>MAX</button>
+              </>}
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <button type="button" disabled={step === "busy"} onClick={() => setPicker(picker === side ? null : side)}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px 7px 7px", borderRadius: 999, border: `1px solid ${LINE}`, background: "#FFFFFF", color: INK, fontSize: 15, fontWeight: 700, cursor: "pointer", flexShrink: 0, boxShadow: "0 2px 8px -4px rgba(22,21,28,0.15)" }}>
+            <TokenIcon symbol={t.symbol} size={26} /> {t.symbol} <ChevronDown size={16} color={MUTED} />
+          </button>
+          {side === "from" ? (
+            <input className="ff-bps-amt" type="text" inputMode="decimal" placeholder="0.00" value={amount} disabled={step === "busy"} aria-label={`${from.symbol} amount`}
+              onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) { setAmount(e.target.value); setStep("idle"); setMsg(null); } }}
+              style={{ fontSize: 30, fontWeight: 700, color: INK, padding: 0, minWidth: 0, width: "100%", textAlign: "right" }} />
+          ) : (
+            <div style={{ fontSize: 30, fontWeight: 700, color: best ? INK : "#B5B3BE", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+              {best ? fmt(best.out, to) : quoting ? "…" : "0.00"}
+            </div>
+          )}
+        </div>
+        <div style={{ textAlign: "right", fontSize: 12, color: MUTED, minHeight: 15 }}>{usdText ?? ""}</div>
+
+        {picker === side && (
+          <>
+            <div onClick={() => setPicker(null)} style={{ position: "fixed", inset: 0, zIndex: 20 }} />
+            <div style={{ position: "absolute", top: 76, left: 12, width: 240, zIndex: 21, background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 16, boxShadow: "0 18px 40px -12px rgba(22,21,28,0.25)", padding: 6 }}>
+              {TOKENS.map((o, i) => {
+                const sel = (side === "from" ? fromIdx : toIdx) === i;
+                return (
+                  <button key={o.symbol} type="button" onClick={() => pick(side, i)}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 12, border: "none", background: sel ? "#EEF1FE" : "transparent", cursor: "pointer", color: INK, fontSize: 14, fontWeight: 600, textAlign: "left" }}>
+                    <TokenIcon symbol={o.symbol} size={26} />
+                    <span style={{ flex: 1 }}>{o.symbol}</span>
+                    {bals[o.symbol] !== undefined && <span style={{ fontSize: 12, color: MUTED, fontWeight: 500 }}>{fmt(bals[o.symbol], o)}</span>}
+                    {sel && <Check size={14} color={BLUE} />}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(61,90,241,0.18)", display: "flex", flexDirection: "column", gap: 12 }}>
       <style>{`.ff-bps-amt, .ff-bps-amt:focus { outline: none !important; box-shadow: none !important; border: none !important; background: transparent !important; }`}</style>
 
-      <div style={{ background: "#F5F7FF", borderRadius: 20, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: MUTED, fontWeight: 600 }}>
-          <span>YOU PAY</span>
-          {balance !== null && (
-            <span>Balance: {fmt(balance, from)} {from.symbol}
-              <button type="button" onClick={() => setAmount(formatUnits(balance, from.decimals))} style={{ border: "none", background: "#E3E8FD", color: BLUE, fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, cursor: "pointer", marginLeft: 6 }}>MAX</button>
-            </span>
-          )}
-        </div>
-        <input className="ff-bps-amt" type="text" inputMode="decimal" placeholder="0.00" value={amount} disabled={step === "busy"} aria-label={`${from.symbol} amount`}
-          onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) { setAmount(e.target.value); setStep("idle"); setMsg(null); } }}
-          style={{ fontSize: 30, fontWeight: 700, color: INK, padding: 0, minWidth: 0 }} />
-        {tokenRow(fromIdx, setFromIdx, toIdx)}
-      </div>
+      {panel("from")}
 
       <button type="button" onClick={flip} aria-label="Switch tokens" disabled={step === "busy"}
-        style={{ alignSelf: "center", width: 36, height: 36, borderRadius: 12, border: `1px solid ${LINE}`, background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", margin: "-6px 0" }}>
-        <ArrowDown size={16} color={INK} />
+        style={{ alignSelf: "center", width: 38, height: 38, borderRadius: 12, border: "4px solid #FFFFFF", background: "#E3E8FD", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", margin: "-23px 0", zIndex: 2 }}>
+        <ArrowDown size={16} color={BLUE} />
       </button>
 
-      <div style={{ background: "#F5F7FF", borderRadius: 20, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-        <span style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>YOU RECEIVE</span>
-        <div style={{ fontSize: 30, fontWeight: 700, color: best ? INK : "#B5B3BE" }}>{best ? fmt(best.out, to) : quoting ? "…" : "0.00"}</div>
-        {tokenRow(toIdx, setToIdx, fromIdx)}
-      </div>
+      {panel("to")}
 
       {quotes.length > 0 && (
         <div style={{ border: "1px solid #C9D3FB", borderRadius: 18, padding: 8, background: "linear-gradient(135deg, #F3F6FF 0%, #E6ECFF 100%)", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -330,13 +393,13 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
             return (
               <div key={q.source} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: win ? "10px 12px" : "7px 12px", borderRadius: 12, fontSize: 12.5,
                 background: win ? "#FFFFFF" : "transparent", borderLeft: win ? `4px solid ${BLUE}` : "4px solid transparent", boxShadow: win ? "0 6px 18px -8px rgba(61,90,241,0.45)" : "none" }}>
-                <span style={{ color: win ? INK : "#8A8798", fontWeight: win ? 700 : 500, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: win ? INK : "#8A8798", fontWeight: win ? 700 : 500, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", minWidth: 0 }}>
                   <img src={LOGOS[q.source]} alt="" width={22} height={22} style={{ borderRadius: 999, flexShrink: 0, opacity: win ? 1 : 0.75 }} />
                   {q.source}
-                  {win && quotes.length > 1 && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#FFFFFF", background: "#10B981", padding: "2px 8px", borderRadius: 999 }}>Best price</span>}
+                  {win && quotes.length > 1 && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#FFFFFF", background: "#10B981", padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>Best price</span>}
                 </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {gain > 0n && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0E9F6E", background: "#E7F7EF", padding: "2px 7px", borderRadius: 999 }}>+{fmt(gain, to)}</span>}
+                <span style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+                  {gain > 0n && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0E9F6E", background: "#E7F7EF", padding: "2px 7px", borderRadius: 999 }}>+{fmtShort(gain, to)}</span>}
                   <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.25 }}>
                     <span style={{ color: win ? BLUE : "#8A8798", fontWeight: win ? 800 : 500, fontSize: win ? 14.5 : 12.5 }}>{fmt(q.out, to)} {to.symbol}</span>
                     {usd(q.out) && <span style={{ fontSize: 10.5, color: "#8A8798", fontWeight: 500 }}>{usd(q.out)}</span>}
