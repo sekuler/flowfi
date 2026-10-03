@@ -1,5 +1,9 @@
 # FlowFi
 
+<p align="center">
+  <img src="./docs/flowfi-arc.gif" alt="FlowFi on Arc: bridge, swap, earn" width="480" />
+</p>
+
 Your dollars on Arc, all in one flow. Live on **Arc Mainnet**: a gasless native USDC bridge, native EURC and cirBTC bridging, swaps, a unified USDC balance with Circle Gateway, and Earn & Borrow on Morpho. A permissionless DeFi showcase (Token Launch, Liquidity Pools, AI Copilot actions) keeps running on **Arc Testnet**.
 
 **Contracts:** [all addresses, mainnet and testnet](./ADDRESSES.md) · **App:** [flowfi.finance](https://flowfi.finance) · **Demo:** [youtu.be/Icu8qTiYMqw](https://youtu.be/Icu8qTiYMqw) · **Repo:** [github.com/sekuler/flowfi](https://github.com/sekuler/flowfi)
