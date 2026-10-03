@@ -191,6 +191,14 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
           const c = res?.[0]?.calls;
           if (c && c.length === 3 && c.every((x) => x.status === "0x1")) realOut = BigInt(c[2].returnData) - BigInt(c[0].returnData);
         } catch { realOut = null; }
+        // Arc's RPC may not support eth_simulateV1. Fall back to a plain dry run of the same transaction and
+        // read the router's own return value (first word = amount received). A revert here means a bad route.
+        if (realOut === null) {
+          try {
+            const sim = await pc.call({ account: me, to: txTo as `0x${string}`, data, value });
+            if (sim.data && sim.data.length >= 66) realOut = BigInt(sim.data.slice(0, 66));
+          } catch { realOut = null; }
+        }
         if (realOut === null || realOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
           setKyberOff(true);
           setTick((t) => t + 1);
