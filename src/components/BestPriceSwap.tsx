@@ -38,7 +38,7 @@ const pc = createPublicClient({ chain: arcMainnet, transport: http() });
 
 async function kyberQuote(from: Tok, to: Tok, amountIn: bigint): Promise<Quote | null> {
   try {
-    const r = await fetch(`${KYBER_API}/routes?tokenIn=${from.address}&tokenOut=${to.address}&amountIn=${amountIn}&gasInclude=true`, { headers: { "x-client-id": "flowfi" } });
+    const r = await fetch(`${KYBER_API}/routes?tokenIn=${from.address}&tokenOut=${to.address}&amountIn=${amountIn}&gasInclude=true&excludeRFQSources=true`, { headers: { "x-client-id": "flowfi" } });
     const d = await r.json();
     const rs = d?.data?.routeSummary;
     if (!r.ok || !rs?.amountOut) return null;
@@ -145,6 +145,13 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         value = BigInt(d.data.transactionValue || 0);
         spender = txTo;
         if (txTo !== KYBER_ROUTER) throw new Error("Unexpected KyberSwap router address. Nothing was sent.");
+        // The built route must still be as good as the price we showed (within slippage). If KyberSwap
+        // re-priced it lower, stop before the wallet opens and refresh the quotes instead.
+        const builtOut = BigInt(d.data.amountOut ?? 0);
+        if (builtOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
+          setTick((t) => t + 1);
+          throw new Error(`KyberSwap's price changed to ${fmt(builtOut, to)} ${to.symbol}. Nothing was sent. Prices are refreshed, please check them and try again.`);
+        }
       } else {
         setMsg("Getting a fresh LI.FI quote...");
         const q = await lifiQuote(from, to, amountIn, me);
