@@ -322,6 +322,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
             <span style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
               {fmt(bal, t)} {t.symbol}
               {side === "from" && bal > 0n && <>
+                <button type="button" onClick={() => setAmount(formatUnits(bal / 4n, t.decimals))} style={chip}>25%</button>
                 <button type="button" onClick={() => setAmount(formatUnits(bal / 2n, t.decimals))} style={chip}>50%</button>
                 <button type="button" onClick={() => setAmount(formatUnits(bal, t.decimals))} style={chip}>MAX</button>
               </>}
@@ -343,7 +344,12 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
             </div>
           )}
         </div>
-        <div style={{ textAlign: "right", fontSize: 12, color: MUTED, minHeight: 15 }}>{usdText ?? ""}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: MUTED, minHeight: 15, gap: 8 }}>
+          <span>{side === "to" && best && amountIn > 0n
+            ? `1 ${to.symbol} = ${(Number(formatUnits(amountIn, from.decimals)) / Number(formatUnits(best.out, to.decimals))).toLocaleString("en-US", { maximumSignificantDigits: 6 })} ${from.symbol}`
+            : ""}</span>
+          <span>{usdText ?? ""}</span>
+        </div>
 
         {picker === side && (
           <>
@@ -402,7 +408,12 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
                   {gain > 0n && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0E9F6E", background: "#E7F7EF", padding: "2px 7px", borderRadius: 999 }}>+{fmtShort(gain, to)}</span>}
                   <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.25 }}>
                     <span style={{ color: win ? BLUE : "#8A8798", fontWeight: win ? 800 : 500, fontSize: win ? 14.5 : 12.5 }}>{fmt(q.out, to)} {to.symbol}</span>
-                    {usd(q.out) && <span style={{ fontSize: 10.5, color: "#8A8798", fontWeight: 500 }}>{usd(q.out)}</span>}
+                    {(() => {
+                      // How far this source is behind the best one, e.g. "−0.07%".
+                      const pct = !win && best && best.out > 0n ? Number(((q.out - best.out) * 1000000n) / best.out) / 10000 : null;
+                      const parts = [usd(q.out), pct !== null ? `${pct.toFixed(2).replace("-", "−")}%` : null].filter(Boolean);
+                      return parts.length > 0 && <span style={{ fontSize: 10.5, color: "#8A8798", fontWeight: 500 }}>{parts.join(" · ")}</span>;
+                    })()}
                   </span>
                 </span>
               </div>
