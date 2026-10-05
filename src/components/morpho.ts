@@ -33,12 +33,50 @@ export const MARKETS = {
 } as const;
 export type BorrowAsset = keyof typeof MARKETS;
 
+// kind "morpho": an ERC-4626 Morpho vault at `address`. logo: the curator's/protocol's official mark (from their X accounts / Aave brand kit), null when we have none.
+// kind "aave": Aave V4 Main Spoke at `address` (also the spender to approve), reserve AAVE_USDC_RESERVE_ID.
 export const VAULTS = [
-  { key: "galaxy", name: "Galaxy USDC", curator: "Galaxy", asset: "USDC", address: "0x8E357432CC12ff425c36432F312968aEb16112AF" },
-  { key: "keyrock", name: "Keyrock Prime USDC", curator: "Keyrock", asset: "USDC", address: "0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123" },
-  { key: "steakhouse-eurc", name: "Steakhouse Prime EURC", curator: "Steakhouse", asset: "EURC", address: "0xbeef00be37BdE921BAE06fad223125BAB16c41D1" },
-  { key: "gauntlet-eurc", name: "Gauntlet EURC Prime", curator: "Gauntlet", asset: "EURC", address: "0x05863F54B05e96092069eF30c9Ca6060336e50B9" },
+  { key: "galaxy", name: "Galaxy USDC", curator: "Galaxy", logo: "/logos/galaxy.jpg", asset: "USDC", kind: "morpho", address: "0x8E357432CC12ff425c36432F312968aEb16112AF" },
+  { key: "keyrock", name: "Keyrock Prime USDC", curator: "Keyrock", logo: "/logos/keyrock.jpg", asset: "USDC", kind: "morpho", address: "0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123" },
+  { key: "aave-usdc", name: "Aave USDC", curator: "Aave", logo: "/logos/aave.svg", asset: "USDC", kind: "aave", address: "0xB843bdC3a87A05E77E07Df9FE48928b3A34b134d" },
+  { key: "steakhouse-eurc", name: "Steakhouse Prime EURC", curator: "Steakhouse", logo: "/logos/steakhouse.jpg", asset: "EURC", kind: "morpho", address: "0xbeef00be37BdE921BAE06fad223125BAB16c41D1" },
+  { key: "gauntlet-eurc", name: "Gauntlet EURC Prime", curator: "Gauntlet", logo: "/logos/gauntlet.png", asset: "EURC", kind: "morpho", address: "0x05863F54B05e96092069eF30c9Ca6060336e50B9" },
 ] as const;
+
+// ---- Aave V4 on Arc (USDC only; EURC supply APY is ~0 there) ----
+// Addresses: Aave address book (bgd-labs/aave-address-book, AaveV4Arc.sol). Reserve 0 on the Main Spoke is USDC
+// (Aave V4 API + onchain Withdraw event). Spoke.supply pulls tokens from msg.sender (so the Spoke is the spender)
+// and withdraw sends min(amount, user's full balance), so "withdraw all" passes maxUint256 and leaves no dust.
+export const AAVE_CORE_HUB = "0x17288dfc86205301064577b98B02b81017e6F79C" as const;
+export const AAVE_MAIN_SPOKE = "0xB843bdC3a87A05E77E07Df9FE48928b3A34b134d" as const;
+export const AAVE_USDC_RESERVE_ID = 0n;
+
+export const AAVE_SPOKE_ABI = parseAbi([
+  "struct Reserve { address underlying; address hub; uint16 assetId; uint8 decimals; uint24 collateralRisk; uint8 flags; uint32 dynamicConfigKey; }",
+  "function getReserve(uint256 reserveId) view returns (Reserve)",
+  "function getReserveSuppliedAssets(uint256 reserveId) view returns (uint256)",
+  "function getUserSuppliedAssets(uint256 reserveId, address user) view returns (uint256)",
+  "function supply(uint256 reserveId, uint256 amount, address onBehalfOf) returns (uint256, uint256)",
+  "function withdraw(uint256 reserveId, uint256 amount, address onBehalfOf) returns (uint256, uint256)",
+  "error ReservePaused()",
+  "error ReserveFrozen()",
+]);
+
+// Supply APY from Aave's V4 API (api.v4.aave.com/graphql). Query and field names checked against the API's own schema;
+// summary.supplyApy.value is a fraction (0.0091 = 0.91%). Picks the Main Spoke USDC row; null when unavailable.
+export async function fetchAaveUsdcApy(): Promise<number | null> {
+  try {
+    const query = `query { reserves(request: { query: { chainIds: [5042] }, filter: ALL, orderBy: { supplyApy: DESC } }) {
+      spoke { address } asset { underlying { address } } summary { supplyApy { value } } } }`;
+    const r = await fetch("https://api.v4.aave.com/graphql", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }) });
+    const j = await r.json();
+    const row = (j?.data?.reserves ?? []).find((x: any) =>
+      String(x?.spoke?.address).toLowerCase() === AAVE_MAIN_SPOKE.toLowerCase() &&
+      String(x?.asset?.underlying?.address).toLowerCase() === USDC.toLowerCase());
+    const v = Number(row?.summary?.supplyApy?.value);
+    return Number.isFinite(v) ? v : null;
+  } catch { return null; }
+}
 export type EarnAsset = (typeof VAULTS)[number]["asset"];
 
 export const USDC_DECIMALS = 6;

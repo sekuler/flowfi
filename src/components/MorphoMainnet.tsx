@@ -1,12 +1,13 @@
 import { useState, useEffect, createElement } from "react";
-import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits } from "viem";
+import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, maxUint256 } from "viem";
 import type { EIP1193Provider } from "viem";
-import { PiggyBank, Landmark, RefreshCw } from "lucide-react";
+import { PiggyBank, Landmark, RefreshCw, Check, ChevronRight, X } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenOnChain } from "./AssetLogos";
 import {
   MORPHO_BLUE, MARKETS, type BorrowAsset, USDC, CIRBTC, EURC, VAULTS, type EarnAsset, USDC_DECIMALS, CIRBTC_DECIMALS,
   WAD, ORACLE_SCALE, SAFE_LTV_PCT, MORPHO_ABI, IRM_ABI, ORACLE_ABI, VAULT_ABI, toAssetsUp, fetchVaultApy,
+  AAVE_CORE_HUB, AAVE_SPOKE_ABI, AAVE_USDC_RESERVE_ID, fetchAaveUsdcApy,
 } from "./morpho";
 
 // Earn & Borrow on Arc mainnet, built on Morpho. Earn = deposit USDC or EURC into a curated
@@ -95,6 +96,9 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const [acked, setAcked] = useState(false);
   const [showAck, setShowAck] = useState(false);
   const [ackChecked, setAckChecked] = useState(false);
+  // "Aave is live" banner on Earn; once closed it stays closed in this browser.
+  const [aaveBanner, setAaveBanner] = useState(() => { try { return localStorage.getItem("flowfi-aave-banner-v1") !== "closed"; } catch { return true; } });
+  const closeAaveBanner = () => { setAaveBanner(false); try { localStorage.setItem("flowfi-aave-banner-v1", "closed"); } catch { /* shows again next visit */ } };
 
   useEffect(() => { loadMorphoBadge(); }, []);
   useEffect(() => { setAcked(owner ? readAck(owner) : false); }, [owner]);
@@ -119,6 +123,17 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
 
         const vs: Record<string, VaultState> = {};
         await Promise.all(VAULTS.map(async (v) => {
+          if (v.kind === "aave") {
+            // Safety check: reserve 0 on this Spoke must be USDC on Aave's Core Hub, or deposits stay paused.
+            const [res, tvl] = await Promise.all([
+              pc.readContract({ address: v.address, abi: AAVE_SPOKE_ABI, functionName: "getReserve", args: [AAVE_USDC_RESERVE_ID] }).catch(() => null),
+              pc.readContract({ address: v.address, abi: AAVE_SPOKE_ABI, functionName: "getReserveSuppliedAssets", args: [AAVE_USDC_RESERVE_ID] }),
+            ]);
+            const assetOk = !!res && res.underlying.toLowerCase() === USDC.toLowerCase() && res.hub.toLowerCase() === AAVE_CORE_HUB.toLowerCase();
+            const assets = owner ? await pc.readContract({ address: v.address, abi: AAVE_SPOKE_ABI, functionName: "getUserSuppliedAssets", args: [AAVE_USDC_RESERVE_ID, owner] }) : 0n;
+            vs[v.key] = { tvl, shares: 0n, assets, maxW: 0n, assetOk };
+            return;
+          }
           const [tvl, underlying] = await Promise.all([
             pc.readContract({ address: v.address, abi: VAULT_ABI, functionName: "totalAssets" }),
             pc.readContract({ address: v.address, abi: VAULT_ABI, functionName: "asset" }).catch(() => null),
@@ -156,7 +171,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   }, [owner, tick, borrowAsset]);
 
   useEffect(() => {
-    VAULTS.forEach((v) => { fetchVaultApy(v.address).then((a) => setApy((s) => ({ ...s, [v.key]: a }))); });
+    VAULTS.forEach((v) => { (v.kind === "aave" ? fetchAaveUsdcApy() : fetchVaultApy(v.address)).then((a) => setApy((s) => ({ ...s, [v.key]: a }))); });
   }, []);
 
   // ---- derived market + position numbers ----
@@ -230,7 +245,8 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const btn = step === "sending" ? "Confirm in your wallet..." : !amount ? "Enter an amount" : amt > max && !fullRepay ? (actionKey === "borrow" ? "Above the 70% safe limit" : actionKey === "withdraw" ? "Would go above the 70% safe limit" : "Not enough balance") : `${verb} ${amount} ${tokenSymbol}`;
 
   function start() {
-    if (acked) { run(); return; }
+    // The Morpho acknowledgment is only for Morpho actions (its vaults and the Borrow side).
+    if (acked || (isEarn && vault.kind === "aave")) { run(); return; }
     setAckChecked(false); setShowAck(true);
   }
   function acceptAck() {
@@ -259,7 +275,18 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         await wait(await wc.writeContract({ address: token, abi: erc20Abi, functionName: "approve", args: [spender, need] }));
       };
 
-      if (isEarn) {
+      if (isEarn && vault.kind === "aave") {
+        if (earnAction === "deposit") {
+          await approve(earnToken, vault.address, amt, earnAsset);
+          setMsg("Confirm the deposit...");
+          const { request } = await pc.simulateContract({ account: owner, address: vault.address, abi: AAVE_SPOKE_ABI, functionName: "supply", args: [AAVE_USDC_RESERVE_ID, amt, owner] });
+          await wait(await wc.writeContract(request));
+        } else {
+          setMsg("Confirm the withdrawal...");
+          const { request } = await pc.simulateContract({ account: owner, address: vault.address, abi: AAVE_SPOKE_ABI, functionName: "withdraw", args: [AAVE_USDC_RESERVE_ID, fullWithdrawEarn ? maxUint256 : amt, owner] });
+          await wait(await wc.writeContract(request));
+        }
+      } else if (isEarn) {
         if (earnAction === "deposit") {
           await approve(earnToken, vault.address, amt, earnAsset);
           setMsg("Confirm the deposit...");
@@ -332,6 +359,15 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       })}
     </div>
   );
+  // Round logo for a vault: the curator's/protocol's official mark, or its initial when we have none.
+  const avatar = (v: (typeof VAULTS)[number], size: number, onHero: boolean) => (
+    <span style={{ width: size, height: size, borderRadius: 999, overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+      background: v.kind === "aave" ? (onHero ? "#FFFFFF" : "#F3E8F8") : onHero ? "#FFFFFF" : "#E6EAFB", color: BLUE, fontWeight: 800, fontSize: size * 0.42 }}>
+      {(v.logo as string | null)
+        ? <img src={v.logo} alt="" style={v.kind === "aave" ? { width: size * 0.66, height: size * 0.36, objectFit: "contain" } : { width: "100%", height: "100%", objectFit: "cover" }} />
+        : v.curator.slice(0, 1)}
+    </span>
+  );
   const stat = (k: string, v: string) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <span style={{ fontSize: 11.5, opacity: 0.8 }}>{k}</span>
@@ -381,15 +417,35 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       {segmented([{ k: "earn", t: "Earn" }, { k: "borrow", t: "Borrow" }], mode, setMode, "Earn or borrow")}
 
       {/* Hero: market numbers for the chosen side */}
+      {isEarn && aaveBanner && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 14, background: "#FFFFFF", border: `1px solid ${LINE}`, fontSize: 13, color: INK, boxShadow: "0 10px 30px -22px rgba(61,90,241,0.6)" }}>
+          <img src="/logos/aave.svg" alt="" width={24} height={13} style={{ flexShrink: 0 }} />
+          <span style={{ cursor: "pointer" }} onClick={() => { const a = VAULTS.find((v) => v.kind === "aave"); if (a) { setEarnAsset(a.asset); setVaultKey(a.key); reset(); } }}>
+            <b style={{ color: BLUE }}>New:</b> Aave V4 is now live on FlowFi. Earn on your USDC with Aave.
+          </span>
+          <button type="button" aria-label="Close" onClick={closeAaveBanner} style={{ marginLeft: "auto", border: "none", background: "none", color: "#8A8798", cursor: "pointer", display: "flex", padding: 2 }}><X size={16} /></button>
+        </div>
+      )}
+
       <section style={hero}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{isEarn ? vault.name : `cirBTC / ${loanSym} market`} · Morpho</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 12 }}>
+          {isEarn ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+              {avatar(vault, 44, true)}
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <span style={{ fontSize: 19, fontWeight: 800 }}>{vault.name}</span>
+                <span style={{ fontSize: 12.5, opacity: 0.85 }}>{vault.kind === "aave" ? "Aave V4 · Direct lending" : `Morpho vault · curated by ${vault.curator}`}</span>
+              </div>
+            </div>
+          ) : (
+            <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{`cirBTC / ${loanSym} market`} · Morpho</span>
+          )}
           <button type="button" aria-label="Refresh" onClick={() => setTick((t) => t + 1)} style={{ border: "none", background: "rgba(255,255,255,0.18)", color: "#FFFFFF", borderRadius: 999, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={14} /></button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
           {isEarn ? (<>
             {stat("Net APY", pct(apy[vaultKey] ?? null))}
-            {stat("Vault size", compact(u6(vs.tvl), cur))}
+            {stat(vault.kind === "aave" ? "Market size" : "Vault size", compact(u6(vs.tvl), cur))}
             {stat("Your deposit", `${cur}${usd(u6(vs.assets))}`)}
           </>) : (<>
             {stat("Borrow APY", pct(borrowApy))}
@@ -423,16 +479,40 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
               );
             })}
           </div>
-          <span style={label}>Vault</span>
-          <div role="radiogroup" aria-label="Vault" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
-            {earnVaults.map((v) => {
-              const on = v.key === vaultKey;
+          <div role="radiogroup" aria-label="Vault" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {([["morpho", "Morpho vaults"], ["aave", "Direct lending"]] as const).map(([kind, title]) => {
+              const group = earnVaults.filter((v) => v.kind === kind);
+              if (group.length === 0) return null;
               return (
-                <button key={v.key} type="button" role="radio" aria-checked={on} disabled={step === "sending"} onClick={() => { setVaultKey(v.key); reset(); }}
-                  style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4, padding: "10px 12px", borderRadius: 12, border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "rgba(255,255,255,0.85)", cursor: "pointer", textAlign: "left" }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: on ? BLUE : INK }}>{v.name}</span>
-                  <span style={{ fontSize: 12, color: MUTED }}>APY {pct(apy[v.key] ?? null)} · {compact(u6(vaults[v.key]?.tvl ?? 0n), cur)}</span>
-                </button>
+                <div key={kind} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <span style={{ ...label, fontSize: 12.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    {title}
+                    {kind === "morpho"
+                      ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#2F4DE8", color: "#FFFFFF" }}><img src="/logos/morpho.svg" alt="" width={11} height={10} />Morpho</span>
+                      : <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#F3E8F8", color: "#9B3F86" }}><img src="/logos/aave.svg" alt="" width={14} height={8} />Aave V4</span>}
+                  </span>
+                  {group.map((v) => {
+                    const on = v.key === vaultKey;
+                    return (
+                      <button key={v.key} type="button" role="radio" aria-checked={on} disabled={step === "sending"} onClick={() => { setVaultKey(v.key); reset(); }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", borderRadius: 14, border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "rgba(255,255,255,0.9)", cursor: "pointer", textAlign: "left" }}>
+                        {avatar(v, 38, false)}
+                        <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: on ? BLUE : INK, display: "flex", alignItems: "center", gap: 6 }}>
+                            {v.name}
+                            {v.kind === "aave" && <span style={{ fontSize: 10, fontWeight: 800, color: "#FFFFFF", background: BLUE, padding: "2px 7px", borderRadius: 999, letterSpacing: "0.04em" }}>NEW</span>}
+                          </span>
+                          <span style={{ fontSize: 12, color: MUTED }}>APY {pct(apy[v.key] ?? null)} · {compact(u6(vaults[v.key]?.tvl ?? 0n), cur)}</span>
+                        </span>
+                        <span style={{ marginLeft: "auto", display: "flex", flexShrink: 0 }}>
+                          {on
+                            ? <span style={{ width: 22, height: 22, borderRadius: 999, background: BLUE, display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={13} color="#FFFFFF" /></span>
+                            : <ChevronRight size={18} color="#B5B3BE" />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
           </div>
@@ -463,7 +543,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         </>
       )}
 
-      <div style={{ display: "flex", justifyContent: "center" }}>{createElement("powered-by-morpho", { theme: "light" })}</div>
+      {!(isEarn && vault.kind === "aave") && <div style={{ display: "flex", justifyContent: "center" }}>{createElement("powered-by-morpho", { theme: "light" })}</div>}
 
       <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>
         Non-custodial: your funds stay under your control, FlowFi never holds them.

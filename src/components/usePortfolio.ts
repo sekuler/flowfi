@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { arcMainnet } from "../chains";
-import { VAULTS, MARKETS, MORPHO_BLUE, MORPHO_ABI, VAULT_ABI, toAssetsUp } from "./morpho";
+import { VAULTS, MARKETS, MORPHO_BLUE, MORPHO_ABI, VAULT_ABI, toAssetsUp, AAVE_SPOKE_ABI, AAVE_USDC_RESERVE_ID } from "./morpho";
 
 export interface MainnetBalances {
   usdc: string | null;
@@ -30,6 +30,11 @@ async function loadPositions(owner: `0x${string}`): Promise<Positions> {
   const p = { ...NO_POSITIONS };
   await Promise.all([
     ...VAULTS.map(async (v) => {
+      if (v.kind === "aave") {
+        const assets = await pc.readContract({ address: v.address, abi: AAVE_SPOKE_ABI, functionName: "getUserSuppliedAssets", args: [AAVE_USDC_RESERVE_ID, owner] });
+        p.earnUsd += Number(formatUnits(assets, 6));
+        return;
+      }
       const shares = await pc.readContract({ address: v.address, abi: VAULT_ABI, functionName: "balanceOf", args: [owner] });
       if (shares === 0n) return;
       const assets = await pc.readContract({ address: v.address, abi: VAULT_ABI, functionName: "convertToAssets", args: [shares] });
