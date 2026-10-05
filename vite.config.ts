@@ -4,8 +4,8 @@ import { NodeGlobalsPolyfillPlugin } from "@esbuild-plugins/node-globals-polyfil
 
 export default defineConfig({
   plugins: [react()],
-  // Local dev only: send /api/rpc-proxy straight to Arc mainnet's RPC (vercel dev crashes on Windows here).
-  // Testnet pages also hit mainnet RPC in local dev; production is unaffected (it uses api/rpc-proxy.js).
+  // Local development: proxy RPC calls to Arc mainnet so the app runs with `npm run dev` alone.
+  // Production uses the api/rpc-proxy.js serverless function; `vite build` ignores this block.
   server: {
     proxy: {
       "/api/rpc-proxy": { target: "https://rpc.mainnet.arc.io", changeOrigin: true, rewrite: () => "/" },

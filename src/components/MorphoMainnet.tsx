@@ -4,6 +4,7 @@ import type { EIP1193Provider } from "viem";
 import { PiggyBank, Landmark, RefreshCw, Check, ChevronRight, X } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenOnChain } from "./AssetLogos";
+import { useIsMobile } from "../useIsMobile";
 import {
   MORPHO_BLUE, MARKETS, type BorrowAsset, USDC, CIRBTC, EURC, VAULTS, type EarnAsset, USDC_DECIMALS, CIRBTC_DECIMALS,
   WAD, ORACLE_SCALE, SAFE_LTV_PCT, MORPHO_ABI, IRM_ABI, ORACLE_ABI, VAULT_ABI, toAssetsUp, fetchVaultApy,
@@ -96,6 +97,10 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const [acked, setAcked] = useState(false);
   const [showAck, setShowAck] = useState(false);
   const [ackChecked, setAckChecked] = useState(false);
+  const isMobile = useIsMobile();
+  // Both borrow markets (USDC and EURC) for the "Your loans" card, read only while the Borrow tab is open.
+  type Loan = { coll: bigint; debt: bigint; price: bigint; rate: bigint };
+  const [loans, setLoans] = useState<Partial<Record<BorrowAsset, Loan>>>({});
   // "Aave is live" banner on Earn; once closed it stays closed in this browser.
   const [aaveBanner, setAaveBanner] = useState(() => { try { return localStorage.getItem("flowfi-aave-banner-v1") !== "closed"; } catch { return true; } });
   const closeAaveBanner = () => { setAaveBanner(false); try { localStorage.setItem("flowfi-aave-banner-v1", "closed"); } catch { /* shows again next visit */ } };
@@ -173,6 +178,32 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   useEffect(() => {
     VAULTS.forEach((v) => { (v.kind === "aave" ? fetchAaveUsdcApy() : fetchVaultApy(v.address)).then((a) => setApy((s) => ({ ...s, [v.key]: a }))); });
   }, []);
+
+  useEffect(() => {
+    if (!owner || mode !== "borrow") return;
+    let cancelled = false;
+    (async () => {
+      const out: Partial<Record<BorrowAsset, Loan>> = {};
+      await Promise.all((Object.keys(MARKETS) as BorrowAsset[]).map(async (k) => {
+        const mk = MARKETS[k];
+        try {
+          const [m, ps, px] = await Promise.all([
+            pc.readContract({ address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "market", args: [mk.id] }),
+            pc.readContract({ address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "position", args: [mk.id, owner] }),
+            pc.readContract({ address: mk.params.oracle, abi: ORACLE_ABI, functionName: "price" }),
+          ]);
+          const market: Mkt = { totalSupplyAssets: m[0], totalSupplyShares: m[1], totalBorrowAssets: m[2], totalBorrowShares: m[3], lastUpdate: m[4], fee: m[5] };
+          const rate = await pc.readContract({ address: mk.params.irm, abi: IRM_ABI, functionName: "borrowRateView", args: [mk.params, market] });
+          // Same interest accrual as the main Borrow numbers, so the debt matches what Repay all would pay.
+          const nowS = BigInt(Math.floor(Date.now() / 1000));
+          const acc = nowS > market.lastUpdate ? (market.totalBorrowAssets * rate * (nowS - market.lastUpdate)) / WAD : 0n;
+          out[k] = { coll: ps[2], debt: toAssetsUp(ps[1], market.totalBorrowAssets + acc, market.totalBorrowShares), price: px, rate };
+        } catch { /* leave this market out */ }
+      }));
+      if (!cancelled) setLoans(out);
+    })();
+    return () => { cancelled = true; };
+  }, [owner, mode, tick]);
 
   // ---- derived market + position numbers ----
   // Clock for interest accrual, ticking every 15s (not read during render).
@@ -412,8 +443,117 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
     setAmount(formatUnits(max, tokenDecimals));
   };
 
+  // "Your positions": every Earn vault the user has money in (amounts read onchain above), shown to the
+  // right of the form on desktop and under it on mobile. Totals stay per currency (no made-up FX rate).
+  const positions = VAULTS.filter((v) => (vaults[v.key]?.assets ?? 0n) > 0n);
+  const showPositions = !!owner;
+  const sumOf = (a: "USDC" | "EURC") => positions.filter((v) => v.asset === a).reduce((t, v) => t + u6(vaults[v.key].assets), 0);
+  const yearlyOf = (a: "USDC" | "EURC") => positions.filter((v) => v.asset === a).reduce((t, v) => t + u6(vaults[v.key].assets) * (apy[v.key] ?? 0), 0);
+  const both = (fn: (a: "USDC" | "EURC") => number, sign = "") => {
+    const parts = [["USDC", "$"], ["EURC", "€"]].filter(([a]) => positions.some((v) => v.asset === a)).map(([a, c]) => `${sign}${c}${usd(fn(a as "USDC" | "EURC"))}`);
+    return parts.length ? parts.join(" + ") : "$0.00";
+  };
+  const singleCur = new Set(positions.map((v) => v.asset)).size === 1;
+  const avgApy = singleCur ? (() => { const tot = positions.reduce((t, v) => t + u6(vaults[v.key].assets), 0); return tot > 0 ? positions.reduce((t, v) => t + u6(vaults[v.key].assets) * (apy[v.key] ?? 0), 0) / tot : null; })() : null;
+
+  const positionsCard = () => (
+    <section style={{ ...card, gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 17, fontWeight: 800, color: BLUE }}>Your positions</span>
+        {positions.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: BLUE, background: "#EEF1FE", padding: "2px 9px", borderRadius: 999 }}>{positions.length} active</span>}
+      </div>
+      {positions.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13, color: MUTED, lineHeight: 1.5 }}>No deposits yet. Pick a vault and deposit to start earning; your positions will show up here.</p>
+      ) : (<>
+        <div style={{ display: "grid", gridTemplateColumns: singleCur ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 8, padding: 12, borderRadius: 14, background: "linear-gradient(135deg, #2F4DE8 0%, #6C8BFF 100%)", color: "#FFFFFF" }}>
+          <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Total deposited</div><div style={{ fontSize: 15, fontWeight: 800 }}>{both(sumOf)}</div></div>
+          {singleCur && <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Avg. APY</div><div style={{ fontSize: 15, fontWeight: 800 }}>{pct(avgApy)}</div></div>}
+          <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Est. yearly</div><div style={{ fontSize: 15, fontWeight: 800 }}>{both(yearlyOf, "+")}</div></div>
+        </div>
+        {positions.map((v) => {
+          const c = v.asset === "EURC" ? "€" : "$";
+          return (
+            <button key={v.key} type="button" disabled={step === "sending"} title="Manage this position"
+              onClick={() => { setMode("earn"); setEarnAsset(v.asset); setVaultKey(v.key); setEarnAction("withdraw"); reset(); }}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 14, border: `1px solid ${v.key === vaultKey ? BLUE : LINE}`, background: "#FFFFFF", cursor: "pointer", textAlign: "left" }}>
+              {avatar(v, 34, false)}
+              <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{v.name}</span>
+                {v.kind === "aave"
+                  ? <span style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#F3E8F8", color: "#9B3F86" }}><img src="/logos/aave.svg" alt="" width={11} height={6} />Aave V4</span>
+                  : <span style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#2F4DE8", color: "#FFFFFF" }}><img src="/logos/morpho.svg" alt="" width={9} height={8} />Morpho</span>}
+              </span>
+              <span style={{ marginLeft: "auto", textAlign: "right", flexShrink: 0 }}>
+                <span style={{ display: "block", fontSize: 14, fontWeight: 800, color: INK }}>{c}{usd(u6(vaults[v.key].assets))}</span>
+                <span style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "#0B7A53" }}>{pct(apy[v.key] ?? null)} APY</span>
+              </span>
+            </button>
+          );
+        })}
+        <p style={{ margin: 0, fontSize: 10.5, color: "#8A8798", textAlign: "center" }}>Est. yearly uses today's APY, which changes over time. Tap a position to manage it.</p>
+      </>)}
+    </section>
+  );
+
+  // "Your loans": both cirBTC borrow markets, with collateral, debt, rate and how close each is to liquidation.
+  const activeLoans = (Object.keys(MARKETS) as BorrowAsset[]).filter((k) => loans[k] && (loans[k]!.coll > 0n || loans[k]!.debt > 0n));
+  const loanLtv = (l: Loan) => { const v = (l.coll * l.price) / ORACLE_SCALE; return v > 0n ? Number(l.debt) / Number(v) : l.debt > 0n ? Infinity : 0; };
+  const loanLiq = (k: BorrowAsset, l: Loan) => (l.coll > 0n && l.debt > 0n ? u6(l.debt) / (b8(l.coll) * (Number(MARKETS[k].params.lltv) / 1e18)) : null);
+  const loansCard = () => {
+    const totColl = activeLoans.reduce((t, k) => t + loans[k]!.coll, 0n);
+    const debtParts = activeLoans.filter((k) => loans[k]!.debt > 0n).map((k) => `${MARKETS[k].cur}${usd(u6(loans[k]!.debt))}`);
+    const maxLtv = activeLoans.reduce((t, k) => Math.max(t, loanLtv(loans[k]!)), 0);
+    const kv = (a: string, b: string) => (<span style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span style={{ color: MUTED }}>{a}</span><span style={{ color: INK, fontWeight: 700 }}>{b}</span></span>);
+    return (
+      <section style={{ ...card, gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 17, fontWeight: 800, color: BLUE }}>Your loans</span>
+          {activeLoans.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: BLUE, background: "#EEF1FE", padding: "2px 9px", borderRadius: 999 }}>{activeLoans.length} active</span>}
+        </div>
+        {activeLoans.length === 0 ? (
+          <p style={{ margin: 0, fontSize: 13, color: MUTED, lineHeight: 1.5 }}>No loans yet. Add cirBTC as collateral and borrow USDC or EURC; your loans will show up here.</p>
+        ) : (<>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, padding: 12, borderRadius: 14, background: "linear-gradient(135deg, #2F4DE8 0%, #6C8BFF 100%)", color: "#FFFFFF" }}>
+            <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Collateral</div><div style={{ fontSize: 14, fontWeight: 800 }}>{b8(totColl).toFixed(6)} cirBTC</div></div>
+            <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Total debt</div><div style={{ fontSize: 14, fontWeight: 800 }}>{debtParts.length ? debtParts.join(" + ") : "0"}</div></div>
+            <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Highest LTV</div><div style={{ fontSize: 14, fontWeight: 800 }}>{Number.isFinite(maxLtv) ? `${(maxLtv * 100).toFixed(1)}%` : "—"}</div></div>
+          </div>
+          {activeLoans.map((k) => {
+            const l = loans[k]!; const c = MARKETS[k].cur; const x = loanLtv(l); const liq = loanLiq(k, l);
+            const apyB = Math.exp((Number(l.rate) / 1e18) * 31_536_000) - 1;
+            return (
+              <button key={k} type="button" disabled={step === "sending"} title="Manage this loan"
+                onClick={() => { if (k !== borrowAsset) { setBorrowAsset(k); setMkt(null); setPrice(null); setRate(null); setPos({ borrowShares: 0n, collateral: 0n }); } setBorrowAction(l.debt > 0n ? "repay" : "collateral"); reset(); }}
+                style={{ display: "flex", flexDirection: "column", gap: 7, padding: 12, borderRadius: 14, border: `1px solid ${k === borrowAsset ? BLUE : LINE}`, background: "#FFFFFF", cursor: "pointer", textAlign: "left" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <TokenOnChain symbol="cirBTC" chain="arc" size={22} />
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: INK }}>cirBTC → {k}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#2F4DE8", color: "#FFFFFF" }}><img src="/logos/morpho.svg" alt="" width={9} height={8} />Morpho</span>
+                </span>
+                {kv("Collateral", `${b8(l.coll).toFixed(6)} cirBTC (${c}${usd(u6((l.coll * l.price) / ORACLE_SCALE))})`)}
+                {kv("Debt", `${c}${usd(u6(l.debt))}`)}
+                {kv("Borrow APY", pct(apyB))}
+                {kv("Liquidation price", liq !== null ? `${c}${usd(liq, 0)}` : "—")}
+                <span style={{ position: "relative", height: 8, borderRadius: 999, background: "#E6EAFB", overflow: "hidden" }}>
+                  <span style={{ position: "absolute", inset: 0, width: `${Math.min(100, Math.max(0, Number.isFinite(x) ? x * 100 : 100))}%`, background: ltvColor(x) }} />
+                </span>
+                <span style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: MUTED }}>
+                  <span>LTV {Number.isFinite(x) ? `${(x * 100).toFixed(1)}%` : "—"}</span><span>Safe 70% · Liq. 86%</span>
+                </span>
+              </button>
+            );
+          })}
+          <p style={{ margin: 0, fontSize: 10.5, color: "#8A8798", textAlign: "center" }}>Tap a loan to repay it or add collateral.</p>
+        </>)}
+      </section>
+    );
+  };
+  const sideCard = () => (isEarn ? positionsCard() : loansCard());
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 520, margin: "0 auto" }}>
+    // Form (up to 520px) and positions card (340px) side by side; when the page is too narrow for both, the card wraps below.
+    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", flexWrap: "wrap", gap: 20, alignItems: "flex-start", justifyContent: "center", width: "100%", maxWidth: showPositions && !isMobile ? 900 : 520, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: "1 1 460px", maxWidth: 520, width: "100%", minWidth: 0 }}>
       {segmented([{ k: "earn", t: "Earn" }, { k: "borrow", t: "Borrow" }], mode, setMode, "Earn or borrow")}
 
       {/* Hero: market numbers for the chosen side */}
@@ -543,6 +683,8 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         </>
       )}
 
+      {showPositions && isMobile && sideCard()}
+
       {!(isEarn && vault.kind === "aave") && <div style={{ display: "flex", justifyContent: "center" }}>{createElement("powered-by-morpho", { theme: "light" })}</div>}
 
       <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>
@@ -572,6 +714,8 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
           </div>
         </div>
       )}
+    </div>
+    {showPositions && !isMobile && <div style={{ flex: "1 1 320px", maxWidth: 520, minWidth: 0, position: "sticky", top: 16 }}>{sideCard()}</div>}
     </div>
   );
 
