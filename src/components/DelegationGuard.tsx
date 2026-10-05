@@ -53,15 +53,13 @@ async function getCode(rpc: string, address: string): Promise<string | null> {
 
 export default function DelegationGuard({ address, provider }: { address: string; provider?: EIP1193Provider }) {
   const [findings, setFindings] = useState<Finding[]>([]);
-  const dismissKey = `flowfi-7702-dismissed-${address.toLowerCase()}`;
-  const [dismissed, setDismissed] = useState(() => {
-    try { return sessionStorage.getItem(dismissKey) === "1"; } catch { return false; }
-  });
+  // Closing only hides it until the wallet is connected again (or the page reloads).
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setFindings([]);
-    try { setDismissed(sessionStorage.getItem(dismissKey) === "1"); } catch { setDismissed(false); }
+    setDismissed(false);
 
     (async () => {
       const results: Finding[] = [];
@@ -88,7 +86,7 @@ export default function DelegationGuard({ address, provider }: { address: string
     })();
 
     return () => { cancelled = true; };
-  }, [address, provider, dismissKey]);
+  }, [address, provider]);
 
   if (findings.length === 0 || dismissed) return null;
 
@@ -107,7 +105,7 @@ export default function DelegationGuard({ address, provider }: { address: string
           : <span style={{ fontWeight: 600 }}>{first.delegate.slice(0, 6)}…{first.delegate.slice(-4)}</span>}
         ). If you didn't turn on a smart account yourself, this is how many wallet drainers work: anything you send to this address can be taken right away. Don't send funds here, and move to a new wallet.
       </div>
-      <button onClick={() => { try { sessionStorage.setItem(dismissKey, "1"); } catch { /* ignore */ } setDismissed(true); }}
+      <button onClick={() => setDismissed(true)}
         aria-label="Dismiss" style={{ background: "none", border: "none", cursor: "pointer", color: "#7A1414", padding: 2 }}>
         <X size={16} />
       </button>
