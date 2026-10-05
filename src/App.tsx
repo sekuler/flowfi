@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import LiveBlock from "./components/LiveBlock";
-import { useState, useEffect, Component, lazy, Suspense, type ReactNode } from "react";
+import { useState, useEffect, useId, Component, lazy, Suspense, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet, arcMainnet, formatUsdcErc20, formatArcNative } from "./chains";
@@ -166,19 +166,23 @@ const LANDING_FEATURES = [
 ];
 
 /* ---------- Soft pastel blob background ---------- */
-function FlowFiMark({ size = 32 }: { size?: number }) {
+function FlowFiMark({ size = 32, loading = false }: { size?: number; loading?: boolean }) {
+  // Unique gradient ids per instance (several marks can be on screen at once).
+  const id = "ffm" + useId().replace(/[^a-zA-Z0-9]/g, "");
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" style={{ flexShrink: 0, display: "block" }}>
+    <svg className={loading ? "ffm ffm-loading" : "ffm"} width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" style={{ flexShrink: 0, display: "block", overflow: "visible" }}>
       <defs>
-        <linearGradient id="ffm-tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#EEF2FF" /><stop offset="1" stopColor="#D9E1FF" /></linearGradient>
-        <linearGradient id="ffm-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#6F8CFF" /><stop offset="1" stopColor="#3D5AF1" /></linearGradient>
-        <linearGradient id="ffm-bot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3D5AF1" /><stop offset="1" stopColor="#2238C9" /></linearGradient>
+        <linearGradient id={`${id}t`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#5B78FF" /><stop offset="1" stopColor="#2238C9" /></linearGradient>
+        <linearGradient id={`${id}h`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFFFFF" stopOpacity="0.28" /><stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0" /></linearGradient>
+        <linearGradient id={`${id}a`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFFFFF" /><stop offset="1" stopColor="#E4EAFF" /></linearGradient>
+        <linearGradient id={`${id}b`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#EEF2FF" /><stop offset="1" stopColor="#C9D5FF" /></linearGradient>
+        <filter id={`${id}s`} x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#0B1680" floodOpacity="0.35" /></filter>
       </defs>
-      <rect width="100" height="100" rx="28" fill="url(#ffm-tile)" />
-      <rect x="1" y="1" width="98" height="98" rx="27" fill="none" stroke="#FFFFFF" strokeWidth="2" />
-      <g transform="translate(22 15) scale(0.7)">
-        <path fill="url(#ffm-top)" d="M0 14C0 6 6 0 14 0H78C82 0 84 4 82 7L72 26C69 31 64 34 58 34H22C10 34 3 40 0 48Z" />
-        <path fill="url(#ffm-bot)" d="M0 62C0 53 7 46 16 46H66C70 46 72 50 70 53L62 64C59 68 55 70 50 70H36C28 70 22 74 18 80L8 97C6 100 0 100 0 96Z" />
+      <rect width="100" height="100" rx="26" fill={`url(#${id}t)`} />
+      <rect width="100" height="100" rx="26" fill={`url(#${id}h)`} />
+      <g filter={`url(#${id}s)`} transform="translate(-4.5 -1)">
+        <path className="ffm-top" fill={`url(#${id}a)`} d="M24 30C24 22 30 16 38 16H80C84 16 85.5 20 83 23C77 32 68 38 56 38H41C33 38 27 41 24 47Z" />
+        <path className="ffm-bot" fill={`url(#${id}b)`} d="M24 60C24 51 30 45 39 45H68C72 45 73.5 49 71 52C66 59 58 63 49 63H46C38 63 33 67 31 74L28.8 83C28 86 24 86 24 82Z" />
       </g>
     </svg>
   );
@@ -531,6 +535,20 @@ function AppInner() {
       .flowfi-blob-b { animation: flowfi-drift-b 24s ease-in-out infinite; }
       @keyframes flowfi-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
       .flowfi-ticker-track { animation: flowfi-ticker-scroll 20s linear infinite; }
+      .ffm { transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+      .ffm .ffm-top, .ffm .ffm-bot { transform-box: fill-box; transform-origin: left center; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+      .ffm .ffm-top { animation: ffm-in-top .7s cubic-bezier(.2,.8,.2,1) both; }
+      .ffm .ffm-bot { animation: ffm-in-bot .7s cubic-bezier(.2,.8,.2,1) .12s both; }
+      .ffm:hover { transform: scale(1.06); }
+      .ffm:hover .ffm-top { transform: translate(4px, -3px); }
+      .ffm:hover .ffm-bot { transform: translate(-2px, 3px); }
+      .ffm-loading .ffm-top { animation: ffm-load-top 1.2s ease-in-out infinite; }
+      .ffm-loading .ffm-bot { animation: ffm-load-bot 1.2s ease-in-out infinite; }
+      @keyframes ffm-in-top { from { opacity: 0; transform: translateX(-30%) scaleX(.6); } to { opacity: 1; transform: none; } }
+      @keyframes ffm-in-bot { from { opacity: 0; transform: translateX(-30%) scaleX(.6); } to { opacity: 1; transform: none; } }
+      @keyframes ffm-load-top { 0%, 100% { transform: scaleX(.35); opacity: .5; } 50% { transform: none; opacity: 1; } }
+      @keyframes ffm-load-bot { 0%, 100% { transform: none; opacity: 1; } 50% { transform: scaleX(.35); opacity: .5; } }
+      @media (prefers-reduced-motion: reduce) { .ffm, .ffm .ffm-top, .ffm .ffm-bot { animation: none !important; transition: none !important; } }
       @keyframes flowfi-dot-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
       .flowfi-live-dot { animation: flowfi-dot-pulse 1.6s ease-in-out infinite; }
       @keyframes flowfi-shimmer { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
@@ -940,7 +958,7 @@ function AppInner() {
                {tab === "circlewalletmainnet" ? "Email wallet on Arc Mainnet: no seed phrase, withdraw anytime" : tab === "gatewaymainnet" ? "One USDC balance across Arc, Base, Ethereum and Arbitrum, powered by Circle Gateway" : tab === "morphomainnet" ? "Earn on USDC and EURC with Morpho and Aave, or borrow against cirBTC" : tab === "dashboard" ? "Asset allocation and activity broken down by type" : tab === "dashboardmainnet" ? "Arc Mainnet balances and activity" : tab === "mainnethistory" ? "Recent transactions on Arc Mainnet" : tab === "analytics" ? "Platform-wide stablecoin TVL and distribution" : tab === "swap" ? "Swap USDC and EURC instantly" : tab === "mainnetswap" ? "Swap tokens on Arc instantly — real funds, real fees" : tab === "pools" ? "Add or remove liquidity in any FlowFi-curated pool" : tab === "launch" ? "Deploy your own ERC20 token on Arc" : tab === "history" ? "Recent transactions on Arc Testnet" : tab === "circlewallet" ? "Create a wallet without a seed phrase" : tab === "mainnetbridge" ? "Bridge USDC and other assets onto Arc, via LI.FI or Circle's native CCTP" : "Move USDC across chains — one-off bridge or instant Gateway transfer"}
               </p>
             </div>}
-<Suspense fallback={<div style={{ padding: "3rem 0", textAlign: "center", fontSize: 13, color: "#6B7280" }}>Loading…</div>}>
+<Suspense fallback={<div role="status" aria-label="Loading" style={{ padding: "3rem 0", display: "flex", justifyContent: "center" }}><FlowFiMark size={44} loading /></div>}>
 {tab === "home" && wallet && <CopilotHomeMainnet address={wallet.address} balances={mainnetBalances} onNavigate={(t) => setTab(t)} provider={wallet.provider} />}
 
             {tab === "mainnetbridge" && <MainnetBridge address={wallet?.address} provider={wallet?.provider} />}
