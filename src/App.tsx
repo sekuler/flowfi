@@ -11,7 +11,7 @@ import OnboardingModal, { hasSeenOnboarding } from "./components/OnboardingModal
 import ToastContainer from "./components/ToastContainer";
 import MarketTicker from "./components/MarketTicker";
 import NotificationCenter from "./components/NotificationCenter";
-
+import DelegationGuard from "./components/DelegationGuard";
 // Page components load on demand: the first screen no longer downloads every
 // testnet page and the LI.FI widget up front (the main chunk was ~2.4 MB).
 const StablecoinAnalytics = lazy(() => import("./components/StablecoinAnalytics"));
@@ -929,6 +929,7 @@ function AppInner() {
             You're on Arc Testnet. Tokens here have no real value — practice freely.
           </div>
         )}
+        {wallet && <div style={{ padding: isMobile ? "0 1rem" : "0 2.5rem" }}><DelegationGuard address={wallet.address} provider={wallet.provider} /></div>}
         <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
           <div key={`${tab}-${wallet?.address ?? ""}`} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "dashboardmainnet" || tab === "mainnethistory" ? 1120 : tab === "circlewalletmainnet" || tab === "gatewaymainnet" ? 1040 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "mainnetswap" || tab === "mainnetbridge" || tab === "morphomainnet" ? 900 : 520), margin: "0 auto" }}>
             {tab !== "home" && <div style={{ marginBottom: "2rem" }}>
