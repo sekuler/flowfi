@@ -1,14 +1,15 @@
 import { useState, useEffect, createElement } from "react";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, maxUint256 } from "viem";
 import type { EIP1193Provider } from "viem";
-import { PiggyBank, Landmark, RefreshCw, Check, ChevronRight, X } from "lucide-react";
+import { PiggyBank, Landmark, RefreshCw, X, ArrowLeft, ExternalLink } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenOnChain } from "./AssetLogos";
+import { ARC_LOGO } from "./tokenLogos";
 import { useIsMobile } from "../useIsMobile";
 import {
   MORPHO_BLUE, MARKETS, type BorrowAsset, USDC, CIRBTC, EURC, VAULTS, type EarnAsset, USDC_DECIMALS, CIRBTC_DECIMALS,
   WAD, ORACLE_SCALE, SAFE_LTV_PCT, MORPHO_ABI, IRM_ABI, ORACLE_ABI, VAULT_ABI, toAssetsUp, fetchVaultApy,
-  AAVE_CORE_HUB, AAVE_SPOKE_ABI, AAVE_USDC_RESERVE_ID, fetchAaveUsdcApy,
+  AAVE_CORE_HUB, AAVE_SPOKE_ABI, AAVE_USDC_RESERVE_ID, fetchAaveUsdcApy, fetchVaultDetails, type VaultDetails, type ExposureItem, fetchVaultApyHistory, fetchAaveUsdcApyHistory, type ApyPoint,
 } from "./morpho";
 
 // Earn & Borrow on Arc mainnet, built on Morpho. Earn = deposit USDC or EURC into a curated
@@ -42,6 +43,18 @@ function loadMorphoBadge() {
   document.head.appendChild(el);
 }
 
+// APY chart ranges. Morpho takes a day count; Aave takes one of its TimeWindow values.
+type ChartRange = "1D" | "1W" | "1M" | "3M";
+const RANGES: Record<ChartRange, { days: number; aave: "LAST_DAY" | "LAST_WEEK" | "LAST_MONTH"; label: string }> = {
+  "1D": { days: 1, aave: "LAST_DAY", label: "day" },
+  "1W": { days: 7, aave: "LAST_WEEK", label: "week" },
+  "1M": { days: 30, aave: "LAST_MONTH", label: "month" },
+  "3M": { days: 90, aave: "LAST_MONTH", label: "3 months" },
+};
+const MORPHO_RANGES: ChartRange[] = ["1W", "1M", "3M"];
+const AAVE_RANGES: ChartRange[] = ["1D", "1W", "1M"];
+const rangeFor = (kind: string, r: ChartRange): ChartRange => ((kind === "aave" ? AAVE_RANGES : MORPHO_RANGES).includes(r) ? r : "1M");
+
 type Mkt = { totalSupplyAssets: bigint; totalSupplyShares: bigint; totalBorrowAssets: bigint; totalBorrowShares: bigint; lastUpdate: bigint; fee: bigint };
 // assetOk: the vault's onchain asset() matches the token FlowFi thinks it is (checked on every load).
 type VaultState = { tvl: bigint; shares: bigint; assets: bigint; maxW: bigint; assetOk: boolean };
@@ -49,7 +62,7 @@ type EarnAction = "deposit" | "withdraw";
 type BorrowAction = "collateral" | "borrow" | "repay" | "withdraw";
 
 const usd = (n: number, d = 2) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
-const compact = (n: number, cur = "$") => n >= 1e6 ? `${cur}${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${cur}${(n / 1e3).toFixed(1)}K` : `${cur}${usd(n)}`;
+const compact = (n: number, cur = "$") => n >= 1e6 ? `${cur}${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${cur}${(n / 1e3).toFixed(2)}k` : `${cur}${usd(n)}`;
 const pct = (n: number | null) => (n === null ? "—" : `${(n * 100).toFixed(2)}%`);
 const u6 = (v: bigint) => Number(formatUnits(v, USDC_DECIMALS));
 const b8 = (v: bigint) => Number(formatUnits(v, CIRBTC_DECIMALS));
@@ -97,6 +110,14 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const [acked, setAcked] = useState(false);
   const [showAck, setShowAck] = useState(false);
   const [ackChecked, setAckChecked] = useState(false);
+  // Earn: the vault list is the page; tapping a vault opens its own page (details + deposit box).
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [details, setDetails] = useState<Record<string, VaultDetails>>({});
+  // APY history chart on a Morpho vault page, cached per vault + range ("loading" while fetching, null when unavailable).
+  const [chartRange, setChartRange] = useState<ChartRange>("1M");
+  const [history, setHistory] = useState<Record<string, ApyPoint[] | null | "loading">>({});
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<"apy" | "size">("apy");
   const isMobile = useIsMobile();
   // Both borrow markets (USDC and EURC) for the "Your loans" card, read only while the Borrow tab is open.
   type Loan = { coll: bigint; debt: bigint; price: bigint; rate: bigint };
@@ -175,9 +196,33 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
     return () => { cancelled = true; };
   }, [owner, tick, borrowAsset]);
 
+  // Morpho vault facts (deposits in $, withdrawable now, exposure, fees) for the list and the vault page,
+  // refreshed with everything else on each tick.
   useEffect(() => {
-    VAULTS.forEach((v) => { (v.kind === "aave" ? fetchAaveUsdcApy() : fetchVaultApy(v.address)).then((a) => setApy((s) => ({ ...s, [v.key]: a }))); });
-  }, []);
+    VAULTS.forEach((v) => { if (v.kind === "morpho") fetchVaultDetails(v.address).then((d) => setDetails((s) => ({ ...s, [v.key]: d }))); });
+  }, [tick]);
+  // Auto-refresh every 60s while the tab is visible and no transaction is in flight, so numbers stay in step with Morpho/Aave.
+  useEffect(() => {
+    if (step === "sending") return;
+    const id = setInterval(() => { if (document.visibilityState === "visible") setTick((t) => t + 1); }, 60_000);
+    return () => clearInterval(id);
+  }, [step]);
+  useEffect(() => { if (mode !== "earn") setPanelOpen(false); }, [mode]);
+  useEffect(() => {
+    const v = VAULTS.find((x) => x.key === vaultKey);
+    if (!panelOpen || !v) return;
+    const rng = rangeFor(v.kind, chartRange);
+    const k = `${vaultKey}-${rng}`;
+    if (history[k] !== undefined) return;
+    setHistory((s) => ({ ...s, [k]: "loading" }));
+    const req = v.kind === "aave" ? fetchAaveUsdcApyHistory(RANGES[rng].aave) : fetchVaultApyHistory(v.address, RANGES[rng].days);
+    req.then((pts) => setHistory((s) => ({ ...s, [k]: pts })));
+  }, [panelOpen, vaultKey, chartRange, history]);
+
+  useEffect(() => {
+    VAULTS.forEach((v) => { (v.kind === "aave" ? fetchAaveUsdcApy() : fetchVaultApy(v.address)).then((a) => { if (a !== null || apy[v.key] === undefined) setApy((s) => ({ ...s, [v.key]: a })); }); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
 
   useEffect(() => {
     if (!owner || mode !== "borrow") return;
@@ -443,10 +488,10 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
     setAmount(formatUnits(max, tokenDecimals));
   };
 
-  // "Your positions": every Earn vault the user has money in (amounts read onchain above), shown to the
-  // right of the form on desktop and under it on mobile. Totals stay per currency (no made-up FX rate).
+  // Earn positions: every vault the user has money in (amounts read onchain above), summed in a strip
+  // above the vault list. Totals stay per currency (no made-up FX rate).
   const positions = VAULTS.filter((v) => (vaults[v.key]?.assets ?? 0n) > 0n);
-  const showPositions = !!owner;
+  const showSide = !!owner && !isEarn; // "Your loans" card, Borrow only
   const sumOf = (a: "USDC" | "EURC") => positions.filter((v) => v.asset === a).reduce((t, v) => t + u6(vaults[v.key].assets), 0);
   const yearlyOf = (a: "USDC" | "EURC") => positions.filter((v) => v.asset === a).reduce((t, v) => t + u6(vaults[v.key].assets) * (apy[v.key] ?? 0), 0);
   const both = (fn: (a: "USDC" | "EURC") => number, sign = "") => {
@@ -456,44 +501,418 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const singleCur = new Set(positions.map((v) => v.asset)).size === 1;
   const avgApy = singleCur ? (() => { const tot = positions.reduce((t, v) => t + u6(vaults[v.key].assets), 0); return tot > 0 ? positions.reduce((t, v) => t + u6(vaults[v.key].assets) * (apy[v.key] ?? 0), 0) / tot : null; })() : null;
 
-  const positionsCard = () => (
-    <section style={{ ...card, gap: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 17, fontWeight: 800, color: BLUE }}>Your positions</span>
-        {positions.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: BLUE, background: "#EEF1FE", padding: "2px 9px", borderRadius: 999 }}>{positions.length} active</span>}
+  // ---- Earn: one sortable list (Morpho vaults and Aave side by side), deposit in a panel ----
+  const sortedVaults = [...earnVaults].sort((a, b) => sortBy === "apy"
+    ? (apy[b.key] ?? -1) - (apy[a.key] ?? -1)
+    : u6(vaults[b.key]?.tvl ?? 0n) - u6(vaults[a.key]?.tvl ?? 0n));
+  const openVault = (k: string, action: EarnAction = "deposit") => {
+    setVaultKey(k); setEarnAction(action); reset(); setPanelOpen(true);
+    try { window.scrollTo({ top: 0 }); } catch { /* fine */ }
+  };
+  const closePanel = () => { if (step === "sending") return; setPanelOpen(false); reset(); };
+  const COLS = "minmax(0, 2fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1fr) 64px";
+
+  const positionsStrip = () => (
+    <div style={{ display: "grid", gridTemplateColumns: singleCur ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 8, padding: 12, borderRadius: 14, background: "linear-gradient(135deg, #2F4DE8 0%, #6C8BFF 100%)", color: "#FFFFFF" }}>
+      <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Your deposits</div><div style={{ fontSize: 15, fontWeight: 800 }}>{both(sumOf)}</div></div>
+      {singleCur && <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Avg. APY</div><div style={{ fontSize: 15, fontWeight: 800 }}>{pct(avgApy)}</div></div>}
+      <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Est. yearly</div><div style={{ fontSize: 15, fontWeight: 800 }}>{both(yearlyOf, "+")}</div></div>
+    </div>
+  );
+
+  // Exposure: up to 3 collateral logos (Morpho's own asset logos from its API), with the full list on hover/focus.
+  const [expOpen, setExpOpen] = useState<string | null>(null);
+  const coinDot = (e: ExposureItem, size: number, i: number) => (
+    <span key={e.symbol + i} style={{ width: size, height: size, marginLeft: i ? -size * 0.3 : 0, borderRadius: 999, border: "2px solid #FFFFFF", background: "#E6EAFB", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.42, fontWeight: 800, color: BLUE, flexShrink: 0 }}>
+      {e.logo ? <img src={e.logo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : e.symbol.slice(0, 1)}
+    </span>
+  );
+  const exposureCell = (v: (typeof VAULTS)[number]) => {
+    const ex = details[v.key]?.exposure;
+    if (v.kind === "aave" || !ex) return <span style={{ fontSize: 13, color: "#8A8798" }}>—</span>;
+    const shown = ex.slice(0, 3);
+    return (
+      <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 4 }}
+        onMouseEnter={() => setExpOpen(v.key)} onMouseLeave={() => setExpOpen(null)}>
+        <span style={{ display: "flex" }}>{shown.map((e, i) => coinDot(e, 24, i))}</span>
+        {ex.length > 3 && <span style={{ fontSize: 11.5, fontWeight: 700, color: MUTED }}>+{ex.length - 3}</span>}
+        {expOpen === v.key && (
+          <span role="tooltip" style={{ position: "absolute", zIndex: 20, top: "calc(100% + 8px)", left: -12, minWidth: 220, display: "flex", flexDirection: "column", gap: 8, padding: 12, borderRadius: 14, background: "#FFFFFF", border: `1px solid ${LINE}`, boxShadow: "0 18px 40px -20px rgba(22,21,28,0.35)" }}>
+            {ex.map((e, i) => (
+              <span key={e.symbol + i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: INK }}>
+                {coinDot(e, 20, 0)}
+                <span style={{ fontWeight: 700 }}>{e.symbol}</span>
+                {e.idle && <span style={{ fontSize: 10.5, fontWeight: 700, color: MUTED, background: "#EEF1FE", padding: "1px 6px", borderRadius: 999 }}>Idle</span>}
+                <span style={{ marginLeft: "auto", fontWeight: 600 }}>{compact(e.usd)}</span>
+              </span>
+            ))}
+          </span>
+        )}
+      </span>
+    );
+  };
+  const curatorCell = (v: (typeof VAULTS)[number], size = 22) => (
+    <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13.5, fontWeight: 600, color: INK, minWidth: 0 }}>
+      {avatar(v, size, false)}<span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.curator}</span>
+    </span>
+  );
+
+  const vaultRow = (v: (typeof VAULTS)[number]) => {
+    const mine = vaults[v.key]?.assets ?? 0n;
+    const c = v.asset === "EURC" ? "€" : "$";
+    const d = details[v.key];
+    // "…" until the first onchain read lands, so a vault never flashes as empty.
+    const tokenAmt = vaults[v.key] ? `${compact(u6(vaults[v.key].tvl), "")} ${v.asset}` : "…";
+    const usdChip = d?.totalAssetsUsd != null ? <span style={{ alignSelf: "flex-start", fontSize: 11, color: MUTED, background: "#EEF1FE", padding: "1px 7px", borderRadius: 6 }}>{compact(d.totalAssetsUsd)}</span> : null;
+    const withdrawable = v.kind === "aave" ? "—" : !d ? "…" : d.liquidityUsd != null ? compact(d.liquidityUsd) : "—";
+    const apyEl = <span style={{ fontSize: 15, fontWeight: 800, color: "#0B7A53", textAlign: "right" }}>{apy[v.key] === undefined ? "…" : pct(apy[v.key])}</span>;
+    const nameBlock = (
+      <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        <TokenOnChain symbol={v.asset} chain="arc" size={32} />
+        <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</span>
+          {mine > 0n && <span style={{ fontSize: 11.5, fontWeight: 700, color: BLUE }}>Your deposit {c}{usd(u6(mine))}</span>}
+        </span>
+      </span>
+    );
+    const cellLabel = (t: string) => <span style={{ fontSize: 11, color: MUTED }}>{t}</span>;
+    if (isMobile) {
+      return (
+        <button key={v.key} type="button" onClick={() => openVault(v.key)}
+          style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", padding: 14, borderRadius: 16, border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.92)", cursor: "pointer", textAlign: "left" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>{nameBlock}<span style={{ marginLeft: "auto" }}>{apyEl}</span></span>
+          <span style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, width: "100%", paddingTop: 10, borderTop: "1px solid #E9EDFB" }}>
+            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>{cellLabel("Deposits")}<span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{tokenAmt}</span></span>
+            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>{cellLabel("Withdrawable now")}<span style={{ fontSize: 13, fontWeight: 700, color: withdrawable === "—" ? "#8A8798" : INK }}>{withdrawable}</span></span>
+            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>{cellLabel("Curator")}{curatorCell(v, 16)}</span>
+          </span>
+        </button>
+      );
+    }
+    // The whole row opens the vault: a transparent button covers the row (cells ignore clicks and let them
+    // fall through to it); only the exposure cell sits above it, so its hover list still works.
+    const passThrough = { pointerEvents: "none" as const };
+    return (
+      <div key={v.key} className="ff-vault-row" style={{ position: "relative", display: "grid", gridTemplateColumns: COLS, alignItems: "center", gap: 12, padding: 14, borderBottom: "1px solid #E9EDFB" }}>
+        <button type="button" onClick={() => openVault(v.key)} aria-label={`Open ${v.name}`}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none", background: "transparent", cursor: "pointer", padding: 0, borderRadius: 12 }} />
+        <span style={passThrough}>{nameBlock}</span>
+        <span style={{ ...passThrough, display: "flex", flexDirection: "column", gap: 3 }}><span style={{ fontSize: 13.5, fontWeight: 700, color: INK }}>{tokenAmt}</span>{usdChip}</span>
+        <span style={{ ...passThrough, fontSize: 13.5, fontWeight: 700, color: withdrawable === "—" ? "#8A8798" : INK }}>{withdrawable}</span>
+        <span style={{ position: "relative", zIndex: 1, justifySelf: "start" }}>{exposureCell(v)}</span>
+        <span style={passThrough}>{curatorCell(v)}</span>
+        <span style={{ ...passThrough, textAlign: "right" }}>{apyEl}</span>
       </div>
-      {positions.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 13, color: MUTED, lineHeight: 1.5 }}>No deposits yet. Pick a vault and deposit to start earning; your positions will show up here.</p>
-      ) : (<>
-        <div style={{ display: "grid", gridTemplateColumns: singleCur ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 8, padding: 12, borderRadius: 14, background: "linear-gradient(135deg, #2F4DE8 0%, #6C8BFF 100%)", color: "#FFFFFF" }}>
-          <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Total deposited</div><div style={{ fontSize: 15, fontWeight: 800 }}>{both(sumOf)}</div></div>
-          {singleCur && <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Avg. APY</div><div style={{ fontSize: 15, fontWeight: 800 }}>{pct(avgApy)}</div></div>}
-          <div><div style={{ fontSize: 10.5, opacity: 0.85 }}>Est. yearly</div><div style={{ fontSize: 15, fontWeight: 800 }}>{both(yearlyOf, "+")}</div></div>
+    );
+  };
+
+  const earnList = () => (
+    <section style={card}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 21, fontWeight: 800, color: BLUE, letterSpacing: "-0.01em" }}>Earn on</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px 3px 4px", borderRadius: 999, background: "#FFFFFF", border: `1px solid ${LINE}`, fontSize: 14, fontWeight: 700, color: INK }}>
+            <img src={ARC_LOGO} alt="" width={22} height={22} style={{ borderRadius: 999 }} />Arc
+          </span>
         </div>
-        {positions.map((v) => {
-          const c = v.asset === "EURC" ? "€" : "$";
-          return (
-            <button key={v.key} type="button" disabled={step === "sending"} title="Manage this position"
-              onClick={() => { setMode("earn"); setEarnAsset(v.asset); setVaultKey(v.key); setEarnAction("withdraw"); reset(); }}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 14, border: `1px solid ${v.key === vaultKey ? BLUE : LINE}`, background: "#FFFFFF", cursor: "pointer", textAlign: "left" }}>
-              {avatar(v, 34, false)}
-              <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{v.name}</span>
-                {v.kind === "aave"
-                  ? <span style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#F3E8F8", color: "#9B3F86" }}><img src="/logos/aave.svg" alt="" width={11} height={6} />Aave V4</span>
-                  : <span style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#2F4DE8", color: "#FFFFFF" }}><img src="/logos/morpho.svg" alt="" width={9} height={8} />Morpho</span>}
-              </span>
-              <span style={{ marginLeft: "auto", textAlign: "right", flexShrink: 0 }}>
-                <span style={{ display: "block", fontSize: 14, fontWeight: 800, color: INK }}>{c}{usd(u6(vaults[v.key].assets))}</span>
-                <span style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "#0B7A53" }}>{pct(apy[v.key] ?? null)} APY</span>
-              </span>
-            </button>
-          );
-        })}
-        <p style={{ margin: 0, fontSize: 10.5, color: "#8A8798", textAlign: "center" }}>Est. yearly uses today's APY, which changes over time. Tap a position to manage it.</p>
-      </>)}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div role="radiogroup" aria-label="Asset" style={{ display: "flex", gap: 6 }}>
+            {(["USDC", "EURC"] as const).map((a) => {
+              const on = a === earnAsset;
+              return (
+                <button key={a} type="button" role="radio" aria-checked={on}
+                  onClick={() => { setEarnAsset(a); setVaultKey(VAULTS.find((v) => v.asset === a)!.key); reset(); }}
+                  style={{ display: "flex", alignItems: "center", gap: 7, minHeight: 44, padding: "6px 14px", borderRadius: 999, border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "#FFFFFF", cursor: "pointer" }}>
+                  <TokenOnChain symbol={a} chain="arc" size={20} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: on ? BLUE : INK }}>{a}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ width: 170 }}>{segmented([{ k: "apy", t: "APY" }, { k: "size", t: "Deposits" }], sortBy, setSortBy, "Sort vaults")}</div>
+          <button type="button" aria-label="Refresh" onClick={() => setTick((t) => t + 1)} style={{ border: `1px solid ${LINE}`, background: "#FFFFFF", color: BLUE, borderRadius: 999, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={14} /></button>
+        </div>
+      </div>
+      {owner && positions.length > 0 && positionsStrip()}
+      {isMobile ? (
+        <div role="list" aria-label="Vaults" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {sortedVaults.map((v) => <div role="listitem" key={v.key}>{vaultRow(v)}</div>)}
+        </div>
+      ) : (
+        <div role="table" aria-label="Vaults" style={{ display: "flex", flexDirection: "column" }}>
+          <style>{`.ff-vault-row { border-radius: 12px; transition: background 0.15s; } .ff-vault-row:hover { background: #F3F6FF; } .ff-vault-row:has(> button:focus-visible) { outline: 2px solid ${BLUE}; outline-offset: -2px; }`}</style>
+          <div role="row" style={{ display: "grid", gridTemplateColumns: COLS, gap: 12, padding: "0 14px 10px", borderBottom: `1px solid ${LINE}`, fontSize: 12, fontWeight: 600, color: MUTED }}>
+            <span>Vault</span><span>Deposits</span><span>Withdrawable now</span><span>Exposure</span><span>Curator</span><span style={{ textAlign: "right" }}>APY</span>
+          </div>
+          {sortedVaults.map((v) => vaultRow(v))}
+        </div>
+      )}
+      <p style={{ margin: 0, fontSize: 11, color: "#8A8798", textAlign: "center" }}>APY is variable and set by each protocol. Numbers refresh every minute. Tap a vault to see details and deposit.</p>
     </section>
   );
+
+  const heroCard = () => (
+    <section style={hero}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 12 }}>
+        {isEarn ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            {avatar(vault, 44, true)}
+            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+              <span style={{ fontSize: 19, fontWeight: 800 }}>{vault.name}</span>
+              <span style={{ fontSize: 12.5, opacity: 0.85 }}>{vault.kind === "aave" ? "Aave V4 market" : `Morpho vault · curated by ${vault.curator}`}</span>
+            </div>
+          </div>
+        ) : (
+          <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{`cirBTC / ${loanSym} market`} · Morpho</span>
+        )}
+        <button type="button" aria-label="Refresh" onClick={() => setTick((t) => t + 1)} style={{ border: "none", background: "rgba(255,255,255,0.18)", color: "#FFFFFF", borderRadius: 999, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={14} /></button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+        {isEarn ? (<>
+          {stat("Net APY", pct(apy[vaultKey] ?? null))}
+          {stat(vault.kind === "aave" ? "Market size" : "Vault size", compact(u6(vs.tvl), cur))}
+          {stat("Your deposit", `${cur}${usd(u6(vs.assets))}`)}
+        </>) : (<>
+          {stat("Borrow APY", pct(borrowApy))}
+          {stat("Available", compact(u6(available), lc))}
+          {stat("BTC (oracle)", btcPrice !== null ? `${lc}${usd(btcPrice, 0)}` : "—")}
+        </>)}
+      </div>
+    </section>
+  );
+
+  const connectCard = () => (
+    <div style={{ ...card, alignItems: "center", textAlign: "center", color: MUTED, fontSize: 13.5 }}>
+      Connect a browser wallet to {isEarn ? "earn on your USDC or EURC" : "borrow USDC or EURC against cirBTC"}.
+      {onConnect && <button type="button" onClick={onConnect} style={{ ...primary(true), maxWidth: 260 }}>Connect wallet</button>}
+    </div>
+  );
+
+  // ---- Earn: one vault's own page (Morpho-style): who runs it, the numbers, how it works, risks, deposit box ----
+  const vaultPage = () => {
+    const isAave = vault.kind === "aave";
+    const d = details[vault.key];
+    const apyNow = apy[vaultKey] ?? null;
+    const amtNum = Number(amount) || 0;
+    const shortAddr = `${vault.address.slice(0, 6)}…${vault.address.slice(-4)}`;
+    const about = isAave
+      ? `Your ${vault.asset} is supplied to Aave V4's ${vault.asset} market on Arc. Borrowers in the market pay interest, and that interest goes to suppliers like you.`
+      : d?.description ?? `Your ${vault.asset} is lent to borrowers who post collateral first. ${vault.curator} curates the vault: it decides which collateral is accepted and how much can be lent against it.`;
+    const chip = (content: React.ReactNode) => (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: INK, background: "#FFFFFF", border: `1px solid ${LINE}`, padding: "4px 10px", borderRadius: 999 }}>{content}</span>
+    );
+    const tile = (k: string, v: string, big = false) => (
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "12px 14px", borderRadius: 14, background: "rgba(255,255,255,0.14)" }}>
+        <span style={{ fontSize: 12, opacity: 0.85 }}>{k}</span>
+        <span style={{ fontSize: big ? 26 : 20, fontWeight: 800, letterSpacing: "-0.01em" }}>{v}</span>
+      </div>
+    );
+    const tiles = [
+      tile("Net APY", pct(apyNow), true),
+      tile(isAave ? "Market size" : "Total deposits", compact(u6(vs.tvl), cur)),
+      ...(!isAave && d?.liquidityUsd != null ? [tile("Withdrawable now", compact(d.liquidityUsd))] : []),
+      tile("Your deposit", `${cur}${usd(u6(vs.assets))}`),
+    ];
+    const howStep = (n: number, title: string, text: string) => (
+      <div style={{ display: "flex", gap: 12 }}>
+        <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 999, background: "#EEF1FE", color: BLUE, fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{n}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: INK }}>{title}</span>
+          <span style={{ fontSize: 13, color: MUTED, lineHeight: 1.5 }}>{text}</span>
+        </div>
+      </div>
+    );
+    const risk = (title: string, text: string) => (
+      <li style={{ fontSize: 13, color: MUTED, lineHeight: 1.5 }}><b style={{ color: INK }}>{title}.</b> {text}</li>
+    );
+
+    const header = (
+      <section style={{ ...card, gap: 14 }}>
+        <button type="button" onClick={closePanel} disabled={step === "sending"}
+          style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, minHeight: 36, padding: "0 12px", borderRadius: 999, border: `1px solid ${LINE}`, background: "#FFFFFF", color: BLUE, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          <ArrowLeft size={15} />All vaults
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+          {avatar(vault, 56, false)}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+            <h2 style={{ margin: 0, fontSize: isMobile ? 21 : 26, fontWeight: 800, color: INK, letterSpacing: "-0.02em" }}>{vault.name}</h2>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {chip(<><TokenOnChain symbol={vault.asset} chain="arc" size={16} />{vault.asset} on Arc</>)}
+              {isAave
+                ? chip(<><img src="/logos/aave.svg" alt="" width={16} height={9} />Aave V4 market</>)
+                : chip(<><span style={{ display: "inline-flex", padding: 3, borderRadius: 999, background: "#2F4DE8" }}><img src="/logos/morpho.svg" alt="" width={10} height={9} /></span>Morpho vault</>)}
+              {!isAave && chip(<>Curated by {vault.curator}</>)}
+            </div>
+          </div>
+        </div>
+        <p style={{ margin: 0, fontSize: 14, color: MUTED, lineHeight: 1.6 }}>{about}</p>
+      </section>
+    );
+
+    const stats = (
+      <section style={{ ...hero, padding: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${isMobile ? 2 : tiles.length}, minmax(0, 1fr))`, gap: 10 }}>{tiles}</div>
+      </section>
+    );
+
+    const depositBox = (
+      <section style={{ ...card, gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 17, fontWeight: 800, color: BLUE }}>{earnAction === "deposit" ? `Deposit ${vault.asset}` : `Withdraw ${vault.asset}`}</span>
+          <button type="button" aria-label="Refresh" onClick={() => setTick((t) => t + 1)} style={{ border: `1px solid ${LINE}`, background: "#FFFFFF", color: BLUE, borderRadius: 999, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={13} /></button>
+        </div>
+        {loadErr && <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, background: "#FDECEC", color: "#B91C1C" }}>{loadErr}</div>}
+        {!owner ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center", color: MUTED, fontSize: 13.5 }}>
+            Connect a browser wallet to deposit.
+            {onConnect && <button type="button" onClick={onConnect} style={{ ...primary(true), maxWidth: 260 }}>Connect wallet</button>}
+          </div>
+        ) : (<>
+          {segmented([{ k: "deposit", t: "Deposit" }, { k: "withdraw", t: "Withdraw" }], earnAction, setEarnAction, "Deposit or withdraw")}
+          {!vs.assetOk && <p style={{ margin: 0, fontSize: 12, color: "#B91C1C" }}>This vault didn't pass FlowFi's safety check, so deposits are paused. Withdrawals still work.</p>}
+          {withdrawLimited && earnAction === "withdraw" && <p style={{ margin: 0, fontSize: 12, color: "#B45309" }}>The vault's funds are mostly lent out right now, so only part of your deposit can be withdrawn at once.</p>}
+          {amountBox()}
+          {earnAction === "deposit" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: 12, borderRadius: 12, background: "#F5F7FF" }}>
+              {row("APY now", pct(apyNow))}
+              {row("Est. monthly earnings", apyNow !== null ? `+${cur}${usd((amtNum * apyNow) / 12)}` : "—")}
+              {row("Est. yearly earnings", apyNow !== null ? `+${cur}${usd(amtNum * apyNow)}` : "—", true)}
+            </div>
+          )}
+        </>)}
+        {!isAave && <div style={{ display: "flex", justifyContent: "center" }}>{createElement("powered-by-morpho", { theme: "light" })}</div>}
+        <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>Non-custodial: your funds go from your wallet straight to the {isAave ? "Aave market" : "vault"}. FlowFi never holds them.</p>
+      </section>
+    );
+
+    const rng = rangeFor(vault.kind, chartRange);
+    const hist = history[`${vault.key}-${rng}`];
+    const pts = Array.isArray(hist) ? hist : null;
+    const chart = (() => {
+      const W = 640, H = 200, PX = 8, PT = 14, PB = 10;
+      let body: React.ReactNode;
+      let avg: number | null = null;
+      if (pts) {
+        const ys = pts.map((p) => p.apy);
+        avg = ys.reduce((a, b) => a + b, 0) / ys.length;
+        let lo = Math.min(...ys), hi = Math.max(...ys);
+        const pad = (hi - lo) * 0.15 || Math.max(hi * 0.1, 0.001);
+        lo = Math.max(0, lo - pad); hi = hi + pad;
+        const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+        const X = (t: number) => PX + ((t - t0) / Math.max(1, t1 - t0)) * (W - PX * 2);
+        const Y = (y: number) => PT + (1 - (y - lo) / (hi - lo)) * (H - PT - PB);
+        const line = pts.map((p, i) => `${i ? "L" : "M"}${X(p.t).toFixed(1)},${Y(p.apy).toFixed(1)}`).join(" ");
+        const area = `${line} L${X(t1).toFixed(1)},${H - PB} L${X(t0).toFixed(1)},${H - PB} Z`;
+        const hp = hoverIdx !== null && pts[hoverIdx] ? pts[hoverIdx] : null;
+        const fmtDate = (t: number) => new Date(t * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        body = (
+          <div style={{ position: "relative" }}>
+            <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={isMobile ? 150 : 200} preserveAspectRatio="none" role="img" aria-label={`APY over the last ${RANGES[rng].label}`}
+              style={{ display: "block", cursor: "crosshair", touchAction: "none" }}
+              onPointerMove={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                const tx = t0 + ((e.clientX - r.left) / r.width) * (t1 - t0);
+                let best = 0;
+                pts.forEach((p, i) => { if (Math.abs(p.t - tx) < Math.abs(pts[best].t - tx)) best = i; });
+                setHoverIdx(best);
+              }}
+              onPointerLeave={() => setHoverIdx(null)}>
+              <defs>
+                <linearGradient id="apyFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={BLUE} stopOpacity="0.28" />
+                  <stop offset="100%" stopColor={BLUE} stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {[0.25, 0.5, 0.75].map((f) => <line key={f} x1={0} x2={W} y1={PT + f * (H - PT - PB)} y2={PT + f * (H - PT - PB)} stroke={LINE} strokeWidth={1} vectorEffect="non-scaling-stroke" />)}
+              <path d={area} fill="url(#apyFill)" />
+              <path d={line} fill="none" stroke={BLUE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              {hp && <line x1={X(hp.t)} x2={X(hp.t)} y1={PT} y2={H - PB} stroke={BLUE} strokeOpacity={0.4} strokeWidth={1} vectorEffect="non-scaling-stroke" />}
+            </svg>
+            {hp && (
+              <div style={{ position: "absolute", top: 0, left: `${(X(hp.t) / W) * 100}%`, transform: `translateX(${X(hp.t) / W > 0.7 ? "-100%" : "8px"})`, pointerEvents: "none", background: INK, color: "#FFFFFF", fontSize: 12, fontWeight: 600, padding: "5px 9px", borderRadius: 8, whiteSpace: "nowrap" }}>
+                {fmtDate(hp.t)} · {pct(hp.apy)}
+              </div>
+            )}
+            {hp && <span aria-hidden="true" style={{ position: "absolute", left: `${(X(hp.t) / W) * 100}%`, top: `${(Y(hp.apy) / H) * 100}%`, width: 10, height: 10, marginLeft: -5, marginTop: -5, borderRadius: 999, background: BLUE, border: "2px solid #FFFFFF", pointerEvents: "none" }} />}
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: MUTED, marginTop: 6 }}>
+              <span>{fmtDate(t0)}</span><span>{fmtDate(t1)}</span>
+            </div>
+          </div>
+        );
+      } else {
+        body = (
+          <div style={{ height: isMobile ? 150 : 200, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: MUTED, borderRadius: 12, background: "#F5F7FF" }}>
+            {hist === "loading" || hist === undefined ? "Loading chart…" : "APY history isn't available for this vault yet."}
+          </div>
+        );
+      }
+      return (
+        <section style={{ ...card, gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: INK }}>APY history</span>
+              <span style={{ fontSize: 12.5, color: MUTED }}>{avg !== null ? <>Average over the last {RANGES[rng].label}: <b style={{ color: "#0B7A53" }}>{pct(avg)}</b></> : isAave ? "Supply APY" : "Net APY, after vault fees"}</span>
+            </div>
+            <div role="group" aria-label="Chart range" style={{ display: "flex", gap: 2, padding: 3, borderRadius: 10, background: "#E6EAFB" }}>
+              {(isAave ? AAVE_RANGES : MORPHO_RANGES).map((t) => (
+                <button key={t} type="button" aria-pressed={rng === t} onClick={() => { setChartRange(t); setHoverIdx(null); }}
+                  style={{ minWidth: 44, minHeight: 32, borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: rng === t ? "#FFFFFF" : "transparent", color: rng === t ? BLUE : MUTED }}>{t}</button>
+              ))}
+            </div>
+          </div>
+          {body}
+        </section>
+      );
+    })();
+
+    const how = (
+      <section style={card}>
+        <span style={{ fontSize: 17, fontWeight: 800, color: INK }}>How it works</span>
+        {howStep(1, `Deposit ${vault.asset}`, isAave ? `Your ${vault.asset} goes into Aave's market and your balance is tracked onchain.` : `You get vault shares that track your balance. They stay in your wallet.`)}
+        {howStep(2, "Earn interest", isAave ? "Borrowers pay interest on what they borrow, and it adds to your balance over time." : "The vault lends to borrowers who post collateral first. The interest they pay grows your balance.")}
+        {howStep(3, "Withdraw anytime", "Take your funds back whenever you want, as long as there is enough available liquidity.")}
+      </section>
+    );
+
+    const facts = (
+      <section style={{ ...card, gap: 10 }}>
+        <span style={{ fontSize: 17, fontWeight: 800, color: INK }}>Details</span>
+        {row("Protocol", isAave ? "Aave V4" : "Morpho")}
+        {!isAave && row("Curator", vault.curator)}
+        {row("Asset", `${vault.asset} on Arc`)}
+        {!isAave && d?.performanceFee != null && row("Performance fee", pct(d.performanceFee))}
+        {!isAave && d?.managementFee != null && row("Management fee", pct(d.managementFee))}
+        {row("FlowFi fee", "None")}
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+          <span style={{ color: MUTED }}>Contract</span>
+          <a href={`https://arc.etherscan.io/address/${vault.address}`} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}>{shortAddr}<ExternalLink size={13} /></a>
+        </div>
+      </section>
+    );
+
+    const risks = (
+      <section style={{ ...card, gap: 8 }}>
+        <span style={{ fontSize: 17, fontWeight: 800, color: INK }}>Risks to know</span>
+        <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6 }}>
+          {risk("Variable APY", "The rate moves with demand from borrowers. Estimates use today's rate.")}
+          {risk("Liquidity", "If most of the funds are lent out, a large withdrawal may have to wait until borrowers repay.")}
+          {risk("Borrower risk", "Loans are backed by collateral, but a sharp price drop can still cause losses.")}
+          {risk("Smart contracts", `Your funds sit in ${isAave ? "Aave's" : "Morpho's"} smart contracts, which carry technical risk.`)}
+        </ul>
+      </section>
+    );
+
+    return isMobile ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{header}{stats}{depositBox}{chart}{how}{facts}{risks}</div>
+    ) : (
+      // Deposit box starts at the top of the right column and stays in view (never taller than the screen),
+      // so it's visible as soon as the page opens, even on a laptop.
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 16, alignItems: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>{header}{stats}{chart}{how}{facts}{risks}</div>
+        <div style={{ position: "sticky", top: 16, maxHeight: "calc(100vh - 32px)", overflowY: "auto" }}>{depositBox}</div>
+      </div>
+    );
+  };
 
   // "Your loans": both cirBTC borrow markets, with collateral, debt, rate and how close each is to liquidation.
   const activeLoans = (Object.keys(MARKETS) as BorrowAsset[]).filter((k) => loans[k] && (loans[k]!.coll > 0n || loans[k]!.debt > 0n));
@@ -548,121 +967,27 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       </section>
     );
   };
-  const sideCard = () => (isEarn ? positionsCard() : loansCard());
-
   return (
-    // Form (up to 520px) and positions card (340px) side by side; when the page is too narrow for both, the card wraps below.
-    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", flexWrap: "wrap", gap: 20, alignItems: "flex-start", justifyContent: "center", width: "100%", maxWidth: showPositions && !isMobile ? 900 : 520, margin: "0 auto" }}>
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: "1 1 460px", maxWidth: 520, width: "100%", minWidth: 0 }}>
+    // Earn: one wide column (the vault list). Borrow: form (up to 520px) and "Your loans" card (340px) side by side,
+    // the card wrapping below when the page is too narrow for both.
+    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", flexWrap: "wrap", gap: 20, alignItems: "flex-start", justifyContent: "center", width: "100%", maxWidth: isEarn ? 1040 : showSide && !isMobile ? 900 : 520, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: "1 1 460px", maxWidth: isEarn ? 1040 : 520, width: "100%", minWidth: 0 }}>
       {segmented([{ k: "earn", t: "Earn" }, { k: "borrow", t: "Borrow" }], mode, setMode, "Earn or borrow")}
 
-      {/* Hero: market numbers for the chosen side */}
-      {isEarn && aaveBanner && (
+      {isEarn && !panelOpen && aaveBanner && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 14, background: "#FFFFFF", border: `1px solid ${LINE}`, fontSize: 13, color: INK, boxShadow: "0 10px 30px -22px rgba(61,90,241,0.6)" }}>
           <img src="/logos/aave.svg" alt="" width={24} height={13} style={{ flexShrink: 0 }} />
-          <span style={{ cursor: "pointer" }} onClick={() => { const a = VAULTS.find((v) => v.kind === "aave"); if (a) { setEarnAsset(a.asset); setVaultKey(a.key); reset(); } }}>
+          <span style={{ cursor: "pointer" }} onClick={() => { const a = VAULTS.find((v) => v.kind === "aave"); if (a) { setEarnAsset(a.asset); openVault(a.key); } }}>
             <b style={{ color: BLUE }}>New:</b> Aave V4 is now live on FlowFi. Earn on your USDC with Aave.
           </span>
           <button type="button" aria-label="Close" onClick={closeAaveBanner} style={{ marginLeft: "auto", border: "none", background: "none", color: "#8A8798", cursor: "pointer", display: "flex", padding: 2 }}><X size={16} /></button>
         </div>
       )}
 
-      <section style={hero}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 12 }}>
-          {isEarn ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-              {avatar(vault, 44, true)}
-              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                <span style={{ fontSize: 19, fontWeight: 800 }}>{vault.name}</span>
-                <span style={{ fontSize: 12.5, opacity: 0.85 }}>{vault.kind === "aave" ? "Aave V4 · Direct lending" : `Morpho vault · curated by ${vault.curator}`}</span>
-              </div>
-            </div>
-          ) : (
-            <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{`cirBTC / ${loanSym} market`} · Morpho</span>
-          )}
-          <button type="button" aria-label="Refresh" onClick={() => setTick((t) => t + 1)} style={{ border: "none", background: "rgba(255,255,255,0.18)", color: "#FFFFFF", borderRadius: 999, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><RefreshCw size={14} /></button>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-          {isEarn ? (<>
-            {stat("Net APY", pct(apy[vaultKey] ?? null))}
-            {stat(vault.kind === "aave" ? "Market size" : "Vault size", compact(u6(vs.tvl), cur))}
-            {stat("Your deposit", `${cur}${usd(u6(vs.assets))}`)}
-          </>) : (<>
-            {stat("Borrow APY", pct(borrowApy))}
-            {stat("Available", compact(u6(available), lc))}
-            {stat("BTC (oracle)", btcPrice !== null ? `${lc}${usd(btcPrice, 0)}` : "—")}
-          </>)}
-        </div>
-      </section>
-
-      {loadErr && <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, background: "#FDECEC", color: "#B91C1C" }}>{loadErr}</div>}
-
-      {!owner ? (
-        <div style={{ ...card, alignItems: "center", textAlign: "center", color: MUTED, fontSize: 13.5 }}>
-          Connect a browser wallet to {isEarn ? "earn on your USDC or EURC" : "borrow USDC or EURC against cirBTC"}.
-          {onConnect && <button type="button" onClick={onConnect} style={{ ...primary(true), maxWidth: 260 }}>Connect wallet</button>}
-        </div>
-      ) : isEarn ? (
-        <section style={card}>
-          {sectionTitle(PiggyBank, `Earn on ${earnAsset}`)}
-          <span style={label}>Asset</span>
-          <div role="radiogroup" aria-label="Asset" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
-            {(["USDC", "EURC"] as const).map((a) => {
-              const on = a === earnAsset;
-              return (
-                <button key={a} type="button" role="radio" aria-checked={on} disabled={step === "sending"}
-                  onClick={() => { setEarnAsset(a); setVaultKey(VAULTS.find((v) => v.asset === a)!.key); reset(); }}
-                  style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "6px 12px", borderRadius: 12, border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "rgba(255,255,255,0.85)", cursor: "pointer" }}>
-                  <TokenOnChain symbol={a} chain="arc" size={26} />
-                  <span style={{ fontSize: 14, fontWeight: 700, color: on ? BLUE : INK }}>{a}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div role="radiogroup" aria-label="Vault" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {([["morpho", "Morpho vaults"], ["aave", "Direct lending"]] as const).map(([kind, title]) => {
-              const group = earnVaults.filter((v) => v.kind === kind);
-              if (group.length === 0) return null;
-              return (
-                <div key={kind} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <span style={{ ...label, fontSize: 12.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                    {title}
-                    {kind === "morpho"
-                      ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#2F4DE8", color: "#FFFFFF" }}><img src="/logos/morpho.svg" alt="" width={11} height={10} />Morpho</span>
-                      : <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#F3E8F8", color: "#9B3F86" }}><img src="/logos/aave.svg" alt="" width={14} height={8} />Aave V4</span>}
-                  </span>
-                  {group.map((v) => {
-                    const on = v.key === vaultKey;
-                    return (
-                      <button key={v.key} type="button" role="radio" aria-checked={on} disabled={step === "sending"} onClick={() => { setVaultKey(v.key); reset(); }}
-                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", borderRadius: 14, border: on ? `1.5px solid ${BLUE}` : `1px solid ${LINE}`, background: on ? "#EEF1FE" : "rgba(255,255,255,0.9)", cursor: "pointer", textAlign: "left" }}>
-                        {avatar(v, 38, false)}
-                        <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: on ? BLUE : INK, display: "flex", alignItems: "center", gap: 6 }}>
-                            {v.name}
-                            {v.kind === "aave" && <span style={{ fontSize: 10, fontWeight: 800, color: "#FFFFFF", background: BLUE, padding: "2px 7px", borderRadius: 999, letterSpacing: "0.04em" }}>NEW</span>}
-                          </span>
-                          <span style={{ fontSize: 12, color: MUTED }}>APY {pct(apy[v.key] ?? null)} · {compact(u6(vaults[v.key]?.tvl ?? 0n), cur)}</span>
-                        </span>
-                        <span style={{ marginLeft: "auto", display: "flex", flexShrink: 0 }}>
-                          {on
-                            ? <span style={{ width: 22, height: 22, borderRadius: 999, background: BLUE, display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={13} color="#FFFFFF" /></span>
-                            : <ChevronRight size={18} color="#B5B3BE" />}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-          {segmented([{ k: "deposit", t: "Deposit" }, { k: "withdraw", t: "Withdraw" }], earnAction, setEarnAction, "Deposit or withdraw")}
-          {!vs.assetOk && <p style={{ margin: 0, fontSize: 12, color: "#B91C1C" }}>This vault didn't pass FlowFi's safety check, so deposits are paused. Withdrawals still work.</p>}
-          {withdrawLimited && earnAction === "withdraw" && <p style={{ margin: 0, fontSize: 12, color: "#B45309" }}>The vault's funds are mostly lent out right now, so only part of your deposit can be withdrawn at once.</p>}
-          {amountBox()}
-        </section>
-      ) : (
-        <>
+      {isEarn ? (panelOpen ? vaultPage() : earnList()) : (<>
+        {heroCard()}
+        {loadErr && <div style={{ padding: "10px 12px", borderRadius: 10, fontSize: 13, background: "#FDECEC", color: "#B91C1C" }}>{loadErr}</div>}
+        {!owner ? connectCard() : (<>
           <section style={card}>
             {sectionTitle(Landmark, "Your position")}
             {segmented([{ k: "USDC", t: "Borrow USDC" }, { k: "EURC", t: "Borrow EURC" }], borrowAsset, (k) => { setBorrowAsset(k); setMkt(null); setPrice(null); setRate(null); setPos({ borrowShares: 0n, collateral: 0n }); }, "Borrow asset")}
@@ -680,17 +1005,19 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
             {amountBox()}
             <p style={{ margin: 0, fontSize: 11.5, color: MUTED }}>Market utilization {(utilization * 100).toFixed(1)}%. Borrow rate is variable and rises when the market is nearly fully borrowed.</p>
           </section>
-        </>
+        </>)}
+      </>)}
+
+      {showSide && isMobile && loansCard()}
+
+      {(!isEarn || (!panelOpen && earnVaults.some((v) => v.kind === "morpho"))) && <div style={{ display: "flex", justifyContent: "center" }}>{createElement("powered-by-morpho", { theme: "light" })}</div>}
+
+      {!(isEarn && panelOpen) && (
+        <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>
+          Non-custodial: your funds stay under your control, FlowFi never holds them.
+          Borrowing carries liquidation risk if BTC falls.
+        </p>
       )}
-
-      {showPositions && isMobile && sideCard()}
-
-      {!(isEarn && vault.kind === "aave") && <div style={{ display: "flex", justifyContent: "center" }}>{createElement("powered-by-morpho", { theme: "light" })}</div>}
-
-      <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>
-        Non-custodial: your funds stay under your control, FlowFi never holds them.
-        Borrowing carries liquidation risk if BTC falls.
-      </p>
 
       {showAck && (
         <div role="dialog" aria-modal="true" aria-labelledby="morpho-ack-title" onClick={() => setShowAck(false)}
@@ -715,7 +1042,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         </div>
       )}
     </div>
-    {showPositions && !isMobile && <div style={{ flex: "1 1 320px", maxWidth: 520, minWidth: 0, position: "sticky", top: 16 }}>{sideCard()}</div>}
+    {showSide && !isMobile && <div style={{ flex: "1 1 320px", maxWidth: 520, minWidth: 0, position: "sticky", top: 16 }}>{loansCard()}</div>}
     </div>
   );
 

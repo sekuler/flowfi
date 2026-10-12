@@ -200,7 +200,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
               {balancesLoading ? "…" : `$${money(total)}`}
             </div>
             <div style={{ fontSize: 17, color: "rgba(255,255,255,0.92)" }}>
-              {balancesLoading ? "Loading balances…" : `${owned.length} asset${owned.length === 1 ? "" : "s"} - ${owned.map((d) => d.label).join(", ")}`}
+              {balancesLoading ? "Loading balances…" : `${owned.length} asset${owned.length === 1 ? "" : "s"} - ${[...new Set(owned.map((d) => d.label))].join(", ")}`}
             </div>
           </>
         )}
@@ -304,13 +304,16 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
       <div style={{ display: "flex", flexDirection: "column" }}>
         {balancesLoading && <div style={{ padding: "0.75rem 0", fontSize: 13, color: MUTED }}>Loading…</div>}
         {owned.map((d, i) => (
-          <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 0", borderTop: i > 0 ? `1px solid ${LINE}` : "none" }}>
+          <div key={d.label + ("note" in d ? d.note : "")} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.9rem 0", borderTop: i > 0 ? `1px solid ${LINE}` : "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {d.label === "USDC" || d.label === "EURC"
                 ? <img src={d.label === "USDC" ? USDC_LOGO : EURC_LOGO} alt="" width={46} height={46} style={{ width: 46, height: 46, borderRadius: "50%", boxShadow: "0 4px 10px -4px rgba(39,117,202,0.5)" }} />
                 : <TokenIcon symbol={d.label} size={46} />}
               <div>
-                <div style={{ fontSize: 17, fontWeight: 600, color: INK }}>{d.label}</div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: INK, display: "flex", alignItems: "center", gap: 8 }}>
+                  {d.label}
+                  {"note" in d && d.note && <span style={{ fontSize: 11, fontWeight: 700, color: "#9A3412", background: "#FDEDE4", padding: "2px 8px", borderRadius: 999 }}>{d.note}</span>}
+                </div>
                 <div className="ffh-mono" style={{ fontSize: 13, color: MUTED, fontVariantNumeric: "tabular-nums", marginTop: 2 }}>{d.amount} {d.label}</div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
@@ -32,7 +32,6 @@ const lifiWidgetConfig: WidgetConfig = {
   sdkConfig: {
     rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
   },
-  variant: "wide",
   chains: {
     types: { allow: [ChainType.EVM] },
   },
@@ -47,7 +46,6 @@ const lifiWidgetConfig: WidgetConfig = {
       border: "1px solid #E7E4DD",
       borderRadius: 24,
       boxShadow: "0 24px 60px -16px rgba(61,90,241,0.18)",
-      maxHeight: "none",
     },
     components: {
       MuiInputCard: {
@@ -67,22 +65,26 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
   const formRef = useRef<FormState | null>(null);
   // "best": FlowFi compares KyberSwap, De¹ and LI.FI quotes for Arc tokens. "any": the LI.FI widget, for any token.
   const [mode, setMode] = useState<"best" | "any">("best");
+  // Same as the Bridge: routes beside the form, and the widget never taller than the screen.
+  const widgetConfig = useMemo<WidgetConfig>(() => ({
+    ...lifiWidgetConfig,
+    variant: "wide",
+    theme: { ...lifiWidgetConfig.theme, container: { ...lifiWidgetConfig.theme?.container, maxHeight: "max(520px, calc(100vh - 190px))" } },
+  }), []);
 
   return (
-    <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1.75rem 0.75rem 2.5rem" }}>
+    <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1rem 0.75rem 1.5rem" }}>
       <div aria-hidden style={{ position: "absolute", inset: 0, borderRadius: 32, overflow: "hidden", background: "linear-gradient(180deg,#F7F8FF 0%,#EEF1FE 100%)", pointerEvents: "none" }}>
         <div style={{ position: "absolute", top: -140, left: "50%", transform: "translateX(-50%)", width: 620, height: 380, background: "radial-gradient(closest-side, rgba(61,90,241,0.16), rgba(96,165,250,0.12) 60%, transparent)", filter: "blur(30px)" }} />
       </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
-        <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", padding: "5px 13px", borderRadius: 999 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.18)" }} />
-            <span style={{ fontSize: 11.5, color: "#2B45C9", fontWeight: 700 }}>Arc Mainnet · real funds, real fees</span>
-          </div>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 10, margin: "0 auto 12px" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", padding: "5px 13px", borderRadius: 999 }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.18)" }} />
+          <span style={{ fontSize: 11.5, color: "#2B45C9", fontWeight: 700 }}>Arc Mainnet · real funds, real fees</span>
         </div>
-
-        <div style={{ display: "flex", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 999, width: "fit-content", maxWidth: "100%", margin: "0 auto 20px" }}>
+        <div style={{ display: "flex", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 999, width: "fit-content", maxWidth: "100%" }}>
           {([
             { k: "best", t: "Best price", sub: "KyberSwap + De¹ + LI.FI" },
             { k: "any", t: "Any token", sub: "Full LI.FI routing" },
@@ -90,12 +92,13 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
             const on = mode === tab.k;
             return (
               <button key={tab.k} onClick={() => setMode(tab.k)}
-                style={{ padding: "0.55rem 1.1rem", borderRadius: 999, border: "none", cursor: "pointer", textAlign: "left", background: on ? "#3D5AF1" : "transparent", boxShadow: on ? "0 6px 16px rgba(61,90,241,0.3)" : "none", transition: "all 0.2s" }}>
+                style={{ padding: "0.45rem 1rem", borderRadius: 999, border: "none", cursor: "pointer", textAlign: "left", background: on ? "#3D5AF1" : "transparent", boxShadow: on ? "0 6px 16px rgba(61,90,241,0.3)" : "none", transition: "all 0.2s" }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: on ? "#fff" : "#111827" }}>{tab.t}</div>
                 <div style={{ fontSize: 10.5, color: on ? "rgba(255,255,255,0.8)" : "#6B7280" }}>{tab.sub}</div>
               </button>
             );
           })}
+        </div>
         </div>
 
         {mode === "best" && <BestPriceSwap address={address} provider={provider} onConnect={onConnect} />}
@@ -107,7 +110,8 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
               box-shadow: none !important;
             }
           `}</style>
-          <div className="lifi-widget-wrap" style={{ maxWidth: 480, margin: "0 auto" }}>
+          <div className="lifi-widget-wrap" style={{ maxWidth: 900, margin: "0 auto" }}>
+            <div style={{ maxWidth: 480, margin: "0 auto" }}>
             <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Swap to" initialSelected={ARC_MAINNET_EURC}
               onPick={(t) => {
                 // Picking USDC means "swap into USDC", so the source becomes EURC; anything else swaps from USDC.
@@ -116,7 +120,8 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
                 formRef.current?.setFieldValue("fromToken", intoUsdc ? ARC_MAINNET_EURC : ARC_MAINNET_USDC, opts);
                 formRef.current?.setFieldValue("toToken", t.address, opts);
               }} />
-            <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
+            </div>
+            <LiFiWidget integrator="flowfi" config={widgetConfig} formRef={formRef} />
           </div>
         </>}
       </div>

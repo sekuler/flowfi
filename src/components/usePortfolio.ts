@@ -158,7 +158,9 @@ export function usePortfolio(address: string, balances: MainnetBalances) {
     { label: "EURC", amount: balances.eurc ?? "0", n: eurcAmt, value: (prices.eur !== null ? eurcVal : null) as number | null, color: "#22C55E" },
     { label: "USYC", amount: balances.usyc ?? "0", n: usycAmt, value: (prices.usyc !== null ? usycVal : null) as number | null, color: "#F59E0B" },
     { label: "cirBTC", amount: balances.cirbtc ?? "0", n: cirbtcAmt, value: (prices.btc !== null ? cirbtcVal : null) as number | null, color: "#C2410C" },
-  ].filter((h) => h.n > 0 || h.label === "cirBTC").sort((a, b) => (b.value ?? 0) - (a.value ?? 0)); // cirBTC is always listed, even at 0
+    // cirBTC the user posted as collateral on Morpho (Borrow) is still theirs, so it is listed too, marked as collateral.
+    { label: "cirBTC", note: "Borrow collateral", amount: String(Number(pos.collBtc.toFixed(8))), n: pos.collBtc, value: (prices.btc !== null ? collVal : null) as number | null, color: "#9A3412" },
+  ].filter((h) => h.n > 0 || (h.label === "cirBTC" && !("note" in h))).sort((a, b) => (b.value ?? 0) - (a.value ?? 0)); // wallet cirBTC is always listed, even at 0
 
   return { total, gross, debt: debtVal, cirbtcAmt, eurcAmt, holdings, distribution, top, topPct, chartPoints, hasChart, change };
 }

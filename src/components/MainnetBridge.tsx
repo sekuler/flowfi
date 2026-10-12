@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import { SolanaProvider } from "@lifi/widget-provider-solana";
@@ -27,7 +27,6 @@ const lifiWidgetConfig: WidgetConfig = {
   sdkConfig: {
     rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
   },
-  variant: "wide",
   chains: {
     types: { allow: [ChainType.EVM, ChainType.SVM, ChainType.UTXO] },
   },
@@ -42,7 +41,6 @@ const lifiWidgetConfig: WidgetConfig = {
       border: "1px solid #E7E4DD",
       borderRadius: 24,
       boxShadow: "0 24px 60px -16px rgba(61,90,241,0.18)",
-      maxHeight: "none",
     },
     components: {
       MuiInputCard: {
@@ -73,19 +71,22 @@ export default function MainnetBridge({ address, provider }: { address?: string;
     return () => clearInterval(interval);
   }, []);
 
+  // "wide": routes panel beside the form. The wrapper is 900px so that panel fits without sideways scroll.
+  // Height is capped to the screen (LI.FI theme.container.maxHeight); past that the widget scrolls inside itself.
+  const [infoOpen, setInfoOpen] = useState(false);
+  const widgetConfig = useMemo<WidgetConfig>(() => ({
+    ...lifiWidgetConfig,
+    variant: "wide",
+    theme: { ...lifiWidgetConfig.theme, container: { ...lifiWidgetConfig.theme?.container, maxHeight: "max(520px, calc(100vh - 190px))" } },
+  }), []);
+
   return (
-    <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1.75rem 0.75rem 2.5rem" }}>
+    <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1rem 0.75rem 1.5rem" }}>
       <div aria-hidden style={{ position: "absolute", inset: 0, borderRadius: 32, overflow: "hidden", background: "linear-gradient(180deg,#F7F8FF 0%,#EEF1FE 100%)", pointerEvents: "none" }}>
         <div style={{ position: "absolute", top: -140, left: "50%", transform: "translateX(-50%)", width: 620, height: 380, background: "radial-gradient(closest-side, rgba(61,90,241,0.16), rgba(96,165,250,0.12) 60%, transparent)", filter: "blur(30px)" }} />
       </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
-        <div style={{ textAlign: "center", marginBottom: mode === "cctp" ? 0 : 18 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", padding: "5px 13px", borderRadius: 999 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.18)" }} />
-            <span style={{ fontSize: 11.5, color: "#2B45C9", fontWeight: 700 }}>Arc Mainnet · real funds, real fees</span>
-          </div>
-        </div>
 
         {mode === "cctp" && (
           <div key="native-hero" style={{ animation: "flowfi-fade-in 0.35s ease" }}>
@@ -100,7 +101,12 @@ export default function MainnetBridge({ address, provider }: { address?: string;
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 999, width: "fit-content", maxWidth: "100%", margin: "0 auto 20px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 10, margin: "0 auto 10px" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", padding: "5px 13px", borderRadius: 999 }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.18)" }} />
+          <span style={{ fontSize: 11.5, color: "#2B45C9", fontWeight: 700 }}>Arc Mainnet · real funds, real fees</span>
+        </div>
+        <div style={{ display: "flex", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 999, width: "fit-content", maxWidth: "100%" }}>
           {([
             { k: "lifi", t: "Any token", sub: "Swap and bridge via LI.FI" },
             { k: "cctp", t: "Native USDC", sub: "1:1 via Circle CCTP" },
@@ -109,18 +115,25 @@ export default function MainnetBridge({ address, provider }: { address?: string;
             const on = mode === tab.k;
             return (
               <button key={tab.k} onClick={() => setMode(tab.k)}
-                style={{ padding: "0.55rem 1.1rem", borderRadius: 999, border: "none", cursor: "pointer", textAlign: "left", background: on ? "#3D5AF1" : "transparent", boxShadow: on ? "0 6px 16px rgba(61,90,241,0.3)" : "none", transition: "all 0.2s" }}>
+                style={{ padding: "0.45rem 1rem", borderRadius: 999, border: "none", cursor: "pointer", textAlign: "left", background: on ? "#3D5AF1" : "transparent", boxShadow: on ? "0 6px 16px rgba(61,90,241,0.3)" : "none", transition: "all 0.2s" }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: on ? "#fff" : "#111827" }}>{tab.t}</div>
                 <div style={{ fontSize: 10.5, color: on ? "rgba(255,255,255,0.8)" : "#6B7280" }}>{tab.sub}</div>
               </button>
             );
           })}
         </div>
+        <span style={{ position: "relative", display: "inline-flex" }} onMouseEnter={() => setInfoOpen(true)} onMouseLeave={() => setInfoOpen(false)}>
+          <button type="button" aria-label="About routes on Arc mainnet" aria-expanded={infoOpen} onClick={() => setInfoOpen((o) => !o)} onBlur={() => setInfoOpen(false)}
+            style={{ width: 32, height: 32, borderRadius: 999, border: "1px solid #FDE68A", background: "#FFFBEB", color: "#92400E", fontSize: 14, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>i</button>
+          {infoOpen && (
+            <span role="tooltip" style={{ position: "absolute", zIndex: 30, top: "calc(100% + 8px)", right: 0, width: 260, padding: "8px 12px", borderRadius: 12, background: "#FFFBEB", border: "1px solid #FDE68A", fontSize: 12, color: "#92400E", lineHeight: 1.45, boxShadow: "0 12px 30px -18px rgba(0,0,0,0.35)" }}>
+              Arc mainnet is new. Some routes, especially out of Arc, may be limited or unavailable.
+            </span>
+          )}
+        </span>
+        </div>
 
         <>
-          <div style={{ maxWidth: 480, margin: "0 auto 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 14, padding: "8px 12px", fontSize: 11.5, color: "#92400E", lineHeight: 1.5, textAlign: "center" }}>
-            Arc mainnet is new. Some routes, especially out of Arc, may be limited or unavailable.
-          </div>
           {mode === "cctp" && address && <NativeCctpBridge address={address} provider={provider} />}
           {mode === "cctp" && !address && (
             <div style={{ maxWidth: 480, margin: "0 auto", background: "#fff", border: "1px solid #E7E4DD", borderRadius: 24, padding: "2rem", textAlign: "center", color: "#6B7280", fontSize: 13 }}>
@@ -147,10 +160,12 @@ export default function MainnetBridge({ address, provider }: { address?: string;
                   box-shadow: none !important;
                 }
               `}</style>
-              <div className="lifi-widget-wrap" style={{ maxWidth: 480, margin: "0 auto" }}>
-                <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Bridge into"
-                  onPick={(t) => formRef.current?.setFieldValue("toToken", t.address, { setUrlSearchParam: false })} />
-                <LiFiWidget integrator="flowfi" config={lifiWidgetConfig} formRef={formRef} />
+              <div className="lifi-widget-wrap" style={{ maxWidth: 900, margin: "0 auto" }}>
+                <div style={{ maxWidth: 480, margin: "0 auto" }}>
+                  <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Bridge into"
+                    onPick={(t) => formRef.current?.setFieldValue("toToken", t.address, { setUrlSearchParam: false })} />
+                </div>
+                <LiFiWidget integrator="flowfi" config={widgetConfig} formRef={formRef} />
               </div>
             </>
           )}

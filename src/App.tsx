@@ -268,10 +268,12 @@ function AppInner() {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 860);
+  // Short screens (laptops): tighter page header so the main action fits without scrolling.
+  const [isShort, setIsShort] = useState(() => typeof window !== "undefined" && window.innerHeight <= 820);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    function onResize() { setIsMobile(window.innerWidth <= 860); }
+    function onResize() { setIsMobile(window.innerWidth <= 860); setIsShort(window.innerHeight <= 820); }
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -556,6 +558,7 @@ function AppInner() {
       .flowfi-shimmer-title { position: relative; display: inline-block; font-size: clamp(32px, 6vw, 46px); font-weight: 900; letter-spacing: -1px; line-height: 1.1; padding-bottom: 6px; background: linear-gradient(100deg, #5B21B6 0%, #6D5EF7 30%, #B7A6FF 45%, #6D5EF7 60%, #5B21B6 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; animation: flowfi-shimmer 3.5s linear infinite; }
       .flowfi-shimmer-title::after { content: ""; position: absolute; left: 0; bottom: 0; width: 100%; height: 3px; border-radius: 999px; background: linear-gradient(90deg, rgba(109,94,247,0) 0%, #6D5EF7 25%, #B7A6FF 50%, #6D5EF7 75%, rgba(109,94,247,0) 100%); background-size: 200% 100%; animation: flowfi-ribbon 2.8s linear infinite; }
       @media (prefers-reduced-motion: reduce) { .flowfi-shimmer-title, .flowfi-shimmer-title::after { animation: none; } }
+      @media (max-height: 820px) { .flowfi-shimmer-title { font-size: 26px; padding-bottom: 4px; } }
       @keyframes flowfi-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-14px) rotate(0.8deg); } }
       .flowfi-float { animation: flowfi-float 7s ease-in-out infinite; will-change: transform; }
       @keyframes flowfi-chip { 0%, 30% { background-color: #6D5EF7; color: #ffffff; border-color: #6D5EF7; box-shadow: 0 6px 16px rgba(109,94,247,0.35); } 36%, 100% { background-color: #ffffff; color: #4B5563; border-color: #E5DEFA; box-shadow: none; } }
@@ -948,10 +951,11 @@ function AppInner() {
           </div>
         )}
         {wallet && <div style={{ padding: isMobile ? "0 1rem" : "0 2.5rem" }}><DelegationGuard address={wallet.address} provider={wallet.provider} /></div>}
-        <div style={{ padding: isMobile ? "1rem" : "2.5rem" }}>
+        <div style={{ padding: isMobile ? "1rem" : isShort ? "1.25rem 2.5rem" : "2.5rem" }}>
           <div key={`${tab}-${wallet?.address ?? ""}`} className="flowfi-page" style={{ maxWidth: isMobile ? "100%" : (tab === "home" || tab === "bridge" ? 1200 : tab === "dashboardmainnet" || tab === "mainnethistory" ? 1120 : tab === "circlewalletmainnet" || tab === "gatewaymainnet" ? 1040 : tab === "pools" || tab === "swap" || tab === "dashboard" || tab === "mainnetswap" || tab === "mainnetbridge" || tab === "morphomainnet" ? 900 : 520), margin: "0 auto" }}>
-            {tab !== "home" && <div style={{ marginBottom: "2rem" }}>
-              <h1 className="flowfi-display" style={{ fontSize: 32, fontWeight: 600, color: "#16151C", marginBottom: 6, letterSpacing: "-0.02em" }}>
+            {/* Bridge and Swap open straight on the action box (no page title), like Relay. */}
+            {tab !== "home" && !(["mainnetbridge", "mainnetswap"] as string[]).includes(tab) && <div style={{ marginBottom: isShort ? "1rem" : "2rem" }}>
+              <h1 className="flowfi-display" style={{ fontSize: isShort ? 24 : 32, fontWeight: 600, color: "#16151C", marginBottom: isShort ? 2 : 6, letterSpacing: "-0.02em" }}>
                 {tab === "circlewalletmainnet" ? <span className="flowfi-shimmer-title">Circle Wallet</span> : tab === "gatewaymainnet" ? <span className="flowfi-shimmer-title">Gateway</span> : tab === "morphomainnet" ? <span className="flowfi-shimmer-title">Earn & Borrow</span> : tab === "dashboard" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "dashboardmainnet" ? <span className="flowfi-shimmer-title">Dashboard</span> : tab === "mainnethistory" ? <span className="flowfi-shimmer-title">History</span> : tab === "analytics" ? "Stablecoin Analytics" : tab === "swap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "mainnetswap" ? <span className="flowfi-shimmer-title">FlowFi Swap</span> : tab === "pools" ? "Liquidity Pools" : tab === "launch" ? "Launch Token" : tab === "history" ? "History" : tab === "circlewallet" ? "Circle Wallet" : <span className="flowfi-shimmer-title">FlowFi Bridge</span>}
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280" }}>

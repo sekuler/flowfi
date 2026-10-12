@@ -4,6 +4,7 @@ import type { EIP1193Provider } from "viem";
 import { ArrowDown, Check, ChevronDown } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenIcon } from "./TokenIcon";
+import { useIsMobile } from "../useIsMobile";
 import { loadLifiDiamond } from "./txUtils";
 
 // Same-chain swaps on Arc Mainnet, routed to whichever source gives the most output.
@@ -105,11 +106,14 @@ const fmt = (v: bigint, t: Tok) => Number(formatUnits(v, t.decimals)).toLocaleSt
 const fmtShort = (v: bigint, t: Tok) => Number(formatUnits(v, t.decimals)).toLocaleString("en-US", { maximumSignificantDigits: 3 });
 
 export default function BestPriceSwap({ address, provider, onConnect }: { address?: string; provider?: EIP1193Provider; onConnect?: () => void }) {
+  const isMobile = useIsMobile();
   const [fromIdx, setFromIdx] = useState(0);
   const [toIdx, setToIdx] = useState(1);
   const [amount, setAmount] = useState("");
   const [balance, setBalance] = useState<bigint | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  // The source the user picked in the Quotes list (null = the best price). If it drops out, the best one is used.
+  const [picked, setPicked] = useState<string | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [step, setStep] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [msg, setMsg] = useState<string | null>(null);
@@ -172,16 +176,17 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
   }, [amount, fromIdx, toIdx, address, tick, off]);
 
   const best = quotes[0];
+  const sel = quotes.find((q) => q.source === picked) ?? best;
   // "≈ $" value of an amount of a token, when De¹ has given us its price.
   const usdOf = (v: bigint, t: Tok) => { const p = px[t.address.toLowerCase()]; return p ? `≈ $${(Number(formatUnits(v, t.decimals)) * p).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null; };
   const usd = (v: bigint) => usdOf(v, to);
   const insufficient = balance !== null && amountIn > balance;
-  const minOut = best ? (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n : 0n;
+  const minOut = sel ? (sel.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n : 0n;
 
   function flip() { setFromIdx(toIdx); setToIdx(fromIdx); setAmount(""); setStep("idle"); setMsg(null); }
 
   async function swap() {
-    if (!provider || !address || !best) return;
+    if (!provider || !address || !sel) return;
     setStep("busy"); setHash(null);
     try {
       await switchToArc(provider);
@@ -190,11 +195,11 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
 
       // Build the exact transaction for the chosen source, and check it goes to that source's router.
       let txTo: string; let data: `0x${string}`; let value = 0n; let spender: string;
-      if (best.source === "KyberSwap") {
+      if (sel.source === "KyberSwap") {
         setMsg("Preparing the KyberSwap route...");
         const r = await fetch(`${KYBER_API}/route/build`, {
           method: "POST", headers: { "Content-Type": "application/json", "x-client-id": "flowfi" },
-          body: JSON.stringify({ routeSummary: best.raw, sender: me, recipient: me, slippageTolerance: SLIPPAGE_BPS }),
+          body: JSON.stringify({ routeSummary: sel.raw, sender: me, recipient: me, slippageTolerance: SLIPPAGE_BPS }),
         });
         const d = await r.json();
         if (!r.ok || !d?.data?.data) throw new Error("KyberSwap couldn't build this route. Please try again.");
@@ -206,11 +211,11 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         // The built route must still be as good as the price we showed (within slippage). If KyberSwap
         // re-priced it lower, stop before the wallet opens and refresh the quotes instead.
         const builtOut = BigInt(d.data.amountOut ?? 0);
-        if (builtOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
+        if (builtOut < (sel.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
           setTick((t) => t + 1);
           throw new Error(`KyberSwap's price changed to ${fmt(builtOut, to)} ${to.symbol}. Nothing was sent. Prices are refreshed, please check them and try again.`);
         }
-      } else if (best.source === "De¹") {
+      } else if (sel.source === "De¹") {
         setMsg("Preparing the De¹ route...");
         const q = de1Params(from, to, amountIn, await de1Gas());
         q.set("account", me);
@@ -223,7 +228,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         spender = txTo;
         if (txTo !== DE1_ROUTER) throw new Error("Unexpected De¹ router address. Nothing was sent.");
         const builtOut = BigInt(d.data.outAmount ?? 0);
-        if (builtOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
+        if (builtOut < (sel.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
           setTick((t) => t + 1);
           throw new Error(`De¹'s price changed to ${fmt(builtOut, to)} ${to.symbol}. Nothing was sent. Prices are refreshed, please check them and try again.`);
         }
@@ -251,7 +256,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       // Aggregator numbers on Arc (even a router's return value) can be higher than what really arrives.
       // So dry-run the exact transaction and measure the user's real balance change of the token they receive.
       // If it is worse than the shown price (or can't be checked), stop, drop that source and use the next best one.
-      if (best.source !== "LI.FI") {
+      if (sel.source !== "LI.FI") {
         setMsg("Checking the real output on-chain...");
         let realOut: bigint | null = null;
         try {
@@ -271,9 +276,10 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
             if (sim.data && sim.data.length >= 66) realOut = BigInt(sim.data.slice(0, 66));
           } catch { realOut = null; }
         }
-        if (realOut === null || realOut < (best.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
-          const src = best.source;
+        if (realOut === null || realOut < (sel.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
+          const src = sel.source;
           setOff((o) => [...o, src]);
+          setPicked(null);
           setTick((t) => t + 1);
           throw new Error(realOut === null
             ? `${src}'s route couldn't be verified on-chain, so we switched to the next best price. Nothing was sent. Check the new price and press Swap again.`
@@ -281,25 +287,25 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         }
       }
 
-      setMsg(`Confirm the swap in your wallet (via ${best.source})...`);
+      setMsg(`Confirm the swap in your wallet (via ${sel.source})...`);
       const h = await wc.sendTransaction({ to: txTo as `0x${string}`, data, value });
       setHash(h);
       if ((await pc.waitForTransactionReceipt({ hash: h })).status === "reverted") throw new Error("The swap reverted (price moved more than 0.5%). Nothing was swapped.");
-      setStep("done"); setMsg(`Swapped ${amount} ${from.symbol} for ${to.symbol} via ${best.source}.`); setAmount(""); setTick((t) => t + 1);
+      setStep("done"); setMsg(`Swapped ${amount} ${from.symbol} for ${to.symbol} via ${sel.source}.`); setAmount(""); setTick((t) => t + 1);
     } catch (e: unknown) {
       const err = e as { shortMessage?: string; message?: string };
       setStep("error"); setMsg(err.shortMessage || err.message || "Swap failed.");
     }
   }
 
-  const can = !!provider && !!address && !!best && amountIn > 0n && !insufficient && step !== "busy";
+  const can = !!provider && !!address && !!sel && amountIn > 0n && !insufficient && step !== "busy";
   const cta = !provider || !address ? "Connect wallet"
     : step === "busy" ? "Confirm in your wallet..."
     : !amount ? "Enter an amount"
     : insufficient ? `Not enough ${from.symbol}`
     : quoting ? "Finding the best price..."
-    : !best ? "No route for this pair right now"
-    : `Swap via ${best.source}`;
+    : !sel ? "No route for this pair right now"
+    : `Swap via ${sel.source}`;
 
   // Choosing the token already on the other side swaps the two sides, like most swap apps.
   function pick(side: "from" | "to", i: number) {
@@ -311,7 +317,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
   const panel = (side: "from" | "to") => {
     const t = side === "from" ? from : to;
     const bal = side === "from" ? balance : (bals[to.symbol] ?? null);
-    const value = side === "from" ? amountIn : (best?.out ?? 0n);
+    const value = side === "from" ? amountIn : (sel?.out ?? 0n);
     const usdText = value > 0n ? usdOf(value, t) : null;
     const chip = { border: "none", background: "#E3E8FD", color: BLUE, fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, cursor: "pointer" } as const;
     return (
@@ -339,14 +345,14 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
               onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) { setAmount(e.target.value); setStep("idle"); setMsg(null); } }}
               style={{ fontSize: 30, fontWeight: 700, color: INK, padding: 0, minWidth: 0, width: "100%", textAlign: "right" }} />
           ) : (
-            <div style={{ fontSize: 30, fontWeight: 700, color: best ? INK : "#B5B3BE", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
-              {best ? fmt(best.out, to) : quoting ? "…" : "0.00"}
+            <div style={{ fontSize: 30, fontWeight: 700, color: sel ? INK : "#B5B3BE", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+              {sel ? fmt(sel.out, to) : quoting ? "…" : "0.00"}
             </div>
           )}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: MUTED, minHeight: 15, gap: 8 }}>
-          <span>{side === "to" && best && amountIn > 0n
-            ? `1 ${to.symbol} = ${(Number(formatUnits(amountIn, from.decimals)) / Number(formatUnits(best.out, to.decimals))).toLocaleString("en-US", { maximumSignificantDigits: 6 })} ${from.symbol}`
+          <span>{side === "to" && sel && amountIn > 0n
+            ? `1 ${to.symbol} = ${(Number(formatUnits(amountIn, from.decimals)) / Number(formatUnits(sel.out, to.decimals))).toLocaleString("en-US", { maximumSignificantDigits: 6 })} ${from.symbol}`
             : ""}</span>
           <span>{usdText ?? ""}</span>
         </div>
@@ -374,8 +380,48 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
     );
   };
 
+  // Quotes: beside the form on desktop (like LI.FI's routes panel), inside it on mobile.
+  const quotesBox = quotes.length > 0 ? (
+        <div style={{ border: "1px solid #C9D3FB", borderRadius: 18, padding: 8, background: "linear-gradient(135deg, #F3F6FF 0%, #E6ECFF 100%)", display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 12px 4px", fontSize: 12, fontWeight: 700, color: INK }}>
+            <span>Quotes</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: BLUE, background: "#FFFFFF", padding: "2px 9px", borderRadius: 999, border: "1px solid #C9D3FB" }}>{quotes.length} {quotes.length === 1 ? "source" : "sources"}</span>
+          </div>
+          {quotes.map((q, i) => {
+            const win = i === 0;
+            const on = q.source === sel?.source;
+            const gain = win && quotes.length > 1 ? q.out - quotes[quotes.length - 1].out : 0n;
+            // How far this source is behind the best one, e.g. "−0.07%".
+            const pct = !win && best && best.out > 0n ? Number(((q.out - best.out) * 1000000n) / best.out) / 10000 : null;
+            const sub = [usd(q.out), gain > 0n ? `+${fmtShort(gain, to)} vs. lowest` : null, pct !== null ? `${pct.toFixed(2).replace("-", "−")}%` : null].filter(Boolean);
+            return (
+              <button key={q.source} type="button" role="radio" aria-checked={on} disabled={step === "busy"}
+                onClick={() => { setPicked(win ? null : q.source); setStep("idle"); setMsg(null); }}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, width: "100%", padding: on ? "10px 12px" : "8px 12px", borderRadius: 12, fontSize: 12.5, cursor: "pointer", textAlign: "left", font: "inherit",
+                  border: "none", background: on ? "#FFFFFF" : "transparent", borderLeft: on ? `4px solid ${BLUE}` : "4px solid transparent", boxShadow: on ? "0 6px 18px -8px rgba(61,90,241,0.45)" : "none" }}>
+                <span style={{ color: on ? INK : "#6B6878", fontWeight: on ? 700 : 600, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+                  <img src={LOGOS[q.source]} alt="" width={22} height={22} style={{ borderRadius: 999, flexShrink: 0, opacity: on ? 1 : 0.8 }} />
+                  {q.source}
+                  {win && quotes.length > 1 && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#FFFFFF", background: "#10B981", padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>Best price</span>}
+                </span>
+                <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.25, flexShrink: 0 }}>
+                  <span style={{ color: on ? BLUE : "#6B6878", fontWeight: on ? 800 : 600, fontSize: on ? 14.5 : 12.5, whiteSpace: "nowrap" }}>{fmt(q.out, to)} {to.symbol}</span>
+                  {sub.length > 0 && <span style={{ fontSize: 10.5, color: "#8A8798", fontWeight: 500, whiteSpace: "nowrap" }}>{sub.join(" · ")}</span>}
+                </span>
+              </button>
+            );
+          })}
+          {quotes.length > 1 && <span style={{ padding: "2px 12px", fontSize: 11, color: MUTED }}>Tap a source to swap with it instead.</span>}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px 4px", fontSize: 12, color: MUTED, borderTop: "1px solid #C9D3FB" }}>
+            <span>Minimum received (0.5% slippage)</span>
+            <span>{fmt(minOut, to)} {to.symbol}</span>
+          </div>
+        </div>
+  ) : null;
+
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(61,90,241,0.18)", display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "flex-start", gap: 16 }}>
+    <div style={{ flex: "0 1 480px", width: "100%", maxWidth: 480, background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(61,90,241,0.18)", display: "flex", flexDirection: "column", gap: 12 }}>
       <style>{`.ff-bps-amt, .ff-bps-amt:focus { outline: none !important; box-shadow: none !important; border: none !important; background: transparent !important; }`}</style>
 
       {panel("from")}
@@ -387,44 +433,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
 
       {panel("to")}
 
-      {quotes.length > 0 && (
-        <div style={{ border: "1px solid #C9D3FB", borderRadius: 18, padding: 8, background: "linear-gradient(135deg, #F3F6FF 0%, #E6ECFF 100%)", display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 12px 4px", fontSize: 12, fontWeight: 700, color: INK }}>
-            <span>Quotes</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: BLUE, background: "#FFFFFF", padding: "2px 9px", borderRadius: 999, border: "1px solid #C9D3FB" }}>{quotes.length} {quotes.length === 1 ? "source" : "sources"}</span>
-          </div>
-          {quotes.map((q, i) => {
-            const win = i === 0;
-            const gain = win && quotes.length > 1 ? q.out - quotes[quotes.length - 1].out : 0n;
-            return (
-              <div key={q.source} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: win ? "10px 12px" : "7px 12px", borderRadius: 12, fontSize: 12.5,
-                background: win ? "#FFFFFF" : "transparent", borderLeft: win ? `4px solid ${BLUE}` : "4px solid transparent", boxShadow: win ? "0 6px 18px -8px rgba(61,90,241,0.45)" : "none" }}>
-                <span style={{ color: win ? INK : "#8A8798", fontWeight: win ? 700 : 500, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", minWidth: 0 }}>
-                  <img src={LOGOS[q.source]} alt="" width={22} height={22} style={{ borderRadius: 999, flexShrink: 0, opacity: win ? 1 : 0.75 }} />
-                  {q.source}
-                  {win && quotes.length > 1 && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#FFFFFF", background: "#10B981", padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>Best price</span>}
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
-                  {gain > 0n && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0E9F6E", background: "#E7F7EF", padding: "2px 7px", borderRadius: 999 }}>+{fmtShort(gain, to)}</span>}
-                  <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.25 }}>
-                    <span style={{ color: win ? BLUE : "#8A8798", fontWeight: win ? 800 : 500, fontSize: win ? 14.5 : 12.5 }}>{fmt(q.out, to)} {to.symbol}</span>
-                    {(() => {
-                      // How far this source is behind the best one, e.g. "−0.07%".
-                      const pct = !win && best && best.out > 0n ? Number(((q.out - best.out) * 1000000n) / best.out) / 10000 : null;
-                      const parts = [usd(q.out), pct !== null ? `${pct.toFixed(2).replace("-", "−")}%` : null].filter(Boolean);
-                      return parts.length > 0 && <span style={{ fontSize: 10.5, color: "#8A8798", fontWeight: 500 }}>{parts.join(" · ")}</span>;
-                    })()}
-                  </span>
-                </span>
-              </div>
-            );
-          })}
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px 4px", fontSize: 12, color: MUTED, borderTop: "1px solid #C9D3FB" }}>
-            <span>Minimum received (0.5% slippage)</span>
-            <span>{fmt(minOut, to)} {to.symbol}</span>
-          </div>
-        </div>
-      )}
+      {isMobile && quotesBox}
 
       {msg && (
         <div style={{ padding: "10px 12px", borderRadius: 12, fontSize: 12.5, lineHeight: 1.5, background: step === "done" ? "#E7F7EF" : step === "error" ? "#FDECEC" : "#FFF8EC", color: step === "done" ? "#0B7A53" : step === "error" ? "#B91C1C" : "#6A4308", display: "flex", gap: 8 }}>
@@ -441,6 +450,12 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>
         Best price across KyberSwap, De¹ and LI.FI on Arc. You sign every step in your own wallet.
       </p>
+    </div>
+    {!isMobile && quotesBox && (
+      <div style={{ flex: "0 1 380px", width: "100%", maxWidth: 380, background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 28, padding: "1.1rem", boxShadow: "0 24px 60px -16px rgba(61,90,241,0.18)" }}>
+        {quotesBox}
+      </div>
+    )}
     </div>
   );
 }

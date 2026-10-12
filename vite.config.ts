@@ -9,6 +9,12 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/rpc-proxy": { target: "https://rpc.mainnet.arc.io", changeOrigin: true, rewrite: () => "/" },
+      // Local only: CoinGecko prices (ticker, Home values). Production uses api/coingecko-proxy.js.
+      "/api/coingecko-proxy": {
+        target: "https://api.coingecko.com",
+        changeOrigin: true,
+        rewrite: (p) => "/api/v3" + (new URL(p, "http://localhost").searchParams.get("path") ?? ""),
+      },
     },
   },
   optimizeDeps: {

@@ -38,6 +38,7 @@ export type BorrowAsset = keyof typeof MARKETS;
 export const VAULTS = [
   { key: "galaxy", name: "Galaxy USDC", curator: "Galaxy", logo: "/logos/galaxy.jpg", asset: "USDC", kind: "morpho", address: "0x8E357432CC12ff425c36432F312968aEb16112AF" },
   { key: "keyrock", name: "Keyrock Prime USDC", curator: "Keyrock", logo: "/logos/keyrock.jpg", asset: "USDC", kind: "morpho", address: "0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123" },
+  { key: "bitwise", name: "Bitwise Premium RWA USDC", curator: "Bitwise", logo: "/logos/bitwise.png", asset: "USDC", kind: "morpho", address: "0x7610094B846657dCF166D59e42973db52c7015F9" },
   { key: "aave-usdc", name: "Aave USDC", curator: "Aave", logo: "/logos/aave.svg", asset: "USDC", kind: "aave", address: "0xB843bdC3a87A05E77E07Df9FE48928b3A34b134d" },
   { key: "steakhouse-eurc", name: "Steakhouse Prime EURC", curator: "Steakhouse", logo: "/logos/steakhouse.jpg", asset: "EURC", kind: "morpho", address: "0xbeef00be37BdE921BAE06fad223125BAB16c41D1" },
   { key: "gauntlet-eurc", name: "Gauntlet EURC Prime", curator: "Gauntlet", logo: "/logos/gauntlet.png", asset: "EURC", kind: "morpho", address: "0x05863F54B05e96092069eF30c9Ca6060336e50B9" },
@@ -140,4 +141,132 @@ export async function fetchVaultApy(address: string): Promise<number | null> {
     } catch { /* try the next query */ }
   }
   return null;
+}
+
+// Extra vault facts for the vault page, from Morpho's public API (field names from docs.morpho.org, Morpho Vaults API:
+// V2 liquidityUsd, performanceFee, managementFee, metadata.description; V1 liquidity.usd, metadata.description).
+// Each group is asked separately so one missing field doesn't hide the rest; anything unavailable stays null.
+export type ExposureItem = { symbol: string; logo: string | null; usd: number; idle?: boolean };
+export type VaultDetails = { liquidityUsd: number | null; performanceFee: number | null; managementFee: number | null; description: string | null; totalAssetsUsd: number | null; exposure: ExposureItem[] | null };
+async function morphoQuery(query: string, address: string): Promise<any> {
+  try {
+    const r = await fetch("https://api.morpho.org/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables: { a: address, c: 5042 } }),
+    });
+    const j = await r.json();
+    return j?.data ?? null;
+  } catch { return null; }
+}
+const numOrNull = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+export async function fetchVaultDetails(address: string): Promise<VaultDetails> {
+  const [a, b, c, d, e] = await Promise.all([
+    morphoQuery(`query($a:String!,$c:Int!){ vaultV2ByAddress(address:$a, chainId:$c){ liquidityUsd totalAssetsUsd } }`, address),
+    morphoQuery(`query($a:String!,$c:Int!){ vaultV2ByAddress(address:$a, chainId:$c){ performanceFee managementFee } }`, address),
+    morphoQuery(`query($a:String!,$c:Int!){ vaultV2ByAddress(address:$a, chainId:$c){ metadata{ description } } }`, address),
+    morphoQuery(`query($a:String!,$c:Int!){ vaultByAddress(address:$a, chainId:$c){ liquidity{ usd } metadata{ description } } }`, address),
+    // Exposure: idle assets + each Morpho market the vault supplies to (via its MorphoMarketV1Adapter), by collateral.
+    // Field names from Morpho's own API types (@morpho-org/blue-api-sdk): VaultV2.idleAssetsUsd, VaultV2.adapters.items,
+    // MorphoMarketV1Adapter.positions.items, MarketPosition.state.supplyAssetsUsd, Market.collateralAsset { symbol logoURI }.
+    morphoQuery(`query($a:String!,$c:Int!){ vaultV2ByAddress(address:$a, chainId:$c){ idleAssetsUsd asset{ symbol logoURI }
+      adapters{ items{ __typename ... on MorphoMarketV1Adapter { positions{ items{ state{ supplyAssetsUsd } market{ collateralAsset{ symbol logoURI } } } } } } } } }`, address),
+  ]);
+  const v2a = a?.vaultV2ByAddress, v2b = b?.vaultV2ByAddress, v2c = c?.vaultV2ByAddress, v1 = d?.vaultByAddress;
+  const desc = v2c?.metadata?.description ?? v1?.metadata?.description;
+  let exposure: ExposureItem[] | null = null;
+  const v2e = e?.vaultV2ByAddress;
+  if (v2e) {
+    const byCollateral = new Map<string, ExposureItem>();
+    for (const ad of v2e.adapters?.items ?? []) {
+      for (const p of ad?.positions?.items ?? []) {
+        const usd = numOrNull(p?.state?.supplyAssetsUsd);
+        const col = p?.market?.collateralAsset;
+        if (usd === null || usd <= 0 || typeof col?.symbol !== "string") continue;
+        const cur = byCollateral.get(col.symbol);
+        byCollateral.set(col.symbol, { symbol: col.symbol, logo: typeof col.logoURI === "string" ? col.logoURI : null, usd: (cur?.usd ?? 0) + usd });
+      }
+    }
+    const list = [...byCollateral.values()].sort((x, y) => y.usd - x.usd);
+    const idle = numOrNull(v2e.idleAssetsUsd);
+    if (idle !== null && idle > 0 && typeof v2e.asset?.symbol === "string") list.push({ symbol: v2e.asset.symbol, logo: typeof v2e.asset.logoURI === "string" ? v2e.asset.logoURI : null, usd: idle, idle: true });
+    exposure = list.length ? list : null;
+  }
+  return {
+    totalAssetsUsd: numOrNull(v2a?.totalAssetsUsd),
+    exposure,
+    liquidityUsd: numOrNull(v2a?.liquidityUsd) ?? numOrNull(v1?.liquidity?.usd),
+    performanceFee: numOrNull(v2b?.performanceFee),
+    managementFee: numOrNull(v2b?.managementFee),
+    description: typeof desc === "string" && desc.trim() ? desc.trim() : null,
+  };
+}
+
+// APY history for the vault page chart, from Morpho's public API (docs.morpho.org, Morpho Vaults API):
+// V2 historicalState.avgNetApy(options, lookbackHours) and V1 historicalState.netApy(options), points { x, y }.
+// x is read as a unix timestamp (seconds; milliseconds are converted), y as a fraction like netApy. null when unavailable.
+export type ApyPoint = { t: number; apy: number };
+export async function fetchVaultApyHistory(address: string, days: number): Promise<ApyPoint[] | null> {
+  const end = Math.floor(Date.now() / 1000);
+  const options = { startTimestamp: end - days * 86400, endTimestamp: end, interval: "DAY" };
+  const queries = [
+    { q: `query($a:String!,$c:Int!,$o:TimeseriesOptions){ vaultV2ByAddress(address:$a, chainId:$c){ historicalState{ avgNetApy(options:$o, lookbackHours:24){ x y } } } }`, pick: (d: any) => d?.vaultV2ByAddress?.historicalState?.avgNetApy },
+    { q: `query($a:String!,$c:Int!,$o:TimeseriesOptions){ vaultByAddress(address:$a, chainId:$c){ historicalState{ netApy(options:$o){ x y } } } }`, pick: (d: any) => d?.vaultByAddress?.historicalState?.netApy },
+  ];
+  for (const { q, pick } of queries) {
+    try {
+      const r = await fetch("https://api.morpho.org/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q, variables: { a: address, c: 5042, o: options } }),
+      });
+      const j = await r.json();
+      const raw = pick(j?.data);
+      if (!Array.isArray(raw)) continue;
+      const pts = raw
+        .map((p: any) => ({ t: Number(p?.x), apy: Number(p?.y) }))
+        .filter((p: ApyPoint) => Number.isFinite(p.t) && Number.isFinite(p.apy))
+        .map((p: ApyPoint) => ({ t: p.t > 1e12 ? Math.floor(p.t / 1000) : p.t, apy: p.apy }))
+        .sort((a: ApyPoint, b: ApyPoint) => a.t - b.t);
+      if (pts.length >= 2) return pts;
+    } catch { /* try the next query */ }
+  }
+  return null;
+}
+
+// Aave V4 supply APY history for the Aave page chart, from Aave's V4 API: supplyApyHistory(request: { reserve, window })
+// returning { date, avgRate { value } } (query and variables from aave.com/docs/aave-v4/liquidity/reserves; avgRate.value read
+// as a fraction like summary.supplyApy.value). `reserve` is the API's own reserve id, looked up from the reserves list.
+// Windows: LAST_DAY is from Aave's docs example; LAST_WEEK and LAST_MONTH follow the documented TimeWindow names
+// (LastWeek, ...). Anything the API rejects just comes back null and the chart says it isn't available.
+let aaveUsdcReserveId: string | null = null;
+async function aaveQuery(query: string, variables?: unknown): Promise<any> {
+  const r = await fetch("https://api.v4.aave.com/graphql", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, variables }) });
+  const j = await r.json();
+  return j?.data ?? null;
+}
+export async function fetchAaveUsdcApyHistory(window: "LAST_DAY" | "LAST_WEEK" | "LAST_MONTH"): Promise<ApyPoint[] | null> {
+  try {
+    if (!aaveUsdcReserveId) {
+      const d = await aaveQuery(`query { reserves(request: { query: { chainIds: [5042] }, filter: ALL, orderBy: { supplyApy: DESC } }) {
+        id spoke { address } asset { underlying { address } } } }`);
+      const row = (d?.reserves ?? []).find((x: any) =>
+        String(x?.spoke?.address).toLowerCase() === AAVE_MAIN_SPOKE.toLowerCase() &&
+        String(x?.asset?.underlying?.address).toLowerCase() === USDC.toLowerCase());
+      if (typeof row?.id !== "string") return null;
+      aaveUsdcReserveId = row.id;
+    }
+    const d = await aaveQuery(`query ($request: SupplyApyHistoryRequest!) { supplyApyHistory(request: $request) { date avgRate { value } } }`,
+      { request: { reserve: aaveUsdcReserveId, window } });
+    const raw = d?.supplyApyHistory;
+    if (!Array.isArray(raw)) return null;
+    const pts = raw
+      .map((p: any) => {
+        const t = typeof p?.date === "number" ? p.date : Date.parse(String(p?.date));
+        return { t: t > 1e12 ? Math.floor(t / 1000) : t, apy: Number(p?.avgRate?.value) };
+      })
+      .filter((p: ApyPoint) => Number.isFinite(p.t) && Number.isFinite(p.apy))
+      .sort((a: ApyPoint, b: ApyPoint) => a.t - b.t);
+    return pts.length >= 2 ? pts : null;
+  } catch { return null; }
 }
