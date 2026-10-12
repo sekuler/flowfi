@@ -270,3 +270,28 @@ export async function fetchAaveUsdcApyHistory(window: "LAST_DAY" | "LAST_WEEK" |
     return pts.length >= 2 ? pts : null;
   } catch { return null; }
 }
+
+// Borrow APY history of a Morpho Blue market, for the Borrow page chart. From Morpho's API types
+// (@morpho-org/blue-api-sdk): Query.marketByUniqueKey(uniqueKey, chainId) -> Market.historicalState.borrowApy(options),
+// points { x: unix seconds, y }. y is read as a fraction like the other APY fields. null when unavailable.
+export async function fetchMarketBorrowApyHistory(marketId: string, days: number): Promise<ApyPoint[] | null> {
+  const end = Math.floor(Date.now() / 1000);
+  try {
+    const r = await fetch("https://api.morpho.org/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `query($k:String!,$c:Int!,$o:TimeseriesOptions){ marketByUniqueKey(uniqueKey:$k, chainId:$c){ historicalState{ borrowApy(options:$o){ x y } } } }`,
+        variables: { k: marketId, c: 5042, o: { startTimestamp: end - days * 86400, endTimestamp: end, interval: "DAY" } },
+      }),
+    });
+    const j = await r.json();
+    const raw = j?.data?.marketByUniqueKey?.historicalState?.borrowApy;
+    if (!Array.isArray(raw)) return null;
+    const pts = raw
+      .map((p: any) => ({ t: Number(p?.x), apy: p?.y === null || p?.y === undefined ? NaN : Number(p.y) }))
+      .filter((p: ApyPoint) => Number.isFinite(p.t) && Number.isFinite(p.apy))
+      .sort((a: ApyPoint, b: ApyPoint) => a.t - b.t);
+    return pts.length >= 2 ? pts : null;
+  } catch { return null; }
+}
