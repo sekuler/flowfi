@@ -161,8 +161,23 @@ function TokenBuyPanel({ token, provider, address }: { token: { address: string;
         client.readContract({ address: TOKEN_FACTORY, abi: TOKEN_FACTORY_ABI, functionName: "launchedAt", args: [token.address as `0x${string}`] }),
       ]);
       setLaunchedAt(Number(launchTs));
+      // Only trade through a pool that FlowFi's own factories created for this token (the curated factory or
+      // ArcLaunchPoolFactory). Anything else recorded for it is treated as not tradeable, so a buyer's USDC
+      // never goes to an unknown contract.
+      let trusted = false;
+      if (pool !== "0x0000000000000000000000000000000000000000") {
+        const [curatedPool, launchPool] = await Promise.all([
+          client.readContract({ address: POOL_FACTORY_V4C, abi: POOL_FACTORY_ABI, functionName: "getPool", args: [token.address as `0x${string}`, USDC_ADDRESS] }).catch(() => null),
+          client.readContract({ address: LAUNCH_POOL_FACTORY, abi: LAUNCH_POOL_FACTORY_ABI, functionName: "getPool", args: [token.address as `0x${string}`] }).catch(() => null),
+        ]);
+        const p = (pool as string).toLowerCase();
+        trusted = [curatedPool, launchPool].some((x) => typeof x === "string" && x.toLowerCase() === p);
+      }
       if (pool === "0x0000000000000000000000000000000000000000") {
         setPoolAddress("none");
+      } else if (!trusted) {
+        setPoolAddress("none");
+        setError("This token's pool couldn't be verified, so buying it here is turned off.");
       } else {
         const pTokenA = await client.readContract({ address: pool, abi: POOL_QUOTE_ABI, functionName: "tokenA" });
         setPoolAddress(pool);
