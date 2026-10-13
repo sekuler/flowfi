@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { ArrowUp, ArrowDown, Copy, ExternalLink, RefreshCw, Check, ListFilter, HelpCircle, ArrowUpRight, ArrowDownLeft, Repeat, Route as RouteIcon, Link2, ShieldCheck } from "lucide-react";
+import { ArrowUp, ArrowDown, Copy, ExternalLink, RefreshCw, Check, ListFilter, HelpCircle, ArrowUpRight, ArrowDownLeft, Repeat, Route as RouteIcon, Link2, ShieldCheck, PiggyBank, HandCoins } from "lucide-react";
 import EmptyState from "./EmptyState";
 import { useIsMobile } from "../useIsMobile";
 import { loadLifiDiamond, shortHash, metaFor, describeTx, amountCell, fetchActivity, type Tx } from "./txUtils";
@@ -16,6 +16,8 @@ const FILTERS: { key: string; label: string; icon: ReactNode }[] = [
   { key: "Swap", label: "Swap", icon: <Repeat size={16} /> },
   { key: "Route", label: "Route", icon: <RouteIcon size={16} /> },
   { key: "Bridge", label: "Bridge", icon: <Link2 size={16} /> },
+  { key: "Earn", label: "Earn", icon: <PiggyBank size={16} /> },
+  { key: "Borrow", label: "Borrow", icon: <HandCoins size={16} /> },
   { key: "Approve", label: "Approve", icon: <ShieldCheck size={16} /> },
 ];
 
@@ -26,7 +28,8 @@ function DirIcon({ label, tone, color }: { label: string; tone: "in" | "out" | "
   const c = out ? "#22B573" : inn ? "#3D6AF2" : color;
   const icon = out ? <ArrowUp size={22} strokeWidth={2.6} /> : inn ? <ArrowDown size={22} strokeWidth={2.6} />
     : label === "Swap" ? <Repeat size={20} strokeWidth={2.4} /> : label === "Bridge" ? <Link2 size={20} strokeWidth={2.4} />
-    : label === "Approve" ? <ShieldCheck size={20} strokeWidth={2.4} /> : label === "Route" ? <RouteIcon size={20} strokeWidth={2.4} /> : <ArrowUpRight size={20} strokeWidth={2.4} />;
+    : label === "Approve" ? <ShieldCheck size={20} strokeWidth={2.4} /> : label === "Route" ? <RouteIcon size={20} strokeWidth={2.4} />
+    : label === "Earn" ? <PiggyBank size={20} strokeWidth={2.4} /> : label === "Borrow" ? <HandCoins size={20} strokeWidth={2.4} /> : <ArrowUpRight size={20} strokeWidth={2.4} />;
   return (
     <span style={{ width: 46, height: 46, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#FFFFFF", background: `radial-gradient(circle at 35% 30%, ${c}CC 0%, ${c} 70%)`, boxShadow: `0 8px 16px -8px ${c}, inset 0 1px 0 rgba(255,255,255,0.4)` }}>
       {icon}

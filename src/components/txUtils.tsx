@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight, ArrowDownLeft, Repeat, Link2, ShieldCheck, Route as RouteIcon } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Repeat, Link2, ShieldCheck, Route as RouteIcon, PiggyBank, HandCoins } from "lucide-react";
+import { decodeFunctionData } from "viem";
+import { VAULTS, MORPHO_BLUE, VAULT_ABI, AAVE_SPOKE_ABI, MORPHO_ABI } from "./morpho";
 import { contactNameFor } from "../contacts";
 import { USDC_ADDRESS, EURC_ADDRESS } from "../contracts";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
@@ -72,7 +74,79 @@ export const TYPE_ICON: Record<string, ReactNode> = {
   Route: <RouteIcon size={12} />,
   Bridge: <Link2 size={12} />,
   Approve: <ShieldCheck size={12} />,
+  Earn: <PiggyBank size={12} />,
+  Borrow: <HandCoins size={12} />,
 };
+
+// Earn (Morpho vaults, Aave) and Borrow (Morpho market) transactions. The user's wallet calls these contracts
+// directly, so the destination address tells which product it was and the call itself tells what was done.
+// Amounts come from the actual token movements; the call's own amount is the fallback (e.g. for a failed tx).
+const BASE_ASSETS = ["USDC", "EURC", "cirBTC"];
+type ProtoAction = { kind: "Earn" | "Borrow"; text: ReactNode; amount: { text: string; tone: "in" | "out" } | null };
+
+function protocolAction(tx: Tx): ProtoAction | null {
+  const to = (tx.to ?? "").toLowerCase();
+  const vault = VAULTS.find((v) => v.address.toLowerCase() === to);
+  const isBlue = to === MORPHO_BLUE.toLowerCase();
+  if (!vault && !isBlue) return null;
+
+  let fn: string | null = null;
+  let args: readonly unknown[] = [];
+  try {
+    const abi = isBlue ? MORPHO_ABI : vault!.kind === "aave" ? AAVE_SPOKE_ABI : VAULT_ABI;
+    const d = decodeFunctionData({ abi, data: tx.input as `0x${string}` });
+    fn = d.functionName; args = (d.args ?? []) as readonly unknown[];
+  } catch { /* not one of the calls FlowFi makes */ }
+
+  const { ins, outs } = summarize(tx);
+  const bIn = ins.find((t) => BASE_ASSETS.includes(t.symbol));
+  const bOut = outs.find((t) => BASE_ASSETS.includes(t.symbol));
+  const amt = (t: Transfer | undefined, raw: unknown, decimals: number, sym: string) => {
+    if (t) return { n: t.amount, sym: t.symbol };
+    if (typeof raw === "bigint" && raw > 0n) return { n: Number(raw) / 10 ** decimals, sym };
+    return null;
+  };
+  const show = (a: { n: number; sym: string } | null) => a ? <>{formatAmount(a.n, 4)} <Tok s={a.sym} /></> : null;
+  const money = (a: { n: number; sym: string } | null, tone: "in" | "out") =>
+    a ? { text: `${tone === "in" ? "+" : "−"}${formatAmount(a.n, 4)} ${a.sym}`, tone } : null;
+
+  if (vault) {
+    const name = vault.name;
+    if (fn === "deposit" || fn === "supply" || (!fn && bOut)) {
+      const a = amt(bOut, fn === "supply" ? args[1] : args[0], 6, vault.asset);
+      return { kind: "Earn", text: a ? <>Deposited {show(a)} into {name}</> : <>Deposited into {name}</>, amount: money(a, "out") };
+    }
+    if (fn === "withdraw" || fn === "redeem" || (!fn && bIn)) {
+      const a = amt(bIn, fn === "withdraw" ? (vault.kind === "aave" ? null : args[0]) : null, 6, vault.asset);
+      return { kind: "Earn", text: a ? <>Withdrew {show(a)} from {name}</> : <>Withdrew from {name}</>, amount: money(a, "in") };
+    }
+    return { kind: "Earn", text: <>{name} interaction</>, amount: null };
+  }
+
+  const params = args[0] as { loanToken?: string; collateralToken?: string } | undefined;
+  const loanSym = KNOWN_TOKENS[String(params?.loanToken ?? "").toLowerCase()] ?? "USDC";
+  const collSym = KNOWN_TOKENS[String(params?.collateralToken ?? "").toLowerCase()] ?? "cirBTC";
+  switch (fn) {
+    case "supplyCollateral": {
+      const a = amt(bOut, args[1], 8, collSym);
+      return { kind: "Borrow", text: a ? <>Added {show(a)} as collateral</> : <>Added collateral</>, amount: money(a, "out") };
+    }
+    case "withdrawCollateral": {
+      const a = amt(bIn, args[1], 8, collSym);
+      return { kind: "Borrow", text: a ? <>Withdrew {show(a)} collateral</> : <>Withdrew collateral</>, amount: money(a, "in") };
+    }
+    case "borrow": {
+      const a = amt(bIn, args[1], 6, loanSym);
+      return { kind: "Borrow", text: a ? <>Borrowed {show(a)} against <Tok s={collSym} /></> : <>Borrowed <Tok s={loanSym} /></>, amount: money(a, "in") };
+    }
+    case "repay": {
+      const a = amt(bOut, args[1], 6, loanSym);
+      return { kind: "Borrow", text: a ? <>Repaid {show(a)}</> : <>Repaid <Tok s={loanSym} /></>, amount: money(a, "out") };
+    }
+    default:
+      return { kind: "Borrow", text: <>Morpho interaction</>, amount: null };
+  }
+}
 
 // CCTP domain IDs -> human-readable chain names (must match BridgeForm.tsx's CHAINS map).
 const DOMAIN_NAMES: Record<number, string> = {
@@ -128,6 +202,8 @@ export function shortHash(h: string) {
 // Label/color for a transaction. Plain native transfers (empty calldata) are Send or Receive depending on
 // direction; only a transaction with no recipient is a contract deployment.
 export function metaFor(tx: Tx, me: string, diamond: string | null) {
+  const pa = protocolAction(tx);
+  if (pa) return pa.kind === "Earn" ? { label: "Earn", color: "#0B7A53" } : { label: "Borrow", color: "#C2410C" };
   if (tx.transfers?.length && !BRIDGE_METHODS.includes(tx.method)) {
     const { ins, outs } = summarize(tx);
     if (ins.length && outs.length) return { label: "Swap", color: "#7C3AED" };
@@ -192,6 +268,8 @@ const Addr = ({ a }: { a: string }) => {
 export function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet", diamond: string | null, compact = false): ReactNode {
   const tokenSymbol = KNOWN_TOKENS[tx.to.toLowerCase()] ?? "tokens";
   const domainNames = network === "mainnet" ? DOMAIN_NAMES_MAINNET : DOMAIN_NAMES;
+  const pa = protocolAction(tx);
+  if (pa) return pa.text;
 
   // Token movements from the explorer describe what actually happened (swaps, incoming tokens, bridge mints).
   if (tx.transfers?.length) {
@@ -270,6 +348,8 @@ export function describeTx(tx: Tx, me: string, network: "testnet" | "mainnet", d
 
 // Amount column: signed for real value movements, plain for approvals, dash when it can't be decoded.
 export function amountCell(tx: Tx, me: string): { text: string; tone: "in" | "out" | "neutral" } | null {
+  const pa = protocolAction(tx);
+  if (pa) return pa.amount;
   if (tx.transfers?.length && tx.method !== "0x8e0250ee") {
     const { ins, outs } = summarize(tx);
     if (ins.length) return { text: `+${formatAmount(ins[0].amount, 4)} ${ins[0].symbol}`, tone: "in" };
@@ -317,6 +397,8 @@ export function toTx(tx: any): Tx {
 
 // Token this transaction is about, for an "Asset" column (null when it can't be told).
 export function assetOf(tx: Tx): string | null {
+  const pa = protocolAction(tx);
+  if (pa?.amount) return pa.amount.text.split(" ").pop() ?? null;
   if (tx.transfers?.length) {
     const { ins, outs } = summarize(tx);
     return (ins[0] ?? outs[0])?.symbol ?? null;
@@ -330,6 +412,9 @@ export function assetOf(tx: Tx): string | null {
 export function counterpartOf(tx: Tx, me: string): string {
   const isMe = (a: string) => a.toLowerCase() === me.toLowerCase();
   const nice = (a: string) => contactNameFor(a) ?? shortAddr(a);
+  const v = VAULTS.find((x) => x.address.toLowerCase() === (tx.to ?? "").toLowerCase());
+  if (v) return v.name;
+  if ((tx.to ?? "").toLowerCase() === MORPHO_BLUE.toLowerCase()) return "Morpho";
   if (tx.transfers?.length && !BRIDGE_METHODS.includes(tx.method)) {
     const { ins, outs } = summarize(tx);
     if (ins.length && outs.length) return tx.to && tx.to !== "—" && !isMe(tx.to) ? `Via ${nice(tx.to)}` : "Swap";
