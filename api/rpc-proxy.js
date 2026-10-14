@@ -27,7 +27,7 @@
 const { Ratelimit } = require('@upstash/ratelimit');
 const { Redis } = require('@upstash/redis');
 
-const ARC_TESTNET_RPC_URL = process.env.ARC_RPC_URL || 'https://rpc.testnet.arc.network';
+const ARC_TESTNET_RPC_URL = process.env.ARC_RPC_URL || 'https://rpc.testnet.arc.io';
 // Matches viem's own built-in `arc` chain definition's primary RPC.
 const ARC_MAINNET_RPC_URL = process.env.ARC_MAINNET_RPC_URL || 'https://rpc.mainnet.arc.io';
 

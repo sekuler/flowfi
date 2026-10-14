@@ -108,13 +108,13 @@ Proxy for Arcscan's (Blockscout-style) explorer API — used for transaction his
 
 ## `POST /api/rpc-proxy`
 
-JSON-RPC proxy for Arc Testnet, and Arc Mainnet with `?network=mainnet`. Two reasons this exists rather than calling an RPC directly from the browser: Arc's own public RPC (`rpc.testnet.arc.network`) doesn't return CORS headers, so direct browser calls to it fail; and a keyed provider (e.g. Alchemy) would otherwise require exposing that key in client-side source. This keeps any such key server-side only.
+JSON-RPC proxy for Arc Testnet, and Arc Mainnet with `?network=mainnet`. Two reasons this exists rather than calling an RPC directly from the browser: Arc's own public RPC (`rpc.testnet.arc.io`) doesn't return CORS headers, so direct browser calls to it fail; and a keyed provider (e.g. Alchemy) would otherwise require exposing that key in client-side source. This keeps any such key server-side only.
 
 **Body:** a JSON-RPC 2.0 call or a batch of up to 64 calls. Methods must be on the allowlist in the file; `eth_getLogs` must be scoped to 1–5 contract addresses and explicit numeric ranges are capped at 100,000 blocks.
 
 **Rate limit:** 300 calls/minute per IP (each call in a batch counts). Refuses to serve in production without Upstash Redis.
 
-**Env vars:** `ARC_RPC_URL` (optional) — a keyed RPC provider URL. Falls back to the public `https://rpc.testnet.arc.network` if unset.
+**Env vars:** `ARC_RPC_URL` (optional) — a keyed RPC provider URL. Falls back to the public `https://rpc.testnet.arc.io` if unset.
 
 **Response:** the upstream RPC's raw response body and status code, passed through unmodified.
 

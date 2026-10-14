@@ -11,7 +11,7 @@ export const arcTestnet = defineChain({
   rpcUrls: {
     default: {
       http: ["/api/rpc-proxy"],
-      webSocket: ["wss://rpc.testnet.arc.network"],
+      webSocket: ["wss://rpc.testnet.arc.io"],
     },
   },
   blockExplorers: {
