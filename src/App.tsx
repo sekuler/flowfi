@@ -437,13 +437,10 @@ function AppInner() {
   // EVM chains) -- only USDC has a confirmed mainnet contract address
   // today, so that's the only real figure here; the rest are left at 0
   // rather than guessing addresses that could be wrong.
-  // Arc represents USDC two separate ways: a native/protocol balance
-  // (18 decimals, what a plain wallet-to-wallet "send" moves, since USDC
-  // is the gas token) and a separate ERC-20 contract at 0x3600...
-  // (6 decimals, what dApp/contract interactions use). A transfer showing
-  // complete on arc.etherscan.io but reading as 0 here almost certainly
-  // means it landed as native, not ERC-20 -- fetching both rather than
-  // assuming one, so this is visible instead of guessed at.
+  // On Arc, native USDC (18 decimals, the gas token) and the ERC-20 USDC
+  // contract at 0x3600... (6 decimals) are two views of ONE underlying
+  // balance, not separate money (per Arc's docs). Both are read here only
+  // for display; net worth counts the ERC-20 figure once (see usePortfolio.ts).
   async function loadMainnetBalances(address: string) {
     try {
       const client = createPublicClient({ chain: arcMainnet, transport: http() });
