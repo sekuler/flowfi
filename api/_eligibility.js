@@ -1,4 +1,4 @@
-// Shared by api/activity.js and api/badge.js (the leading "_" keeps Vercel from exposing this file as a route).
+// Shared by api/activity.js and api/_badge.js (the leading "_" keeps Vercel from exposing this file as a route).
 // "Has this wallet used FlowFi?" — our own verified activity log first, then LI.FI transfers tagged "flowfi".
 const { Redis } = require('@upstash/redis');
 

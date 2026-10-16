@@ -1,7 +1,9 @@
 // Flow Pioneer badge (contracts/FlowPioneerBadge.sol on Arc mainnet).
+// Served through api/activity.js as /api/activity?route=badge — not its own file under api/, because the
+// Vercel Hobby plan allows at most 12 serverless functions per deployment (the leading "_" keeps it from being one).
 //
-// GET  ?address=0x...  -> { minted, tokenId, open }  — what the Home card should show.
-// POST { address }     -> { signature }  — mint permission for a wallet that has used FlowFi.
+// GET  ?route=badge&address=0x...  -> { minted, tokenId, open }  — what the Home card should show.
+// POST ?route=badge { address }    -> { signature }  — mint permission for a wallet that has used FlowFi.
 //   The contract only accepts a signature from BADGE_SIGNER_KEY over (contract, chainId, wallet),
 //   so it is useless for any other wallet or contract.
 //
@@ -40,7 +42,7 @@ async function readContract(functionName, args = []) {
   return decodeFunctionResult({ abi: BADGE_ABI, functionName, data: d.result });
 }
 
-module.exports = async function handler(req, res) {
+module.exports = async function badgeHandler(req, res) {
   if (!redis) return res.status(503).json({ error: 'Badge is not configured.' });
   const { success } = await ratelimit.limit(clientIp(req));
   if (!success) return res.status(429).json({ error: 'Too many requests — please slow down.' });
@@ -89,7 +91,7 @@ module.exports = async function handler(req, res) {
     const signature = await privateKeyToAccount(key).signMessage({ message: { raw: digest } });
     return res.status(200).json({ signature });
   } catch (e) {
-    console.error('api/badge.js:', e);
+    console.error('api/_badge.js:', e);
     return res.status(500).json({ error: 'Could not check the badge right now. Please try again.' });
   }
 };

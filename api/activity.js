@@ -1,5 +1,7 @@
 // FlowFi activity log — records wallets that completed a real transaction through FlowFi.
-// Used for the early-user badge (first 300) and for FlowFi's own volume stats.
+// Used for the early-user badge and for FlowFi's own volume stats.
+// ?route=badge is handed to api/_badge.js (Flow Pioneer mint signatures) — kept in this one function because
+// the Vercel Hobby plan caps a deployment at 12 serverless functions.
 //
 // POST { kind, chainId, txHash, address }  -> verifies the tx onchain, then records it.
 //   kind "lifi": verified through LI.FI's status API (integrator must be "flowfi"); chainId/address optional.
@@ -13,6 +15,7 @@
 const { Ratelimit } = require('@upstash/ratelimit');
 const viemChains = require('viem/chains');
 const { redis, lc, isAddress, clientIp, eligibilitySource, LIFI_API, INTEGRATOR } = require('./_eligibility');
+const badgeHandler = require('./_badge');
 
 const ratelimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, '60 s'), prefix: 'ratelimit:activity' })
@@ -88,6 +91,7 @@ async function verifyLifi(txHash) {
 }
 
 module.exports = async function handler(req, res) {
+  if (req.query?.route === 'badge') return badgeHandler(req, res);
   if (!redis) return res.status(503).json({ error: 'Activity log is not configured.' });
 
   const { success } = await ratelimit.limit(clientIp(req));

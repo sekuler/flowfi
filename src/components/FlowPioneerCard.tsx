@@ -6,7 +6,7 @@ import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { T, glass } from "./mainnetTheme";
 import { useIsMobile } from "../useIsMobile";
 
-// Flow Pioneer badge card on the mainnet Home (contracts/FlowPioneerBadge.sol, api/badge.js).
+// Flow Pioneer badge card on the mainnet Home (contracts/FlowPioneerBadge.sol, api/_badge.js via /api/activity?route=badge).
 // Every connected wallet sees "Your Flow Pioneer badge is waiting". Pressing Mint asks the server for a
 // signature: wallets that already used FlowFi get one and mint; others see a short note to make their
 // first transaction. After minting the card shows the wallet's badge number. When badges run out the
@@ -42,7 +42,7 @@ export default function FlowPioneerCard({ address, provider }: { address: string
   useEffect(() => {
     let cancelled = false;
     setStatus(null); setNote(null); setMintHash(null);
-    fetch(`/api/badge?address=${address}`)
+    fetch(`/api/activity?route=badge&address=${address}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((s: Status | null) => { if (!cancelled && s) setStatus(s); })
       .catch(() => {});
@@ -53,7 +53,7 @@ export default function FlowPioneerCard({ address, provider }: { address: string
     if (!provider || busy) return;
     setBusy(true); setNote(null);
     try {
-      const r = await fetch("/api/badge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
+      const r = await fetch("/api/activity?route=badge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.signature) {
         if (r.status === 410) { setStatus((s) => (s ? { ...s, open: false } : s)); return; }
