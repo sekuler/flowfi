@@ -7,6 +7,7 @@ import { arcMainnet } from "../chains";
 import type { LiveCircleWallet } from "./ConnectModal";
 import { ChainLogo, TokenLogo, type ChainKey } from "./AssetLogos";
 import { useIsMobile } from "../useIsMobile";
+import { logActivity } from "../activity";
 
 // Circle Gateway on MAINNET: one USDC balance across Arc, Base, Ethereum and Arbitrum.
 // Sources (developers.circle.com, checked 2026-09-25):
@@ -232,6 +233,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         setDMsg("2/2 Confirm the deposit...");
         const h = await wc.writeContract({ address: GATEWAY_WALLET, abi: GATEWAY_DEPOSIT_ABI, functionName: "deposit", args: [dep.usdc, amountRaw] });
         if ((await pc.waitForTransactionReceipt({ hash: h })).status === "reverted") throw new Error("Deposit reverted.");
+        logActivity("gateway", h, dep.chain.id, owner);
       } else {
         const walletId = circleLive!.walletsByChain[dep.circleCode]?.walletId;
         if (!walletId) throw new Error(`No ${dep.name} Circle wallet on this account.`);

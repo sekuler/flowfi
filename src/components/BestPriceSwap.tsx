@@ -6,6 +6,7 @@ import { arcMainnet, ARC_MAINNET_CHAIN_ID, ARC_MAINNET_CHAIN_ID_HEX } from "../c
 import { TokenIcon } from "./TokenIcon";
 import { useIsMobile } from "../useIsMobile";
 import { loadLifiDiamond } from "./txUtils";
+import { logActivity } from "../activity";
 
 // Same-chain swaps on Arc Mainnet, routed to whichever source gives the most output.
 // Each source is asked for a quote in parallel (KyberSwap, De¹ and LI.FI); the best one is
@@ -291,6 +292,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       const h = await wc.sendTransaction({ to: txTo as `0x${string}`, data, value });
       setHash(h);
       if ((await pc.waitForTransactionReceipt({ hash: h })).status === "reverted") throw new Error("The swap reverted (price moved more than 0.5%). Nothing was swapped.");
+      logActivity(sel.source === "LI.FI" ? "lifi" : "swap", h, ARC_MAINNET_CHAIN_ID, address);
       setStep("done"); setMsg(`Swapped ${amount} ${from.symbol} for ${to.symbol} via ${sel.source}.`); setAmount(""); setTick((t) => t + 1);
     } catch (e: unknown) {
       const err = e as { shortMessage?: string; message?: string };

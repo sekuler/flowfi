@@ -7,6 +7,7 @@ import {
 } from "viem/chains";
 import { Check, ArrowRight, ArrowLeft, ChevronDown, X, ShieldCheck } from "lucide-react";
 import { useIsMobile } from "../useIsMobile";
+import { logActivity } from "../activity";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 import { USDC_LOGO, ARC_LOGO } from "./tokenLogos";
 
@@ -480,6 +481,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
           setBurnSourceIdx(null);
           throw new Error("The burn transaction reverted on the source chain. No USDC was burned.");
         }
+        logActivity("cctp", burnHash, source.chain.id, address);
       }
 
       setStep("waiting-attestation");

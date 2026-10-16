@@ -3,6 +3,7 @@ import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
+import { useLifiActivity } from "../useLifiActivity";
 import ArcTokenStrip from "./ArcTokenStrip";
 import BestPriceSwap from "./BestPriceSwap";
 
@@ -62,6 +63,7 @@ const lifiWidgetConfig: WidgetConfig = {
 };
 
 export default function MainnetSwap({ address, provider, onConnect }: { address?: string; provider?: EIP1193Provider; onConnect?: () => void }) {
+  useLifiActivity();
   const formRef = useRef<FormState | null>(null);
   // "best": FlowFi compares KyberSwap, De¹ and LI.FI quotes for Arc tokens. "any": the LI.FI widget, for any token.
   const [mode, setMode] = useState<"best" | "any">("best");

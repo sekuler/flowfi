@@ -6,6 +6,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { EURC_LOGO } from "./tokenLogos";
 import { TokenIcon } from "./TokenIcon";
+import { logActivity } from "../activity";
 
 // Native EURC into Arc Mainnet via Circle's "CCTP for non-USDC" (CrossChainTokenService).
 // Sources (all verified 2026-09-23 against developers.circle.com):
@@ -267,6 +268,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
       setTxHash(hash); setPendingSrc(srcIdx); savePending(hash, srcIdx, amount.trim());
       const r = await pc.waitForTransactionReceipt({ hash });
       if (r.status === "reverted") { clearPending(); setTxHash(null); setPendingSrc(null); throw new Error("The transfer reverted on the source chain. Nothing was sent."); }
+      logActivity("cctpx", hash, s.chain.id, address);
 
       setStep("delivering");
       const out = await waitDelivered(hash, s, q.fast ? 5 : s.stdMaxMin);

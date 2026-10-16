@@ -2,7 +2,8 @@ import { useState, useEffect, createElement } from "react";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, maxUint256 } from "viem";
 import type { EIP1193Provider } from "viem";
 import { PiggyBank, Landmark, RefreshCw, X, ArrowLeft, ExternalLink, Wallet, TrendingUp, CalendarDays, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
+import { arcMainnet, ARC_MAINNET_CHAIN_ID, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
+import { logActivity } from "../activity";
 import { TokenOnChain } from "./AssetLogos";
 import { ARC_LOGO } from "./tokenLogos";
 import { useIsMobile } from "../useIsMobile";
@@ -375,8 +376,9 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
     try {
       await switchToArc(provider);
       const wc = createWalletClient({ account: owner, chain: arcMainnet, transport: custom(provider) });
+      let lastHash: `0x${string}` | null = null; // the action's own tx always comes last (after any approval)
       const wait = async (h: `0x${string}`) => {
-        setHash(h);
+        setHash(h); lastHash = h;
         const rc = await pc.waitForTransactionReceipt({ hash: h });
         if (rc.status === "reverted") throw new Error("The transaction reverted. Nothing changed.");
       };
@@ -436,6 +438,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "withdrawCollateral", args: [M.params, amt, owner, owner] });
         await wait(await wc.writeContract(request));
       }
+      logActivity(isEarn ? "earn" : "borrow", lastHash, ARC_MAINNET_CHAIN_ID, owner);
       setStep("done"); setMsg(`${verb} ${amount} ${tokenSymbol}: done.`); setAmount("");
       setTick((t) => t + 1);
     } catch (e: unknown) {

@@ -8,6 +8,7 @@ import NativeCctpBridge, { SOURCE_CHAINS } from "./NativeCctpBridge";
 import NativeEurcBridge from "./NativeEurcBridge";
 import ArcTokenStrip from "./ArcTokenStrip";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
+import { useLifiActivity } from "../useLifiActivity";
 
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
 const BASE_CHAIN_ID = 8453;
@@ -57,6 +58,7 @@ const lifiWidgetConfig: WidgetConfig = {
 };
 
 export default function MainnetBridge({ address, provider }: { address?: string; provider?: EIP1193Provider }) {
+  useLifiActivity();
   const [mode, setMode] = useState<"cctp" | "lifi" | "eurc">(() => {
     try {
       return sessionStorage.getItem("flowfi-bridge-mode") === "cctp" ? "cctp" : "lifi";
