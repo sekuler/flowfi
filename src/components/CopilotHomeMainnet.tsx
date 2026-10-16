@@ -10,6 +10,7 @@ import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
 import { loadLifiDiamond, describeTx, counterpartOf, fetchActivity, type Tx } from "./txUtils";
 import { T, glass, heroBlue } from "./mainnetTheme";
+import FlowPioneerCard from "./FlowPioneerCard";
 
 // Mainnet counterpart to CopilotHome.tsx (which stays as-is, Arc Testnet
 // only). Two states:
@@ -437,6 +438,8 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
       `}</style>
 
       {hero}
+
+      <FlowPioneerCard address={address} provider={provider} />
 
       {isNew ? (
         <div style={twoCol}>

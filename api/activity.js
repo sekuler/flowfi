@@ -11,23 +11,15 @@
 // Stored (Upstash Redis, same instance as the other endpoints): wallet address, tx hash, chain, kind, time.
 // All of it is already public onchain. Nothing else about the user is kept.
 const { Ratelimit } = require('@upstash/ratelimit');
-const { Redis } = require('@upstash/redis');
 const viemChains = require('viem/chains');
+const { redis, lc, isAddress, clientIp, eligibilitySource, LIFI_API, INTEGRATOR } = require('./_eligibility');
 
-const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
-  : null;
 const ratelimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, '60 s'), prefix: 'ratelimit:activity' })
   : null;
 
 const ARC_CHAIN_ID = 5042;
 const ARC_MAINNET_RPC_URL = process.env.ARC_MAINNET_RPC_URL || 'https://rpc.mainnet.arc.io';
-const LIFI_API = 'https://li.quest';
-const INTEGRATOR = 'flowfi';
-const MAINNET_LAUNCH_TS = 1789516800; // 2026-09-16 00:00 UTC — LI.FI lookups start here
-
-const lc = (a) => a.toLowerCase();
 // Contracts each kind's main transaction goes to. Mirrors the addresses in src/components — keep in sync.
 // null chain list = any chain (the same contract address is deployed on every chain FlowFi uses it on).
 const TARGETS = {
@@ -53,7 +45,6 @@ const TARGETS = {
 };
 for (const k of Object.keys(TARGETS)) TARGETS[k].to = TARGETS[k].to.map(lc);
 
-const isAddress = (a) => typeof a === 'string' && /^0x[0-9a-fA-F]{40}$/.test(a);
 const isTxHash = (h) => typeof h === 'string' && /^0x[0-9a-fA-F]{64}$/.test(h);
 
 function rpcUrlFor(chainId) {
@@ -96,31 +87,18 @@ async function verifyLifi(txHash) {
   return { wallet: lc(s.fromAddress), chainId: s.sending?.chainId ?? null };
 }
 
-async function lifiHasTransfer(address) {
-  const q = new URLSearchParams({ integrator: INTEGRATOR, wallet: address, status: 'DONE', fromTimestamp: String(MAINNET_LAUNCH_TS), limit: '1' });
-  const r = await fetch(`${LIFI_API}/v2/analytics/transfers?${q}`);
-  if (!r.ok) return false;
-  const d = await r.json();
-  return (d?.data?.length ?? d?.transfers?.length ?? 0) > 0;
-}
-
 module.exports = async function handler(req, res) {
   if (!redis) return res.status(503).json({ error: 'Activity log is not configured.' });
 
-  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
-  const { success } = await ratelimit.limit(ip);
+  const { success } = await ratelimit.limit(clientIp(req));
   if (!success) return res.status(429).json({ error: 'Too many requests — please slow down.' });
 
   try {
     if (req.method === 'GET') {
       const address = req.query?.address;
       if (!isAddress(address)) return res.status(400).json({ error: 'A valid address is required.' });
-      if (await redis.sismember('activity:wallets', lc(address))) return res.status(200).json({ eligible: true, source: 'flowfi' });
-      if (await lifiHasTransfer(address)) {
-        await redis.sadd('activity:wallets', lc(address)); // remember it so we don't ask LI.FI again
-        return res.status(200).json({ eligible: true, source: 'lifi' });
-      }
-      return res.status(200).json({ eligible: false, source: null });
+      const source = await eligibilitySource(address);
+      return res.status(200).json({ eligible: source !== null, source });
     }
 
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

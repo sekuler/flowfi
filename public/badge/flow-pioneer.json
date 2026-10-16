@@ -1,0 +1,11 @@
+{
+  "name": "Flow Pioneer",
+  "description": "A non-transferable badge for the early users who made their first transactions on FlowFi, built on Arc.",
+  "image": "https://flowfi.finance/badge/flow-pioneer.png",
+  "external_url": "https://flowfi.finance",
+  "attributes": [
+    { "trait_type": "Badge", "value": "Flow Pioneer" },
+    { "trait_type": "Type", "value": "Early User" },
+    { "trait_type": "Transferable", "value": "No" }
+  ]
+}
