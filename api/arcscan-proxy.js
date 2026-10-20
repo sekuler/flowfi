@@ -91,6 +91,85 @@ async function setCached(key, entry) {
   memCache.set(key, { ...entry, expiresAt: Date.now() + CACHE_TTL_SECONDS * 1000 });
 }
 
+
+// ---- Arc mainnet history via Alchemy -------------------------------------------------------------------------
+// Etherscan's free API stopped covering Arc mainnet (chain 5042): since Oct 2026 every call returns
+// "Free API access is not supported for this chain". Alchemy's Transfers API does cover Arc mainnet on its free
+// plan (confirmed 2026-10-20 with alchemy_getAssetTransfers against a real wallet), so when ALCHEMY_API_KEY is set,
+// the two history queries the app makes (txlist, tokentx) are answered from Alchemy and returned in the same
+// Etherscan shape the pages already read. Nothing changes in the frontend.
+const ALCHEMY_ARC_URL = 'https://arc-mainnet.g.alchemy.com/v2/';
+const ALCHEMY_ACTIONS = new Set(['txlist', 'tokentx']);
+
+async function alchemyCall(body) {
+  const r = await fetch(ALCHEMY_ARC_URL + process.env.ALCHEMY_API_KEY, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`Alchemy ${r.status}`);
+  return r.json();
+}
+
+async function assetTransfers(filter) {
+  const d = await alchemyCall({ jsonrpc: '2.0', id: 1, method: 'alchemy_getAssetTransfers', params: [{ withMetadata: true, order: 'desc', ...filter }] });
+  if (d.error) throw new Error(d.error.message || 'Alchemy error');
+  return d.result?.transfers ?? [];
+}
+
+const toSecs = (t) => String(Math.floor(new Date(t?.metadata?.blockTimestamp ?? 0).getTime() / 1000));
+const hexToDec = (h) => { try { return BigInt(h).toString(); } catch { return '0'; } };
+
+// Both directions, newest first, without duplicates (a self-transfer shows up in both lists).
+async function bothDirections(address, filter, count) {
+  const maxCount = '0x' + count.toString(16);
+  const [out, inn] = await Promise.all([
+    assetTransfers({ ...filter, fromAddress: address, maxCount }),
+    assetTransfers({ ...filter, toAddress: address, maxCount }),
+  ]);
+  const seen = new Map();
+  for (const t of [...out, ...inn]) if (!seen.has(t.uniqueId)) seen.set(t.uniqueId, t);
+  return [...seen.values()].sort((a, b) => Number(BigInt(b.blockNum) - BigInt(a.blockNum)));
+}
+
+// Etherscan "txlist": the wallet's own transactions with input data and status, which the History page uses to
+// tell a swap, a deposit or an approval apart. Alchemy gives the hashes; the details come from one batched RPC call.
+async function alchemyTxlist(address, count) {
+  const transfers = await bothDirections(address, { category: ['external'], excludeZeroValue: false }, count);
+  const byHash = new Map();
+  for (const t of transfers) if (!byHash.has(t.hash)) byHash.set(t.hash, t);
+  const hashes = [...byHash.keys()].slice(0, count);
+  if (!hashes.length) return [];
+  const batch = hashes.flatMap((h, i) => [
+    { jsonrpc: '2.0', id: i * 2, method: 'eth_getTransactionByHash', params: [h] },
+    { jsonrpc: '2.0', id: i * 2 + 1, method: 'eth_getTransactionReceipt', params: [h] },
+  ]);
+  const replies = await alchemyCall(batch);
+  const byId = new Map((Array.isArray(replies) ? replies : []).map((r) => [r.id, r.result]));
+  return hashes.map((h, i) => {
+    const tx = byId.get(i * 2) || {};
+    const rc = byId.get(i * 2 + 1) || {};
+    const t = byHash.get(h);
+    const input = tx.input || '0x';
+    const ok = rc.status === '0x1';
+    return {
+      blockNumber: hexToDec(t.blockNum), timeStamp: toSecs(t), hash: h,
+      from: tx.from || t.from || '', to: tx.to || t.to || '', value: hexToDec(tx.value || '0x0'), input,
+      methodId: input.length >= 10 ? input.slice(0, 10) : '0x', functionName: '',
+      isError: rc.status ? (ok ? '0' : '1') : '0', txreceipt_status: rc.status ? (ok ? '1' : '0') : '',
+      gasUsed: hexToDec(rc.gasUsed || '0x0'), gasPrice: hexToDec(tx.gasPrice || '0x0'), contractAddress: rc.contractAddress || '',
+    };
+  });
+}
+
+// Etherscan "tokentx": ERC-20 movements in and out of the wallet (USDC, EURC, ...).
+async function alchemyTokentx(address, count) {
+  const transfers = await bothDirections(address, { category: ['erc20'] }, count);
+  return transfers.slice(0, count).map((t) => ({
+    blockNumber: hexToDec(t.blockNum), timeStamp: toSecs(t), hash: t.hash, from: t.from || '', to: t.to || '',
+    value: hexToDec(t.rawContract?.value || '0x0'), contractAddress: t.rawContract?.address || '',
+    tokenSymbol: t.asset || '', tokenDecimal: t.rawContract?.decimal ? hexToDec(t.rawContract.decimal) : '',
+  }));
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -144,6 +223,17 @@ module.exports = async function handler(req, res) {
       res.status(cached.status);
       res.setHeader('Content-Type', cached.contentType);
       return res.send(cached.body);
+    }
+
+    if (isMainnet && process.env.ALCHEMY_API_KEY && mod === 'account' && ALCHEMY_ACTIONS.has(params.get('action')) && params.has('address')) {
+      const count = Math.min(Math.max(parseInt(params.get('offset') || params.get('limit') || '30', 10) || 30, 1), 100);
+      const address = params.get('address');
+      const result = params.get('action') === 'txlist' ? await alchemyTxlist(address, count) : await alchemyTokentx(address, count);
+      const body = JSON.stringify({ status: '1', message: 'OK', result });
+      await setCached(cacheKey, { status: 200, contentType: 'application/json', body });
+      res.status(200);
+      res.setHeader('Content-Type', 'application/json');
+      return res.send(body);
     }
 
     let response = null;
