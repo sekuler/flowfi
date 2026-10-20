@@ -18,6 +18,8 @@
     "@lifi/widget-provider-bitcoin": "^4.3.0",
     "@lifi/widget-provider-ethereum": "^4.1.5",
     "@lifi/widget-provider-solana": "^4.1.5",
+    "@mysten/sui": "2.35.0",
+    "@mysten/wallet-standard": "0.21.33",
     "@tanstack/react-query": "^5.103.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.4",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import { SolanaProvider } from "@lifi/widget-provider-solana";
@@ -6,6 +6,8 @@ import { BitcoinProvider } from "@lifi/widget-provider-bitcoin";
 import type { EIP1193Provider } from "viem";
 import NativeCctpBridge, { SOURCE_CHAINS } from "./NativeCctpBridge";
 import NativeEurcBridge from "./NativeEurcBridge";
+// Loaded only when the Sui tab is opened, so the Sui SDK never slows down the rest of the app.
+const SuiCctpBridge = lazy(() => import("./SuiCctpBridge"));
 import ArcTokenStrip from "./ArcTokenStrip";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 
@@ -57,7 +59,7 @@ const lifiWidgetConfig: WidgetConfig = {
 };
 
 export default function MainnetBridge({ address, provider }: { address?: string; provider?: EIP1193Provider }) {
-  const [mode, setMode] = useState<"cctp" | "lifi" | "eurc">(() => {
+  const [mode, setMode] = useState<"cctp" | "lifi" | "eurc" | "sui">(() => {
     try {
       return sessionStorage.getItem("flowfi-bridge-mode") === "cctp" ? "cctp" : "lifi";
     } catch { return "lifi"; }
@@ -101,16 +103,28 @@ export default function MainnetBridge({ address, provider }: { address?: string;
           </div>
         )}
 
+        {mode === "sui" && (
+          <div key="sui-hero" style={{ animation: "flowfi-fade-in 0.35s ease" }}>
+            <h1 style={{ fontSize: 30, fontWeight: 800, color: "#111827", margin: "16px 0 8px", lineHeight: 1.15, textAlign: "center" }}>
+              Send USDC from <span className="flowfi-mono" style={{ color: "#3D5AF1" }}>Sui</span> to Arc
+            </h1>
+            <p style={{ fontSize: 13.5, color: "#6B7280", margin: "0 auto 20px", maxWidth: 470, textAlign: "center", lineHeight: 1.55 }}>
+              Native USDC over Circle CCTP V2: it's burned on Sui and minted fresh on Arc, with no wrapped tokens. Connect a Sui wallet to send, and your Arc wallet to receive.
+            </p>
+          </div>
+        )}
+
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 10, margin: "0 auto 10px" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", padding: "5px 13px", borderRadius: 999 }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.18)" }} />
           <span style={{ fontSize: 11.5, color: "#2B45C9", fontWeight: 700 }}>Arc Mainnet · real funds, real fees</span>
         </div>
-        <div style={{ display: "flex", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 999, width: "fit-content", maxWidth: "100%" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 24, width: "fit-content", maxWidth: "100%" }}>
           {([
             { k: "lifi", t: "Any token", sub: "Swap and bridge via LI.FI" },
             { k: "cctp", t: "Native USDC", sub: "1:1 via Circle CCTP" },
             { k: "eurc", t: "EURC & cirBTC", sub: "1:1 via Circle CCTP" },
+            { k: "sui", t: "USDC from Sui", sub: "1:1 via Circle CCTP" },
           ] as const).map((tab) => {
             const on = mode === tab.k;
             return (
@@ -145,6 +159,17 @@ export default function MainnetBridge({ address, provider }: { address?: string;
           {mode === "eurc" && !address && (
             <div style={{ maxWidth: 480, margin: "0 auto", background: "#fff", border: "1px solid #E7E4DD", borderRadius: 24, padding: "2rem", textAlign: "center", color: "#6B7280", fontSize: 13 }}>
               Connect your wallet to use the native EURC bridge.
+            </div>
+          )}
+
+          {mode === "sui" && address && (
+            <Suspense fallback={<div style={{ maxWidth: 480, margin: "0 auto", height: 420, background: "#fff", border: "1px solid #E7E4DD", borderRadius: 28 }} />}>
+              <SuiCctpBridge address={address} provider={provider} />
+            </Suspense>
+          )}
+          {mode === "sui" && !address && (
+            <div style={{ maxWidth: 480, margin: "0 auto", background: "#fff", border: "1px solid #E7E4DD", borderRadius: 24, padding: "2rem", textAlign: "center", color: "#6B7280", fontSize: 13 }}>
+              Connect your wallet to choose where your USDC arrives on Arc.
             </div>
           )}
 
