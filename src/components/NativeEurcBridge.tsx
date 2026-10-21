@@ -7,7 +7,7 @@ import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { EURC_LOGO } from "./tokenLogos";
 import { TokenIcon } from "./TokenIcon";
 import { BridgeKit } from "@circle-fin/bridge-kit";
-import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
+import { createKitAdapter } from "../kitAdapter";
 
 // Native EURC into Arc Mainnet via Circle's "CCTP for non-USDC" (CrossChainTokenService).
 // Sources (all verified 2026-09-23 against developers.circle.com):
@@ -297,7 +297,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
   // New transfer through Circle Bridge Kit. Errors are handled by send().
   async function sendWithKit(p: EIP1193Provider, s: Source, wantFast: boolean) {
     const kit = new BridgeKit();
-    const adapter = await createViemAdapterFromProvider({ provider: p });
+    const adapter = await createKitAdapter(p);
     const idx = srcIdx;
     const amt = amount.trim();
     let sent: string | null = null;

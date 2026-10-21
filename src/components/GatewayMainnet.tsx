@@ -7,6 +7,8 @@ import { arcMainnet } from "../chains";
 import type { LiveCircleWallet } from "./ConnectModal";
 import { ChainLogo, TokenLogo, type ChainKey } from "./AssetLogos";
 import { useIsMobile } from "../useIsMobile";
+import { UnifiedBalanceKit } from "@circle-fin/unified-balance-kit";
+import { createKitAdapter } from "../kitAdapter";
 
 // Circle Gateway on MAINNET: one USDC balance across Arc, Base, Ethereum and Arbitrum.
 // Sources (developers.circle.com, checked 2026-09-25):
@@ -21,6 +23,12 @@ const GATEWAY_API = "https://gateway-api.circle.com";
 const GATEWAY_WALLET = "0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE" as const;
 const GATEWAY_MINTER = "0x2222222d7164433c4C09B0b0D809a9b52C04C205" as const;
 const CIRCLE_API = "/api/circle-wallet-mainnet";
+
+// Circle Unified Balance Kit (@circle-fin/unified-balance-kit) runs browser-wallet deposits and
+// sends/withdrawals (Gateway spend with Circle's Forwarding Service). Circle Wallet stays on the
+// manual path below (it signs server-side). Set to false to roll back.
+const USE_KIT = true;
+const KIT_CHAIN: Record<string, "Arc" | "Base" | "Ethereum" | "Arbitrum"> = { arc: "Arc", base: "Base", ethereum: "Ethereum", arbitrum: "Arbitrum" };
 
 interface GChain { key: string; name: string; circleCode: string; domain: number; chain: Chain; usdc: `0x${string}`; explorer: string; slow: boolean }
 const CHAINS: GChain[] = [
@@ -222,7 +230,13 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     const amountRaw = parseUnits(depAmount.trim(), 6);
     setDStep("busy"); setDMsg(null);
     try {
-      if (source === "browser") {
+      if (source === "browser" && USE_KIT) {
+        await switchTo(provider!, dep.chain);
+        const kit = new UnifiedBalanceKit();
+        const adapter = await createKitAdapter(provider!);
+        setDMsg("Approve and confirm the deposit in your wallet...");
+        await kit.deposit({ from: { adapter, chain: KIT_CHAIN[dep.key] }, amount: depAmount.trim(), allowanceStrategy: "approve" });
+      } else if (source === "browser") {
         await switchTo(provider!, dep.chain);
         const wc = createWalletClient({ account: owner as `0x${string}`, chain: dep.chain, transport: custom(provider!) });
         const pc = createPublicClient({ chain: dep.chain, transport: http() });
@@ -257,6 +271,20 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     if (!owner) return;
     setTStep("busy"); setTMsg("Getting Circle's fee quote...");
     try {
+     let transferId: string;
+     if (source === "browser" && USE_KIT) {
+      const kit = new UnifiedBalanceKit();
+      const adapter = await createKitAdapter(provider!);
+      const amt = tAmount.trim();
+      setTMsg("Sign the transfer in your wallet...");
+      const res = await kit.spend({
+        amount: amt,
+        from: { adapter, allocations: { amount: amt, chain: KIT_CHAIN[from.key] } },
+        to: { chain: KIT_CHAIN[to.key], recipientAddress: (tab === "withdraw" ? owner : recipient).trim(), useForwarder: true },
+      });
+      if (!res.transferId) throw new Error("Circle did not return a transfer ID.");
+      transferId = res.transferId;
+     } else {
       const saltBytes = crypto.getRandomValues(new Uint8Array(32));
       const salt = ("0x" + Array.from(saltBytes).map((b) => b.toString(16).padStart(2, "0")).join("")) as `0x${string}`;
       const spec = {
@@ -306,8 +334,10 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
       });
       const tr = await tRes.json().catch(() => ({}));
       if (!tRes.ok) throw new Error(tr?.message ?? `Transfer request failed (${tRes.status}).`);
-      const transferId = tr?.transferId ?? tr?.[0]?.transferId;
-      if (!transferId) throw new Error("Circle did not return a transfer ID.");
+      const tid = tr?.transferId ?? tr?.[0]?.transferId;
+      if (!tid) throw new Error("Circle did not return a transfer ID.");
+      transferId = tid;
+     }
 
       setTMsg(`Circle is delivering your USDC on ${to.name}...`);
       const start = Date.now();

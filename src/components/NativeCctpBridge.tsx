@@ -7,7 +7,7 @@ import {
 } from "viem/chains";
 import { Check, ArrowRight, ArrowLeft, ChevronDown, X, ShieldCheck } from "lucide-react";
 import { BridgeKit } from "@circle-fin/bridge-kit";
-import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
+import { createKitAdapter } from "../kitAdapter";
 import { useIsMobile } from "../useIsMobile";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 import { USDC_LOGO, ARC_LOGO } from "./tokenLogos";
@@ -414,7 +414,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   // otherwise the kit asks the user to sign the mint on Arc. Errors are handled by run().
   async function runWithKit(p: EIP1193Provider) {
     const kit = new BridgeKit();
-    const adapter = await createViemAdapterFromProvider({ provider: p });
+    const adapter = await createKitAdapter(p);
     const idx = sourceIdx;
     const amt = amount.trim();
     let burned: string | null = null;

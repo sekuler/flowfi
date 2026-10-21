@@ -15,6 +15,7 @@
     "@circle-fin/adapter-viem-v2": "^1.19.2",
     "@circle-fin/bridge-kit": "^1.16.0",
     "@circle-fin/developer-controlled-wallets": "^10.8.0",
+    "@circle-fin/unified-balance-kit": "^1.8.2",
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@lifi/widget": "^4.7.1",
     "@lifi/widget-provider-bitcoin": "^4.3.0",
