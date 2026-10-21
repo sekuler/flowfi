@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@bigmi/react": "^0.9.4",
+    "@circle-fin/adapter-viem-v2": "^1.19.2",
+    "@circle-fin/bridge-kit": "^1.16.0",
     "@circle-fin/developer-controlled-wallets": "^10.8.0",
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@lifi/widget": "^4.7.1",

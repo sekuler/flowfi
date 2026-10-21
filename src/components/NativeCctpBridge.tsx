@@ -6,6 +6,8 @@ import {
   unichain, linea, sonic, worldchain, monad, sei, xdc, hyperEvm, ink, plume, morph, codex,
 } from "viem/chains";
 import { Check, ArrowRight, ArrowLeft, ChevronDown, X, ShieldCheck } from "lucide-react";
+import { BridgeKit } from "@circle-fin/bridge-kit";
+import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { useIsMobile } from "../useIsMobile";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 import { USDC_LOGO, ARC_LOGO } from "./tokenLogos";
@@ -57,6 +59,18 @@ const IRIS_API = "https://iris-api.circle.com";
 // and signs nothing on Arc. The fee (Arc gas + $0.05 service fee) is taken from the burned
 // USDC and must be covered by maxFee. Static hook = "cctp-forward" magic + version 0 + length 0.
 const FORWARD_HOOK_DATA = "0x636374702d666f72776172640000000000000000000000000000000000000000" as const;
+
+// Circle Bridge Kit (@circle-fin/bridge-kit) runs new USDC transfers: approve, burn, attestation and
+// the Forwarding Service delivery on Arc. Same CCTP V2 contracts as the manual path below.
+// The manual path stays for Resume and for routes not mapped here. Set to false to roll back.
+const USE_BRIDGE_KIT = true;
+const KIT_CHAIN: Record<string, string> = {
+  ethereum: "Ethereum", avalanche: "Avalanche", optimism: "Optimism", arbitrum: "Arbitrum", base: "Base",
+  polygon: "Polygon", unichain: "Unichain", linea: "Linea", codex: "Codex", sonic: "Sonic",
+  worldchain: "World_Chain", monad: "Monad", sei: "Sei", xdc: "XDC", hyperevm: "HyperEVM",
+  ink: "Ink", morph: "Morph",
+  // plume left out: Bridge Kit lists chain ID 98866, viem 98865. Plume keeps the manual path.
+};
 
 interface SourceChain {
   key: string;
@@ -396,6 +410,62 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     throw new Error("Attestation is taking longer than expected. Your burn is confirmed on-chain, so don't send again. Use Resume to finish the transfer once Circle's attestation is ready.");
   }
 
+  // New transfer through Circle Bridge Kit. With forwarding, Circle delivers on Arc (no Arc gas);
+  // otherwise the kit asks the user to sign the mint on Arc. Errors are handled by run().
+  async function runWithKit(p: EIP1193Provider) {
+    const kit = new BridgeKit();
+    const adapter = await createViemAdapterFromProvider({ provider: p });
+    const idx = sourceIdx;
+    const amt = amount.trim();
+    let burned: string | null = null;
+
+    kit.on("approve", (e) => { if ("state" in e.values && e.values.state === "success") setStep("burning"); });
+    kit.on("burn", (e) => {
+      const h = e.values.txHash;
+      if (e.values.state === "success" && h) {
+        burned = h;
+        setBurnTxHash(h);
+        setBurnSourceIdx(idx);
+        setBurnForwarded(forwarding);
+        savePending(h, idx, amt, forwarding);
+        setStep("waiting-attestation");
+      }
+    });
+    kit.on("mint", (e) => {
+      if (!forwarding && e.values.state === "pending") setStep("minting");
+    });
+
+    setStep("approving");
+    const result = await kit.bridge({
+      from: { adapter, chain: KIT_CHAIN[source.key] as "Base" },
+      to: forwarding
+        ? { chain: "Arc", useForwarder: true, recipientAddress: address }
+        : { adapter, chain: "Arc" },
+      amount: amt,
+      config: { transferSpeed: useFast ? "FAST" : "SLOW" },
+    });
+
+    const burnStep = result.steps.find((s) => s.name.toLowerCase() === "burn");
+    const mintStep = result.steps.find((s) => s.name.toLowerCase() === "mint");
+    if (!burned && burnStep?.txHash) burned = burnStep.txHash;
+    if (mintStep?.txHash) setMintTxHash(mintStep.txHash);
+
+    if (result.state === "success") {
+      clearPending();
+      setStep("done");
+      return;
+    }
+    if (burned) {
+      // Burn is confirmed: keep the saved pending transfer so Resume can finish it.
+      setBurnTxHash(burned);
+      setBurnSourceIdx(idx);
+      setBurnForwarded(forwarding);
+      throw new Error("Your burn is confirmed, but delivery on Arc isn't finished yet. Don't send again. Use Resume to finish the transfer.");
+    }
+    const failed = result.steps.find((s) => s.state === "error");
+    throw new Error(failed ? `${failed.name} step failed. Nothing was burned.` : "The transfer didn't go through. Nothing was burned.");
+  }
+
   // run() starts a new transfer. run({ hash }) resumes one whose burn is already confirmed:
   // it skips approve + burn (so nothing is burned twice) and only waits for the attestation and mints on Arc.
   async function run(resume?: { hash: string }) {
@@ -435,6 +505,11 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
               throw e;
             }
           }
+        }
+
+        if (USE_BRIDGE_KIT && KIT_CHAIN[source.key]) {
+          await runWithKit(provider);
+          return;
         }
 
         const amountRaw = parseUnits(amount.trim(), USDC_ERC20_DECIMALS);
@@ -575,6 +650,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const signText = forwarding ? `2 on ${source.name}` : `2 on ${source.name}, 1 on Arc`;
   const feeText = feeBps === null ? null : feeBps === 0 ? "Free" : `${(feeBps / 100).toFixed(2)}%`;
   const shortAddr = `${address.slice(0, 6)}…${address.slice(-4)}`;
+  const routeLabel = USE_BRIDGE_KIT && KIT_CHAIN[source.key] ? "Circle Bridge Kit (CCTP V2)" : "Circle CCTP V2";
 
   const steps = [
     { key: "burn", label: "Send", num: 1, active: step === "approving" || step === "burning", complete: step === "waiting-attestation" || step === "minting" || step === "done" || unfinished },
@@ -614,7 +690,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const labelStyle = { fontSize: 11, color: "#9CA3AF", fontWeight: 600, letterSpacing: 0.3 };
 
   const formRows: { k: string; v: string; good?: boolean }[] = [
-    { k: "Route", v: "Circle CCTP V2" },
+    { k: "Route", v: routeLabel },
     { k: "Speed", v: useFast ? "Fast" : "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
     ...(deliveryText ? [{ k: "Delivery on Arc", v: deliveryText }] : []),
@@ -624,7 +700,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   ];
   const reviewRows: { k: string; v: string; good?: boolean }[] = [
     { k: "Recipient", v: `${shortAddr} on Arc` },
-    { k: "Route", v: "Circle CCTP V2" },
+    { k: "Route", v: routeLabel },
     { k: "Speed", v: useFast ? "Fast" : "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
     ...(deliveryText ? [{ k: "Delivery on Arc", v: deliveryText }] : []),
@@ -657,7 +733,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
   const summaryRows: { k: string; v: string; good?: boolean; badge?: string }[] = [
     { k: "Recipient", v: `${shortAddr} on Arc` },
-    { k: "Route", v: "Circle CCTP V2", badge: "OFFICIAL" },
+    { k: "Route", v: routeLabel, badge: "OFFICIAL" },
     { k: "Speed", v: useFast ? "Fast" : "Standard" },
     ...(feeText ? [{ k: "Circle fee", v: feeText, good: feeBps === 0 }] : []),
     ...(deliveryText ? [{ k: "Delivery on Arc", v: deliveryText }] : []),
