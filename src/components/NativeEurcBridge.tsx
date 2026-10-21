@@ -6,6 +6,8 @@ import { ArrowRight, Check } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { EURC_LOGO } from "./tokenLogos";
 import { TokenIcon } from "./TokenIcon";
+import { BridgeKit } from "@circle-fin/bridge-kit";
+import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 
 // Native EURC into Arc Mainnet via Circle's "CCTP for non-USDC" (CrossChainTokenService).
 // Sources (all verified 2026-09-23 against developers.circle.com):
@@ -32,6 +34,13 @@ const ARC_MESSAGE_TRANSMITTER_V2 = "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64" 
 const ARC_DOMAIN = 26;
 const IRIS_API = "https://iris-api.circle.com";
 const PENDING_KEY = "flowfi-eurc-pending";
+
+// Circle Bridge Kit (CCTPx provider) runs new EURC / cirBTC transfers: approve, signed fee quote,
+// crossChainTransfer and Circle's forwarded delivery on Arc. Resume keeps the manual path below.
+// Set to false to roll back to the manual flow.
+const USE_BRIDGE_KIT = true;
+const KIT_CHAIN: Record<string, string> = { base: "Base", ethereum: "Ethereum", avalanche: "Avalanche" };
+const KIT_TOKEN: Record<TokenKey, "EURC" | "cirBTC"> = { eurc: "EURC", cirbtc: "cirBTC" };
 
 interface Source { key: string; name: string; chain: Chain; domain: number; gas: string; stdWait: string; stdMaxMin: number }
 // EURC CCTP routes into Arc per Circle's Interop on Arc page, intersected with the chains that
@@ -239,6 +248,11 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
       const gas = await pc.getBalance({ address: address as `0x${string}` });
       if (gas <= q0.fee) throw new Error(`Not enough ${s.gas} on ${s.name}: Circle's fee is ${Number(formatEther(q0.fee)).toPrecision(3)} ${s.gas}, plus a little for gas. Nothing was sent.`);
 
+      if (USE_BRIDGE_KIT && KIT_CHAIN[s.key]) {
+        await sendWithKit(provider, s, q0.fast);
+        return;
+      }
+
       // Skip the approval if an earlier attempt already approved enough.
       const allowed = await pc.readContract({ address: token, abi: ERC20_ABI, functionName: "allowance", args: [address as `0x${string}`, tokenManager] });
       if (allowed < amountRaw) {
@@ -278,6 +292,44 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
       setError(err.shortMessage || err.message || "Something went wrong.");
       setStep("error");
     }
+  }
+
+  // New transfer through Circle Bridge Kit. Errors are handled by send().
+  async function sendWithKit(p: EIP1193Provider, s: Source, wantFast: boolean) {
+    const kit = new BridgeKit();
+    const adapter = await createViemAdapterFromProvider({ provider: p });
+    const idx = srcIdx;
+    const amt = amount.trim();
+    let sent: string | null = null;
+
+    kit.on("*", (e: unknown) => {
+      const ev = e as { method?: string; values?: { transactionHash?: string } };
+      const h = ev.values?.transactionHash;
+      if (ev.method === "approve" || ev.method === "approveFee") setStep("sending");
+      if (ev.method === "transfer" && h) {
+        sent = h;
+        setTxHash(h); setPendingSrc(idx); savePending(h, idx, amt);
+        setStep("delivering");
+      }
+      if (ev.method === "forward" && h) setMintHash(h);
+    });
+
+    setStep("approving");
+    const result = await kit.bridge({
+      from: { adapter, chain: KIT_CHAIN[s.key] as "Base" },
+      to: { adapter, chain: "Arc" },
+      amount: amt,
+      token: KIT_TOKEN[tokenKey],
+      config: { transferSpeed: wantFast ? "FAST" : "SLOW" },
+    });
+
+    if (result.state === "success") {
+      clearPending(); setStep("done");
+      return;
+    }
+    if (sent) throw new Error(`Your ${tok.symbol} was sent, but delivery on Arc isn't confirmed yet. Don't send again. Use Resume to check again.`);
+    const failed = result.steps.find((st) => st.state === "error");
+    throw new Error(failed ? `${failed.name} step failed. Nothing was sent.` : "The transfer didn't go through. Nothing was sent.");
   }
 
   // Resume: check delivery again; if Circle attested but never delivered, mint on Arc manually
@@ -333,7 +385,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
   const pane = { background: "#F5F7FF", borderRadius: 20, padding: "14px 16px" } as const;
   const label = { fontSize: 11, color: MUTED, fontWeight: 600, letterSpacing: 0.3 } as const;
   const rows: { k: string; v: string; good?: boolean }[] = [
-    { k: "Route", v: `Circle CCTP (native ${tok.symbol})` },
+    { k: "Route", v: USE_BRIDGE_KIT && KIT_CHAIN[src.key] ? `Circle Bridge Kit (native ${tok.symbol})` : `Circle CCTP (native ${tok.symbol})` },
     { k: "Circle fee", v: feeText ? `${feeText} (paid in ${src.gas})` : `Paid in ${src.gas} on ${src.name}` },
     { k: "You receive", v: validAmt ? `${amt.toLocaleString("en-US", { maximumFractionDigits: tok.decimals })} ${tok.symbol}` : "—" },
     { k: "Gas on Arc", v: "Not needed", good: true },
