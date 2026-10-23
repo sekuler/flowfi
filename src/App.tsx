@@ -36,8 +36,8 @@ import { getCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "./ci
 import { showToast } from "./toast";
 import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./contracts";
 import {
-  Home, Repeat, Droplet,
-  Rocket, Hexagon, CircleDollarSign, Layers, LayoutDashboard, BarChart3, History as HistoryIcon,
+  Home, Repeat,
+  Rocket, Hexagon, CircleDollarSign, Layers, LayoutDashboard, History as HistoryIcon,
   Sparkles, PiggyBank, Moon, Power, HelpCircle, Check, Lock, Mail, Zap, ShieldCheck as ShieldCheckIcon,
 } from "lucide-react";
 
@@ -117,39 +117,9 @@ const TAB_GROUPS: { group: string; variant?: "testnet" | "mainnet"; tabs: { id: 
     { id: "mainnethistory", label: "History", Icon: HistoryIcon },
   ],
 },
- {
-  group: "Trade",
-  variant: "testnet",
-  tabs: [
-    { id: "swap",      label: "Swap",      Icon: Repeat },
-  ],
-},
-{
-  group: "Transfer",
-  variant: "testnet",
-  tabs: [
-    { id: "bridge",       label: "Bridge",        Icon: Hexagon },
-    { id: "circlewallet", label: "Circle Wallet", Icon: CircleDollarSign },
-  ],
-},
-{
-  group: "Tools",
-  variant: "testnet",
-  tabs: [
-    { id: "pools",     label: "Liquidity", Icon: Droplet },
-    { id: "launch",    label: "Launch Token", Icon: Rocket },
-  ],
-},
- {
-  group: "Analytics",
-  variant: "testnet",
-  tabs: [
-    { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
-    { id: "analytics", label: "Stablecoin Analytics", Icon: BarChart3 },
-    { id: "history",   label: "History",   Icon: HistoryIcon },
-  ],
-},
 ];
+
+const MAINNET_TABS: Tab[] = TAB_GROUPS.flatMap((g) => g.tabs.map((t) => t.id));
 
 const LANDING_FEATURE_ICONS = [Mail, Zap, Sparkles, Hexagon, Rocket, Repeat];
 
@@ -278,6 +248,11 @@ function AppInner() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const [tab, setTab] = useState<Tab>("home");
+  // Testnet pages are retired from the UI (contracts stay onchain). Any old link or saved
+  // state that lands on a testnet tab goes back to Home.
+  useEffect(() => {
+    if (!MAINNET_TABS.includes(tab)) setTab("home");
+  }, [tab]);
   const [balances, setBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
   const [mainnetBalances, setMainnetBalances] = useState<Balances>({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
   const [copied, setCopied] = useState(false);
@@ -490,7 +465,7 @@ function AppInner() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  const activeVariant = TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "testnet";
+  const activeVariant = TAB_GROUPS.find((g) => g.tabs.some((t) => t.id === tab))?.variant ?? "mainnet";
   const shortAddr = wallet ? wallet.address.slice(0, 6) + "..." + wallet.address.slice(-4) : "";
 
   const sharedStyle = (
@@ -747,20 +722,6 @@ function AppInner() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <FlowFiMark size={32} />
             <div className="flowfi-display" style={{ fontSize: 18, fontWeight: 700, color: "#0F1B3D", letterSpacing: "-0.02em" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></div>
-          </div>
-          <div role="group" aria-label="Network" style={{ display: "flex", gap: 2, padding: 3, marginTop: 18, borderRadius: 11, background: "#ECEAE4" }}>
-            {([
-              { v: "mainnet", label: "Mainnet", dot: "#0E9F6E", go: () => goToTab(wallet ? "home" : "mainnetbridge") },
-              { v: "testnet", label: "Testnet", dot: "#C77B12", go: () => goToTab(wallet ? "dashboard" : "pools") },
-            ] as const).map((n) => {
-              const on = activeVariant === n.v;
-              return (
-                <button key={n.v} onClick={n.go} aria-pressed={on}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 32, border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12.5, fontWeight: 600, background: on ? "#FFFFFF" : "transparent", color: on ? "#16151C" : "#5E5B6B", boxShadow: on ? "0 1px 2px rgba(22,21,28,0.12)" : "none" }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: n.dot }} />{n.label}
-                </button>
-              );
-            })}
           </div>
         </div>
         <div style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", overflowY: "auto" }}>
