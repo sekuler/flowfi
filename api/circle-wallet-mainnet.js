@@ -82,12 +82,6 @@ const ALLOWED_CALLS = new Map([
   ['0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', USDC_APPROVE], // Base USDC
   ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', USDC_APPROVE], // Ethereum USDC
   ['0xaf88d065e77c8cc2239327c5edb3a432268e5831', USDC_APPROVE], // Arbitrum USDC
-  // Circle CCTP V2 mainnet (same address on every chain; matches NativeCctpBridge.tsx)
-  ['0x28b5a0e9c621a5badaa536219b3a228c8168cf5d', new Set([
-    'depositForBurn(uint256,uint32,bytes32,address,bytes32,uint256,uint32)',
-    'depositForBurnWithHook(uint256,uint32,bytes32,address,bytes32,uint256,uint32,bytes)',
-  ])],
-  ['0x81d40f21f12a8f0e3252bccb954d722d4c464b64', new Set(['receiveMessage(bytes,bytes)'])],
   // Circle Gateway: deposit USDC into the unified balance. Transfers out of Gateway are
   // signed burn intents (see `gatewaySign`), and minted on the destination by Circle's
   // Forwarding Service, so gatewayMint never has to run from these wallets.
@@ -457,6 +451,12 @@ module.exports = async function handler(req, res) {
       if (!walletId || !contractAddress || !abiFunctionSignature) return res.status(400).json({ error: 'walletId, contractAddress and abiFunctionSignature are required.' });
       const allowed = ALLOWED_CALLS.get(String(contractAddress).toLowerCase());
       if (!allowed || !allowed.has(abiFunctionSignature)) return res.status(403).json({ error: "This contract/function is not on FlowFi's mainnet allowlist." });
+      // Parameters are checked too, not just the function: approve may only name the Gateway
+      // Wallet as spender, and Gateway deposit may only take an allowlisted USDC token.
+      const params = Array.isArray(abiParameters) ? abiParameters : [];
+      const p0 = String(params[0] || '').toLowerCase();
+      if (abiFunctionSignature === 'approve(address,uint256)' && (params.length !== 2 || p0 !== GATEWAY_WALLET)) return res.status(403).json({ error: 'This approval is not allowed.' });
+      if (abiFunctionSignature === 'deposit(address,uint256)' && (params.length !== 2 || !ALLOWED_CALLS.has(p0) || !ALLOWED_CALLS.get(p0).has('approve(address,uint256)'))) return res.status(403).json({ error: 'This deposit is not allowed.' });
       if (!ownsWallet(record, walletId)) return res.status(403).json({ error: 'This wallet does not belong to the signed-in account.' });
       // Wallets are EOAs: on Base/Ethereum/Arbitrum they need ETH for gas, which users can't add or
       // withdraw here. Contract calls (approve, Gateway deposit, CCTP) are allowed on Arc only,
