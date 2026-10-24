@@ -4,7 +4,8 @@ import { TokenIcon } from "./TokenIcon";
 import NetworkGuard from "./NetworkGuard";
 import { useIsMobile } from "../useIsMobile";
 import { getFormattedMarketAnalysis } from "../marketData";
-import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, Send, CheckCircle2, XCircle, Clock, Sparkles, Check, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, Send, CheckCircle2, XCircle, Clock, Sparkles, Check, Maximize2, Minimize2, X } from "lucide-react";
+import SendOnArc from "./SendOnArc";
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
@@ -95,6 +96,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   const [asking, setAsking] = useState(false);
   // Copilot card can be opened full-size (button in its header; Esc or the backdrop closes it).
   const [expanded, setExpanded] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
@@ -214,6 +216,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
             <>
               <button onClick={() => onNavigate("mainnetswap")} style={ghostBtn}><Repeat size={16} /> Swap</button>
               <button onClick={() => onNavigate("mainnetbridge")} style={ghostBtn}><Zap size={16} /> Bridge</button>
+              <button onClick={() => setSendOpen(true)} style={ghostBtn}><Send size={16} /> Send</button>
             </>
           )}
         </div>
@@ -451,6 +454,19 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
           </div>
           {activity}
         </>
+      )}
+
+      {sendOpen && (
+        <div role="dialog" aria-modal="true" onClick={() => setSendOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,15,40,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: isMobile ? "4rem 16px 16px" : "8vh 16px 16px", overflowY: "auto" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "100%", maxWidth: 480 }}>
+            <button aria-label="Close" onClick={() => setSendOpen(false)}
+              style={{ position: "absolute", top: 14, right: 14, zIndex: 2, width: 32, height: 32, borderRadius: 999, border: "1px solid #E7E4DD", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <X size={16} color="#374151" />
+            </button>
+            <SendOnArc address={address} provider={provider} />
+          </div>
+        </div>
       )}
     </div>
   );

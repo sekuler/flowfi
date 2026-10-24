@@ -5,14 +5,17 @@ import { TokenIcon } from "./TokenIcon";
 // Shared chain + token logos for the mainnet wallet pages (Circle Wallet, Gateway).
 // Arc/USDC/EURC logos are embedded (tokenLogos.ts); other chains use DefiLlama's public icon
 // CDN (same source as NativeCctpBridge.tsx) and fall back to a colored letter if it fails.
-export type ChainKey = "arc" | "base" | "ethereum" | "arbitrum";
+export type ChainKey = "arc" | "base" | "ethereum" | "arbitrum" | "avalanche" | "worldchain" | "solana";
 
 const LLAMA: Record<Exclude<ChainKey, "arc">, string> = {
   base: "https://icons.llamao.fi/icons/chains/rsz_base.jpg",
   ethereum: "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg",
   arbitrum: "https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg",
+  avalanche: "https://icons.llamao.fi/icons/chains/rsz_avalanche.jpg",
+  worldchain: "https://icons.llamao.fi/icons/chains/rsz_world-chain.jpg",
+  solana: "https://icons.llamao.fi/icons/chains/rsz_solana.jpg",
 };
-const FALLBACK_COLOR: Record<ChainKey, string> = { arc: "#16151C", base: "#0052FF", ethereum: "#627EEA", arbitrum: "#28A0F0" };
+const FALLBACK_COLOR: Record<ChainKey, string> = { arc: "#16151C", base: "#0052FF", ethereum: "#627EEA", arbitrum: "#28A0F0", avalanche: "#E84142", worldchain: "#111827", solana: "#9945FF" };
 
 export function ChainLogo({ chain, size = 20 }: { chain: ChainKey; size?: number }) {
   const [failed, setFailed] = useState(false);
