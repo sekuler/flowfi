@@ -11,6 +11,7 @@ import {
   WAD, ORACLE_SCALE, SAFE_LTV_PCT, MORPHO_ABI, IRM_ABI, ORACLE_ABI, VAULT_ABI, toAssetsUp, fetchVaultApy,
   AAVE_CORE_HUB, AAVE_SPOKE_ABI, AAVE_USDC_RESERVE_ID, fetchAaveUsdcApy, fetchVaultDetails, type VaultDetails, type ExposureItem, fetchVaultApyHistory, fetchAaveUsdcApyHistory, fetchMarketBorrowApyHistory, type ApyPoint,
 } from "./morpho";
+import AaveForexBorrow, { fetchForexSummary } from "./AaveForexBorrow";
 
 // Earn & Borrow on Arc mainnet, built on Morpho. Earn = deposit USDC or EURC into a curated
 // Morpho vault (ERC-4626). Borrow = cirBTC collateral, USDC or EURC loan on verified Morpho Blue markets.
@@ -119,6 +120,9 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   // Borrow: market list first; tapping a market opens its page (same actions as before, new layout).
   const [borrowOpen, setBorrowOpen] = useState(false);
+  // Aave V4 Forex (EURC collateral -> USDC loan) has its own page.
+  const [forexOpen, setForexOpen] = useState(false);
+  const [forex, setForex] = useState<{ available: number; rate: number; cf: number } | null>(null);
   type MktSummary = { apy: number; available: bigint; util: number };
   const [mkts, setMkts] = useState<Partial<Record<BorrowAsset, MktSummary>>>({});
   const [sortBy, setSortBy] = useState<"apy" | "size">("apy");
@@ -213,7 +217,8 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
     const id = setInterval(() => { if (document.visibilityState === "visible") setTick((t) => t + 1); }, 60_000);
     return () => clearInterval(id);
   }, [step]);
-  useEffect(() => { if (mode !== "earn") setPanelOpen(false); if (mode !== "borrow") setBorrowOpen(false); }, [mode]);
+  useEffect(() => { if (mode !== "earn") setPanelOpen(false); if (mode !== "borrow") { setBorrowOpen(false); setForexOpen(false); } }, [mode]);
+  useEffect(() => { if (mode === "borrow") fetchForexSummary().then(setForex); }, [mode, tick]);
   // Read-only numbers for the Borrow market list (both markets), same formulas as the market page below.
   useEffect(() => {
     if (mode !== "borrow") return;
@@ -1060,6 +1065,44 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         </div>
       );
     };
+    const forexRow = () => {
+      const apy = forex ? `${((Math.exp(forex.rate) - 1) * 100).toFixed(2)}%` : "…";
+      const avail = forex ? compact(forex.available) : "…";
+      const ltv = forex ? `${(forex.cf * 100).toFixed(0)}% max LTV` : "…";
+      const name = (
+        <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          <TokenOnChain symbol="EURC" chain="arc" size={30} />
+          <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: INK, display: "flex", alignItems: "center", gap: 6 }}>EURC → USDC <span style={{ fontSize: 10, fontWeight: 800, color: "#FFFFFF", background: BLUE, borderRadius: 999, padding: "1px 7px" }}>NEW</span></span>
+            <span style={{ fontSize: 11.5, color: MUTED, display: "flex", alignItems: "center", gap: 5 }}><img src="/logos/aave.svg" alt="" width={18} height={10} /> Aave Forex · Collateral EURC · Borrow USDC</span>
+          </span>
+        </span>
+      );
+      const open = () => { setForexOpen(true); };
+      if (isMobile) {
+        return (
+          <button key="forex" type="button" onClick={open}
+            style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", padding: 14, borderRadius: 16, border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.92)", cursor: "pointer", textAlign: "left" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>{name}<span style={{ marginLeft: "auto", fontSize: 15, fontWeight: 800, color: INK }}>{apy}</span></span>
+            <span style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, width: "100%", paddingTop: 10, borderTop: "1px solid #E9EDFB", fontSize: 13, fontWeight: 700, color: INK }}>
+              <span>{avail}</span><span>{ltv}</span>
+            </span>
+          </button>
+        );
+      }
+      const pass = { pointerEvents: "none" as const };
+      return (
+        <div key="forex" className="ff-vault-row" style={{ position: "relative", display: "grid", gridTemplateColumns: BCOLS, alignItems: "center", gap: 12, padding: 14, borderBottom: "1px solid #E9EDFB" }}>
+          <button type="button" onClick={open} aria-label="Open EURC to USDC market on Aave"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none", background: "transparent", cursor: "pointer", padding: 0, borderRadius: 12 }} />
+          <span style={pass}>{name}</span>
+          <span style={{ ...pass, fontSize: 13.5, fontWeight: 700, color: INK }}>{avail}</span>
+          <span style={{ ...pass, fontSize: 13.5, fontWeight: 700, color: INK }}>{forex ? `${(forex.cf * 100).toFixed(0)}%` : "…"}</span>
+          <span style={{ ...pass, fontSize: 13.5, fontWeight: 700, color: "#8A8798" }}>—</span>
+          <span style={{ ...pass, textAlign: "right", fontSize: 15, fontWeight: 800, color: INK }}>{apy}</span>
+        </div>
+      );
+    };
     return (
       <section style={card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -1081,6 +1124,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         {isMobile ? (
           <div role="list" aria-label="Markets" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {(Object.keys(MARKETS) as BorrowAsset[]).map((k) => <div role="listitem" key={k}>{marketRow(k)}</div>)}
+            <div role="listitem">{forexRow()}</div>
           </div>
         ) : (
           <div role="table" aria-label="Markets" style={{ display: "flex", flexDirection: "column" }}>
@@ -1089,6 +1133,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
               <span>Market</span><span>Available</span><span>Liquidation LTV</span><span>Your loan</span><span style={{ textAlign: "right" }}>Borrow APY</span>
             </div>
             {(Object.keys(MARKETS) as BorrowAsset[]).map((k) => marketRow(k))}
+            {forexRow()}
           </div>
         )}
         <p style={{ margin: 0, fontSize: 11, color: "#8A8798", textAlign: "center" }}>Borrow rates are variable. FlowFi keeps you under a 70% safe limit. Tap a market to borrow or manage a loan.</p>
@@ -1248,16 +1293,16 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         </div>
       )}
 
-      {isEarn ? (panelOpen ? vaultPage() : earnList()) : (borrowOpen ? marketPage() : borrowList())}
+      {isEarn ? (panelOpen ? vaultPage() : earnList()) : forexOpen ? <AaveForexBorrow owner={owner} provider={provider} onBack={() => { setForexOpen(false); setTick((t) => t + 1); }} /> : (borrowOpen ? marketPage() : borrowList())}
 
 
 
-      {((!isEarn && !borrowOpen) || (isEarn && !panelOpen && earnVaults.some((v) => v.kind === "morpho"))) && <div style={{ display: "flex", justifyContent: "center" }}>{createElement("powered-by-morpho", { theme: "light" })}</div>}
+      {((!isEarn && !borrowOpen && !forexOpen) || (isEarn && !panelOpen && earnVaults.some((v) => v.kind === "morpho"))) && <div style={{ display: "flex", justifyContent: "center" }}>{createElement("powered-by-morpho", { theme: "light" })}</div>}
 
-      {!(isEarn && panelOpen) && !(!isEarn && borrowOpen) && (
+      {!(isEarn && panelOpen) && !(!isEarn && (borrowOpen || forexOpen)) && (
         <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>
           Non-custodial: your funds stay under your control, FlowFi never holds them.
-          Borrowing carries liquidation risk if BTC falls.
+          Borrowing carries liquidation risk if your collateral's price falls.
         </p>
       )}
 
