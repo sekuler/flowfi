@@ -27,7 +27,10 @@ const lifiWidgetConfig: WidgetConfig = {
   toToken: ARC_MAINNET_USDC,
   routePriority: "FASTEST",
   sdkConfig: {
-    rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
+    rpcUrls: {
+      5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`],
+      ...(import.meta.env.VITE_SOLANA_RPC ? { 1151111081099710: [import.meta.env.VITE_SOLANA_RPC] } : {}),
+    },
   },
   chains: {
     types: { allow: [ChainType.EVM, ChainType.SVM, ChainType.UTXO] },
