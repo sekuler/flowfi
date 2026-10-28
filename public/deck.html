@@ -195,18 +195,19 @@
     <div class="cover-body">
       <div class="eyebrow"><span class="dot"></span> LIVE ON ARC MAINNET</div>
       <h1 class="hero-title">Your dollars on Arc.<br><span class="accent-word">All in one flow.</span></h1>
-      <p class="lede" style="max-width:640px; font-size:17px;">Bring dollars onto Arc without gas, hold USDC, EURC and cirBTC, move them across chains with one balance, and put them to work with Earn & Borrow. Live on Arc Mainnet.</p>
+      <p class="lede" style="max-width:640px; font-size:17px;">Bring dollars onto Arc without gas, hold USDC, EURC and cirBTC, move them across chains with one balance, swap at the best price, and put them to work with Earn & Borrow. Live on Arc Mainnet.</p>
       <div class="cover-tags">
-        <div class="tag">Gasless USDC bridge</div>
+        <div class="tag">Circle Bridge Kit</div>
         <div class="tag">EURC &amp; cirBTC</div>
         <div class="tag">Circle Gateway</div>
+        <div class="tag">USDC from Sui</div>
         <div class="tag">Email wallet</div>
         <div class="tag">Earn &amp; Borrow</div>
         <div class="tag">Live on Arc Mainnet</div>
       </div>
     </div>
     <div class="cover-foot">
-      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft);">Real funds &middot; Built on Circle &amp; Morpho</div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft);">Real funds &middot; Built on Circle, Morpho &amp; Aave</div>
       <div class="cover-meta">
         <div><b>Kazım</b> — sekuler.eth</div>
         <div>github.com/sekuler/flowfi</div>
@@ -255,15 +256,15 @@
 
   <section class="slide">
     <div class="eyebrow"><span class="dot"></span> 03 &middot; CROSS-CHAIN</div>
-    <h2 class="slide-title">Bridge: gasless USDC, native EURC &amp; cirBTC, any token via LI.FI.</h2>
+    <h2 class="slide-title">Bridge: native USDC, EURC &amp; cirBTC via Circle Bridge Kit, USDC from Sui, any token via LI.FI.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">Native USDC uses Circle CCTP V2 with the Forwarding Service: you sign once on the source chain and Circle mints on Arc, so no Arc gas is needed. EURC and cirBTC arrive natively through CCTP for non-USDC, and LI.FI covers everything else.</p>
+        <p class="lede">Native USDC, EURC and cirBTC move to Arc through Circle's Bridge Kit (CCTP V2). With the Forwarding Service, Circle completes the mint on Arc, so no Arc gas is needed. USDC from Sui arrives natively over CCTP V2, and LI.FI covers any other token, including Solana and Bitcoin wallets.</p>
         <div class="callout">
           <span class="ic">◆</span>
           <p><b>Safe to interrupt:</b> a transfer that stops after the burn resumes without burning twice, checked against Circle's usedNonces onchain.</p>
         </div>
-        <div class="stat-row"><div class="stat"><div class="v">1</div><div class="l">Signature to reach Arc</div></div><div class="stat"><div class="v">0</div><div class="l">Arc gas needed</div></div></div>
+        <div class="stat-row"><div class="stat"><div class="v">4</div><div class="l">Bridge routes</div></div><div class="stat"><div class="v">0</div><div class="l">Arc gas needed</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
@@ -274,15 +275,15 @@
 
   <section class="slide">
     <div class="eyebrow"><span class="dot"></span> 04 &middot; CORE TRADING</div>
-    <h2 class="slide-title">Swap: same-chain on Arc, routed through LI.FI.</h2>
+    <h2 class="slide-title">Swap: best price on Arc across KyberSwap, De¹ and LI.FI.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">Swap opens on USDC to EURC and lists the tokens LI.FI supports on Arc as quick picks. FlowFi routes to real, deep liquidity instead of running its own pools.</p>
+        <p class="lede">Best price compares quotes from KyberSwap, De¹ and LI.FI and picks the best output, checked onchain before you sign. Any token mode opens full LI.FI routing. FlowFi routes to real, deep liquidity instead of running its own pools.</p>
         <div class="callout">
           <span class="ic">◆</span>
           <p><b>No FlowFi contract on the path:</b> the route and the swap run on established infrastructure, and you sign in your own wallet.</p>
         </div>
-        <div class="stat-row"><div class="stat"><div class="v">USDC → EURC</div><div class="l">Default pair</div></div><div class="stat"><div class="v">0</div><div class="l">FlowFi fees</div></div></div>
+        <div class="stat-row"><div class="stat"><div class="v">3</div><div class="l">Price sources compared</div></div><div class="stat"><div class="v">0</div><div class="l">FlowFi fees</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
@@ -293,15 +294,15 @@
 
   <section class="slide">
     <div class="eyebrow"><span class="dot"></span> 05 &middot; PUT DOLLARS TO WORK</div>
-    <h2 class="slide-title">Earn &amp; Borrow: yield on USDC and EURC, loans against cirBTC.</h2>
+    <h2 class="slide-title">Earn &amp; Borrow: Morpho and Aave on Arc, loans against cirBTC.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">Deposit USDC or EURC into curated Morpho vaults (Galaxy, Keyrock, Steakhouse, Gauntlet), or borrow USDC or EURC against cirBTC on Morpho markets on Arc, with live APY, LTV and liquidation price on screen.</p>
+        <p class="lede">Deposit USDC or EURC into curated Morpho vaults (Bitwise, Galaxy, Keyrock and more) or the Aave V4 USDC market, compare them side by side, or borrow USDC or EURC against cirBTC on Morpho markets on Arc, with live APY, LTV and liquidation price on screen.</p>
         <div class="callout">
           <span class="ic">◆</span>
           <p><b>Guardrails built in:</b> markets liquidate at 86% LTV; FlowFi caps new borrows at 70%, and every call is simulated before your wallet opens.</p>
         </div>
-        <div class="stat-row"><div class="stat"><div class="v">4</div><div class="l">Curated vaults</div></div><div class="stat"><div class="v">70%</div><div class="l">Safe LTV cap</div></div></div>
+        <div class="stat-row"><div class="stat"><div class="v">2</div><div class="l">Protocols: Morpho &amp; Aave</div></div><div class="stat"><div class="v">70%</div><div class="l">Safe LTV cap</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
@@ -331,15 +332,15 @@
 
   <section class="slide">
     <div class="eyebrow"><span class="dot"></span> 07 &middot; ONE BALANCE</div>
-    <h2 class="slide-title">Gateway: one USDC balance across Arc, Base, Ethereum and Arbitrum.</h2>
+    <h2 class="slide-title">Gateway: one balance for USDC, EURC and cirBTC across six chains.</h2>
     <div class="product-slide">
       <div class="panel-left">
-        <p class="lede">Deposit USDC on any supported chain and spend it on any other in seconds. Transfers use an EIP-712 burn intent and Circle's Forwarding Service, so no gas is needed on the destination.</p>
+        <p class="lede">Built on Circle's Unified Balance Kit. Deposit on Arc, Base, Ethereum, Arbitrum, Avalanche or World Chain and send to any of them, or to Solana, in seconds. Circle's Forwarding Service delivers on the destination, so no gas is needed there.</p>
         <div class="callout">
           <span class="ic">◆</span>
           <p><b>Works with both wallets:</b> browser wallets sign the intent themselves; the Circle Wallet signs it server-side, limited to Gateway burn intents only.</p>
         </div>
-        <div class="stat-row"><div class="stat"><div class="v">4</div><div class="l">Chains, one balance</div></div><div class="stat"><div class="v">Seconds</div><div class="l">Deposits credited on Arc</div></div></div>
+        <div class="stat-row"><div class="stat"><div class="v">3</div><div class="l">Assets: USDC, EURC, cirBTC</div></div><div class="stat"><div class="v">6</div><div class="l">Chains, one balance</div></div></div>
       </div>
       <div class="browser-frame">
         <div class="browser-bar"><div class="dots"><span></span><span></span><span></span></div><div class="url">flowfi.finance</div></div>
@@ -389,17 +390,16 @@
   <!-- CLOSING -->
   <section class="slide">
     <div class="eyebrow"><span class="dot"></span> 10 &middot; SUMMARY</div>
-    <h2 class="slide-title" style="max-width:100%;">Built on Arc, on Circle and Morpho rails.</h2>
+    <h2 class="slide-title" style="max-width:100%;">Built on Arc, on Circle, Morpho and Aave rails.</h2>
     <div class="closing-grid">
       <div>
-        <p class="lede" style="max-width:100%;">FlowFi is live on Arc Mainnet with real funds. Everything you saw is the running product, and every claim can be checked on-chain.</p>
+        <p class="lede" style="max-width:100%;">FlowFi is live on Arc Mainnet with real funds. Everything you saw is the running product, and every claim can be checked onchain.</p>
         <div class="stack-list">
-          <div class="stack-item"><div class="n">01</div><p><b>Bridge</b>: gasless USDC via CCTP + Forwarding, native EURC &amp; cirBTC, any token via LI.FI</p></div>
-          <div class="stack-item"><div class="n">02</div><p><b>Swap</b>: same-chain on Arc through LI.FI</p></div>
-          <div class="stack-item"><div class="n">03</div><p><b>Earn &amp; Borrow</b>: curated Morpho vaults and cirBTC-backed loans</p></div>
+          <div class="stack-item"><div class="n">01</div><p><b>Bridge</b>: native USDC, EURC &amp; cirBTC via Circle Bridge Kit + Forwarding, USDC from Sui via CCTP V2, any token via LI.FI</p></div>
+          <div class="stack-item"><div class="n">02</div><p><b>Swap</b>: best price on Arc across KyberSwap, De¹ and LI.FI</p></div>
+          <div class="stack-item"><div class="n">03</div><p><b>Earn &amp; Borrow</b>: curated Morpho vaults, Aave V4 and cirBTC-backed loans</p></div>
           <div class="stack-item"><div class="n">04</div><p><b>Wallets</b>: browser wallets, WalletConnect, and an email-based Circle Wallet</p></div>
-          <div class="stack-item"><div class="n">05</div><p><b>Gateway</b>: one USDC balance across four chains</p></div>
-          <div class="stack-item"><div class="n">06</div><p><b>Testnet showcase</b>: AI Copilot actions, Token Launch and Liquidity Pools</p></div>
+          <div class="stack-item"><div class="n">05</div><p><b>Gateway</b>: one balance for USDC, EURC and cirBTC across six chains</p></div>
         </div>
       </div>
       <div class="link-card">
