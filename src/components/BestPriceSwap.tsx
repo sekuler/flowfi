@@ -235,7 +235,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       } else {
         setMsg("Getting a fresh LI.FI quote...");
         const q = await lifiQuote(from, to, amountIn, me);
-        const tr = (q?.raw as { transactionRequest?: { to: string; data: `0x${string}`; value?: string }; estimate?: { approvalAddress?: string } } | undefined);
+        const tr = (q?.raw as { transactionRequest?: { to: string; data: `0x${string}`; value?: string }; estimate?: { approvalAddress?: string; toAmount?: string; toAmountMin?: string } } | undefined);
         if (!tr?.transactionRequest) throw new Error("LI.FI couldn't quote this route right now. Please try again.");
         const diamond = (await loadLifiDiamond())?.toLowerCase();
         txTo = tr.transactionRequest.to.toLowerCase();
@@ -243,6 +243,13 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         value = BigInt(tr.transactionRequest.value || 0);
         spender = String(tr.estimate?.approvalAddress ?? txTo).toLowerCase();
         if (!diamond || txTo !== diamond || spender !== diamond) throw new Error("Unexpected LI.FI router address. Nothing was sent.");
+        // The fresh quote's guaranteed minimum must still meet the minimum we showed. If LI.FI
+        // re-priced it lower, stop before the wallet opens and refresh the quotes instead.
+        const freshMin = BigInt(tr.estimate?.toAmountMin ?? 0);
+        if (freshMin < (sel.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
+          setTick((t) => t + 1);
+          throw new Error(`LI.FI's price changed to ${fmt(BigInt(tr.estimate?.toAmount ?? 0), to)} ${to.symbol}. Nothing was sent. Prices are refreshed, please check them and try again.`);
+        }
       }
 
       // Approve exactly the amount being swapped, only if needed.

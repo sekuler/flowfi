@@ -97,7 +97,7 @@ const FAILS_PER_CODE = 5;   // wrong guesses before a code is burned
 const MAX_DAILY_FAILS = 15; // wrong guesses per email per 24h before sign-in locks
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // real funds: one week, not a month
 const SESSION_COOKIE_NAME = 'flowfi_circle_live_session';
-const KEY = { otp: (e) => `circle-live-otp:${e}`, wallet: (e) => `circle-live-wallet:${e}`, sv: (e) => `circle-live-session-version:${e}`, fails: (e) => `circle-live-otp-fails:${e}` };
+const KEY = { otp: (e) => `circle-live-otp:${e}`, wallet: (e) => `circle-live-wallet:${e}`, sv: (e) => `circle-live-session-version:${e}`, fails: (e) => `circle-live-otp-fails:${e}`, creating: (e) => `circle-live-creating:${e}` };
 
 function normalizeEmail(email) { return String(email || '').trim().toLowerCase(); }
 function isValidEmail(email) { return /^[^\s@|]+@[^\s@|]+\.[^\s@|]+$/.test(email) && email.length <= 254; }
@@ -339,10 +339,19 @@ module.exports = async function handler(req, res) {
       let record = await loadRecord(email);
       if (!record) {
         if (WITHDRAW_ONLY) return res.status(403).json({ error: 'New Circle Wallet sign-ups aren\'t available right now.' });
+        // Only one wallet creation per email at a time. A second verified code that arrives while the
+        // first wallet is still being created must not create another wallet set.
+        if (!(await redis.set(KEY.creating(email), '1', { nx: true, ex: 60 }))) {
+          return res.status(409).json({ error: 'Your wallet is being created. Please wait a few seconds and sign in again.' });
+        }
+        record = await loadRecord(email);
+      }
+      if (!record) {
         // Reserve a slot first (atomic), so two sign-ups at once can't both squeeze past the limit.
         await accountCount();
         if ((await redis.incr(ACCOUNT_COUNT_KEY)) > MAX_ACCOUNTS) {
           await redis.decr(ACCOUNT_COUNT_KEY);
+          await redis.del(KEY.creating(email));
           return res.status(403).json({ error: 'Circle Wallet is not accepting new sign-ups right now. Please try again later.' });
         }
         try {
@@ -353,8 +362,10 @@ module.exports = async function handler(req, res) {
           for (const w of created.data?.wallets ?? []) walletsByChain[w.blockchain] = { walletId: w.id, address: w.address };
           record = { address: created.data?.wallets?.[0]?.address ?? null, walletsByChain };
           await redis.set(KEY.wallet(email), JSON.stringify(record));
+          await redis.del(KEY.creating(email));
         } catch (e) {
           await redis.decr(ACCOUNT_COUNT_KEY); // creation failed, give the slot back
+          await redis.del(KEY.creating(email));
           throw e;
         }
       }
