@@ -79,6 +79,14 @@ function parseEqual(text: string, amount: bigint | null, self: string): Row[] {
   return rows;
 }
 
+// True when the list looks like "address, amount" lines (e.g. a CSV), so it belongs in Custom amounts.
+function hasAmounts(text: string): boolean {
+  return text.split(/\r?\n/).some((raw) => {
+    const parts = raw.trim().split(/[\s,;]+/).filter(Boolean);
+    return parts.length === 2 && isAddress(parts[0]) && /^\d+([.,]\d+)?$/.test(parts[1]);
+  });
+}
+
 // Custom amounts: one recipient per line, "address, amount". Comma, semicolon, tab or spaces all work.
 function parse(text: string, token: Tok, self: string): Row[] {
   const rows: Row[] = [];
@@ -124,7 +132,8 @@ export default function BatchSendOnArc({ address, provider }: { address: string;
   }, [token, address, refresh]);
 
   const eachRaw = parseAmount(each, token.decimals);
-  const rows = mode === "equal" ? parseEqual(text, eachRaw, address) : parse(text, token, address);
+  const pairsInEqual = mode === "equal" && hasAmounts(text);
+  const rows = pairsInEqual ? [] : mode === "equal" ? parseEqual(text, eachRaw, address) : parse(text, token, address);
   const good = rows.filter((r) => !r.error && r.amount !== undefined) as Required<Pick<Row, "line" | "address" | "amount">>[];
   const bad = rows.filter((r) => r.error);
   const validCount = rows.length - bad.length;
@@ -156,7 +165,7 @@ export default function BatchSendOnArc({ address, provider }: { address: string;
 
   function onFile(f: File | undefined) {
     if (!f) return;
-    f.text().then((t) => { setText(t.trim()); setStep("idle"); }).catch(() => setError("Could not read that file."));
+    f.text().then((t) => { setText(t.trim()); if (hasAmounts(t)) setMode("custom"); setStep("idle"); }).catch(() => setError("Could not read that file."));
   }
 
   async function send() {
@@ -258,7 +267,7 @@ export default function BatchSendOnArc({ address, provider }: { address: string;
           </button>}
           <input ref={fileRef} type="file" accept=".csv,.txt,text/csv,text/plain" style={{ display: "none" }} onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
         </div>
-        <textarea className="ff-batch-in" value={text} onChange={(e) => { setText(e.target.value); if (step === "confirm" || step === "error") setStep("idle"); }} disabled={busy} spellCheck={false} rows={6}
+        <textarea className="ff-batch-in" value={text} onChange={(e) => { setText(e.target.value); if (hasAmounts(e.target.value)) setMode("custom"); if (step === "confirm" || step === "error") setStep("idle"); }} disabled={busy} spellCheck={false} rows={6}
           placeholder={mode === "equal" ? "Paste wallet addresses, one per line or separated by commas" : "0x1234…abcd, 25\n0x5678…ef01, 10.5\n0x9abc…2345, 3"}
           style={{ width: "100%", resize: "vertical", fontSize: 13, lineHeight: 1.6, color: INK, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }} />
         {mode === "custom" && (
@@ -284,6 +293,12 @@ export default function BatchSendOnArc({ address, provider }: { address: string;
         </div>
       )}
 
+      {pairsInEqual && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "#EEF1FE", border: `1px solid ${BLUE}`, color: INK, borderRadius: 12, padding: "0.6rem 0.8rem", fontSize: 12.5, lineHeight: 1.45, marginBottom: 12 }}>
+          <span>This list includes an amount for each address.</span>
+          <button onClick={() => { setMode("custom"); setStep("idle"); }} style={{ background: "transparent", border: "none", color: BLUE, fontWeight: 800, fontSize: 12.5, cursor: "pointer", padding: 0, whiteSpace: "nowrap" }}>Use Custom amounts</button>
+        </div>
+      )}
       {problem && <Notice tone="error">{problem}</Notice>}
       {!problem && dupes > 0 && <Notice tone="warn">{dupes} address{dupes > 1 ? "es appear" : " appears"} more than once. Each line will be paid separately.</Notice>}
       {!problem && gasLow && <Notice tone="warn">USDC also pays gas on Arc. Keep a little USDC after the batch so the transaction can go through.</Notice>}

@@ -11,7 +11,13 @@ Every on-chain address FlowFi uses, in one place, split by network. **Mainnet an
 
 ## 🟢 Arc Mainnet
 
-FlowFi has **no contracts of its own on mainnet**. Every mainnet feature runs on Circle, Morpho and LI.FI contracts that were already live.
+Most mainnet features run on Circle, Morpho, Aave and LI.FI contracts that were already live. FlowFi's own mainnet contracts are listed below.
+
+### FlowFi
+
+| Contract | Address |
+|---|---|
+| FlowFiMultiSend *(batch payments; no owner, holds no funds, no fee; source in `contracts/mainnet/`)* | [`0xE1aec7Af5dA3b981a8e627FFaDC9b980C499b761`](https://explorer.arc.io/address/0xE1aec7Af5dA3b981a8e627FFaDC9b980C499b761) |
 
 ### Tokens
 

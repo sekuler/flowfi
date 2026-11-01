@@ -1,0 +1,55 @@
+Multiple frameworks detected: solc, Solc-json. Using solc (highest priority). Use --compile-force-framework to override.
+'/home/claude/tools/solc-0.8.24 --version' running
+'/home/claude/tools/solc-0.8.24 ms_flat.sol --combined-json abi,ast,bin,bin-runtime,srcmap,srcmap-runtime,userdoc,devdoc,hashes --optimize --optimize-runs 200 --evm-version paris --allow-paths .,/tmp/claude-0/-home-claude/8761bda8-068c-581a-ba2e-a0c35c47d531/scratchpad' running
+INFO:Detectors:
+Detector: assembly
+Address._revert(bytes) (ms_flat.sol#396-407) uses assembly
+	- INLINE ASM (ms_flat.sol#400-403)
+SafeERC20._callOptionalReturn(IERC20,bytes) (ms_flat.sol#570-588) uses assembly
+	- INLINE ASM (ms_flat.sol#573-583)
+SafeERC20._callOptionalReturnBool(IERC20,bytes) (ms_flat.sol#598-608) uses assembly
+	- INLINE ASM (ms_flat.sol#602-606)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#assembly-usage
+INFO:Detectors:
+Detector: pragma
+2 different versions of Solidity are used:
+	- Version constraint ^0.8.20 is used by:
+		-^0.8.20 (ms_flat.sol#10)
+		-^0.8.20 (ms_flat.sol#39)
+		-^0.8.20 (ms_flat.sol#47)
+		-^0.8.20 (ms_flat.sol#130)
+		-^0.8.20 (ms_flat.sol#138)
+		-^0.8.20 (ms_flat.sol#226)
+		-^0.8.20 (ms_flat.sol#264)
+		-^0.8.20 (ms_flat.sol#416)
+	- Version constraint 0.8.24 is used by:
+		-0.8.24 (ms_flat.sol#615)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#different-pragma-directives-are-used
+INFO:Detectors:
+Detector: solc-version
+Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)
+	- VerbatimInvalidDeduplication
+	- FullInlinerNonExpressionSplitArgumentEvaluationOrder
+	- MissingSideEffectsOnSelectorAccess.
+It is used by:
+	- ^0.8.20 (ms_flat.sol#10)
+	- ^0.8.20 (ms_flat.sol#39)
+	- ^0.8.20 (ms_flat.sol#47)
+	- ^0.8.20 (ms_flat.sol#130)
+	- ^0.8.20 (ms_flat.sol#138)
+	- ^0.8.20 (ms_flat.sol#226)
+	- ^0.8.20 (ms_flat.sol#264)
+	- ^0.8.20 (ms_flat.sol#416)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity
+INFO:Detectors:
+Detector: low-level-calls
+Low level call in Address.sendValue(address,uint256) (ms_flat.sol#291-300):
+	- (success,None) = recipient.call{value: amount}() (ms_flat.sol#296)
+Low level call in Address.functionCallWithValue(address,bytes,uint256) (ms_flat.sol#333-339):
+	- (success,returndata) = target.call{value: value}(data) (ms_flat.sol#337)
+Low level call in Address.functionStaticCall(address,bytes) (ms_flat.sol#345-348):
+	- (success,returndata) = target.staticcall(data) (ms_flat.sol#346)
+Low level call in Address.functionDelegateCall(address,bytes) (ms_flat.sol#354-357):
+	- (success,returndata) = target.delegatecall(data) (ms_flat.sol#355)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls
+INFO:Slither:ms_flat.sol analyzed (7 contracts with 102 detectors), 9 result(s) found
