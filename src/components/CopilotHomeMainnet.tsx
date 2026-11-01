@@ -6,6 +6,7 @@ import { useIsMobile } from "../useIsMobile";
 import { getFormattedMarketAnalysis } from "../marketData";
 import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, Send, CheckCircle2, XCircle, Clock, Sparkles, Check, Maximize2, Minimize2, X } from "lucide-react";
 import SendOnArc from "./SendOnArc";
+import BatchSendOnArc from "./BatchSendOnArc";
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
@@ -97,6 +98,7 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   // Copilot card can be opened full-size (button in its header; Esc or the backdrop closes it).
   const [expanded, setExpanded] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  const [sendMode, setSendMode] = useState<"single" | "batch">("single");
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
@@ -464,7 +466,16 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
               style={{ position: "absolute", top: 14, right: 14, zIndex: 2, width: 32, height: 32, borderRadius: 999, border: "1px solid #E7E4DD", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <X size={16} color="#374151" />
             </button>
-            <SendOnArc address={address} provider={provider} />
+            <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,0.92)", border: "1px solid #E7E4DD", borderRadius: 999, padding: 4, width: "fit-content", margin: "0 auto 10px" }}>
+              {(["single", "batch"] as const).map((m) => (
+                <button key={m} onClick={() => setSendMode(m)}
+                  style={{ padding: "0.45rem 1rem", borderRadius: 999, border: "none", cursor: "pointer", fontWeight: 800, fontSize: 13,
+                    background: sendMode === m ? "#3D5AF1" : "transparent", color: sendMode === m ? "#fff" : "#374151" }}>
+                  {m === "single" ? "Send" : "Batch payment"}
+                </button>
+              ))}
+            </div>
+            {sendMode === "single" ? <SendOnArc address={address} provider={provider} /> : <BatchSendOnArc address={address} provider={provider} />}
           </div>
         </div>
       )}
