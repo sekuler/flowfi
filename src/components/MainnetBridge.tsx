@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
-import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
+import { LiFiWidget, ChainType, WidgetEvent, useWidgetEvents, type WidgetConfig, type FormState } from "@lifi/widget";
+import { trackLifiRoute } from "../txTracking";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import { SolanaProvider } from "@lifi/widget-provider-solana";
 import { BitcoinProvider } from "@lifi/widget-provider-bitcoin";
@@ -62,6 +63,13 @@ const lifiWidgetConfig: WidgetConfig = {
 };
 
 export default function MainnetBridge({ address, provider }: { address?: string; provider?: EIP1193Provider }) {
+  // Report completed LI.FI routes to FlowFi's own volume counter (see src/txTracking.ts).
+  const widgetEvents = useWidgetEvents();
+  useEffect(() => {
+    const onDone = (route: unknown) => trackLifiRoute(route);
+    widgetEvents.on(WidgetEvent.RouteExecutionCompleted, onDone);
+    return () => { widgetEvents.off(WidgetEvent.RouteExecutionCompleted, onDone); };
+  }, [widgetEvents]);
   const [mode, setMode] = useState<"cctp" | "lifi" | "eurc" | "sui">(() => {
     try {
       return sessionStorage.getItem("flowfi-bridge-mode") === "cctp" ? "cctp" : "lifi";

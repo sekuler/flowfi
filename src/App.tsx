@@ -1,3 +1,4 @@
+import { withTxTracking } from "./txTracking";
 import CircleAllianceCard from "./components/CircleAllianceCard";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
@@ -349,7 +350,7 @@ function AppInner() {
   }
 
  function handleConnected(provider: EIP1193Provider, address: string, walletName: string) {
-  setWallet({ provider, address, walletName });
+  setWallet({ provider: withTxTracking(provider), address, walletName });
   setGuestMode(false);
   setCirclePrimary(false);
   setShowConnectModal(false);

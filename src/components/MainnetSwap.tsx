@@ -1,5 +1,6 @@
-import { useRef, useState, useMemo } from "react";
-import { LiFiWidget, ChainType, type WidgetConfig, type FormState } from "@lifi/widget";
+import { useRef, useState, useMemo, useEffect } from "react";
+import { LiFiWidget, ChainType, WidgetEvent, useWidgetEvents, type WidgetConfig, type FormState } from "@lifi/widget";
+import { trackLifiRoute } from "../txTracking";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
@@ -63,6 +64,14 @@ const lifiWidgetConfig: WidgetConfig = {
 
 export default function MainnetSwap({ address, provider, onConnect }: { address?: string; provider?: EIP1193Provider; onConnect?: () => void }) {
   const formRef = useRef<FormState | null>(null);
+
+  // Report completed LI.FI routes to FlowFi's own volume counter (see src/txTracking.ts).
+  const widgetEvents = useWidgetEvents();
+  useEffect(() => {
+    const onDone = (route: unknown) => trackLifiRoute(route);
+    widgetEvents.on(WidgetEvent.RouteExecutionCompleted, onDone);
+    return () => { widgetEvents.off(WidgetEvent.RouteExecutionCompleted, onDone); };
+  }, [widgetEvents]);
   // "best": FlowFi compares KyberSwap, De¹ and LI.FI quotes for Arc tokens. "any": the LI.FI widget, for any token.
   const [mode, setMode] = useState<"best" | "any">("best");
   // Same as the Bridge: routes beside the form, and the widget never taller than the screen.
