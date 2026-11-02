@@ -1,22 +1,40 @@
-// FlowFi activity totals, verified onchain (see api/_lib/flowStats.js).
-// GET /api/stats                  -> totals, per chain, last 30 days
-// GET /api/stats?days=90          -> longer daily series (max 365)
-// GET /api/stats?export=500       -> the most recent verified txs (hash, chain, volume, time)
-//                                    Requires header  x-stats-token: <STATS_EXPORT_TOKEN>.
+// FlowFi's own activity counter, verified onchain (see api/_lib/flowStats.js).
+// One function for both directions, because the Vercel Hobby plan allows at most 12 functions.
+//
+// POST /api/stats { hash, chainId, from, source }
+//      -> records a tx the user just signed through FlowFi:
+//         { status: "recorded" | "duplicate" | "pending" | "rejected" }  ("pending" = not mined yet; the app retries)
+// GET  /api/stats                -> totals, per chain, last 30 days
+// GET  /api/stats?days=90        -> longer daily series (max 365)
+// GET  /api/stats?export=500     -> the most recent verified txs (hash, chain, volume, time)
+//                                   Requires header  x-stats-token: <STATS_EXPORT_TOKEN>.
 const { Ratelimit } = require('@upstash/ratelimit');
-const { summary, exportLog, redis, store, clientIp } = require('./_lib/flowStats');
+const { track, summary, exportLog, redis, store, clientIp } = require('./_lib/flowStats');
 
-const ratelimit = redis
+const trackLimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(40, '60 s'), prefix: 'ratelimit:track' })
+  : null;
+const readLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, '60 s'), prefix: 'ratelimit:stats' })
   : null;
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!store.available()) return res.status(503).json({ error: 'Stats storage is not configured.' });
-  if (ratelimit && !(await ratelimit.limit(clientIp(req))).success) {
-    return res.status(429).json({ error: 'Too many requests.' });
+
+  if (req.method === 'POST') {
+    if (trackLimit && !(await trackLimit.limit(clientIp(req))).success) return res.status(429).json({ error: 'Too many requests.' });
+    let body = req.body;
+    if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = null; } }
+    try {
+      return res.status(200).json(await track(body));
+    } catch (e) {
+      console.error('track error:', e?.message);
+      return res.status(200).json({ status: 'pending' });
+    }
   }
 
+  if (readLimit && !(await readLimit.limit(clientIp(req))).success) return res.status(429).json({ error: 'Too many requests.' });
   try {
     if (req.query?.export !== undefined) {
       const token = process.env.STATS_EXPORT_TOKEN;

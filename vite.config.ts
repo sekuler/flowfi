@@ -3,12 +3,12 @@ import react from "@vitejs/plugin-react";
 import { createRequire } from "node:module";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-// Local development only: serves FlowFi's volume counter endpoints (api/track.js, api/stats.js)
+// Local development only: serves FlowFi's volume counter endpoints (api/stats.js)
 // from `npm run dev`, so tracking can be tested without Vercel. Without Redis env vars the
 // counter keeps its data in memory until the dev server stops. Production uses the real
 // serverless functions; `vite build` ignores this plugin.
 const requireCjs = createRequire(import.meta.url);
-const LOCAL_API: Record<string, string> = { "/api/track": "./api/track.js", "/api/stats": "./api/stats.js" };
+const LOCAL_API: Record<string, string> = { "/api/stats": "./api/stats.js" };
 function localStatsApi(): Plugin {
   return {
     name: "flowfi-local-stats-api",

@@ -1,4 +1,4 @@
-// FlowFi's own activity counter (shared by api/track.js and api/stats.js).
+// FlowFi's own activity counter (used by api/stats.js).
 //
 // LI.FI's partner portal only sees volume that went through LI.FI. Swaps routed to KyberSwap/De1,
 // native CCTP bridges, Gateway, Earn & Borrow, Send and Batch payment never show up there. This

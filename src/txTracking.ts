@@ -1,6 +1,6 @@
 import type { EIP1193Provider } from "viem";
 
-// Reports every transaction signed through FlowFi to /api/track, which verifies it onchain and
+// Reports every transaction signed through FlowFi to /api/stats, which verifies it onchain and
 // adds it to FlowFi's own volume counter (see api/_lib/flowStats.js). Fire-and-forget: it never
 // blocks, delays or changes a transaction, and any failure is silently ignored.
 
@@ -12,7 +12,7 @@ export function trackTx(hash: string, chainId: number, from: string, source: Sou
   if (!/^0x[0-9a-fA-F]{64}$/.test(hash) || !Number.isInteger(chainId) || !from) return;
   let attempt = 0;
   const run = () => {
-    fetch("/api/track", {
+    fetch("/api/stats", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ hash, chainId, from, source }),
