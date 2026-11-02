@@ -7,6 +7,7 @@ import { getFormattedMarketAnalysis } from "../marketData";
 import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, Send, CheckCircle2, XCircle, Clock, Sparkles, Check, Maximize2, Minimize2, X } from "lucide-react";
 import SendOnArc from "./SendOnArc";
 import BatchSendOnArc from "./BatchSendOnArc";
+import CircleAllianceCard from "./CircleAllianceCard";
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
@@ -441,13 +442,17 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
         .ffh #ffh-ask:focus { box-shadow: none; }
       `}</style>
 
+      <CircleAllianceCard isMobile={isMobile} />
+
       {hero}
 
       {isNew ? (
-        <div style={twoCol}>
-          {checklist}
-          {copilot}
-        </div>
+        <>
+          <div style={twoCol}>
+            {checklist}
+            {copilot}
+          </div>
+        </>
       ) : (
         <>
           <div style={twoCol}>

@@ -1,3 +1,4 @@
+import CircleAllianceCard from "./components/CircleAllianceCard";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import LiveBlock from "./components/LiveBlock";
@@ -602,6 +603,10 @@ function AppInner() {
         <div style={{ flex: "1 1 460px", minWidth: 320, display: "flex", justifyContent: "center" }}>
           <img src="/usdc-hero.webp" alt="USDC on Arc" className="flowfi-float" style={{ width: "100%", maxWidth: 560, height: "auto" }} />
         </div>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: isMobile ? "0 1rem 2rem" : "0 3rem 2.5rem" }}>
+        <CircleAllianceCard variant="landing" isMobile={isMobile} />
       </div>
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "0 3rem 3.5rem" }}>
