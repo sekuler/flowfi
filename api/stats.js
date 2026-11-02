@@ -4,12 +4,12 @@
 // POST /api/stats { hash, chainId, from, source }
 //      -> records a tx the user just signed through FlowFi:
 //         { status: "recorded" | "duplicate" | "pending" | "rejected" }  ("pending" = not mined yet; the app retries)
-// GET  /api/stats                -> totals, per chain, last 30 days
-// GET  /api/stats?days=90        -> longer daily series (max 365)
-// GET  /api/stats?export=500     -> the most recent verified txs (hash, chain, volume, time)
-//                                   Requires header  x-stats-token: <STATS_EXPORT_TOKEN>.
+// GET  /api/stats?key=<STATS_KEY>              -> totals, per chain, last 30 days
+// GET  /api/stats?key=<STATS_KEY>&days=90      -> longer daily series (max 365)
+// GET  /api/stats?key=<STATS_KEY>&export=500   -> the most recent verified txs (hash, chain, volume, time)
+// Reading is private: without the right key it answers 404, as if the page didn't exist.
 const { Ratelimit } = require('@upstash/ratelimit');
-const { track, summary, exportLog, redis, store, clientIp } = require('./_lib/flowStats');
+const { track, summary, exportLog, redis, store, clientIp, isProd } = require('./_lib/flowStats');
 
 const trackLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(40, '60 s'), prefix: 'ratelimit:track' })
@@ -35,15 +35,18 @@ module.exports = async function handler(req, res) {
   }
 
   if (readLimit && !(await readLimit.limit(clientIp(req))).success) return res.status(429).json({ error: 'Too many requests.' });
+  // Reading is private: only with the secret STATS_KEY (Vercel env var). Closed if it isn't set.
+  const key = process.env.STATS_KEY;
+  const given = req.headers['x-stats-key'] || req.query?.key;
+  // (Local `npm run dev` without a key stays open so you can test.)
+  if (isProd || key) { if (!key || given !== key) return res.status(404).json({ error: 'Not found' }); }
   try {
     if (req.query?.export !== undefined) {
-      const token = process.env.STATS_EXPORT_TOKEN;
-      if (!token || req.headers['x-stats-token'] !== token) return res.status(401).json({ error: 'Not authorized.' });
       const rows = await exportLog(Number(req.query.export) || 500);
       return res.status(200).json({ count: rows.length, transactions: rows });
     }
     const days = Math.min(365, Math.max(1, Number(req.query?.days) || 30));
-    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json(await summary({ days }));
   } catch (e) {
     console.error('stats error:', e?.message);
