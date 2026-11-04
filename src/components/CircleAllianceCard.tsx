@@ -1,4 +1,4 @@
-import { BadgeCheck, ArrowUpRight } from "lucide-react";
+import { BadgeCheck, ArrowUpRight, Check } from "lucide-react";
 
 // Circle Alliance membership strip. The Circle wordmark and the certificate image are Circle's own
 // official artwork (taken from the "Certified Member" graphic Circle provided), shown without recoloring.
@@ -31,6 +31,8 @@ export default function CircleAllianceCard({ variant = "home", isMobile }: { var
       <span aria-hidden="true" style={{ position: "absolute", right: stack ? -160 : big ? 180 : 140, top: big ? -170 : -150, width: 340, height: 340, borderRadius: "50%",
         border: "34px solid rgba(91,120,255,0.10)", pointerEvents: "none" }} />
 
+      {big && !stack && <span aria-hidden="true" style={{ position: "absolute", right: 40, top: -210, width: 340, height: 340, borderRadius: "50%", border: "26px solid rgba(124,92,240,0.08)", pointerEvents: "none" }} />}
+
       <img src={WORDMARK} alt="Circle" style={{ height: big ? 44 : 30, width: "auto", flexShrink: 0, position: "relative" }} />
 
       {!stack && <span aria-hidden="true" style={{ width: 1, alignSelf: "stretch", background: "rgba(15,27,61,0.12)", flexShrink: 0 }} />}
@@ -42,6 +44,12 @@ export default function CircleAllianceCard({ variant = "home", isMobile }: { var
         </div>
         <div style={{ fontSize: big ? 15 : 13, color: MUTED }}>FlowFi is a certified member of the Circle Alliance Program.</div>
       </div>
+
+      {big && (
+        <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "6px 13px", borderRadius: 999, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.28)", color: "#15803D", fontSize: 13.5, fontWeight: 700 }}>
+          <Check size={15} strokeWidth={2.6} /> Verified
+        </span>
+      )}
 
       <a href={CERT} target="_blank" rel="noopener noreferrer"
         style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, textDecoration: "none", color: BLUE, fontWeight: 700,

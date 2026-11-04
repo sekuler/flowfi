@@ -1,5 +1,10 @@
 import { withTxTracking } from "./txTracking";
 import CircleAllianceCard from "./components/CircleAllianceCard";
+import EcosystemStrip from "./components/EcosystemStrip";
+import FeatureCards from "./components/FeatureCards";
+import HeroVisual from "./components/HeroVisual";
+import ProductShowcase from "./components/ProductShowcase";
+import SiteFooter from "./components/SiteFooter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import LiveBlock from "./components/LiveBlock";
@@ -129,12 +134,12 @@ const LANDING_FEATURE_ICONS = [Mail, Zap, Sparkles, Hexagon, Rocket, Repeat];
 // nothing from the Testnet showcase. Circle Wallet isn't promoted here. Keep the wording true: the optional
 // Circle Wallet is not self-custody, so "never holds a key" claims are out.
 const LANDING_FEATURES = [
-  { title: "Self-Custody", desc: "Bridge, Swap and Earn are signed by your own connected wallet. FlowFi never holds your keys or your funds." },
-  { title: "Circle CCTP V2", desc: "Genuine native USDC bridging via Circle's own official burn/attest/mint protocol — not a wrapped-asset bridge." },
-  { title: "LI.FI Aggregation", desc: "Bridge or swap tokens across Arc and dozens of other chains, with routes compared across many bridges and DEXs." },
-  { title: "AI Copilot", desc: "Tell it what you want in plain language — it takes you straight to the right page to confirm with your own wallet." },
-  { title: "Native USDC on Arc", desc: "USDC is Arc's actual gas token, not a wrapped placeholder — funds are productive the moment they land." },
-  { title: "Real-Time Activity", desc: "Balances and transaction history read from Arc's official explorer, arc.etherscan.io." },
+  { title: "Self-Custody", desc: "Your keys, your assets." },
+  { title: "Circle CCTP V2", desc: "Move native USDC across chains." },
+  { title: "LI.FI Aggregation", desc: "Bridge and swap across chains." },
+  { title: "AI Copilot", desc: "Ask in plain language." },
+  { title: "Native USDC on Arc", desc: "USDC pays for gas on Arc." },
+  { title: "Real-Time Activity", desc: "Track your balances and activity." },
 ];
 
 /* ---------- Soft pastel blob background ---------- */
@@ -183,7 +188,7 @@ function useFlowFiFonts() {
     const link = document.createElement("link");
     link.id = "flowfi-fonts";
     link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@500;600&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap";
     document.head.appendChild(link);
   }, []);
 }
@@ -546,6 +551,7 @@ function AppInner() {
   );
 
  if (!wallet && !guestMode && !circlePrimary) {
+  const exploreAs = (t: Tab) => { setGuestMode(true); setTab(t); };
   return (
     <div style={{ minHeight: "100vh", color: "#111827", position: "relative" }}>
       {sharedStyle}
@@ -575,7 +581,7 @@ function AppInner() {
             <span style={{ background: "linear-gradient(90deg, #7C3AED, #3B82F6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>All in one flow.</span>
           </h1>
           <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 460, marginBottom: 32 }}>
-            Bridge, swap, and earn with your USDC on Arc Mainnet — everything from one fast, secure platform. Connect your own wallet: you sign every transaction and stay in control of your funds.
+            Bridge, swap, and earn with your USDC on Arc Mainnet — everything from one fast, secure platform. Connect your own wallet: you sign every transaction and stay in control of your assets.
           </p>
           <div style={{ display: "flex", gap: 8, marginBottom: 26 }} aria-hidden="true">
             {["Bridge", "Swap", "Earn"].map((w, i) => (
@@ -602,13 +608,15 @@ function AppInner() {
         </div>
 
         <div style={{ flex: "1 1 460px", minWidth: 320, display: "flex", justifyContent: "center" }}>
-          <img src="/usdc-hero.webp" alt="USDC on Arc" className="flowfi-float" style={{ width: "100%", maxWidth: 560, height: "auto" }} />
+          <HeroVisual onOpen={(d) => exploreAs(d === "swap" ? "mainnetswap" : d === "earn" ? "morphomainnet" : "mainnetbridge")} />
         </div>
       </div>
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: isMobile ? "0 1rem 2rem" : "0 3rem 2.5rem" }}>
         <CircleAllianceCard variant="landing" isMobile={isMobile} />
       </div>
+
+      <EcosystemStrip />
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "0 3rem 3.5rem" }}>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "2.5rem 3rem", paddingTop: 24, borderTop: "1px solid #E5DEFA" }}>
@@ -631,79 +639,20 @@ function AppInner() {
         </div>
       </div>
 
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 1000, margin: "0 auto", padding: "2rem 2rem 5rem" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-          {LANDING_FEATURES.map((f, i) => {
-            const Icon = LANDING_FEATURE_ICONS[i];
-            return (
-              <div key={f.title} className="flowfi-glow-card" style={{ background: "#ffffff", borderRadius: 18, padding: "1.5rem", boxShadow: "0 1px 3px rgba(109,94,247,0.08)" , border: "1px solid #D4C9FA" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(109,94,247,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-                  <Icon size={18} color="#6D5EF7" strokeWidth={2} />
-                </div>
-                <h3 className="flowfi-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "#111827" }}>{f.title}</h3>
-                <p style={{ fontSize: 13, color: "#4B5563", lineHeight: 1.5 }}>{f.desc}</p>
-              </div>
-            );
-          })}
-        </div>
+      <FeatureCards items={LANDING_FEATURES} icons={LANDING_FEATURE_ICONS} onOpen={(title) => {
+        if (title === "Circle CCTP V2") { try { sessionStorage.setItem("flowfi-bridge-mode", "cctp"); } catch { /* ignore */ } exploreAs("mainnetbridge"); }
+        else if (title === "LI.FI Aggregation") exploreAs("mainnetbridge");
+        else if (title === "Native USDC on Arc") exploreAs("mainnetswap");
+        else setShowConnectModal(true);
+      }} />
+      <ProductShowcase onOpen={() => exploreAs("mainnetbridge")} />
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <SiteFooter mark={<FlowFiMark size={106} />} product={[
+          { label: "Live App", href: "#top" },
+          { label: "Watch Demo", href: "https://youtu.be/Icu8qTiYMqw" },
+        ]} />
       </div>
-
-      <footer style={{ position: "relative", zIndex: 1, background: "#F5F3FF", borderTop: "1px solid #E5DEFA", marginTop: 40 }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
-          <div style={{ maxWidth: 320 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <FlowFiMark size={30} />
-              <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></span>
-            </div>
-            <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
-              Bridging, swapping and earning on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Browser-wallet transactions are signed by you, never by FlowFi.
-            </p>
-            <div style={{ display: "flex", gap: 10 }}>
-              <a href="https://x.com/flowfifinance" target="_blank" rel="noopener noreferrer"
-                style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(109,94,247,0.1)", border: "1px solid #D4C9FA", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="X (Twitter)">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="#6D5EF7"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-6.9l-5.4-6.9L4.7 22H1.5l8.2-9.3L1 2h7.1l4.9 6.4L18.9 2zm-1.2 18h1.9L7.4 4H5.4l12.3 16z" /></svg>
-              </a>
-              <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener noreferrer"
-                style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(109,94,247,0.1)", border: "1px solid #D4C9FA", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="GitHub">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="#6D5EF7"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 5.02 3.26 9.28 7.78 10.78.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.16.69-3.83-1.34-3.83-1.34-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.33.95.1-.74.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.17-3.04-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.14 1.16a10.9 10.9 0 0 1 5.72 0c2.18-1.47 3.14-1.16 3.14-1.16.62 1.57.23 2.73.11 3.02.73.79 1.17 1.8 1.17 3.04 0 4.35-2.65 5.31-5.18 5.59.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.66.79.55 4.51-1.51 7.77-5.76 7.77-10.78C23.25 5.48 18.27.5 12 .5z" /></svg>
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Quick Links</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              {[
-                { label: "Live App", href: "#top" },
-                { label: "Explorer", href: "https://arc.etherscan.io" },
-                { label: "Docs", href: "https://github.com/sekuler/flowfi" },
-                { label: "Watch Demo", href: "https://youtu.be/Icu8qTiYMqw" },
-              ].map(({ label, href }) => (
-                <a key={label} href={href} {...(href.startsWith("#") ? {} : { target: "_blank", rel: "noopener noreferrer" })} style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>{label}</a>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Resources</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              {[
-                { label: "Documentation", href: "https://github.com/sekuler/flowfi#readme" },
-                { label: "Arc Docs", href: "https://docs.arc.io" },
-                { label: "Source Code", href: "https://github.com/sekuler/flowfi" },
-              ].map(({ label, href }) => (
-                <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>{label}</a>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div style={{ borderTop: "1px solid #E5DEFA" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.1rem 2rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8 }}>
-            <span style={{ fontSize: 12.5, color: "#6B7280" }}>© 2026 FlowFi. All rights reserved.</span>
-            <span style={{ fontSize: 12.5, color: "#6B7280" }}>Built on Circle & Arc Mainnet</span>
-          </div>
-        </div>
-      </footer>
       {showConnectModal && <ConnectModal onClose={() => setShowConnectModal(false)} onConnected={handleConnected} onCircleConnected={handleCircleConnected} />}
     </div>
   );
@@ -971,52 +920,11 @@ function AppInner() {
         </div>
 
         {tab !== "pools" && tab !== "history" && (
-        <footer style={{ background: "#F5F3FF", borderTop: "1px solid #E5DEFA" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem 1.5rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2.5rem" }}>
-            <div style={{ maxWidth: 320 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <FlowFiMark size={30} />
-                <span className="flowfi-display" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></span>
-              </div>
-              <p style={{ fontSize: 13.5, color: "#4B5563", lineHeight: 1.6, marginBottom: 16 }}>
-                Bridging, swapping and earning on Arc Mainnet — routed through LI.FI and Circle's native CCTP V2, with an AI Copilot to guide you. Browser-wallet transactions are signed by you, never by FlowFi.
-              </p>
-              <div style={{ display: "flex", gap: 10 }}>
-                <a href="https://x.com/flowfifinance" target="_blank" rel="noopener noreferrer"
-                  style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(109,94,247,0.1)", border: "1px solid #D4C9FA", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="X (Twitter)">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="#6D5EF7"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-6.9l-5.4-6.9L4.7 22H1.5l8.2-9.3L1 2h7.1l4.9 6.4L18.9 2zm-1.2 18h1.9L7.4 4H5.4l12.3 16z" /></svg>
-                </a>
-                <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener noreferrer"
-                  style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(109,94,247,0.1)", border: "1px solid #D4C9FA", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="GitHub">
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="#6D5EF7"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 5.02 3.26 9.28 7.78 10.78.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.16.69-3.83-1.34-3.83-1.34-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.33.95.1-.74.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.17-3.04-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.14 1.16a10.9 10.9 0 0 1 5.72 0c2.18-1.47 3.14-1.16 3.14-1.16.62 1.57.23 2.73.11 3.02.73.79 1.17 1.8 1.17 3.04 0 4.35-2.65 5.31-5.18 5.59.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.66.79.55 4.51-1.51 7.77-5.76 7.77-10.78C23.25 5.48 18.27.5 12 .5z" /></svg>
-                </a>
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Quick Links</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <button onClick={() => setTab("mainnetswap")} style={{ background: "none", border: "none", padding: 0, textAlign: "left", fontSize: 14, color: "#4B5563", cursor: "pointer" }}>Swap</button>
-                <button onClick={() => setTab("mainnetbridge")} style={{ background: "none", border: "none", padding: 0, textAlign: "left", fontSize: 14, color: "#4B5563", cursor: "pointer" }}>Bridge</button>
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Resources</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <a href="https://github.com/sekuler/flowfi#readme" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>Documentation</a>
-                <a href="https://arc.etherscan.io" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>Block Explorer</a>
-                <a href="https://github.com/sekuler/flowfi" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#4B5563", textDecoration: "none" }}>Source Code</a>
-              </div>
-            </div>
-          </div>
-          <div style={{ borderTop: "1px solid #E5DEFA" }}>
-            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.1rem 2rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8 }}>
-              <span style={{ fontSize: 12.5, color: "#6B7280" }}>© 2026 FlowFi. All rights reserved.</span>
-              <span style={{ fontSize: 12.5, color: "#6B7280" }}>Built on Circle & Arc Mainnet</span>
-            </div>
-          </div>
-        </footer>
+        <SiteFooter mark={<FlowFiMark size={106} />} product={[
+          { label: "Swap", onClick: () => setTab("mainnetswap") },
+          { label: "Bridge", onClick: () => setTab("mainnetbridge") },
+          { label: "Earn", onClick: () => setTab("morphomainnet") },
+        ]} />
         )}
       </main>
 
