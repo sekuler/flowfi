@@ -30,6 +30,13 @@ const { Redis } = require('@upstash/redis');
 const ARC_TESTNET_RPC_URL = process.env.ARC_RPC_URL || 'https://rpc.testnet.arc.io';
 // Matches viem's own built-in `arc` chain definition's primary RPC.
 const ARC_MAINNET_RPC_URL = process.env.ARC_MAINNET_RPC_URL || 'https://rpc.mainnet.arc.io';
+// Mainnet calls go to Alchemy first when ALCHEMY_API_KEY is set, and fall back to the
+// public RPC above if Alchemy is down, rate-limits, or the account's spend limit is hit.
+const ALCHEMY_MAINNET_RPC_URL = process.env.ALCHEMY_API_KEY
+  ? `https://arc-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
+  : null;
+// Upstream statuses that mean "try the next provider" (auth/limit problems and server errors).
+const shouldFallBack = (status) => status === 401 || status === 403 || status === 429 || status >= 500;
 
 const ALLOWED_METHODS = new Set([
   'eth_chainId', 'eth_blockNumber', 'eth_gasPrice', 'eth_maxPriorityFeePerGas', 'eth_feeHistory',
@@ -149,19 +156,31 @@ module.exports = async function handler(req, res) {
     if (why) return res.status(400).json({ error: why });
   }
 
-  try {
-    const response = await fetch(targetUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body ?? {}),
-    });
+  const isMainnet = req.query?.network === 'mainnet';
+  const upstreams = isMainnet && ALCHEMY_MAINNET_RPC_URL ? [ALCHEMY_MAINNET_RPC_URL, targetUrl] : [targetUrl];
+  const body = JSON.stringify(req.body ?? {});
 
-    const text = await response.text();
-    res.status(response.status);
-    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
-    res.send(text);
-  } catch (error) {
-    console.error('rpc-proxy upstream error:', error?.message);
-    res.status(502).json({ error: 'RPC upstream unavailable. Please try again.' });
+  for (let i = 0; i < upstreams.length; i++) {
+    const isLast = i === upstreams.length - 1;
+    try {
+      const response = await fetch(upstreams[i], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+      if (!isLast && shouldFallBack(response.status)) {
+        console.warn(`rpc-proxy: upstream ${i} returned ${response.status}, falling back`);
+        continue;
+      }
+      const text = await response.text();
+      res.status(response.status);
+      res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
+      return res.send(text);
+    } catch (error) {
+      // Never log the URL itself: the Alchemy one contains the API key.
+      console.error(`rpc-proxy upstream ${i} error:`, error?.message);
+      if (!isLast) continue;
+      return res.status(502).json({ error: 'RPC upstream unavailable. Please try again.' });
+    }
   }
 };
