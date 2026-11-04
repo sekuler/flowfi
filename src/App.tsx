@@ -3,6 +3,7 @@ import CircleAllianceCard from "./components/CircleAllianceCard";
 import EcosystemStrip from "./components/EcosystemStrip";
 import FeatureCards from "./components/FeatureCards";
 import HeroVisual from "./components/HeroVisual";
+import { WhyFlowFi, ClosingCta } from "./components/LandingExtras";
 import ProductShowcase from "./components/ProductShowcase";
 import SiteFooter from "./components/SiteFooter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -46,6 +47,8 @@ import {
   Home, Repeat,
   Rocket, Hexagon, CircleDollarSign, Layers, LayoutDashboard, History as HistoryIcon,
   Sparkles, PiggyBank, Moon, Power, HelpCircle, Check, Lock, Mail, Zap, ShieldCheck as ShieldCheckIcon,
+  ArrowLeftRight,
+  BarChart3,
 } from "lucide-react";
 
 interface WalletInfo {
@@ -133,6 +136,9 @@ const LANDING_FEATURE_ICONS = [Mail, Zap, Sparkles, Hexagon, Rocket, Repeat];
 // Every card below describes what's actually live on Arc Mainnet today,
 // nothing from the Testnet showcase. Circle Wallet isn't promoted here. Keep the wording true: the optional
 // Circle Wallet is not self-custody, so "never holds a key" claims are out.
+// Set to true to bring back the six small feature cards on the landing page.
+const SHOW_SMALL_FEATURE_CARDS = false;
+
 const LANDING_FEATURES = [
   { title: "Self-Custody", desc: "Your keys, your assets." },
   { title: "Circle CCTP V2", desc: "Move native USDC across chains." },
@@ -557,7 +563,7 @@ function AppInner() {
       {sharedStyle}
       <PastelBackground />
 
-      <header style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 3rem", maxWidth: 1200, margin: "0 auto" }}>
+      <header style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: isMobile ? "1.25rem 1rem" : "1.5rem 3rem", maxWidth: 1320, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <FlowFiMark size={34} />
           <div className="flowfi-display" style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1, color: "#111827" }}>Flow<span style={{ color: "#3D5AF1" }}>Fi</span></div>
@@ -571,28 +577,37 @@ function AppInner() {
         </div>
       </header>
 
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "3rem 3rem 2rem", display: "flex", alignItems: "center", gap: "3rem", flexWrap: "wrap" }}>
-        <div style={{ flex: "1 1 460px", minWidth: 320 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", padding: "6px 16px", borderRadius: 30, background: "rgba(61,90,241,0.1)", fontSize: 12, fontWeight: 700, color: "#3D5AF1", marginBottom: 24, letterSpacing: "0.4px" }}>
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1320, margin: "0 auto", padding: isMobile ? "1.5rem 1rem 2rem" : "2.5rem 3rem 3rem", display: "flex", alignItems: "center", gap: "2.5rem", flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 520px", minWidth: isMobile ? 0 : 320 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", padding: "9px 20px", borderRadius: 30, background: "rgba(255,255,255,0.75)", border: "1px solid rgba(61,90,241,0.2)", fontSize: 12.5, fontWeight: 600, color: "#3D5AF1", marginBottom: 24, letterSpacing: "2.5px" }}>
+            <img src="/logos/arc.jpg" alt="Arc" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover", marginRight: 10 }} />
             ON ARC MAINNET
           </div>
-          <h1 className="flowfi-display" style={{ fontSize: 52, fontWeight: 800, lineHeight: 1.1, letterSpacing: "-1.5px", marginBottom: 20, color: "#111827" }}>
+          <h1 className="flowfi-display" style={{ fontSize: isMobile ? "clamp(38px, 11vw, 56px)" : "clamp(44px, 4.5vw, 68px)", whiteSpace: isMobile ? "normal" : "nowrap", fontWeight: 800, lineHeight: 1.06, letterSpacing: "-2px", marginBottom: 24, color: "#111827" }}>
             Do more with USDC.<br />
             <span style={{ background: "linear-gradient(90deg, #7C3AED, #3B82F6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>All in one flow.</span>
           </h1>
-          <p style={{ fontSize: 17, color: "#4B5563", lineHeight: 1.6, maxWidth: 460, marginBottom: 32 }}>
-            Bridge, swap, and earn with your USDC on Arc Mainnet — everything from one fast, secure platform. Connect your own wallet: you sign every transaction and stay in control of your assets.
+          <p style={{ fontSize: isMobile ? 18 : 20, color: "#4B5563", lineHeight: 1.65, maxWidth: 520, marginBottom: 30 }}>
+            Bridge, swap and earn USDC on Arc.<br />
+            One simple flow.<br />
+            You sign every transaction.
           </p>
-          <div style={{ display: "flex", gap: 8, marginBottom: 26 }} aria-hidden="true">
-            {["Bridge", "Swap", "Earn"].map((w, i) => (
-              <span key={w} className="flowfi-chip" style={{ animationDelay: `${i * 2}s`, padding: "6px 16px", borderRadius: 999, border: "1px solid #E5DEFA", backgroundColor: "#ffffff", color: "#4B5563", fontSize: 13, fontWeight: 700 }}>{w}</span>
-            ))}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 14, marginBottom: 28 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 20, marginBottom: 28 }}>
             <button onClick={() => setShowConnectModal(true)}
-              style={{ padding: "1rem 2rem", borderRadius: 16, border: "none", background: "linear-gradient(90deg, #7C3AED, #3B82F6)", color: "#ffffff", fontSize: 16, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+              style={{ padding: "1.25rem 2.6rem", borderRadius: 18, border: "none", background: "linear-gradient(90deg, #7C3AED, #3B82F6)", color: "#ffffff", fontSize: 19, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
               Connect Wallet <span>→</span>
             </button>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {([
+                { w: "Bridge", t: "mainnetbridge", Icon: Zap },
+                { w: "Swap", t: "mainnetswap", Icon: ArrowLeftRight },
+                { w: "Earn", t: "morphomainnet", Icon: BarChart3 },
+              ] as const).map(({ w, t, Icon }, i) => (
+                <button key={w} type="button" className="flowfi-chip" onClick={() => exploreAs(t)} style={{ animationDelay: `${i * 2}s`, display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", borderRadius: 14, border: "1px solid #E5DEFA", backgroundColor: "#ffffff", color: "#4B5563", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
+                  <Icon size={18} /> {w}
+                </button>
+              ))}
+            </div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <button onClick={() => { setGuestMode(true); setTab("mainnetbridge"); }}
                 style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
@@ -607,12 +622,12 @@ function AppInner() {
           </div>
         </div>
 
-        <div style={{ flex: "1 1 460px", minWidth: 320, display: "flex", justifyContent: "center" }}>
+        <div style={{ flex: "1 1 520px", minWidth: isMobile ? 0 : 320, display: "flex", justifyContent: "center" }}>
           <HeroVisual onOpen={(d) => exploreAs(d === "swap" ? "mainnetswap" : d === "earn" ? "morphomainnet" : "mainnetbridge")} />
         </div>
       </div>
 
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: isMobile ? "0 1rem 2rem" : "0 3rem 2.5rem" }}>
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1320, margin: "0 auto", padding: isMobile ? "0 1rem 2rem" : "0 3rem 2.5rem" }}>
         <CircleAllianceCard variant="landing" isMobile={isMobile} />
       </div>
 
@@ -639,13 +654,17 @@ function AppInner() {
         </div>
       </div>
 
+      <WhyFlowFi />
+      {SHOW_SMALL_FEATURE_CARDS && (
       <FeatureCards items={LANDING_FEATURES} icons={LANDING_FEATURE_ICONS} onOpen={(title) => {
         if (title === "Circle CCTP V2") { try { sessionStorage.setItem("flowfi-bridge-mode", "cctp"); } catch { /* ignore */ } exploreAs("mainnetbridge"); }
         else if (title === "LI.FI Aggregation") exploreAs("mainnetbridge");
         else if (title === "Native USDC on Arc") exploreAs("mainnetswap");
         else setShowConnectModal(true);
       }} />
+      )}
       <ProductShowcase onOpen={() => exploreAs("mainnetbridge")} />
+      <ClosingCta onConnect={() => setShowConnectModal(true)} onExplore={() => exploreAs("mainnetbridge")} />
 
       <div style={{ position: "relative", zIndex: 1 }}>
         <SiteFooter mark={<FlowFiMark size={106} />} product={[

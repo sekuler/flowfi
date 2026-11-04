@@ -9,9 +9,9 @@ const BADGES: { dest: Dest; label: string; Icon: ComponentType<{ size?: number; 
 ];
 
 const CSS = `
-.ff-hv { position: relative; width: 100%; max-width: 640px; }
+.ff-hv { position: relative; width: 100%; max-width: 720px; }
 .ff-hv img { display: block; width: 100%; height: auto; }
-.ff-hv-badge { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 84px; padding: 13px 6px 10px; border-radius: 20px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; color: #0F1B3D;
+.ff-hv-badge { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 98px; padding: 15px 6px 12px; border-radius: 22px; cursor: pointer; font: inherit; font-size: 15px; font-weight: 700; color: #0F1B3D;
   background: rgba(255,255,255,.82); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid #fff; box-shadow: 0 18px 34px -18px rgba(36,58,150,.6); animation: ff-hv-bob 5s ease-in-out infinite; transition: box-shadow .2s, color .2s; }
 .ff-hv-badge:hover, .ff-hv-badge:focus-visible { animation-play-state: paused; color: #3D5AF1; box-shadow: 0 20px 38px -14px rgba(61,90,241,.8); }
 .ff-hv-a { top: 4%; left: 8%; }
@@ -29,7 +29,7 @@ export default function HeroVisual({ onOpen }: { onOpen: (dest: Dest) => void })
       <img src="/usdc-hero.webp" alt="USDC on Arc" className="flowfi-float" />
       {BADGES.map(({ dest, label, Icon, pos }) => (
         <button key={dest} type="button" className={`ff-hv-badge ${pos}`} onClick={() => onOpen(dest)}>
-          <Icon size={22} color="#3D5AF1" />
+          <Icon size={26} color="#3D5AF1" />
           {label}
         </button>
       ))}
