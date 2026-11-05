@@ -8,6 +8,7 @@ import { EURC_LOGO } from "./tokenLogos";
 import { TokenIcon } from "./TokenIcon";
 import { BridgeKit } from "@circle-fin/bridge-kit";
 import { createKitAdapter } from "../kitAdapter";
+import { isUserRejection } from "./UnconfirmedTx";
 
 // Native EURC into Arc Mainnet via Circle's "CCTP for non-USDC" (CrossChainTokenService).
 // Sources (all verified 2026-09-23 against developers.circle.com):
@@ -126,6 +127,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
   const src = SOURCES[pendingSrc ?? srcIdx];
   const busy = step === "approving" || step === "quoting" || step === "sending" || step === "delivering";
   const unfinished = step === "error" && !!txHash;
+  const [maybeSent, setMaybeSent] = useState(false);
 
   function savePending(hash: string, idx: number, amt: string) {
     try { localStorage.setItem(PENDING_KEY, JSON.stringify({ hash, srcIdx: idx, address, amount: amt, token: tokenKey })); } catch { /* ignore */ }
@@ -230,7 +232,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
 
   async function send() {
     if (!provider || !amount.trim()) return;
-    setError(null); setTxHash(null); setMintHash(null); setPendingSrc(null);
+    setError(null); setTxHash(null); setMintHash(null); setPendingSrc(null); setMaybeSent(false);
     const s = SOURCES[srcIdx];
     try {
       await switchTo(provider, s.chain);
@@ -315,20 +317,32 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
     });
 
     setStep("approving");
-    const result = await kit.bridge({
+    let result: Awaited<ReturnType<typeof kit.bridge>>;
+    try {
+      result = await kit.bridge({
       from: { adapter, chain: KIT_CHAIN[s.key] as "Base" },
       to: { adapter, chain: "Arc" },
       amount: amt,
       token: KIT_TOKEN[tokenKey],
       config: { transferSpeed: wantFast ? "FAST" : "SLOW" },
-    });
+      });
+    } catch (e) {
+      if (isUserRejection(e)) throw e;
+      setMaybeSent(true);
+      throw new Error("We couldn't confirm whether your transfer went through. Check your wallet's activity on the source chain before trying again.", { cause: e });
+    }
 
     if (result.state === "success") {
       clearPending(); setStep("done");
       return;
     }
     if (sent) throw new Error(`Your ${tok.symbol} was sent, but delivery on Arc isn't confirmed yet. Don't send again. Use Resume to check again.`);
-    const failed = result.steps.find((st) => st.state === "error");
+    const failed = result.steps.find((st) => st.state === "error") as { name: string; errorMessage?: string } | undefined;
+    const beforeTransfer = !failed || failed.name.toLowerCase().includes("approve");
+    if (!beforeTransfer && !isUserRejection({ message: failed?.errorMessage })) {
+      setMaybeSent(true);
+      throw new Error("We couldn't confirm whether your transfer went through. Check your wallet's activity on the source chain before trying again.");
+    }
     throw new Error(failed ? `${failed.name} step failed. Nothing was sent.` : "The transfer didn't go through. Nothing was sent.");
   }
 
@@ -351,6 +365,10 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
       setMintHash(h);
       const rr = await arcPc.waitForTransactionReceipt({ hash: h });
       if (rr.status === "reverted") throw new Error("The mint on Arc reverted. If this transfer was already delivered, use Dismiss.");
+      // Trust the chain, not the hash the wallet returned: recovery data is only erased once this message is really used.
+      const mintNonce = `0x${(out.message as string).slice(26, 90)}` as `0x${string}`;
+      const mintUsed = await arcPc.readContract({ address: ARC_MESSAGE_TRANSMITTER_V2, abi: USED_NONCES_ABI, functionName: "usedNonces", args: [mintNonce] });
+      if (Number(mintUsed) === 0) throw new Error("We couldn't confirm the mint on Arc yet. Use Resume to check again.");
       clearPending(); setStep("done");
     } catch (e: unknown) {
       const err = e as { shortMessage?: string; message?: string };
@@ -375,7 +393,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
   if (busy) { cta = "Processing..."; ctaOn = false; }
   if (step === "done") { cta = "Send another"; ctaOn = true; ctaFn = reset; }
   if (unfinished) { cta = "Resume"; ctaOn = !!provider; ctaFn = resume; }
-  else if (step === "error") { cta = "Try again"; ctaOn = !!provider; ctaFn = () => { setStep("idle"); setError(null); }; }
+  else if (step === "error") { cta = maybeSent ? "I checked my wallet. Send again" : "Try again"; ctaOn = !!provider; ctaFn = () => { setStep("idle"); setError(null); }; }
 
   const statusText = {
     idle: "", approving: `Approving ${tok.symbol} on ${src.name}...`, quoting: "Getting Circle's fee quote...", sending: `Sending from ${src.name}...`,

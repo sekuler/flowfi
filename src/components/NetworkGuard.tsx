@@ -24,6 +24,14 @@ const ARC_MAINNET_PARAMS = {
   blockExplorerUrls: ["https://arc.etherscan.io"],
 };
 
+// Wallets should send a hex string, but one that sends anything else must not crash the whole page.
+function normalizeChainId(id: unknown): string | null {
+  if (typeof id === "string" && id.trim()) return id;
+  if (typeof id === "number" && Number.isFinite(id)) return `0x${id.toString(16)}`;
+  if (typeof id === "bigint") return `0x${id.toString(16)}`;
+  return null;
+}
+
 export default function NetworkGuard({ provider, children }: { provider: EIP1193Provider | undefined; children?: ReactNode }) {
   const [chainId, setChainId] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
@@ -34,13 +42,13 @@ export default function NetworkGuard({ provider, children }: { provider: EIP1193
     async function check() {
       try {
         const id = await provider!.request({ method: "eth_chainId" });
-        if (!cancelled) setChainId(id as string);
+        if (!cancelled) setChainId(normalizeChainId(id));
       } catch {
         /* ignore */
       }
     }
     check();
-    const onChainChanged = (id: unknown) => setChainId(id as string);
+    const onChainChanged = (id: unknown) => setChainId(normalizeChainId(id));
     (provider as any)?.on?.("chainChanged", onChainChanged);
     return () => {
       cancelled = true;

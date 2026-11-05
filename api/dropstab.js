@@ -39,14 +39,26 @@ const MAX_PAGES = 101; // covers the full known range
 
 const { Ratelimit } = require("@upstash/ratelimit");
 const { Redis } = require("@upstash/redis");
+const { acquireLock, releaseLock, waitForValue } = require("./_lib/singleFlight");
+
+const COIN_SLUG_RE = /^[a-z0-9-]{1,80}$/;
+const FOUND_CACHE_SECONDS = 60 * 60;
+const MISSING_CACHE_SECONDS = 6 * 60 * 60;
 
 let ratelimit = null;
+let redis = null;
+let searchIpLimit = null;
+let searchGlobalLimit = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  // A search that misses the cache can cost 101 DropsTab calls, so those are limited on their own.
+  searchIpLimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(3, "60 s"), prefix: "ratelimit:dropstab-search-ip" });
+  searchGlobalLimit = new Ratelimit({ redis, limiter: Ratelimit.fixedWindow(200, "86400 s"), prefix: "ratelimit:dropstab-search-global" });
   ratelimit = new Ratelimit({
-    redis: new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    }),
+    redis,
     limiter: Ratelimit.slidingWindow(10, "60 s"),
     prefix: "ratelimit:dropstab",
   });
@@ -120,17 +132,36 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: "Server misconfigured: DROPSTAB_API_KEY not set" });
   }
 
-  const coinSlug = req.query.coinSlug;
-  if (!coinSlug) {
-    return res.status(400).json({ error: "Missing coinSlug query parameter" });
+  const coinSlug = typeof req.query.coinSlug === "string" ? req.query.coinSlug.trim().toLowerCase() : "";
+  if (!COIN_SLUG_RE.test(coinSlug)) {
+    return res.status(400).json({ error: "Missing or invalid coinSlug query parameter" });
   }
 
+  const notFound = () => res.status(404).json({ error: `${coinSlug} not found in DropsTab's tracked unlock list` });
+  const cacheKey = `dropstab-cache:${coinSlug}`;
+  const readCache = async () => (redis ? redis.get(cacheKey).catch(() => null) : null);
+  const answer = (c) => (c.found ? res.status(200).json(c.item) : notFound());
+
   try {
-    const match = await findCoinAcrossAllPages(apiKey, coinSlug);
-    if (!match) {
-      return res.status(404).json({ error: `${coinSlug} not found in DropsTab's tracked unlock list` });
+    const cached = await readCache();
+    if (cached) return answer(typeof cached === "string" ? JSON.parse(cached) : cached);
+
+    const lockKey = `dropstab:${coinSlug}`;
+    if (!(await acquireLock(redis, lockKey, 30))) {
+      const ready = await waitForValue(readCache, 5000);
+      if (ready) return answer(typeof ready === "string" ? JSON.parse(ready) : ready);
+      return res.status(503).json({ error: "Please try again in a moment." });
     }
-    return res.status(200).json(match);
+    try {
+      if (searchIpLimit && !(await searchIpLimit.limit(ip)).success) return res.status(429).json({ error: "Too many requests — please wait a moment and try again." });
+      if (searchGlobalLimit && !(await searchGlobalLimit.limit("all")).success) return res.status(503).json({ error: "Token unlock data is busy right now. Please try again later." });
+      const match = await findCoinAcrossAllPages(apiKey, coinSlug);
+      const entry = match ? { found: true, item: match } : { found: false };
+      if (redis) await redis.set(cacheKey, JSON.stringify(entry), { ex: match ? FOUND_CACHE_SECONDS : MISSING_CACHE_SECONDS }).catch(() => {});
+      return answer(entry);
+    } finally {
+      await releaseLock(redis, lockKey);
+    }
   } catch (err) {
     return res.status(500).json({ error: err.message || "Internal error" });
   }

@@ -19,6 +19,7 @@
 
 const { Ratelimit } = require("@upstash/ratelimit");
 const { Redis } = require("@upstash/redis");
+const { acquireLock, releaseLock, waitForValue } = require("./_lib/singleFlight");
 
 const CACHE_TTL_SECONDS = 90;
 
@@ -32,15 +33,15 @@ const ratelimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "60 s"), prefix: "ratelimit:market-analysis" })
   : null;
 
-// The AI insight counts toward the same global daily AI budget as api/claude.js (same prefix,
-// key and limit, so they share one counter). Over budget: the analysis is still returned, just
-// without the AI sentence.
-const globalPerDay = Number(process.env.CLAUDE_GLOBAL_DAILY_LIMIT);
+// The AI insight has its own site-wide daily budget, apart from api/claude.js, so people opening many
+// coin pages can never use up the assistant's budget. Over budget: the analysis is still returned,
+// just without the AI sentence.
+const globalPerDay = Number(process.env.MARKET_INSIGHT_DAILY_LIMIT);
 const globalAiLimit = redis
   ? new Ratelimit({
       redis,
-      limiter: Ratelimit.fixedWindow(Number.isFinite(globalPerDay) && globalPerDay > 0 ? Math.floor(globalPerDay) : 50, "86400 s"),
-      prefix: "ratelimit:claude-global",
+      limiter: Ratelimit.fixedWindow(Number.isFinite(globalPerDay) && globalPerDay > 0 ? Math.floor(globalPerDay) : 25, "86400 s"),
+      prefix: "ratelimit:market-insight-global",
     })
   : null;
 
@@ -53,6 +54,7 @@ const ipAiLimit = redis
 // instance only, so most requests missed it and re-paid for CoinGecko + Claude. The Map is now just
 // the local-dev fallback when Redis isn't configured.
 const memCache = new Map();
+const MEM_CACHE_MAX = 500;
 async function getCached(coinId) {
   if (redis) {
     const v = await redis.get(`market-analysis:${coinId}`).catch(() => null);
@@ -61,12 +63,37 @@ async function getCached(coinId) {
   const e = memCache.get(coinId);
   return e && e.expiresAt > Date.now() ? e.data : null;
 }
-async function setCached(coinId, data) {
-  if (redis) {
-    await redis.set(`market-analysis:${coinId}`, JSON.stringify(data), { ex: CACHE_TTL_SECONDS }).catch(() => {});
-    return;
+const setCached = (coinId, data) => writeCache(coinId, data, CACHE_TTL_SECONDS);
+
+const aiBudgetOk = async (ip) => (ipAiLimit ? (await ipAiLimit.limit(ip)).success : true)
+  && (globalAiLimit ? (await globalAiLimit.limit("all")).success : true);
+
+// One client being out of AI budget says nothing about anyone else. The numbers are cached with
+// needsInsight set, and the next request that does have budget fills in the sentence for everyone.
+async function serveCached(res, key, cached, ttl, ip, makeInsight) {
+  if (!cached.needsInsight) return res.status(200).json({ ...cached, cached: true });
+  const lockKey = `market-insight:${key}`;
+  if (await acquireLock(redis, lockKey, 30)) {
+    try {
+      if (await aiBudgetOk(ip)) {
+        const insight = await makeInsight(cached);
+        if (insight) {
+          const filled = { ...cached, insight, needsInsight: false };
+          await writeCache(key, filled, ttl);
+          return res.status(200).json({ ...filled, cached: true });
+        }
+      }
+    } finally {
+      await releaseLock(redis, lockKey);
+    }
   }
-  memCache.set(coinId, { data, expiresAt: Date.now() + CACHE_TTL_SECONDS * 1000 });
+  return res.status(200).json({ ...cached, cached: true });
+}
+
+async function writeCache(key, data, ttl) {
+  if (redis) { await redis.set(`market-analysis:${key}`, JSON.stringify(data), { ex: ttl }).catch(() => {}); return; }
+  if (memCache.size >= MEM_CACHE_MAX) memCache.delete(memCache.keys().next().value);
+  memCache.set(key, { data, expiresAt: Date.now() + ttl * 1000 });
 }
 
 // CoinGecko ids are lowercase letters, digits and dashes (e.g. "usd-coin").
@@ -290,19 +317,26 @@ async function generateChainInsight(data) {
 
 async function handleArcChain(req, res, ip) {
   const cacheKey = "chain:arc";
+  const makeInsight = ({ needsInsight: _n, cached: _c, insight: _i, ...d }) => generateChainInsight(d);
   const cached = await getCached(cacheKey);
-  if (cached) return res.status(200).json({ ...cached, cached: true });
+  if (cached) return serveCached(res, cacheKey, cached, CHAIN_CACHE_SECONDS, ip, makeInsight);
+  const lockKey = `market:${cacheKey}`;
+  if (!(await acquireLock(redis, lockKey, 45))) {
+    const ready = await waitForValue(() => getCached(cacheKey), 6000);
+    if (ready) return res.status(200).json({ ...ready, cached: true });
+    return res.status(503).json({ error: "Arc data is being prepared. Please try again in a moment." });
+  }
   try {
     const data = await buildArcChainData();
-    const aiAllowed = (ipAiLimit ? (await ipAiLimit.limit(ip)).success : true)
-      && (globalAiLimit ? (await globalAiLimit.limit("all")).success : true);
-    data.insight = aiAllowed ? await generateChainInsight(data) : "";
-    if (redis) await redis.set(`market-analysis:${cacheKey}`, JSON.stringify(data), { ex: CHAIN_CACHE_SECONDS }).catch(() => {});
-    else memCache.set(cacheKey, { data, expiresAt: Date.now() + CHAIN_CACHE_SECONDS * 1000 });
+    data.insight = (await aiBudgetOk(ip)) ? await generateChainInsight(data) : "";
+    data.needsInsight = !data.insight;
+    await writeCache(cacheKey, data, CHAIN_CACHE_SECONDS);
     return res.status(200).json(data);
   } catch (err) {
     console.error("arc chain analysis error:", err?.message);
     return res.status(502).json({ error: "Arc ecosystem data is unavailable right now." });
+  } finally {
+    await releaseLock(redis, lockKey);
   }
 }
 
@@ -327,8 +361,16 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ error: "Service temporarily unavailable — rate limiting is not configured." });
   }
 
+  const makeCoinInsight = ({ needsInsight: _n, cached: _c, insight: _i, ...d }) => generateInsight(d);
   const cached = await getCached(coinId);
-  if (cached) return res.status(200).json({ ...cached, cached: true });
+  if (cached) return serveCached(res, coinId, cached, CACHE_TTL_SECONDS, ip, makeCoinInsight);
+
+  const lockKey = `market:${coinId}`;
+  if (!(await acquireLock(redis, lockKey, 45))) {
+    const ready = await waitForValue(() => getCached(coinId), 6000);
+    if (ready) return res.status(200).json({ ...ready, cached: true });
+    return res.status(503).json({ error: "This analysis is being prepared. Please try again in a moment." });
+  }
 
   try {
     const detailRes = await fetch(
@@ -424,15 +466,16 @@ module.exports = async function handler(req, res) {
     // time. Tradeoff: the insight's language matches whichever request
     // first triggered this cache miss, not each individual asker.
     // Numbers are always returned; the AI sentence only while this person and the whole site are within budget.
-    const aiAllowed = (ipAiLimit ? (await ipAiLimit.limit(ip)).success : true)
-      && (globalAiLimit ? (await globalAiLimit.limit("all")).success : true);
-    result.insight = aiAllowed ? await generateInsight(result) : "";
+    result.insight = (await aiBudgetOk(ip)) ? await generateInsight(result) : "";
+    result.needsInsight = !result.insight;
 
     await setCached(coinId, result);
     return res.status(200).json(result);
   } catch (err) {
     console.error("market-analysis error:", err?.message);
     return res.status(500).json({ error: "Market analysis is unavailable right now." });
+  } finally {
+    await releaseLock(redis, lockKey);
   }
 };
 

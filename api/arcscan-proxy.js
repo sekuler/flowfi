@@ -40,13 +40,14 @@
 // Arcscan's own indexed database instead, same query shape, no extra code needed here.
 const { Redis } = require('@upstash/redis');
 const { Ratelimit } = require('@upstash/ratelimit');
+const { acquireLock, releaseLock, waitForValue } = require('./_lib/singleFlight');
 
 const ARCSCAN_TESTNET_ORIGIN = 'https://testnet.arcscan.app';
 const ETHERSCAN_V2_ORIGIN = 'https://api.etherscan.io';
 const ARC_MAINNET_CHAIN_ID = 5042;
 const CACHE_TTL_SECONDS = 30;
 // Was [0, 600, 1500, 3000, 5000] -- up to ~10s of waiting inside one function call, per request.
-const RETRY_DELAYS_MS = [0, 800, 2000];
+const RETRY_DELAYS_MS = [0, 1000];
 
 // Only the explorer queries the app actually makes. Without this, anyone could run any
 // Etherscan V2 module/action for chain 5042 on FlowFi's own ETHERSCAN_API_KEY quota.
@@ -56,6 +57,18 @@ const ALLOWED_ACTIONS = {
 };
 const ALLOWED_PARAMS = new Set(['module', 'action', 'address', 'contractaddress', 'sort', 'page', 'offset', 'limit', 'startblock', 'endblock', 'fromBlock', 'toBlock', 'topic0', 'tag']);
 
+// Each query only keeps the parameters that mean something for it. Anything else used to make a new
+// cache key for the same answer, so adding junk parameters skipped the cache and spent real quota.
+const PAGING = ['sort', 'page', 'offset', 'limit', 'startblock', 'endblock'];
+const ACTION_PARAMS = {
+  txlist: ['address', ...PAGING],
+  tokentx: ['address', 'contractaddress', ...PAGING],
+  txlistinternal: ['address', ...PAGING],
+  balance: ['address', 'tag'],
+  tokenbalance: ['address', 'contractaddress', 'tag'],
+  getLogs: ['address', 'fromBlock', 'toBlock', 'topic0', 'page', 'offset'],
+};
+
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
   : null;
@@ -63,12 +76,23 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
 // Falls back to a plain in-memory Map if Redis isn't configured — still better than
 // nothing within a single warm instance, but this is the degraded path, not the fix.
 const memCache = new Map();
+const MEM_CACHE_MAX = 500;
 
 // Per-IP limit, same shared-Redis pattern as the other endpoints. Generous: pages call this
 // on load and on refresh, and cached hits still count (cheap, but not free).
 const ratelimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, '60 s'), prefix: 'ratelimit:arcscan-proxy' })
   : null;
+// A history lookup that misses the cache costs up to ~200 paid Alchemy operations, so those get a much
+// smaller allowance than cached reads, plus a daily ceiling for the whole site.
+const ALCHEMY_DAILY = Number(process.env.ALCHEMY_HISTORY_DAILY_LIMIT);
+const alchemyIpLimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '60 s'), prefix: 'ratelimit:arcscan-alchemy-ip' })
+  : null;
+const alchemyGlobalLimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.fixedWindow(Number.isFinite(ALCHEMY_DAILY) && ALCHEMY_DAILY > 0 ? Math.floor(ALCHEMY_DAILY) : 5000, '86400 s'), prefix: 'ratelimit:arcscan-alchemy-global' })
+  : null;
+const ALCHEMY_CACHE_SECONDS = 60;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,11 +107,12 @@ async function getCached(key) {
   return entry && entry.expiresAt > Date.now() ? entry : null;
 }
 
-async function setCached(key, entry) {
+async function setCached(key, entry, ttl = CACHE_TTL_SECONDS) {
   if (redis) {
-    await redis.set(`arcscan-cache:${key}`, JSON.stringify(entry), { ex: CACHE_TTL_SECONDS });
+    await redis.set(`arcscan-cache:${key}`, JSON.stringify(entry), { ex: ttl });
     return;
   }
+  if (memCache.size >= MEM_CACHE_MAX) memCache.delete(memCache.keys().next().value);
   memCache.set(key, { ...entry, expiresAt: Date.now() + CACHE_TTL_SECONDS * 1000 });
 }
 
@@ -175,8 +200,11 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (!ratelimit && process.env.NODE_ENV === 'production') {
+    return res.status(503).json({ error: 'Service temporarily unavailable.' });
+  }
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
   if (ratelimit) {
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
     const { success } = await ratelimit.limit(ip);
     if (!success) return res.status(429).json({ error: 'Too many explorer requests. Please slow down.' });
   }
@@ -186,9 +214,11 @@ module.exports = async function handler(req, res) {
     const isMainnet = query.network === 'mainnet';
 
     const params = new URLSearchParams();
+    const actionName = Array.isArray(query.action) ? query.action[0] : query.action;
+    const keep = new Set(['module', 'action', ...(ACTION_PARAMS[actionName] ?? [])]);
     for (const key of Object.keys(query)) {
       if (key === 'network') continue; // routing flag only, not forwarded
-      if (!ALLOWED_PARAMS.has(key)) continue; // drops apikey/chainid overrides and anything unexpected
+      if (!ALLOWED_PARAMS.has(key) || !keep.has(key)) continue; // drops apikey/chainid overrides and anything unexpected
       const value = Array.isArray(query[key]) ? query[key][0] : query[key];
       if (value !== undefined) params.set(key, String(value).slice(0, 100));
     }
@@ -204,7 +234,13 @@ module.exports = async function handler(req, res) {
     // results for the same module/action/address never collide. Built BEFORE
     // the API key is added, so the key never ends up inside a Redis key name.
     params.sort();
-    const cacheKey = `${isMainnet ? 'mainnet' : 'testnet'}:${params.toString()}`;
+    const useAlchemy = isMainnet && process.env.ALCHEMY_API_KEY && mod === 'account' && ALCHEMY_ACTIONS.has(params.get('action')) && params.has('address');
+    // History pages all read one of two fixed sizes, so every page shares one cached answer per wallet.
+    const wanted = Math.min(Math.max(parseInt(params.get('offset') || params.get('limit') || '30', 10) || 30, 1), 100);
+    const historySize = wanted <= 30 ? 30 : 100;
+    const cacheKey = useAlchemy
+      ? `mainnet:alchemy:${params.get('action')}:${params.get('address').toLowerCase()}:${historySize}`
+      : `${isMainnet ? 'mainnet' : 'testnet'}:${params.toString()}`;
 
     let targetUrl;
     if (isMainnet) {
@@ -218,22 +254,38 @@ module.exports = async function handler(req, res) {
       targetUrl = `${ARCSCAN_TESTNET_ORIGIN}/api?${params.toString()}`;
     }
 
+    const send = (entry) => {
+      res.status(entry.status);
+      res.setHeader('Content-Type', entry.contentType);
+      return res.send(entry.body);
+    };
+    const sendHistory = (entry) => {
+      if (wanted >= historySize) return send(entry);
+      const d = JSON.parse(entry.body);
+      return send({ ...entry, body: JSON.stringify({ ...d, result: d.result.slice(0, wanted) }) });
+    };
+    const serve = useAlchemy ? sendHistory : send;
+
     const cached = await getCached(cacheKey);
-    if (cached) {
-      res.status(cached.status);
-      res.setHeader('Content-Type', cached.contentType);
-      return res.send(cached.body);
+    if (cached) return serve(cached);
+
+    // Several requests for the same answer at once: one fetches it, the rest wait for that result.
+    const lockKey = `arcscan:${cacheKey}`;
+    if (!(await acquireLock(redis, lockKey, 20))) {
+      const ready = await waitForValue(() => getCached(cacheKey), 4000);
+      if (ready) return serve(ready);
+      return res.status(503).json({ error: 'Explorer is busy. Please try again in a moment.' });
     }
 
-    if (isMainnet && process.env.ALCHEMY_API_KEY && mod === 'account' && ALCHEMY_ACTIONS.has(params.get('action')) && params.has('address')) {
-      const count = Math.min(Math.max(parseInt(params.get('offset') || params.get('limit') || '30', 10) || 30, 1), 100);
+    try {
+    if (useAlchemy) {
+      if (alchemyIpLimit && !(await alchemyIpLimit.limit(ip)).success) return res.status(429).json({ error: 'Too many explorer requests. Please slow down.' });
+      if (alchemyGlobalLimit && !(await alchemyGlobalLimit.limit('all')).success) return res.status(503).json({ error: 'Activity history is busy right now. Please try again later.' });
       const address = params.get('address');
-      const result = params.get('action') === 'txlist' ? await alchemyTxlist(address, count) : await alchemyTokentx(address, count);
-      const body = JSON.stringify({ status: '1', message: 'OK', result });
-      await setCached(cacheKey, { status: 200, contentType: 'application/json', body });
-      res.status(200);
-      res.setHeader('Content-Type', 'application/json');
-      return res.send(body);
+      const result = params.get('action') === 'txlist' ? await alchemyTxlist(address, historySize) : await alchemyTokentx(address, historySize);
+      const entry = { status: 200, contentType: 'application/json', body: JSON.stringify({ status: '1', message: 'OK', result }) };
+      await setCached(cacheKey, entry, ALCHEMY_CACHE_SECONDS);
+      return serve(entry);
     }
 
     let response = null;
@@ -263,6 +315,9 @@ module.exports = async function handler(req, res) {
     res.status(response.status);
     res.setHeader('Content-Type', contentType);
     res.send(text);
+    } finally {
+      await releaseLock(redis, lockKey);
+    }
   } catch (error) {
     console.error('arcscan-proxy error:', error?.message);
     res.status(502).json({ error: 'Explorer unavailable. Please try again.' });

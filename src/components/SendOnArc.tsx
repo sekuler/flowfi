@@ -4,6 +4,7 @@ import type { EIP1193Provider } from "viem";
 import { Check, ChevronDown, Search, AlertTriangle } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenIcon } from "./TokenIcon";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
 
 // Direct transfer of any ERC-20 on Arc Mainnet to another address. Signed by the user's own wallet;
 // FlowFi holds nothing and adds no fee. Token list = LI.FI's public Arc list (same source as the bridge
@@ -84,6 +85,7 @@ export default function SendOnArc({ address, provider }: { address: string; prov
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const unconfirmed = useUnconfirmedTx(`send-${address}`);
   const [refresh, setRefresh] = useState(0);
 
   // Token list + balances (one batched request), tokens the wallet holds first.
@@ -162,7 +164,7 @@ export default function SendOnArc({ address, provider }: { address: string; prov
   else if (isTokenContract) problem = "This is the token's contract address, not a wallet. Tokens sent there are lost.";
   else if (amount.trim() && (amtRaw === null || amtRaw === 0n)) problem = "Enter a valid amount.";
   else if (tooMuch) problem = `Not enough ${token?.symbol}.`;
-  const ready = !!token && toValid && !isSelf && !isTokenContract && amtRaw !== null && amtRaw > 0n && !tooMuch;
+  const ready = !!token && toValid && !isSelf && !isTokenContract && amtRaw !== null && amtRaw > 0n && !tooMuch && !unconfirmed.hash;
 
   async function send() {
     if (!provider || !token || !ready || amtRaw === null) return;
@@ -172,15 +174,24 @@ export default function SendOnArc({ address, provider }: { address: string; prov
       const wc = createWalletClient({ account: address as `0x${string}`, chain: arcMainnet, transport: custom(provider) });
       const h = await wc.sendTransaction({ to: token.address, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [getAddress(toTrim), amtRaw] }) });
       setTxHash(h);
-      const r = await pc.waitForTransactionReceipt({ hash: h });
+      const r = await receiptOrUnknown(pc, h);
       if (r.status === "reverted") throw new Error("The transfer reverted onchain. Nothing was sent.");
       setStep("done");
       setRefresh((n) => n + 1);
     } catch (e: unknown) {
+      if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); return; }
       const err = e as { shortMessage?: string; message?: string };
       setError(err.shortMessage || err.message || "Something went wrong.");
       setStep("error");
     }
+  }
+
+  function onUnconfirmedResolved(status: string) {
+    unconfirmed.set(null);
+    setRefresh((n) => n + 1);
+    if (status === "reverted") { setError("The transfer reverted onchain. Nothing was sent."); setStep("error"); }
+    else if (token && amount.trim() && to.trim()) setStep("done");
+    else reset();
   }
 
   function reset() { setStep("idle"); setAmount(""); setTo(""); setTxHash(null); setError(null); }
@@ -265,6 +276,7 @@ export default function SendOnArc({ address, provider }: { address: string; prov
       )}
 
       {step === "error" && error && <Notice tone="error">{error}</Notice>}
+      {unconfirmed.hash && <div style={{ marginBottom: 10 }}><UnconfirmedTxNotice client={pc} hash={unconfirmed.hash} explorer="https://arc.etherscan.io" onResolved={onUnconfirmedResolved} onDismiss={() => unconfirmed.set(null)} /></div>}
 
       {step === "confirm" ? (
         <div style={{ display: "flex", gap: 8 }}>

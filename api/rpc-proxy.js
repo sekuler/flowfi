@@ -45,8 +45,9 @@ const ALLOWED_METHODS = new Set([
   'eth_getTransactionByBlockNumberAndIndex', 'eth_getTransactionReceipt',
   'eth_getBlockByNumber', 'eth_getBlockByHash', 'eth_getBlockTransactionCountByHash',
   'eth_getBlockTransactionCountByNumber', 'eth_sendRawTransaction', 'eth_getLogs',
-  'eth_getFilterChanges', 'eth_getFilterLogs', 'eth_newFilter', 'eth_newBlockFilter',
-  'eth_uninstallFilter', 'eth_syncing', 'eth_getUncleCountByBlockHash', 'eth_getUncleCountByBlockNumber',
+  // Filter methods are deliberately not here: nothing in the app uses them, they keep state on the
+  // provider, and eth_getFilterLogs would get around the eth_getLogs limits below.
+  'eth_syncing', 'eth_getUncleCountByBlockHash', 'eth_getUncleCountByBlockNumber',
   'net_version', 'net_listening', 'net_peerCount', 'web3_clientVersion', 'web3_sha3',
 ]);
 

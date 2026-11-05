@@ -11,7 +11,7 @@
 //
 // Limits (Upstash Redis, shared across every serverless instance):
 //  - per IP: 20 requests/minute and 300/day
-//  - global: CLAUDE_GLOBAL_DAILY_LIMIT requests/day across all users (default 2000), a hard ceiling on
+//  - global: CLAUDE_GLOBAL_DAILY_LIMIT requests/day across all users (default 50), a hard ceiling on
 //    the daily bill even if many IPs are used.
 // Production refuses to serve without Redis; local dev without it runs unprotected.
 

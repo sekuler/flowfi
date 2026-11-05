@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, isAddress } from "viem";
 import type { Chain, EIP1193Provider } from "viem";
 import { mainnet, base, arbitrum } from "viem/chains";
@@ -6,6 +6,7 @@ import { Copy, Check, ShieldCheck, LogOut, RefreshCw } from "lucide-react";
 import { arcMainnet } from "../chains";
 import { TokenOnChain, type ChainKey } from "./AssetLogos";
 import { useIsMobile } from "../useIsMobile";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
 
 // Mainnet Circle Wallet (email sign-in, no seed phrase). Talks ONLY to /api/circle-wallet-mainnet
 // (LIVE key), never to the testnet endpoint, and keeps its own localStorage entry so it can't be
@@ -62,8 +63,23 @@ const LINK = "#3D5AF1";
 async function post(body: Record<string, unknown>) {
   const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.success) throw new Error(data.error ?? "Something went wrong.");
+  if (!res.ok || !data.success) throw Object.assign(new Error(data.error ?? "Something went wrong."), { status: res.status });
   return data;
+}
+
+// One withdrawal, remembered from before it is sent until Circle gives a final answer. The key makes a
+// repeat of the request the SAME withdrawal at Circle, so a lost answer can never send the funds twice.
+type WithdrawIntent = { key: string; walletId: string; tokenAddress: string; amount: string; destinationAddress: string; symbol: string; transactionId?: string; at: number };
+const INTENT_MAX_AGE = 24 * 60 * 60 * 1000;
+const intentKey = (email: string) => `flowfi-circle-withdraw-${email.toLowerCase()}`;
+function loadIntent(email: string): WithdrawIntent | null {
+  try {
+    const p = JSON.parse(localStorage.getItem(intentKey(email)) ?? "null") as WithdrawIntent | null;
+    return p?.key && Date.now() - p.at < INTENT_MAX_AGE ? p : null;
+  } catch { return null; }
+}
+function saveIntent(email: string, i: WithdrawIntent | null) {
+  try { if (i) localStorage.setItem(intentKey(email), JSON.stringify(i)); else localStorage.removeItem(intentKey(email)); } catch { /* ignore */ }
 }
 
 function loadSaved(): LiveWallet | null {
@@ -90,7 +106,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const [assetKey, setAssetKey] = useState("arc-usdc");
   const [amount, setAmount] = useState("");
   const [dest, setDest] = useState(browserAddress ?? "");
-  const [wStep, setWStep] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const [wStep, setWStep] = useState<"idle" | "sending" | "pending" | "done" | "error">("idle");
   const [wMsg, setWMsg] = useState<string | null>(null);
   const [wHash, setWHash] = useState<string | null>(null);
 
@@ -100,6 +116,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const [dStep, setDStep] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [dMsg, setDMsg] = useState<string | null>(null);
   const [dHash, setDHash] = useState<string | null>(null);
+  const unconfirmedDeposit = useUnconfirmedTx(browserAddress ? `circle-dep-${depKey}-${browserAddress}` : null);
 
   const asset = ASSETS.find((a) => a.key === assetKey)!;
   const depAsset = ASSETS.find((a) => a.key === depKey)!;
@@ -120,6 +137,15 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   }, [depKey, browserAddress, dStep === "done"]);
 
   useEffect(() => { setWallet(loadSaved()); }, []);
+  // A withdrawal from an earlier visit (or one whose answer got lost) picks up where it left off.
+  useEffect(() => {
+    if (!wallet) return;
+    const saved = loadIntent(wallet.email);
+    if (!saved) return;
+    setWStep("pending"); setWMsg(`Your withdrawal of ${saved.amount} ${saved.symbol} is still in progress. Checking...`); setTab("withdraw");
+    trackWithdrawal(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet?.email]);
   useEffect(() => { if (browserAddress && !dest) setDest(browserAddress); }, [browserAddress]);
 
   async function refresh(w: LiveWallet) {
@@ -176,17 +202,67 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
     const walletId = wallet.walletsByChain[asset.chainCode]?.walletId;
     if (!walletId) { setWStep("error"); setWMsg(`No ${asset.chainName} wallet on this account.`); return; }
     setWStep("sending"); setWMsg("Sending..."); setWHash(null);
+    // Retrying the same withdrawal after a lost answer reuses its key, so it can't go out twice.
+    const prev = loadIntent(wallet.email);
+    const same = prev && !prev.transactionId && prev.walletId === walletId && prev.tokenAddress === asset.token && prev.amount === amount.trim() && prev.destinationAddress === dest.trim();
+    const intent: WithdrawIntent = same ? prev : { key: crypto.randomUUID(), walletId, tokenAddress: asset.token, amount: amount.trim(), destinationAddress: dest.trim(), symbol: asset.symbol, at: Date.now() };
+    saveIntent(wallet.email, intent);
+    trackWithdrawal(intent);
+  }
+
+  // Sends the withdrawal if Circle hasn't accepted it yet, then follows it until a final answer. Any
+  // lost or refused status check only means "ask again later"; it never means the withdrawal failed.
+  const tracking = useRef(false);
+  async function trackWithdrawal(start: WithdrawIntent) {
+    if (tracking.current || !wallet) return;
+    tracking.current = true;
+    const email = wallet.email;
+    let intent = start;
+    const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const stillWaiting = () => { setWStep("pending"); setWMsg(`Your withdrawal of ${intent.amount} ${intent.symbol} is still processing. Don't send it again. We keep checking and will update this automatically.`); };
     try {
-      const { transactionId } = await post({ action: "withdraw", walletId, tokenAddress: asset.token, amount: amount.trim(), destinationAddress: dest.trim() });
-      const start = Date.now();
-      while (Date.now() - start < 180000) {
-        const s = await post({ action: "getTransaction", transactionId });
-        if (s.state === "COMPLETE") { setWHash(s.txHash ?? null); setWStep("done"); setWMsg(`${amount} ${asset.symbol} sent to your wallet.`); setAmount(""); refresh(wallet); return; }
-        if (["FAILED", "CANCELLED", "DENIED"].includes(s.state)) throw new Error(s.errorReason ?? `Withdrawal ${String(s.state).toLowerCase()}.`);
-        await new Promise((r) => setTimeout(r, 3000));
+      for (let i = 0; ; i++) {
+        if (i === 60 && intent.transactionId) stillWaiting(); // about 3 minutes
+        if (i === 20 && !intent.transactionId) {
+          setWStep("error"); setWMsg("We couldn't reach Circle to confirm your withdrawal. Check your balance before trying again.");
+          return;
+        }
+        try {
+          if (!intent.transactionId) {
+            const { transactionId } = await post({ action: "withdraw", walletId: intent.walletId, tokenAddress: intent.tokenAddress, amount: intent.amount, destinationAddress: intent.destinationAddress, idempotencyKey: intent.key });
+            intent = { ...intent, transactionId };
+            saveIntent(email, intent);
+          }
+          const s = await post({ action: "getTransaction", transactionId: intent.transactionId });
+          if (s.state === "COMPLETE") {
+            saveIntent(email, null);
+            setWHash(s.txHash ?? null); setWStep("done"); setWMsg(`${intent.amount} ${intent.symbol} sent to your wallet.`); setAmount("");
+            if (wallet) refresh(wallet);
+            return;
+          }
+          if (["FAILED", "CANCELLED", "DENIED"].includes(s.state)) {
+            saveIntent(email, null);
+            setWStep("error"); setWMsg(s.errorReason ?? `Withdrawal ${String(s.state).toLowerCase()}. Nothing was sent.`);
+            return;
+          }
+        } catch (e) {
+          const status = (e as { status?: number }).status ?? 0;
+          // Circle refused the request outright (bad input): it was never accepted, so it is safe to change and retry.
+          if (!intent.transactionId && status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429) {
+            saveIntent(email, null);
+            setWStep("error"); setWMsg(e instanceof Error ? e.message : "Withdrawal failed.");
+            return;
+          }
+          if (status === 401) {
+            setWStep("pending"); setWMsg(`Your withdrawal of ${intent.amount} ${intent.symbol} may still be processing. Sign in again to check it. Don't send it again.`);
+            return;
+          }
+        }
+        await pause(i < 60 ? 3000 : 20000);
       }
-      throw new Error("Still processing. Check your balance again in a minute.");
-    } catch (e) { setWStep("error"); setWMsg(e instanceof Error ? e.message : "Withdrawal failed."); }
+    } finally {
+      tracking.current = false;
+    }
   }
 
   async function deposit() {
@@ -200,11 +276,12 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
       const pc = createPublicClient({ chain: depAsset.chain, transport: http() });
       const hash = await wc.writeContract({ address: depAsset.token, abi: erc20Abi, functionName: "transfer", args: [to as `0x${string}`, parseUnits(depAmount.trim(), depAsset.decimals)] });
       setDHash(hash); setDMsg("Waiting for confirmation...");
-      const r = await pc.waitForTransactionReceipt({ hash });
+      const r = await receiptOrUnknown(pc, hash);
       if (r.status === "reverted") throw new Error("The transfer reverted. Nothing was sent.");
       setDStep("done"); setDMsg(`${depAmount} ${depAsset.symbol} added to your Circle Wallet.`); setDepAmount("");
       refresh(wallet);
     } catch (e: unknown) {
+      if (e instanceof TxOutcomeUnknown) { unconfirmedDeposit.set(e.hash); setDStep("idle"); setDMsg(null); return; }
       const err = e as { shortMessage?: string; message?: string };
       setDStep("error"); setDMsg(err.shortMessage || err.message || "Deposit failed.");
     }
@@ -276,7 +353,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const floorTo = (n: number, d: number) => Math.floor(n * 10 ** d) / 10 ** d;
   const depMax = usdPerUnit > 0 ? floorTo(Math.min(depBalNum, room / usdPerUnit), unitDigits) : 0;
   const depValid = Number.isFinite(depAmt) && depAmt > 0 && depAmt <= depBalNum && usdPerUnit > 0 && depUsd <= room;
-  const canDeposit = !!provider && !!browserAddress && !!status && status.complete !== false && !status.withdrawOnly && !status.overCap && depValid && dStep !== "sending";
+  const canDeposit = !!provider && !!browserAddress && !!status && status.complete !== false && !status.withdrawOnly && !status.overCap && depValid && !unconfirmedDeposit.hash && dStep !== "sending";
   const depLabel = !provider || !browserAddress ? "Connect a browser wallet to deposit"
     : !status ? "Loading..."
     : status.withdrawOnly ? "Adding funds isn't available"
@@ -293,7 +370,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
   const amt = Number(amount);
   const validAmt = Number.isFinite(amt) && amt > 0 && amt <= balNum;
   const validDest = isAddress(dest.trim());
-  const canWithdraw = validAmt && validDest && wStep !== "sending";
+  const canWithdraw = validAmt && validDest && wStep !== "sending" && wStep !== "pending";
 
   const DISPLAY = "'Bricolage Grotesque', 'Geist', system-ui, sans-serif";
   const label = { fontSize: 12.5, fontWeight: 600, color: MUTED } as const;
@@ -379,6 +456,8 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
       {bigAmount("cw-live-dep-amount", depAmount, setDepAmount, dStep === "sending", () => setDepAmount(depMax > 0 ? String(depMax) : ""), depAsset.symbol)}
       <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Funds are added on Arc, where gas is paid in USDC.</p>
       {msgBox(dStep, dMsg, dHash, depAsset.explorer)}
+      {unconfirmedDeposit.hash && <UnconfirmedTxNotice client={createPublicClient({ chain: depAsset.chain, transport: http() })} hash={unconfirmedDeposit.hash} explorer={depAsset.explorer} onDismiss={() => unconfirmedDeposit.set(null)}
+        onResolved={(st) => { unconfirmedDeposit.set(null); setDStep(st === "reverted" ? "error" : "done"); setDMsg(st === "reverted" ? "The transfer reverted. Nothing was sent." : "Your deposit went through."); if (st !== "reverted") setDepAmount(""); if (wallet) refresh(wallet); }} />}
       <button type="button" onClick={deposit} disabled={!canDeposit} style={primary(canDeposit)}>{depLabel}</button>
     </>
   );
@@ -397,7 +476,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
       {asset.chainCode !== "ARC" && <p style={{ margin: 0, fontSize: 12, color: "#B45309", lineHeight: 1.5 }}>Withdrawing on {asset.chainName} needs a little ETH for gas in this Circle wallet. Send a small amount of ETH on {asset.chainName} to the address above from your own wallet first.</p>}
       {msgBox(wStep, wMsg, wHash, asset.explorer)}
       <button type="button" onClick={withdraw} disabled={!canWithdraw} style={primary(canWithdraw)}>
-        {wStep === "sending" ? "Withdrawing..." : !amount ? "Enter an amount" : amt > balNum ? "Not enough balance" : !validDest ? "Enter a valid address" : `Withdraw ${amount} ${asset.symbol}`}
+        {wStep === "sending" || wStep === "pending" ? "Withdrawing..." : !amount ? "Enter an amount" : amt > balNum ? "Not enough balance" : !validDest ? "Enter a valid address" : `Withdraw ${amount} ${asset.symbol}`}
       </button>
     </>
   );

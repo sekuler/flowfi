@@ -11,6 +11,7 @@ import { createKitAdapter } from "../kitAdapter";
 import { useIsMobile } from "../useIsMobile";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 import { USDC_LOGO, ARC_LOGO } from "./tokenLogos";
+import { isUserRejection } from "./UnconfirmedTx";
 
 // Native Circle CCTP V2 bridge into Arc Mainnet -- burn on the source
 // chain, Circle's Iris attestation service signs it, mint native USDC on
@@ -223,7 +224,11 @@ function UsdcLogo({ size }: { size: number }) {
 
 type Step = "idle" | "approving" | "burning" | "waiting-attestation" | "minting" | "done" | "error";
 
-const PENDING_KEY = "flowfi-cctp-pending";
+// Older versions kept one shared record here. It is still read, so a transfer saved by one isn't lost.
+const LEGACY_PENDING_KEY = "flowfi-cctp-pending";
+const pendingKeyFor = (address: string) => `flowfi-cctp-pending-${address.toLowerCase()}`;
+// Thrown when a burn may or may not have reached the chain.
+const MAYBE_SENT = "We couldn't confirm whether your transfer went through. Check your wallet's activity on the source chain before trying again.";
 
 function fmt(n: number, max = 2) {
   return n.toLocaleString("en-US", { maximumFractionDigits: max });
@@ -249,6 +254,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
   const [burnSourceIdx, setBurnSourceIdx] = useState<number | null>(null);
+  const [maybeSent, setMaybeSent] = useState(false);
 
   const source = SOURCE_CHAINS[sourceIdx];
   const useFast = PREFER_FAST && fastFeeBps !== null;
@@ -257,16 +263,20 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   const forwarding = forwardFeeRaw !== null;
 
   function savePending(hash: string, idx: number, amt: string, forwarded: boolean) {
-    try { localStorage.setItem(PENDING_KEY, JSON.stringify({ hash, sourceIdx: idx, address, amount: amt, forwarded })); } catch { /* ignore */ }
+    try { localStorage.setItem(pendingKeyFor(address), JSON.stringify({ hash, sourceIdx: idx, address, amount: amt, forwarded })); } catch { /* ignore */ }
   }
   function clearPending() {
-    try { localStorage.removeItem(PENDING_KEY); } catch { /* ignore */ }
+    try {
+      localStorage.removeItem(pendingKeyFor(address));
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_PENDING_KEY) ?? "null") as { address?: string } | null;
+      if (legacy?.address?.toLowerCase() === address.toLowerCase()) localStorage.removeItem(LEGACY_PENDING_KEY);
+    } catch { /* ignore */ }
   }
 
   // An earlier transfer whose burn went through but whose mint on Arc never finished.
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(PENDING_KEY);
+      const raw = localStorage.getItem(pendingKeyFor(address)) ?? localStorage.getItem(LEGACY_PENDING_KEY);
       if (!raw) return;
       const p = JSON.parse(raw) as { hash?: string; sourceIdx?: number; address?: string; amount?: string; forwarded?: boolean };
       if (!p.hash || typeof p.sourceIdx !== "number" || !SOURCE_CHAINS[p.sourceIdx]) return;
@@ -412,6 +422,14 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
 
   // New transfer through Circle Bridge Kit. With forwarding, Circle delivers on Arc (no Arc gas);
   // otherwise the kit asks the user to sign the mint on Arc. Errors are handled by run().
+  async function guardKit<T>(call: () => Promise<T>): Promise<T> {
+    try { return await call(); } catch (e) {
+      if (isUserRejection(e)) throw e;
+      setMaybeSent(true);
+      throw new Error(MAYBE_SENT, { cause: e });
+    }
+  }
+
   async function runWithKit(p: EIP1193Provider) {
     const kit = new BridgeKit();
     const adapter = await createKitAdapter(p);
@@ -436,14 +454,14 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
     });
 
     setStep("approving");
-    const result = await kit.bridge({
+    const result = await guardKit(() => kit.bridge({
       from: { adapter, chain: KIT_CHAIN[source.key] as "Base" },
       to: forwarding
         ? { chain: "Arc", useForwarder: true, recipientAddress: address }
         : { adapter, chain: "Arc" },
       amount: amt,
       config: { transferSpeed: useFast ? "FAST" : "SLOW" },
-    });
+    }));
 
     const burnStep = result.steps.find((s) => s.name.toLowerCase() === "burn");
     const mintStep = result.steps.find((s) => s.name.toLowerCase() === "mint");
@@ -462,7 +480,12 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       setBurnForwarded(forwarding);
       throw new Error("Your burn is confirmed, but delivery on Arc isn't finished yet. Don't send again. Use Resume to finish the transfer.");
     }
-    const failed = result.steps.find((s) => s.state === "error");
+    const failed = result.steps.find((s) => s.state === "error") as { name: string; errorMessage?: string } | undefined;
+    const beforeBurn = !failed || failed.name.toLowerCase().includes("approve");
+    if (!beforeBurn && !isUserRejection({ message: failed?.errorMessage })) {
+      setMaybeSent(true);
+      throw new Error(MAYBE_SENT);
+    }
     throw new Error(failed ? `${failed.name} step failed. Nothing was burned.` : "The transfer didn't go through. Nothing was burned.");
   }
 
@@ -471,7 +494,17 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   async function run(resume?: { hash: string }) {
     if (!provider) return;
     if (!resume && !amount.trim()) return;
-    setError(null);
+    setError(null); setMaybeSent(false);
+    // A second transfer must not replace the recovery record of one that isn't finished (another tab, say).
+    if (!resume) {
+      try {
+        if (localStorage.getItem(pendingKeyFor(address))) {
+          setError("You already have an unfinished transfer. Refresh this page and finish it first.");
+          setStep("error");
+          return;
+        }
+      } catch { /* ignore */ }
+    }
     try {
       const src = resume ? burnSource : source;
       let burnHash: string;
@@ -548,7 +581,13 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
         setBurnSourceIdx(sourceIdx);
         setBurnForwarded(forwardedBurn);
         savePending(burnHash, sourceIdx, amount.trim(), forwardedBurn);
+        // If the wallet sped the burn up, it landed under a new hash, and Circle only knows that one.
         const burnReceipt = await publicClient.waitForTransactionReceipt({ hash: burnHash as `0x${string}` });
+        if (burnReceipt.transactionHash && burnReceipt.transactionHash !== burnHash) {
+          burnHash = burnReceipt.transactionHash;
+          setBurnTxHash(burnHash);
+          savePending(burnHash, sourceIdx, amount.trim(), forwardedBurn);
+        }
         if (burnReceipt.status === "reverted") {
           clearPending();
           setBurnTxHash(null);
@@ -608,6 +647,10 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       setMintTxHash(mintHash);
       const mintReceipt = await arcPublicClient.waitForTransactionReceipt({ hash: mintHash });
       if (mintReceipt.status === "reverted") throw new Error("The mint on Arc reverted. If this transfer was already completed, use Dismiss below.");
+      // Trust the chain, not the hash the wallet returned: recovery data is only erased once this message is really used.
+      const mintNonce = `0x${(message as string).slice(26, 90)}` as `0x${string}`;
+      const mintUsed = await arcPublicClient.readContract({ address: CCTP_MESSAGE_TRANSMITTER_V2, abi: USED_NONCES_ABI, functionName: "usedNonces", args: [mintNonce] });
+      if (Number(mintUsed) === 0) throw new Error("We couldn't confirm the mint on Arc yet. Use Resume to check again.");
       clearPending();
       setStep("done");
     } catch (e: unknown) {
@@ -681,7 +724,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
   } else if (unfinished && burnTxHash) {
     ctaLabel = "Resume and finish on Arc"; ctaEnabled = !!provider; ctaAction = () => run({ hash: burnTxHash });
   } else if (step === "error") {
-    ctaLabel = "Try again"; ctaEnabled = !!provider; ctaAction = () => run();
+    ctaLabel = maybeSent ? "I checked my wallet. Send again" : "Try again"; ctaEnabled = !!provider; ctaAction = () => run();
   } else {
     ctaLabel = "Confirm and send"; ctaEnabled = !!provider; ctaAction = () => run();
   }

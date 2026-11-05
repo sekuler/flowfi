@@ -9,7 +9,7 @@ import SiteFooter from "./components/SiteFooter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CopilotHomeMainnet from "./components/CopilotHomeMainnet";
 import LiveBlock from "./components/LiveBlock";
-import { useState, useEffect, useId, Component, lazy, Suspense, type ReactNode } from "react";
+import { useState, useEffect, useId, useRef, Component, lazy, Suspense, type ReactNode } from "react";
 import type { EIP1193Provider } from "viem";
 import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { arcTestnet, arcMainnet, formatUsdcErc20, formatArcNative } from "./chains";
@@ -296,8 +296,11 @@ function AppInner() {
     }
     (async () => {
       const found = await discoverWallets();
-      const match = found.find((w) => w.info.rdns === lastRdns);
-      if (!match) return;
+      // Reconnect silently only when exactly one wallet claims this name. Names are self-reported,
+      // so with two claimants the user picks in the connect window instead.
+      const matches = found.filter((w) => w.info.rdns === lastRdns);
+      if (matches.length !== 1) return;
+      const match = matches[0];
       try {
         const accounts = (await match.provider.request({ method: "eth_accounts", params: undefined })) as string[];
         if (accounts[0]) handleConnected(match.provider, accounts[0], match.info.name);
@@ -340,17 +343,28 @@ function AppInner() {
 
   // Follow account switches in the wallet (MetaMask, Rabby, WalletConnect...). Without this the
   // app kept showing balances for, and building transactions from, the old address.
+  const walletAddressRef = useRef<string | undefined>(undefined);
+  useEffect(() => { walletAddressRef.current = wallet?.address; }, [wallet?.address]);
   useEffect(() => {
     type Listener = (accounts: string[]) => void;
     const p = wallet?.provider as unknown as { on?: (e: string, f: Listener) => void; removeListener?: (e: string, f: Listener) => void } | undefined;
     if (!p?.on) return;
+    let active = true;
     const onAccounts: Listener = (accounts) => {
-      const next = accounts?.[0];
+      if (!active) return; // an old wallet's event can't touch the wallet connected now
+      if (!Array.isArray(accounts)) return;
+      const next = accounts[0];
+      if (next !== undefined && !(typeof next === "string" && /^0x[0-9a-fA-F]{40}$/.test(next))) return;
       if (!next) { localStorage.removeItem("flowfi-last-wallet-rdns"); setWallet(null); return; }
+      if (walletAddressRef.current && walletAddressRef.current.toLowerCase() !== next.toLowerCase()) {
+        // Never show the old account's balances under the new address, even for a moment.
+        setBalances({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
+        setMainnetBalances({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
+      }
       setWallet((w) => (w && w.address.toLowerCase() !== next.toLowerCase() ? { ...w, address: next } : w));
     };
     p.on("accountsChanged", onAccounts);
-    return () => { p.removeListener?.("accountsChanged", onAccounts); };
+    return () => { active = false; p.removeListener?.("accountsChanged", onAccounts); };
   }, [wallet?.provider]);
 
   function disconnectWallet() {
@@ -399,7 +413,11 @@ function AppInner() {
     if (isMobile) setMobileMenuOpen(false);
   }
 
+  // Only the newest balance request may show: an old account's slow answer must not overwrite the new one.
+  const balanceReq = useRef(0);
+  const mainnetBalanceReq = useRef(0);
   async function loadBalances(address: string) {
+    const req = ++balanceReq.current;
     try {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const [usdc, eurc, usyc, cirbtc, native] = await Promise.all([
@@ -409,6 +427,7 @@ function AppInner() {
         client.readContract({ address: ARC_CIRBTC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch(() => 0n),
         client.getBalance({ address: address as `0x${string}` }).catch(() => 0n),
       ]);
+      if (req !== balanceReq.current) return;
       setBalances({
         usdc: formatUsdcErc20(usdc as bigint).toFixed(2),
         eurc: Number(formatUnits(eurc as bigint, 6)).toFixed(2),
@@ -417,6 +436,7 @@ function AppInner() {
         native: formatArcNative(native as bigint).toFixed(4),
       });
     } catch {
+      if (req !== balanceReq.current) return;
       setBalances({ usdc: "—", eurc: "—", usyc: "—", cirbtc: "—", native: "—" });
     }
   }
@@ -430,6 +450,7 @@ function AppInner() {
   // balance, not separate money (per Arc's docs). Both are read here only
   // for display; net worth counts the ERC-20 figure once (see usePortfolio.ts).
   async function loadMainnetBalances(address: string) {
+    const req = ++mainnetBalanceReq.current;
     try {
       const client = createPublicClient({ chain: arcMainnet, transport: http() });
       const [usdcErc20, nativeBal, eurcErc20, usycErc20, cirbtcErc20] = await Promise.all([
@@ -439,6 +460,7 @@ function AppInner() {
         client.readContract({ address: ARC_MAINNET_USYC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch((e) => { console.error("Mainnet USYC balanceOf failed:", e); return 0n; }),
         client.readContract({ address: ARC_MAINNET_CIRBTC, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).catch((e) => { console.error("Mainnet cirBTC balanceOf failed:", e); return 0n; }),
       ]);
+      if (req !== mainnetBalanceReq.current) return;
       setMainnetBalances({
         usdc: formatUsdcErc20(usdcErc20 as bigint).toFixed(2),
         eurc: formatUsdcErc20(eurcErc20 as bigint).toFixed(2),
@@ -447,6 +469,7 @@ function AppInner() {
         native: formatArcNative(nativeBal as bigint).toFixed(2),
       });
     } catch {
+      if (req !== mainnetBalanceReq.current) return;
       setMainnetBalances({ usdc: "—", eurc: null, usyc: null, cirbtc: null, native: "—" });
     }
   }

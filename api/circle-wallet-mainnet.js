@@ -94,12 +94,22 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
 
 const OTP_TTL_SECONDS = 600;
 const FAILS_PER_CODE = 5;   // wrong guesses before a code is burned
-const MAX_DAILY_FAILS = 15; // wrong guesses per email per 24h before sign-in locks
+const MAX_DAILY_FAILS_PER_IP = 15; // one source locks only itself out of this email
+const MAX_DAILY_FAILS = 60; // overall ceiling per email, so a 6-digit code still can't be brute-forced
+const OTP_REUSE_MIN_TTL = 120; // a live code is re-sent, so a stranger's request can't cancel the owner's code
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // real funds: one week, not a month
 const SESSION_COOKIE_NAME = 'flowfi_circle_live_session';
-const KEY = { otp: (e) => `circle-live-otp:${e}`, wallet: (e) => `circle-live-wallet:${e}`, sv: (e) => `circle-live-session-version:${e}`, fails: (e) => `circle-live-otp-fails:${e}`, creating: (e) => `circle-live-creating:${e}` };
+const KEY = { otp: (e) => `circle-live-otp:${e}`, wallet: (e) => `circle-live-wallet:${e}`, sv: (e) => `circle-live-session-version:${e}`, fails: (e) => `circle-live-otp-fails:${e}`, failsIp: (e, ip) => `circle-live-otp-fails-ip:${e}:${ip}`, identity: (c) => `circle-live-identity:${c}`, creating: (e) => `circle-live-creating:${e}` };
 
 function normalizeEmail(email) { return String(email || '').trim().toLowerCase(); }
+// One inbox can have many spellings (name+1@, n.a.m.e@gmail.com). Used ONLY to stop one inbox from
+// opening many wallets; wallets stay keyed by the exact address, so existing accounts are untouched.
+function canonicalEmail(email) {
+  const [local, domain] = email.split('@');
+  const base = local.split('+')[0];
+  if (domain === 'gmail.com' || domain === 'googlemail.com') return `${base.replace(/\./g, '')}@gmail.com`;
+  return `${base}@${domain}`;
+}
 function isValidEmail(email) { return /^[^\s@|]+@[^\s@|]+\.[^\s@|]+$/.test(email) && email.length <= 254; }
 function isAddress(a) { return /^0x[0-9a-fA-F]{40}$/.test(String(a || '')); }
 
@@ -156,7 +166,7 @@ async function sessionEmail(req) {
 }
 
 
-async function sendVerificationEmail(email, code) {
+async function sendEmail(email, subject, html) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('Server misconfigured: RESEND_API_KEY not set');
   const r = await fetch('https://api.resend.com/emails', {
@@ -165,21 +175,45 @@ async function sendVerificationEmail(email, code) {
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'FlowFi <onboarding@resend.dev>',
       to: email,
-      subject: `${code} is your FlowFi verification code`,
-      html: `<p>Your FlowFi verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:4px;">${code}</p><p>This code expires in 10 minutes. If you didn't request this, you can ignore this email.</p>`,
+      subject,
+      html,
     }),
   });
   if (!r.ok) throw new Error(`Failed to send verification email (${r.status})`);
 }
+function sendVerificationEmail(email, code) {
+  return sendEmail(email, `${code} is your FlowFi verification code`, `<p>Your FlowFi verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:4px;">${code}</p><p>This code expires in 10 minutes. If you didn't request this, you can ignore this email.</p>`);
+}
+function sendNoWalletEmail(email) {
+  return sendEmail(email, 'Your FlowFi sign-in request', `<p>There is no Circle Wallet for this email, and new Circle Wallets aren't available right now.</p><p>To use FlowFi, connect a browser wallet like MetaMask or Rabby. If you didn't request this, you can ignore this email.</p>`);
+}
 
+// The IP limit is always checked first and alone. A request it refuses must not spend the email's
+// allowance, or anyone could use up a stranger's allowance and block their sign-in.
 let otpRatelimit = null;
+let otpEmailRatelimit = null;
 let verifyRatelimit = null;
+let verifyEmailRatelimit = null;
 let actionRatelimit = null;
+let readRatelimit = null;
+let signupRatelimit = null;
 if (redis) {
   otpRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, '3600 s'), prefix: 'ratelimit:circle-live-otp-request' });
+  otpEmailRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(15, '3600 s'), prefix: 'ratelimit:circle-live-otp-request-email' });
   verifyRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '600 s'), prefix: 'ratelimit:circle-live-otp-verify' });
+  verifyEmailRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, '600 s'), prefix: 'ratelimit:circle-live-otp-verify-email' });
   actionRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, '600 s'), prefix: 'ratelimit:circle-live-action' });
+  // Reading balances and transaction status has its own, larger allowance, so polling can never
+  // block a withdrawal, and a failed poll can't make a sent withdrawal look unsent.
+  readRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(600, '600 s'), prefix: 'ratelimit:circle-live-read' });
+  signupRatelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(3, '86400 s'), prefix: 'ratelimit:circle-live-signup' });
 }
+
+// Deletes the code only if it is still the one that was checked, as one atomic step. Exactly one of
+// several simultaneous submits wins, and a newer code can never be consumed by an older one.
+const CONSUME_OTP_LUA = "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const idempotencyKeyFrom = (v) => (typeof v === 'string' && UUID_RE.test(v) ? v : crypto.randomUUID());
 
 // Current account count. The first time it runs, it counts the accounts that already exist.
 async function accountCount() {
@@ -294,20 +328,28 @@ module.exports = async function handler(req, res) {
     if (action === 'requestCode') {
       const email = normalizeEmail(req.body.email);
       if (!isValidEmail(email)) return res.status(400).json({ error: 'A valid email address is required.' });
-      const [byEmail, byIp] = await Promise.all([otpRatelimit.limit(`email:${email}`), otpRatelimit.limit(`ip:${ip}`)]);
-      if (!byEmail.success || !byIp.success) return res.status(429).json({ error: 'Too many code requests. Please wait a bit and try again.' });
+      const tooManyCodes = () => res.status(429).json({ error: 'Too many code requests. Please wait a bit and try again.' });
+      if (!(await otpRatelimit.limit(`ip:${ip}`)).success) return tooManyCodes();
+      if (!(await otpEmailRatelimit.limit(email)).success) return tooManyCodes();
       // Withdraw-only or full: existing users still get a code (they must be able to sign in to
       // withdraw); only emails without a wallet are refused. Previously withdraw-only refused
       // everyone here, which locked existing users out of their funds.
       if (!(await loadRecord(email))) {
-        // `code` lets the connect window show this as a friendly notice, not a red error.
+        // Same answer as for a real account, so this endpoint can't reveal who has a wallet.
+        // The explanation goes to the inbox instead.
         if (WITHDRAW_ONLY || (await accountCount()) >= MAX_ACCOUNTS) {
-          return res.status(403).json({ code: 'signups_closed', error: 'There is no Circle Wallet for this email. To use FlowFi, connect a browser wallet like MetaMask or Rabby.' });
+          await sendNoWalletEmail(email);
+          return res.status(200).json({ success: true });
         }
       }
-      const code = String(crypto.randomInt(100000, 1000000));
-      await redis.set(KEY.otp(email), code, { ex: OTP_TTL_SECONDS });
-      await sendVerificationEmail(email, code);
+      // A code that is still valid is sent again rather than replaced, so someone requesting codes
+      // for this email can't cancel the code the owner is about to type.
+      let code = await redis.get(KEY.otp(email));
+      if (!code || (await redis.ttl(KEY.otp(email))) < OTP_REUSE_MIN_TTL) {
+        code = String(crypto.randomInt(100000, 1000000));
+        await redis.set(KEY.otp(email), code, { ex: OTP_TTL_SECONDS });
+      }
+      await sendVerificationEmail(email, String(code));
       return res.status(200).json({ success: true });
     }
 
@@ -315,26 +357,30 @@ module.exports = async function handler(req, res) {
       const email = normalizeEmail(req.body.email);
       const code = String(req.body.code || '').trim();
       if (!isValidEmail(email) || !code) return res.status(400).json({ error: 'email and code are required.' });
-      const [vByEmail, vByIp] = await Promise.all([verifyRatelimit.limit(email), verifyRatelimit.limit(`ip:${ip}`)]);
-      if (!vByEmail.success || !vByIp.success) return res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
-      if ((Number(await redis.get(KEY.fails(email))) || 0) >= MAX_DAILY_FAILS) {
+      const tooManyAttempts = () => res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
+      if (!(await verifyRatelimit.limit(`ip:${ip}`)).success) return tooManyAttempts();
+      if (!(await verifyEmailRatelimit.limit(email)).success) return tooManyAttempts();
+      const [emailFails, ipFails] = await Promise.all([redis.get(KEY.fails(email)), redis.get(KEY.failsIp(email, ip))]);
+      if ((Number(emailFails) || 0) >= MAX_DAILY_FAILS || (Number(ipFails) || 0) >= MAX_DAILY_FAILS_PER_IP) {
         return res.status(429).json({ error: 'Too many wrong codes today. Please try again tomorrow.' });
       }
       const stored = await redis.get(KEY.otp(email));
       if (!stored) return res.status(401).json({ error: 'Invalid or expired code.' });
       if (String(stored) !== code) {
-        // Wrong guesses are counted per email for 24h (not reset by requesting a new code),
-        // and every 5th one burns the current code, so a 6-digit code can't be brute-forced.
+        // Wrong guesses are counted for 24h after the LAST one (not reset by requesting a new code),
+        // and every 5th one burns the current code, so a 6-digit code can't be brute-forced. Renewing
+        // the expiry means the counter can't run out while a code is still live.
         const n = await redis.incr(KEY.fails(email));
-        if (n === 1) await redis.expire(KEY.fails(email), 86400);
-        const burned = n % FAILS_PER_CODE === 0 || n >= MAX_DAILY_FAILS;
+        const nIp = await redis.incr(KEY.failsIp(email, ip));
+        await Promise.all([redis.expire(KEY.fails(email), 86400), redis.expire(KEY.failsIp(email, ip), 86400)]);
+        const burned = n % FAILS_PER_CODE === 0 || n >= MAX_DAILY_FAILS || nIp >= MAX_DAILY_FAILS_PER_IP;
         if (burned) await redis.del(KEY.otp(email));
         return res.status(401).json({ error: burned ? 'Too many wrong codes. Please request a new code.' : 'Invalid or expired code.' });
       }
       // Only the request that actually deletes the code may continue. Two quick submits of the
       // same code used to both pass and create two wallet sets, orphaning the first one.
-      if ((await redis.del(KEY.otp(email))) !== 1) return res.status(401).json({ error: 'Invalid or expired code.' });
-      await redis.del(KEY.fails(email));
+      if (Number(await redis.eval(CONSUME_OTP_LUA, [KEY.otp(email)], [String(stored)])) !== 1) return res.status(401).json({ error: 'Invalid or expired code.' });
+      await redis.del(KEY.fails(email), KEY.failsIp(email, ip));
 
       let record = await loadRecord(email);
       if (!record) {
@@ -347,11 +393,22 @@ module.exports = async function handler(req, res) {
         record = await loadRecord(email);
       }
       if (!record) {
+        // One inbox, one wallet, and a few new wallets per source per day: the account limit is shared
+        // by everyone, so spelling variations of one inbox must not be able to fill it.
+        const identity = canonicalEmail(email);
+        const refuseSignup = async (status, error) => {
+          await redis.del(KEY.creating(email));
+          return res.status(status).json({ error });
+        };
+        if (!(await signupRatelimit.limit(ip)).success) return refuseSignup(429, 'Too many new wallets from this connection today. Please try again tomorrow.');
+        if (!(await redis.set(KEY.identity(identity), email, { nx: true }))) {
+          if ((await redis.get(KEY.identity(identity))) !== email) return refuseSignup(403, 'This inbox already has a Circle Wallet. Please sign in with the email address you first used.');
+        }
         // Reserve a slot first (atomic), so two sign-ups at once can't both squeeze past the limit.
         await accountCount();
         if ((await redis.incr(ACCOUNT_COUNT_KEY)) > MAX_ACCOUNTS) {
           await redis.decr(ACCOUNT_COUNT_KEY);
-          await redis.del(KEY.creating(email));
+          await redis.del(KEY.creating(email), KEY.identity(identity));
           return res.status(403).json({ error: 'Circle Wallet is not accepting new sign-ups right now. Please try again later.' });
         }
         try {
@@ -365,7 +422,7 @@ module.exports = async function handler(req, res) {
           await redis.del(KEY.creating(email));
         } catch (e) {
           await redis.decr(ACCOUNT_COUNT_KEY); // creation failed, give the slot back
-          await redis.del(KEY.creating(email));
+          await redis.del(KEY.creating(email), KEY.identity(identity));
           throw e;
         }
       }
@@ -385,7 +442,8 @@ module.exports = async function handler(req, res) {
     // ---- everything below requires a valid mainnet session ----
      const email = await sessionEmail(req);
     if (!email) return res.status(401).json({ error: 'Session expired or invalid. Please sign in again with your email.' });
-    const { success: actionOk } = await actionRatelimit.limit(email);
+    const isRead = action === 'status' || action === 'getTransaction';
+    const { success: actionOk } = await (isRead ? readRatelimit : actionRatelimit).limit(email);
     if (!actionOk) return res.status(429).json({ error: 'Too many requests. Please slow down.' });
     const record = await loadRecord(email);
     if (!record) return res.status(401).json({ error: 'No wallet for this account. Please sign in again.' });
@@ -398,7 +456,7 @@ module.exports = async function handler(req, res) {
     // Withdraw: always allowed. Sends `amount` of an allowlisted token to an external address.
     // Body: { action: "withdraw", walletId, tokenAddress, amount (decimal string), destinationAddress }
     if (action === 'withdraw') {
-      const { walletId, tokenAddress, amount, destinationAddress } = req.body;
+      const { walletId, tokenAddress, amount, destinationAddress, idempotencyKey } = req.body;
       if (!ownsWallet(record, walletId)) return res.status(403).json({ error: 'This wallet does not belong to the signed-in account.' });
       const chain = chainOfWallet(record, walletId);
       const token = String(tokenAddress || '').toLowerCase();
@@ -408,7 +466,10 @@ module.exports = async function handler(req, res) {
       if (own.includes(String(destinationAddress).toLowerCase())) return res.status(400).json({ error: 'Destination must be your own external wallet, not this Circle wallet.' });
       if (!/^\d+(\.\d+)?$/.test(String(amount || '')) || Number(amount) <= 0) return res.status(400).json({ error: 'Enter a valid amount.' });
 
+      // The browser sends one key per withdrawal and reuses it on a retry, so Circle treats a retry
+      // of the same withdrawal as the same transaction instead of sending the funds twice.
       const r = await client.createTransaction({
+        idempotencyKey: idempotencyKeyFrom(idempotencyKey),
         walletId,
         blockchain: chain,
         tokenAddress: token,
@@ -458,7 +519,7 @@ module.exports = async function handler(req, res) {
 
     if (action === 'contractCall') {
       if (WITHDRAW_ONLY) return res.status(403).json({ error: 'This action isn\'t available right now. You can still withdraw to your own wallet.' });
-      const { walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel } = req.body;
+      const { walletId, contractAddress, abiFunctionSignature, abiParameters, feeLevel, idempotencyKey } = req.body;
       if (!walletId || !contractAddress || !abiFunctionSignature) return res.status(400).json({ error: 'walletId, contractAddress and abiFunctionSignature are required.' });
       const allowed = ALLOWED_CALLS.get(String(contractAddress).toLowerCase());
       if (!allowed || !allowed.has(abiFunctionSignature)) return res.status(403).json({ error: "This contract/function is not on FlowFi's mainnet allowlist." });
@@ -478,6 +539,7 @@ module.exports = async function handler(req, res) {
       if (!cap.priceOk) return res.status(503).json({ error: "Couldn't price your cirBTC right now, so actions are paused for safety. Withdrawals still work. Please try again in a minute." });
       if (cap.total > CAP_USD) return res.status(403).json({ error: `Your Circle wallet holds more than the $${CAP_USD} limit. Please withdraw the excess to your own wallet first.` });
       const r = await client.createContractExecutionTransaction({
+        idempotencyKey: idempotencyKeyFrom(idempotencyKey),
         walletId,
         contractAddress,
         abiFunctionSignature,
@@ -490,6 +552,11 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Unknown action' });
   } catch (error) {
     console.error('Circle live wallet error:', error?.message);
+    // Circle refused the request (not enough funds, for example): a clear no, unlike a lost answer.
+    const upstream = error?.status ?? error?.response?.status;
+    if (upstream >= 400 && upstream < 500 && upstream !== 401 && upstream !== 403 && upstream !== 429) {
+      return res.status(400).json({ error: error?.response?.data?.message ?? error?.message ?? 'Circle refused this request.' });
+    }
     return res.status(500).json({ error: error?.message ?? 'Internal error' });
   }
 };

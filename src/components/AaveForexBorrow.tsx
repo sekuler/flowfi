@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, maxUint256, parseAbi } from "viem";
 import type { EIP1193Provider } from "viem";
 import { ArrowLeft, RefreshCw, ExternalLink } from "lucide-react";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenOnChain } from "./AssetLogos";
 import { useIsMobile } from "../useIsMobile";
@@ -145,6 +146,7 @@ export default function AaveForexBorrow({ owner, provider, onBack }: { owner?: `
   const [action, setAction] = useState<Action>("supply");
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const unconfirmed = useUnconfirmedTx(owner ? `aave-forex-${owner}` : null);
   const [msg, setMsg] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
 
@@ -240,14 +242,14 @@ export default function AaveForexBorrow({ owner, provider, onBack }: { owner?: `
     else if (action === "withdraw" && amt > s.supplied) problem = "More than you supplied.";
     else if ((action === "borrow" || action === "withdraw") && amt > maxRaw) problem = `Over the safe limit. Max ${money(n6(maxRaw))} ${action === "borrow" ? "USDC" : "EURC"}.`;
   }
-  const can = !!owner && !!provider && !!s && amt > 0n && !problem && step !== "sending";
+  const can = !!owner && !!provider && !!s && amt > 0n && !problem && step !== "sending" && !unconfirmed.hash;
 
   async function send(to: `0x${string}`, data: { abi: typeof SPOKE_ABI | typeof erc20Abi; functionName: string; args: readonly unknown[] }) {
     const wc = createWalletClient({ account: owner!, chain: arcMainnet, transport: custom(provider!) });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const h = await wc.writeContract({ address: to, ...(data as any) });
     setHash(h);
-    const r = await pc.waitForTransactionReceipt({ hash: h });
+    const r = await receiptOrUnknown(pc, h);
     if (r.status === "reverted") throw new Error("The transaction reverted onchain.");
   }
   async function approveIfNeeded(token: `0x${string}`, need: bigint, sym: string) {
@@ -257,15 +259,34 @@ export default function AaveForexBorrow({ owner, provider, onBack }: { owner?: `
     await send(token, { abi: erc20Abi, functionName: "approve", args: [AAVE_FOREX_SPOKE, need] });
   }
 
+  // Supplying and turning on collateral are two separate signatures. If only the first one happens,
+  // the EURC is safely supplied, and this finishes the second step without supplying again.
+  async function enableCollateral() {
+    if (!s || !owner || !provider) return;
+    setStep("sending"); setHash(null); setMsg("Turn EURC on as collateral in your wallet...");
+    try {
+      await switchToArc(provider);
+      await send(AAVE_FOREX_SPOKE, { abi: SPOKE_ABI, functionName: "setUsingAsCollateral", args: [s.eurc.id, true, owner] });
+      setMsg("EURC is now on as collateral."); setStep("done");
+    } catch (e: unknown) {
+      if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); setMsg(null); return; }
+      const err = e as { shortMessage?: string; message?: string };
+      setStep("error"); setMsg(err.shortMessage || err.message || "Transaction failed.");
+    }
+    setTick((t) => t + 1);
+  }
+
   async function start() {
     if (!can || !s) return;
     setStep("sending"); setMsg(null); setHash(null);
+    let suppliedNow = false;
     try {
       await switchToArc(provider!);
       if (action === "supply") {
         await approveIfNeeded(EURC, amt, "EURC");
         setMsg("Confirm the EURC supply in your wallet...");
         await send(AAVE_FOREX_SPOKE, { abi: SPOKE_ABI, functionName: "supply", args: [s.eurc.id, amt, owner!] });
+        suppliedNow = true;
         if (!s.collOn) {
           setMsg("Turn EURC on as collateral in your wallet...");
           await send(AAVE_FOREX_SPOKE, { abi: SPOKE_ABI, functionName: "setUsingAsCollateral", args: [s.eurc.id, true, owner!] });
@@ -290,8 +311,12 @@ export default function AaveForexBorrow({ owner, provider, onBack }: { owner?: `
       }
       setStep("done"); setAmount(""); setTick((t) => t + 1);
     } catch (e: unknown) {
+      if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); setMsg(null); setTick((t) => t + 1); return; }
       const err = e as { shortMessage?: string; message?: string };
-      setStep("error"); setMsg(err.shortMessage || err.message || "Transaction failed.");
+      setStep("error");
+      setMsg(suppliedNow
+        ? "Your EURC was supplied, but it isn't on as collateral yet. Don't supply again. Use the button below to finish."
+        : err.shortMessage || err.message || "Transaction failed.");
       setTick((t) => t + 1);
     }
   }
@@ -408,6 +433,11 @@ export default function AaveForexBorrow({ owner, provider, onBack }: { owner?: `
               {msg}{" "}
               {hash && <a href={`https://arc.etherscan.io/tx/${hash}`} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 600 }}>View tx ↗</a>}
             </div>
+          )}
+          {unconfirmed.hash && <UnconfirmedTxNotice client={pc} hash={unconfirmed.hash} explorer="https://arc.etherscan.io" onDismiss={() => unconfirmed.set(null)}
+            onResolved={(status) => { unconfirmed.set(null); setStep(status === "reverted" ? "error" : "done"); setMsg(status === "reverted" ? "The transaction reverted onchain." : "Your transaction went through."); setTick((t) => t + 1); }} />}
+          {s && s.supplied > 0n && !s.collOn && !unconfirmed.hash && (
+            <button type="button" onClick={enableCollateral} disabled={step === "sending"} style={primary(step !== "sending")}>Turn EURC on as collateral</button>
           )}
           <button type="button" onClick={start} disabled={!can} style={primary(can)}>{btn}</button>
           {action === "supply" && s && !s.collOn && <p style={{ margin: 0, fontSize: 11.5, color: MUTED }}>First supply takes one extra signature to turn EURC on as collateral.</p>}

@@ -12,9 +12,18 @@ declare global {
   interface WindowEventMap { "eip6963:announceProvider": CustomEvent<EIP6963ProviderDetail>; }
 }
 
+// The wallet standard requires icons to be embedded images. A remote URL would make the browser call
+// whoever announced it, so it isn't loaded.
+const safeIcon = (icon: unknown) => (typeof icon === "string" && /^data:image\//i.test(icon) ? icon : null);
+
 export async function discoverWallets(): Promise<EIP6963ProviderDetail[]> {
   const providers = new Map<string, EIP6963ProviderDetail>();
-  const handler = (e: CustomEvent<EIP6963ProviderDetail>) => { providers.set(e.detail.info.uuid, e.detail); };
+  // First answer wins: a later announcement can't take over a wallet that is already listed.
+  const handler = (e: CustomEvent<EIP6963ProviderDetail>) => {
+    const d = e.detail;
+    if (!d?.info?.uuid || typeof d.provider?.request !== "function" || providers.has(d.info.uuid)) return;
+    providers.set(d.info.uuid, d);
+  };
   window.addEventListener("eip6963:announceProvider", handler);
   window.dispatchEvent(new Event("eip6963:requestProvider"));
   await new Promise((r) => setTimeout(r, 700));
@@ -209,8 +218,8 @@ export default function WalletConnect({ onConnected }: Props) {
                   opacity: connectingUuid !== null && !isConnecting ? 0.5 : 1,
                   boxShadow: "0 1px 3px rgba(109,94,247,0.06)",
                 }}>
-                {found?.info.icon ? (
-                  <img src={found.info.icon} alt="" width={28} height={28} style={{ borderRadius: 8, flexShrink: 0 }} />
+                {safeIcon(found?.info.icon) ? (
+                  <img src={safeIcon(found?.info.icon)!} alt="" width={28} height={28} style={{ borderRadius: 8, flexShrink: 0 }} />
                 ) : (
                   <div style={{ width: 28, height: 28, borderRadius: 8, background: c.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
                     {c.letter}
@@ -229,7 +238,7 @@ export default function WalletConnect({ onConnected }: Props) {
           {extraDetected.map((w) => (
             <button key={w.info.uuid} onClick={() => connectWallet(w)} disabled={connectingUuid !== null}
               style={{ width: "100%", padding: "0.85rem 1rem", borderRadius: 14, border: "1px solid #D4C9FA", background: "#ffffff", cursor: connectingUuid !== null ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 12, opacity: connectingUuid !== null && connectingUuid !== w.info.uuid ? 0.5 : 1, boxShadow: "0 1px 3px rgba(109,94,247,0.06)" }}>
-              {w.info.icon && <img src={w.info.icon} alt="" width={28} height={28} style={{ borderRadius: 8, flexShrink: 0 }} />}
+              {safeIcon(w.info.icon) && <img src={safeIcon(w.info.icon)!} alt="" width={28} height={28} style={{ borderRadius: 8, flexShrink: 0 }} />}
               <span style={{ flex: 1, textAlign: "left", fontSize: 15, fontWeight: 700, color: "#111827" }}>{w.info.name}</span>
               {connectingUuid === w.info.uuid && <span style={{ fontSize: 12, color: "#6D5EF7", fontWeight: 600 }}>Connecting...</span>}
             </button>

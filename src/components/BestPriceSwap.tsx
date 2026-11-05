@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, toHex, encodeFunctionData } from "viem";
 import type { EIP1193Provider } from "viem";
 import { ArrowDown, Check, ChevronDown } from "lucide-react";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenIcon } from "./TokenIcon";
 import { useIsMobile } from "../useIsMobile";
@@ -118,6 +119,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
   const [step, setStep] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [msg, setMsg] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
+  const unconfirmed = useUnconfirmedTx(address ? `swap-${address}` : null);
   const [tick, setTick] = useState(0);
   const [picker, setPicker] = useState<"from" | "to" | null>(null);
   const [bals, setBals] = useState<Record<string, bigint>>({});
@@ -297,15 +299,16 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       setMsg(`Confirm the swap in your wallet (via ${sel.source})...`);
       const h = await wc.sendTransaction({ to: txTo as `0x${string}`, data, value });
       setHash(h);
-      if ((await pc.waitForTransactionReceipt({ hash: h })).status === "reverted") throw new Error("The swap reverted (price moved more than 0.5%). Nothing was swapped.");
+      if ((await receiptOrUnknown(pc, h)).status === "reverted") throw new Error("The swap reverted (price moved more than 0.5%). Nothing was swapped.");
       setStep("done"); setMsg(`Swapped ${amount} ${from.symbol} for ${to.symbol} via ${sel.source}.`); setAmount(""); setTick((t) => t + 1);
     } catch (e: unknown) {
+      if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); setMsg(null); return; }
       const err = e as { shortMessage?: string; message?: string };
       setStep("error"); setMsg(err.shortMessage || err.message || "Swap failed.");
     }
   }
 
-  const can = !!provider && !!address && !!sel && amountIn > 0n && !insufficient && step !== "busy";
+  const can = !!provider && !!address && !!sel && amountIn > 0n && !insufficient && step !== "busy" && !unconfirmed.hash;
   const cta = !provider || !address ? "Connect wallet"
     : step === "busy" ? "Confirm in your wallet..."
     : !amount ? "Enter an amount"
@@ -448,6 +451,9 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
           <span>{msg}{hash && <> · <a href={`https://arc.etherscan.io/tx/${hash}`} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 600 }}>View tx ↗</a></>}</span>
         </div>
       )}
+
+      {unconfirmed.hash && <UnconfirmedTxNotice client={pc} hash={unconfirmed.hash} explorer="https://arc.etherscan.io" onDismiss={() => unconfirmed.set(null)}
+        onResolved={(status) => { unconfirmed.set(null); setStep(status === "reverted" ? "error" : "done"); setMsg(status === "reverted" ? "The swap reverted. Nothing was swapped." : "Your swap went through."); if (status !== "reverted") setAmount(""); setTick((t) => t + 1); }} />}
 
       <button type="button" onClick={!provider || !address ? onConnect : swap} disabled={(!provider || !address) ? !onConnect : !can}
         style={{ height: 52, borderRadius: 999, border: "none", background: (!provider || !address) || can ? BLUE : "#EEEDF5", color: (!provider || !address) || can ? "#FFFFFF" : "#8A8798", fontSize: 16, fontWeight: 700, cursor: (!provider || !address) || can ? "pointer" : "not-allowed" }}>

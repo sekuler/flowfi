@@ -14,6 +14,9 @@ const { Ratelimit } = require('@upstash/ratelimit');
 
 const COINGECKO_ORIGIN = 'https://api.coingecko.com/api/v3';
 const CACHE_TTL_SECONDS = 30;
+// Upstream errors are remembered briefly too, so repeating a bad request can't keep spending the quota.
+const ERROR_CACHE_SECONDS = 15;
+const MEM_CACHE_MAX = 500;
 // Only these path prefixes are reachable — keeps this from becoming an
 // open relay to arbitrary CoinGecko endpoints (or, if a typo let it
 // through, to a completely different host).
@@ -40,12 +43,13 @@ async function getCached(key) {
   return entry && entry.expiresAt > Date.now() ? entry : null;
 }
 
-async function setCached(key, entry) {
+async function setCached(key, entry, ttl = CACHE_TTL_SECONDS) {
   if (redis) {
-    await redis.set(`coingecko-cache:${key}`, JSON.stringify(entry), { ex: CACHE_TTL_SECONDS });
+    await redis.set(`coingecko-cache:${key}`, JSON.stringify(entry), { ex: ttl });
     return;
   }
-  memCache.set(key, { ...entry, expiresAt: Date.now() + CACHE_TTL_SECONDS * 1000 });
+  if (memCache.size >= MEM_CACHE_MAX) memCache.delete(memCache.keys().next().value);
+  memCache.set(key, { ...entry, expiresAt: Date.now() + ttl * 1000 });
 }
 
 module.exports = async function handler(req, res) {
@@ -53,13 +57,25 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (!ratelimit && process.env.NODE_ENV === 'production') {
+    return res.status(503).json({ error: 'Service temporarily unavailable.' });
+  }
   if (ratelimit) {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
     if (!(await ratelimit.limit(ip)).success) return res.status(429).json({ error: 'Too many price requests. Please slow down.' });
   }
 
-  const path = req.query.path;
-  if (typeof path !== 'string' || !path.startsWith('/') || !ALLOWED_PREFIXES.some((p) => path.startsWith(p))) {
+  // Parse first and use one normal form for both the cache key and the request. "#anything" or a
+  // reordered query is the same upstream request, so it must not count as a new cache entry.
+  let path = null;
+  if (typeof req.query.path === 'string' && req.query.path.startsWith('/') && !req.query.path.startsWith('//')) {
+    try {
+      const u = new URL(req.query.path, 'https://coingecko.invalid');
+      u.searchParams.sort();
+      path = `${u.pathname}${u.search}`;
+    } catch { path = null; }
+  }
+  if (!path || !ALLOWED_PREFIXES.some((p) => path.startsWith(p))) {
     return res.status(400).json({ error: 'Missing or unsupported path.' });
   }
 
@@ -75,9 +91,7 @@ module.exports = async function handler(req, res) {
     });
     const text = await response.text();
 
-    if (response.status >= 200 && response.status < 300) {
-      await setCached(path, { status: response.status, body: text });
-    }
+    await setCached(path, { status: response.status, body: text }, response.status >= 200 && response.status < 300 ? CACHE_TTL_SECONDS : ERROR_CACHE_SECONDS);
 
     res.status(response.status);
     res.setHeader('Content-Type', 'application/json');

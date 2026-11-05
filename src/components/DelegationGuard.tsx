@@ -55,11 +55,18 @@ export default function DelegationGuard({ address, provider }: { address: string
   const [findings, setFindings] = useState<Finding[]>([]);
   // Closing only hides it until the wallet is connected again (or the page reloads).
   const [dismissed, setDismissed] = useState(false);
+  // Bumped when the wallet changes network, so the wallet's current chain gets checked too.
+  const [chainTick, setChainTick] = useState(0);
+  useEffect(() => {
+    const p = provider as unknown as { on?: (e: string, f: () => void) => void; removeListener?: (e: string, f: () => void) => void } | undefined;
+    const onChain = () => setChainTick((t) => t + 1);
+    p?.on?.("chainChanged", onChain);
+    return () => { p?.removeListener?.("chainChanged", onChain); };
+  }, [provider]);
 
   useEffect(() => {
     let cancelled = false;
-    setFindings([]);
-    setDismissed(false);
+    if (chainTick === 0) { setFindings([]); setDismissed(false); }
 
     (async () => {
       const results: Finding[] = [];
@@ -69,14 +76,17 @@ export default function DelegationGuard({ address, provider }: { address: string
         checked.add(c.id);
         if (d && !KNOWN_DELEGATES[d]) results.push({ chain: c.name, delegate: d, explorer: c.explorer });
       }));
+      // What the trusted RPCs found is shown right away: a wallet that never answers below must not hide it.
+      if (!cancelled) setFindings([...results]);
       // Also check whatever chain the wallet itself is on, through the wallet's own RPC,
       // so chains not in the list above are covered too.
       if (provider) {
         try {
-          const idHex = (await provider.request({ method: "eth_chainId" })) as string;
+          const giveUp = <T,>(q: Promise<T>) => Promise.race([q, new Promise<never>((_, no) => setTimeout(() => no(new Error("timeout")), 8000))]);
+          const idHex = (await giveUp(provider.request({ method: "eth_chainId" }))) as string;
           const id = parseInt(idHex, 16);
           if (!checked.has(id)) {
-            const code = await provider.request({ method: "eth_getCode", params: [address as `0x${string}`, "latest"] });
+            const code = await giveUp(provider.request({ method: "eth_getCode", params: [address as `0x${string}`, "latest"] }));
             const d = delegateFromCode(code);
             if (d && !KNOWN_DELEGATES[d]) results.push({ chain: `chain ${id}`, delegate: d });
           }
@@ -86,7 +96,7 @@ export default function DelegationGuard({ address, provider }: { address: string
     })();
 
     return () => { cancelled = true; };
-  }, [address, provider]);
+  }, [address, provider, chainTick]);
 
   if (findings.length === 0 || dismissed) return null;
 

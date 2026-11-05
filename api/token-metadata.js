@@ -48,6 +48,10 @@ function metadataMessage(token) {
 }
 
 module.exports = async function handler(req, res) {
+  // Token Launch is retired from the app, and nothing calls this anymore. Closed so it can't be used
+  // from outside. To bring the feature back, remove this line.
+  return res.status(410).json({ error: 'This feature is no longer available.' });
+  /* eslint-disable no-unreachable */
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

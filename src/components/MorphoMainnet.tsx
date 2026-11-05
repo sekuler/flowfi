@@ -1,4 +1,5 @@
 import { useState, useEffect, createElement } from "react";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, maxUint256 } from "viem";
 import type { EIP1193Provider } from "viem";
 import { PiggyBank, Landmark, RefreshCw, X, ArrowLeft, ExternalLink, Wallet, TrendingUp, CalendarDays, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
@@ -110,6 +111,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const [hash, setHash] = useState<string | null>(null);
   const [acked, setAcked] = useState(false);
   const [showAck, setShowAck] = useState(false);
+  const unconfirmed = useUnconfirmedTx(owner ? `earn-${owner}` : null);
   const [ackChecked, setAckChecked] = useState(false);
   // Earn: the vault list is the page; tapping a vault opens its own page (details + deposit box).
   const [panelOpen, setPanelOpen] = useState(false);
@@ -356,7 +358,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   const fullWithdrawEarn = earnAction === "withdraw" && vs.assets > 0n && amt >= vs.assets;
 
   const vaultBlocked = isEarn && earnAction === "deposit" && !vs.assetOk;
-  const can = !!owner && amt > 0n && step !== "sending" && (fullRepay ? loanSpendable >= debt : amt <= max) && !!mkt && !vaultBlocked;
+  const can = !!owner && amt > 0n && step !== "sending" && (fullRepay ? loanSpendable >= debt : amt <= max) && !!mkt && !vaultBlocked && !unconfirmed.hash;
   const verb = isEarn ? (earnAction === "deposit" ? "Deposit" : "Withdraw")
     : ({ collateral: "Add collateral", borrow: "Borrow", repay: fullRepay ? "Repay all" : "Repay", withdraw: "Withdraw collateral" } as const)[borrowAction];
   const btn = step === "sending" ? "Confirm in your wallet..." : !amount ? "Enter an amount" : amt > max && !fullRepay ? (actionKey === "borrow" ? "Above the 70% safe limit" : actionKey === "withdraw" ? "Would go above the 70% safe limit" : "Not enough balance") : `${verb} ${amount} ${tokenSymbol}`;
@@ -368,6 +370,8 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
   }
   function acceptAck() {
     if (!owner) return;
+    // The amount field stays reachable behind this window, so the limits are checked again here.
+    if (!can) { setShowAck(false); return; }
     try { localStorage.setItem(ackKey(owner), "1"); } catch { /* ask again next time */ }
     setAcked(true); setShowAck(false); run();
   }
@@ -382,7 +386,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       const wc = createWalletClient({ account: owner, chain: arcMainnet, transport: custom(provider) });
       const wait = async (h: `0x${string}`) => {
         setHash(h);
-        const rc = await pc.waitForTransactionReceipt({ hash: h });
+        const rc = await receiptOrUnknown(pc, h);
         if (rc.status === "reverted") throw new Error("The transaction reverted. Nothing changed.");
       };
       const approve = async (token: `0x${string}`, spender: `0x${string}`, need: bigint, label: string) => {
@@ -433,7 +437,12 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
         const need = fullRepay ? minB(loanSpendable, (debt * 1001n) / 1000n + 10_000n) : amt;
         await approve(M.loan, MORPHO_BLUE, need, loanSym);
         setMsg("Confirm the repayment...");
-        const [repayAssets, repayShares] = fullRepay ? [0n, pos.borrowShares] : [amt, 0n];
+        // Read the debt again now: approving can take a while, and anyone may repay part of a loan
+        // meanwhile, which would make the older share count revert.
+        const freshShares = fullRepay
+          ? (await pc.readContract({ address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "position", args: [M.id, owner] }) as readonly bigint[])[1]
+          : 0n;
+        const [repayAssets, repayShares] = fullRepay ? [0n, freshShares] : [amt, 0n];
         const { request } = await pc.simulateContract({ account: owner, address: MORPHO_BLUE, abi: MORPHO_ABI, functionName: "repay", args: [M.params, repayAssets, repayShares, owner, "0x"] });
         await wait(await wc.writeContract(request));
       } else {
@@ -444,6 +453,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       setStep("done"); setMsg(`${verb} ${amount} ${tokenSymbol}: done.`); setAmount("");
       setTick((t) => t + 1);
     } catch (e: unknown) {
+      if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); setMsg(null); return; }
       const err = e as { shortMessage?: string; message?: string };
       setStep("error"); setMsg(err.shortMessage || err.message || "Transaction failed.");
     }
@@ -1351,6 +1361,8 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
           {hash && <a href={`https://arc.etherscan.io/tx/${hash}`} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 600 }}>View tx ↗</a>}
         </div>
       )}
+      {unconfirmed.hash && <UnconfirmedTxNotice client={pc} hash={unconfirmed.hash} explorer="https://arc.etherscan.io" onDismiss={() => unconfirmed.set(null)}
+        onResolved={(status) => { unconfirmed.set(null); setStep(status === "reverted" ? "error" : "done"); setMsg(status === "reverted" ? "The transaction reverted. Nothing changed." : "Your transaction went through."); if (status !== "reverted") setAmount(""); setTick((t) => t + 1); }} />}
       <button type="button" onClick={start} disabled={!can} style={primary(can)}>{btn}</button>
     </>);
   }

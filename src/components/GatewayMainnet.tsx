@@ -9,6 +9,7 @@ import { ChainLogo, TokenLogo, type ChainKey } from "./AssetLogos";
 import { useIsMobile } from "../useIsMobile";
 import { UnifiedBalanceKit } from "@circle-fin/unified-balance-kit";
 import { createKitAdapter } from "../kitAdapter";
+import { isUserRejection } from "./UnconfirmedTx";
 
 // Circle Gateway on MAINNET: one balance across chains for USDC, EURC and cirBTC.
 // EURC/cirBTC support: Unified Balance Kit 1.9.0 (Oct 23, 2026). Chain list, token addresses and
@@ -123,16 +124,23 @@ async function circlePost(body: Record<string, unknown>) {
   return d;
 }
 
-async function circleCallAndWait(body: Record<string, unknown>) {
-  const { transactionId } = await circlePost({ action: "contractCall", ...body });
+// Circle accepted the transaction, but its final state isn't known yet. It may still complete.
+class CircleTxStillOpen extends Error {}
+
+// A failed status check says nothing about the transaction, so polling just carries on. The key
+// makes a repeated request the same transaction at Circle.
+async function circleCallAndWait(body: Record<string, unknown>, onAccepted?: () => void) {
+  const { transactionId } = await circlePost({ action: "contractCall", idempotencyKey: crypto.randomUUID(), ...body });
+  onAccepted?.();
   const start = Date.now();
   while (Date.now() - start < 180000) {
-    const s = await circlePost({ action: "getTransaction", transactionId });
+    let s: { state?: string; txHash?: string; errorReason?: string } = {};
+    try { s = await circlePost({ action: "getTransaction", transactionId }); } catch { /* ask again */ }
     if (s.state === "COMPLETE") return s.txHash as string;
-    if (["FAILED", "CANCELLED", "DENIED"].includes(s.state)) throw new Error(s.errorReason ?? `Transaction ${String(s.state).toLowerCase()}.`);
+    if (s.state && ["FAILED", "CANCELLED", "DENIED"].includes(s.state)) throw new Error(s.errorReason ?? `Transaction ${String(s.state).toLowerCase()}.`);
     await sleep(3000);
   }
-  throw new Error("Still processing. Check again in a minute.");
+  throw new CircleTxStillOpen("Still processing.");
 }
 
 
@@ -175,7 +183,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
 
   const [depChain, setDepChain] = useState("arc");
   const [depAmount, setDepAmount] = useState("");
-  const [dStep, setDStep] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const [dStep, setDStep] = useState<"idle" | "busy" | "pending" | "done" | "error">("idle");
   const [dMsg, setDMsg] = useState<string | null>(null);
 
   const [fromChain, setFromChain] = useState("arc");
@@ -271,6 +279,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         setDMsg(`${arriving.amount} ${arriving.token ?? "USDC"} is now in your Gateway balance.`);
       } else if (Date.now() > arriving.eta + 15 * 60000) {
         saveArriving(null);
+        setDStep((st) => (st === "pending" ? "idle" : st));
       }
     };
     const t = setInterval(tick, fast ? 3000 : 15000);
@@ -286,12 +295,15 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
     const amountRaw = parseUnits(depAmount.trim(), dec);
     const depToken = dep.tokens.USDC!; // manual paths below are USDC only (Circle Wallet)
     setDStep("busy"); setDMsg(null);
+    let kitDeposit = false;
+    const track = () => saveArriving({ chain: dep.key, amount: Number(depAmount), eta: Date.now() + (dep.slow ? 20 * 60000 : 60000), baseline: bal?.[dep.key]?.available ?? 0, token });
     try {
       if (source === "browser" && USE_KIT) {
         await switchTo(provider!, dep.chain);
         const kit = new UnifiedBalanceKit();
         const adapter = await createKitAdapter(provider!);
         setDMsg("Approve and confirm the deposit in your wallet...");
+        kitDeposit = true;
         await kit.deposit({ from: { adapter, chain: KIT_CHAIN[dep.key] }, amount: depAmount.trim(), token, allowanceStrategy: "approve" });
       } else if (source === "browser") {
         await switchTo(provider!, dep.chain);
@@ -309,18 +321,24 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         setDMsg("1/2 Approving USDC...");
         await circleCallAndWait({ walletId, contractAddress: depToken, abiFunctionSignature: "approve(address,uint256)", abiParameters: [GATEWAY_WALLET, amountRaw.toString()] });
         setDMsg("2/2 Depositing...");
-        await circleCallAndWait({ walletId, contractAddress: GATEWAY_WALLET, abiFunctionSignature: "deposit(address,uint256)", abiParameters: [depToken, amountRaw.toString()] });
+        await circleCallAndWait({ walletId, contractAddress: GATEWAY_WALLET, abiFunctionSignature: "deposit(address,uint256)", abiParameters: [depToken, amountRaw.toString()] }, track);
       }
-      const etaMs = Date.now() + (dep.slow ? 20 * 60000 : 60000);
-      saveArriving({ chain: dep.key, amount: Number(depAmount), eta: etaMs, baseline: bal?.[dep.key]?.available ?? 0, token });
+      track();
       setDStep("done");
       setDMsg(dep.slow
         ? `Deposit sent. Gateway credits it once ${dep.name} finalizes (about 20 min). You can leave this page; it will appear here automatically.`
         : "Deposit sent. Gateway is crediting it, usually within a minute...");
       setDepAmount("");
     } catch (e: unknown) {
+      if (e instanceof CircleTxStillOpen) {
+        setDStep("pending"); setDMsg("Your deposit is still processing. Don't send it again. Your Gateway balance will update here when it lands.");
+        return;
+      }
       const err = e as { shortMessage?: string; message?: string };
-      setDStep("error"); setDMsg(err.shortMessage || err.message || "Deposit failed.");
+      setDStep("error");
+      setDMsg(kitDeposit && !isUserRejection(e)
+        ? "We couldn't confirm whether your deposit went through. Check your wallet's activity and your Gateway balance before trying again."
+        : err.shortMessage || err.message || "Deposit failed.");
     }
   }
 
@@ -470,7 +488,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
   }
 
   const depAmt = Number(depAmount);
-  const canDeposit = Number.isFinite(depAmt) && depAmt > 0 && dStep !== "busy";
+  const canDeposit = Number.isFinite(depAmt) && depAmt > 0 && dStep !== "busy" && dStep !== "pending";
   const fromAvail = bal?.[fromChain]?.available ?? 0;
   const tAmt = Number(tAmount);
   const validRecipient = toSolana ? isSolanaAddress(recipient.trim()) : isAddress(recipient.trim());
