@@ -29,7 +29,7 @@ const lifiWidgetConfig: WidgetConfig = {
   fromToken: NATIVE_TOKEN_ADDRESS,
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_USDC,
-  routePriority: "FASTEST",
+  routePriority: "CHEAPEST",
   sdkConfig: {
     rpcUrls: {
       5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`],
