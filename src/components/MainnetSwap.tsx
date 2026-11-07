@@ -6,6 +6,7 @@ import type { EIP1193Provider } from "viem";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
 import ArcTokenStrip from "./ArcTokenStrip";
 import BestPriceSwap from "./BestPriceSwap";
+import { COPILOT_PREFILL_EVENT, type CopilotPrefill } from "../copilotPrefill";
 
 // Same-chain counterpart to MainnetBridge.tsx: fromChain and toChain are
 // both Arc, so LI.FI's widget renders as a same-chain swap (routed
@@ -74,6 +75,12 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
   }, [widgetEvents]);
   // "best": FlowFi compares KyberSwap, De¹ and LI.FI quotes for Arc tokens. "any": the LI.FI widget, for any token.
   const [mode, setMode] = useState<"best" | "any">("best");
+  // A Copilot swap prefill always lands on Best price (BestPriceSwap fills the form).
+  useEffect(() => {
+    const onFill = (e: Event) => { if ((e as CustomEvent<CopilotPrefill>).detail?.kind === "swap") setMode("best"); };
+    window.addEventListener(COPILOT_PREFILL_EVENT, onFill);
+    return () => window.removeEventListener(COPILOT_PREFILL_EVENT, onFill);
+  }, []);
   // Same as the Bridge: routes beside the form, and the widget never taller than the screen.
   const widgetConfig = useMemo<WidgetConfig>(() => ({
     ...lifiWidgetConfig,

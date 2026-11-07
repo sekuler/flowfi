@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { takeCopilotPrefill, clearCopilotPrefill, COPILOT_PREFILL_EVENT, type CopilotPrefill } from "../copilotPrefill";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, toHex, encodeFunctionData } from "viem";
 import type { EIP1193Provider } from "viem";
 import { ArrowDown, Check, ChevronDown } from "lucide-react";
@@ -128,6 +129,26 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
   // Sources whose real on-chain output was worse than their quote; left out until the pair or amount changes.
   const [off, setOff] = useState<Source[]>([]);
   useEffect(() => { setOff([]); }, [amount, fromIdx, toIdx]);
+
+  // Copilot prefill ("swap 1 USDC to EURC"): on open, and while the page is already open.
+  useEffect(() => {
+    const apply = (p: { fromToken: string; toToken: string; amount: string }) => {
+      const f = TOKENS.findIndex((t) => t.symbol.toLowerCase() === p.fromToken.toLowerCase());
+      const t = TOKENS.findIndex((t) => t.symbol.toLowerCase() === p.toToken.toLowerCase());
+      if (f < 0 || t < 0 || f === t) return;
+      setFromIdx(f); setToIdx(t); setAmount(p.amount); setPicked(null);
+    };
+    const stored = takeCopilotPrefill("swap");
+    if (stored) apply(stored);
+    const onFill = (e: Event) => {
+      const p = (e as CustomEvent<CopilotPrefill>).detail;
+      if (p?.kind !== "swap") return;
+      clearCopilotPrefill();
+      apply(p);
+    };
+    window.addEventListener(COPILOT_PREFILL_EVENT, onFill);
+    return () => window.removeEventListener(COPILOT_PREFILL_EVENT, onFill);
+  }, []);
 
   const from = TOKENS[fromIdx];
   const to = TOKENS[toIdx];

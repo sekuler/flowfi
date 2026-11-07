@@ -12,6 +12,7 @@ import ElysiumBridge from "./ElysiumBridge";
 const SuiCctpBridge = lazy(() => import("./SuiCctpBridge"));
 import ArcTokenStrip from "./ArcTokenStrip";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
+import { takeCopilotPrefill, clearCopilotPrefill, COPILOT_PREFILL_EVENT, type CopilotPrefill } from "../copilotPrefill";
 
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
 const BASE_CHAIN_ID = 8453;
@@ -80,6 +81,24 @@ export default function MainnetBridge({ address, provider }: { address?: string;
   useEffect(() => { try { sessionStorage.removeItem("flowfi-bridge-mode"); } catch { /* ignore */ } }, []);
   // Opens the Any token widget with HYPE on HyperEVM as the destination, for the Elysium tab.
   const [lifiToHype, setLifiToHype] = useState(false);
+  // Copilot prefill ("bridge 2 USDC from Base to Arc"): source chain's USDC + amount, into Arc USDC.
+  const [copilotFill, setCopilotFill] = useState<{ fromChain: string; amount: string; n: number } | null>(() => {
+    const p = takeCopilotPrefill("bridge");
+    return p ? { fromChain: p.fromChain, amount: p.amount, n: 0 } : null;
+  });
+  useEffect(() => {
+    const onFill = (e: Event) => {
+      const p = (e as CustomEvent<CopilotPrefill>).detail;
+      if (p?.kind !== "bridge") return;
+      clearCopilotPrefill();
+      setLifiToHype(false);
+      setMode("lifi");
+      setCopilotFill((prev) => ({ fromChain: p.fromChain, amount: p.amount, n: (prev?.n ?? 0) + 1 }));
+    };
+    window.addEventListener(COPILOT_PREFILL_EVENT, onFill);
+    return () => window.removeEventListener(COPILOT_PREFILL_EVENT, onFill);
+  }, []);
+  const copilotSource = copilotFill ? SOURCE_CHAINS.find((c) => c.key === copilotFill.fromChain) : undefined;
   const [rotatingIdx, setRotatingIdx] = useState(0);
   const formRef = useRef<FormState | null>(null);
 
@@ -94,9 +113,12 @@ export default function MainnetBridge({ address, provider }: { address?: string;
   const widgetConfig = useMemo<WidgetConfig>(() => ({
     ...lifiWidgetConfig,
     ...(lifiToHype ? { toChain: HYPEREVM_CHAIN_ID, toToken: NATIVE_TOKEN_ADDRESS } : {}),
+    ...(!lifiToHype && copilotSource && copilotFill
+      ? { fromChain: copilotSource.chain.id, fromToken: copilotSource.usdc, toChain: ARC_MAINNET_CHAIN_ID, toToken: ARC_MAINNET_USDC, fromAmount: copilotFill.amount }
+      : {}),
     variant: "wide",
     theme: { ...lifiWidgetConfig.theme, container: { ...lifiWidgetConfig.theme?.container, maxHeight: "max(520px, calc(100vh - 190px))" } },
-  }), [lifiToHype]);
+  }), [lifiToHype, copilotSource, copilotFill]);
 
   return (
     <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1rem 0.75rem 1.5rem" }}>
@@ -225,7 +247,7 @@ export default function MainnetBridge({ address, provider }: { address?: string;
                   <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Bridge into"
                     onPick={(t) => formRef.current?.setFieldValue("toToken", t.address, { setUrlSearchParam: false })} />
                 </div>
-                <LiFiWidget key={lifiToHype ? "to-hype" : "default"} integrator="flowfi" config={widgetConfig} formRef={formRef} />
+                <LiFiWidget key={lifiToHype ? "to-hype" : `default-${copilotFill?.n ?? "none"}`} integrator="flowfi" config={widgetConfig} formRef={formRef} />
               </div>
             </>
           )}

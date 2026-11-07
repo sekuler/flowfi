@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { useState } from "react";
 import { getFormattedMarketAnalysis } from "../marketData";
+import { setCopilotPrefill, clearCopilotPrefill, type CopilotPrefill } from "../copilotPrefill";
 
 // Mainnet counterpart to AiCopilot.tsx. Deliberately much thinner:
 // testnet's Copilot directly EXECUTES swap/strategy/cross-chain-send by
@@ -59,6 +60,35 @@ interface Props {
 interface ParsedIntent {
   action: "bridge" | "swap" | "unknown";
   summary: string;
+  amount?: string | null;
+  fromToken?: string | null;
+  toToken?: string | null;
+  fromChain?: string | null;
+}
+
+const SWAP_TOKENS = ["USDC", "EURC", "cirBTC", "USYC"];
+// Same keys as SOURCE_CHAINS in NativeCctpBridge (kept here so Copilot does not load the bridge code).
+const BRIDGE_CHAINS = ["ethereum", "avalanche", "optimism", "arbitrum", "base", "polygon", "unichain", "linea", "codex", "sonic", "worldchain", "monad"];
+const cleanAmount = (a?: string | null) => (a && /^\d+(\.\d+)?$/.test(a.trim()) && Number(a) > 0 ? a.trim() : null);
+const matchToken = (t?: string | null) => SWAP_TOKENS.find((s) => s.toLowerCase() === (t ?? "").toLowerCase()) ?? null;
+
+// Turns what the user typed into a form prefill, only when the parts are clear.
+function prefillFor(intent: ParsedIntent): CopilotPrefill | null {
+  const amount = cleanAmount(intent.amount);
+  if (!amount) return null;
+  if (intent.action === "swap") {
+    const fromToken = matchToken(intent.fromToken) ?? "USDC";
+    const toToken = matchToken(intent.toToken);
+    if (!toToken || toToken === fromToken) return null;
+    return { kind: "swap", fromToken, toToken, amount };
+  }
+  if (intent.action === "bridge") {
+    const chain = (intent.fromChain ?? "").toLowerCase();
+    const token = matchToken(intent.fromToken);
+    if (!BRIDGE_CHAINS.includes(chain) || (token && token !== "USDC")) return null;
+    return { kind: "bridge", fromChain: chain, amount };
+  }
+  return null;
 }
 
 interface Message {
@@ -124,11 +154,16 @@ export default function AiCopilotMainnet({ onNavigate }: Props) {
 
   function goToPage(intent: ParsedIntent, msgIndex: number) {
     const targetTab: MainnetTab = intent.action === "bridge" ? "mainnetbridge" : "mainnetswap";
+    const prefill = prefillFor(intent);
+    if (prefill) setCopilotPrefill(prefill); else clearCopilotPrefill();
     onNavigate(targetTab);
     const pageLabel = intent.action === "bridge" ? "Bridge" : "Swap";
+    const reply = prefill
+      ? `I've filled in the ${pageLabel} form for you. Review it and confirm with your own wallet when you're ready.`
+      : `I've taken you to the ${pageLabel} page. Enter the details there and confirm with your own wallet.`;
     setMessages((prev) => [
       ...prev.map((m, i) => (i === msgIndex ? { ...m, confirmed: true } : m)),
-      { role: "assistant", content: `Real funds need your own wallet's confirmation, so I've taken you to the ${pageLabel} tab — connect your wallet and complete it there.` },
+      { role: "assistant", content: reply },
     ]);
     setOpen(true);
   }

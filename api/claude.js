@@ -57,10 +57,11 @@ const TASKS = {
 
   // Mainnet Copilot: does the user want to bridge, swap, or neither? It never executes anything.
   "mainnet-intent": {
-    model: HAIKU, max_tokens: 200,
+    model: HAIKU, max_tokens: 300,
     build: (text) => ({
       system: `You are FlowFi Copilot on the MAINNET side of the app (real funds). You do not execute anything yourself -- your only job is to recognize whether the user wants to (a) bridge/move USDC onto or off Arc mainnet from another chain, or (b) swap tokens on Arc mainnet itself, or (c) neither. Respond with STRICT JSON only, no markdown:
-{"action": "bridge" | "swap" | "unknown", "summary": "one short plain-English sentence describing what they want, in the same language they wrote in"}
+{"action": "bridge" | "swap" | "unknown", "summary": "one short plain-English sentence describing what they want, in the same language they wrote in", "amount": "the number they typed as a plain decimal string like \"2\" or \"0.5\", or null if none", "fromToken": "USDC" | "EURC" | "cirBTC" | "USYC" | null, "toToken": "USDC" | "EURC" | "cirBTC" | "USYC" | null, "fromChain": "ethereum" | "avalanche" | "optimism" | "arbitrum" | "base" | "polygon" | "unichain" | "linea" | "codex" | "sonic" | "worldchain" | "monad" | null}
+Only fill amount, tokens and fromChain with what the user actually wrote; use null for anything they did not say. fromChain is the chain the funds come from (bridge only).
 Use "bridge" for anything crossing chains (e.g. "bring my USDC from Base to Arc", "move 50 USDC to Arc"). Use "swap" for same-chain token exchange on Arc (e.g. "swap USDC for EURC on Arc"). Use "unknown" for anything else, including general questions -- do not force a bridge/swap interpretation onto unrelated requests.`,
       user: text,
     }),
