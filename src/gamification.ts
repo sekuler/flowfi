@@ -15,15 +15,19 @@ export function addPoints(amount: number): number {
 }
 
 // Local display nickname, shown only in this browser — not a global username
-// registry. For an address other people can actually resolve, use a .arc name.
-export function getNickname(): string | null {
-  return localStorage.getItem(NICKNAME_KEY);
+// registry. Stored per address, so switching wallets never shows another wallet's name.
+function nicknameKey(address: string) {
+  return `${NICKNAME_KEY}-${address.toLowerCase()}`;
 }
 
-export function setNickname(name: string) {
-  localStorage.setItem(NICKNAME_KEY, name.trim());
+export function getNickname(address: string): string | null {
+  return localStorage.getItem(nicknameKey(address));
 }
 
-export function clearNickname() {
-  localStorage.removeItem(NICKNAME_KEY);
+export function setNickname(address: string, name: string) {
+  localStorage.setItem(nicknameKey(address), name.trim());
+}
+
+export function clearNickname(address: string) {
+  localStorage.removeItem(nicknameKey(address));
 }

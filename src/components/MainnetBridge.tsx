@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { LiFiWidget, ChainType, WidgetEvent, useWidgetEvents, type WidgetConfig, type FormState } from "@lifi/widget";
 import { trackLifiRoute } from "../txTracking";
+import LifiWalletSync, { useLifiWalletConfig } from "./LifiWalletSync";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import { SolanaProvider } from "@lifi/widget-provider-solana";
 import { BitcoinProvider } from "@lifi/widget-provider-bitcoin";
@@ -29,7 +30,7 @@ const lifiWidgetConfig: WidgetConfig = {
   fromToken: NATIVE_TOKEN_ADDRESS,
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_USDC,
-  routePriority: "CHEAPEST",
+  routePriority: "FASTEST",
   sdkConfig: {
     rpcUrls: {
       5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`],
@@ -119,6 +120,7 @@ export default function MainnetBridge({ address, provider }: { address?: string;
     variant: "wide",
     theme: { ...lifiWidgetConfig.theme, container: { ...lifiWidgetConfig.theme?.container, maxHeight: "max(520px, calc(100vh - 190px))" } },
   }), [lifiToHype, copilotSource, copilotFill]);
+  const syncedWidgetConfig = useLifiWalletConfig(widgetConfig, provider);
 
   return (
     <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1rem 0.75rem 1.5rem" }}>
@@ -247,7 +249,9 @@ export default function MainnetBridge({ address, provider }: { address?: string;
                   <ArcTokenStrip chainId={ARC_MAINNET_CHAIN_ID} label="Bridge into"
                     onPick={(t) => formRef.current?.setFieldValue("toToken", t.address, { setUrlSearchParam: false })} />
                 </div>
-                <LiFiWidget key={lifiToHype ? "to-hype" : `default-${copilotFill?.n ?? "none"}`} integrator="flowfi" config={widgetConfig} formRef={formRef} />
+                <LifiWalletSync provider={provider} address={address} config={syncedWidgetConfig}>
+                  <LiFiWidget key={lifiToHype ? "to-hype" : `default-${copilotFill?.n ?? "none"}`} integrator="flowfi" config={syncedWidgetConfig} formRef={formRef} />
+                </LifiWalletSync>
               </div>
             </>
           )}

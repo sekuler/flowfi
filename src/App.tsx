@@ -274,7 +274,6 @@ function AppInner() {
   const [points, setPoints] = useState(0);
 
   useEffect(() => {
-    setNicknameState(getNickname());
     setPoints(getPoints());
     const interval = setInterval(() => setPoints(getPoints()), 3000);
     // (The testnet DCA reminder used to toast here on every load, mainnet included. The testnet
@@ -345,6 +344,10 @@ function AppInner() {
   // app kept showing balances for, and building transactions from, the old address.
   const walletAddressRef = useRef<string | undefined>(undefined);
   useEffect(() => { walletAddressRef.current = wallet?.address; }, [wallet?.address]);
+  // The nickname belongs to one address: reload it whenever the connected address changes.
+  useEffect(() => {
+    try { setNicknameState(wallet?.address ? getNickname(wallet.address) : null); } catch { setNicknameState(null); }
+  }, [wallet?.address]);
   useEffect(() => {
     type Listener = (accounts: string[]) => void;
     const p = wallet?.provider as unknown as { on?: (e: string, f: Listener) => void; removeListener?: (e: string, f: Listener) => void } | undefined;
@@ -366,6 +369,28 @@ function AppInner() {
     p.on("accountsChanged", onAccounts);
     return () => { active = false; p.removeListener?.("accountsChanged", onAccounts); };
   }, [wallet?.provider]);
+
+  // MetaMask only exposes accounts the user connected to this site: switching to an unconnected
+  // account in the extension keeps the site on the old one. This opens the wallet's own account
+  // picker so the user can choose which account FlowFi uses.
+  async function switchAccount() {
+    const p = wallet?.provider;
+    if (!p) return;
+    try {
+      await p.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] } as never);
+      const accounts = (await p.request({ method: "eth_accounts" })) as string[];
+      const next = accounts?.[0];
+      if (!next || !/^0x[0-9a-fA-F]{40}$/.test(next)) return;
+      if (wallet && wallet.address.toLowerCase() !== next.toLowerCase()) {
+        setBalances({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
+        setMainnetBalances({ usdc: null, eurc: null, usyc: null, cirbtc: null, native: null });
+        setWallet((w) => (w ? { ...w, address: next } : w));
+        showToast("Account switched", "success");
+      }
+    } catch {
+      // User closed the picker, or this wallet doesn't support it — nothing changes.
+    }
+  }
 
   function disconnectWallet() {
     localStorage.removeItem("flowfi-last-wallet-rdns");
@@ -769,8 +794,8 @@ function AppInner() {
                 <button onClick={() => {
                   const next = window.prompt("Set a local nickname (only visible to you, this browser only):", nickname ?? "");
                   if (next === null) return;
-                  if (next.trim()) { setNicknameState(next.trim()); saveNickname(next.trim()); }
-                  else { setNicknameState(null); clearNickname(); }
+                  if (next.trim()) { setNicknameState(next.trim()); saveNickname(wallet.address, next.trim()); }
+                  else { setNicknameState(null); clearNickname(wallet.address); }
                 }} title="Click to set a nickname"
                   style={{ display: "block", maxWidth: "100%", padding: 0, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#16151C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }}>
                   {nickname || shortAddr}
@@ -874,6 +899,12 @@ function AppInner() {
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 999, background: "rgba(61,90,241,0.1)", color: "#3D5AF1", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                 {shortAddr}
               </a>
+              {wallet.walletName !== "WalletConnect" && (
+                <button onClick={switchAccount} title="Switch account" aria-label="Switch account"
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 10, border: "none", background: "rgba(61,90,241,0.1)", color: "#3D5AF1", cursor: "pointer" }}>
+                  <ArrowLeftRight size={14} />
+                </button>
+              )}
               <button onClick={disconnectWallet} title="Disconnect wallet"
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer" }}>
                 <Power size={14} />

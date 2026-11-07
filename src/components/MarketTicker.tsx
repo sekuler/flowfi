@@ -52,7 +52,7 @@ export default function MarketTicker() {
           <div key={`${c.id}-${i}`} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>
             <span style={{ fontWeight: 700, color: "#111827" }}>{c.symbol}</span>
             <span className="flowfi-mono" style={{ color: "#374151" }}>
-              ${c.price >= 1 ? c.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : c.price.toFixed(4)}
+              ${c.price >= 1 ? c.price.toLocaleString("en-US", { maximumFractionDigits: 2 }) : c.price.toFixed(4)}
             </span>
             <span style={{ color: c.change24h >= 0 ? "#16A34A" : "#DC2626", fontWeight: 600 }}>
               {c.change24h >= 0 ? "▲" : "▼"} {Math.abs(c.change24h).toFixed(2)}%

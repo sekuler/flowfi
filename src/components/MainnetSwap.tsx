@@ -1,6 +1,7 @@
 import { useRef, useState, useMemo, useEffect } from "react";
 import { LiFiWidget, ChainType, WidgetEvent, useWidgetEvents, type WidgetConfig, type FormState } from "@lifi/widget";
 import { trackLifiRoute } from "../txTracking";
+import LifiWalletSync, { useLifiWalletConfig } from "./LifiWalletSync";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
 import { ARC_MAINNET_CHAIN_ID } from "../chains";
@@ -30,7 +31,7 @@ const lifiWidgetConfig: WidgetConfig = {
   fromToken: ARC_MAINNET_USDC,
   toChain: ARC_MAINNET_CHAIN_ID,
   toToken: ARC_MAINNET_EURC,
-  routePriority: "CHEAPEST",
+  routePriority: "FASTEST",
   sdkConfig: {
     rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
   },
@@ -87,6 +88,7 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
     variant: "wide",
     theme: { ...lifiWidgetConfig.theme, container: { ...lifiWidgetConfig.theme?.container, maxHeight: "max(520px, calc(100vh - 190px))" } },
   }), []);
+  const syncedWidgetConfig = useLifiWalletConfig(widgetConfig, provider);
 
   return (
     <div style={{ position: "relative", maxWidth: 900, margin: "0 auto", padding: "1rem 0.75rem 1.5rem" }}>
@@ -137,7 +139,9 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
                 formRef.current?.setFieldValue("toToken", t.address, opts);
               }} />
             </div>
-            <LiFiWidget integrator="flowfi" config={widgetConfig} formRef={formRef} />
+            <LifiWalletSync provider={provider} address={address} config={syncedWidgetConfig}>
+              <LiFiWidget integrator="flowfi" config={syncedWidgetConfig} formRef={formRef} />
+            </LifiWalletSync>
           </div>
         </>}
       </div>
