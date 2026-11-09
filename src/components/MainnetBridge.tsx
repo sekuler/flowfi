@@ -8,7 +8,6 @@ import { BitcoinProvider } from "@lifi/widget-provider-bitcoin";
 import type { EIP1193Provider } from "viem";
 import NativeCctpBridge, { SOURCE_CHAINS } from "./NativeCctpBridge";
 import NativeEurcBridge from "./NativeEurcBridge";
-import ElysiumBridge from "./ElysiumBridge";
 // Loaded only when the Sui tab is opened, so the Sui SDK never slows down the rest of the app.
 const SuiCctpBridge = lazy(() => import("./SuiCctpBridge"));
 import ArcTokenStrip from "./ArcTokenStrip";
@@ -18,7 +17,6 @@ import { takeCopilotPrefill, clearCopilotPrefill, COPILOT_PREFILL_EVENT, type Co
 const ARC_MAINNET_USDC = "0x3600000000000000000000000000000000000000";
 const BASE_CHAIN_ID = 8453;
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
-const HYPEREVM_CHAIN_ID = 999;
 
 
 const lifiWidgetConfig: WidgetConfig = {
@@ -34,6 +32,7 @@ const lifiWidgetConfig: WidgetConfig = {
   sdkConfig: {
     rpcUrls: {
       5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`],
+      99901: ["https://rpc.elysium.kinetiq.xyz"],
       ...(import.meta.env.VITE_SOLANA_RPC ? { 1151111081099710: [import.meta.env.VITE_SOLANA_RPC] } : {}),
     },
   },
@@ -74,14 +73,12 @@ export default function MainnetBridge({ address, provider }: { address?: string;
     widgetEvents.on(WidgetEvent.RouteExecutionCompleted, onDone);
     return () => { widgetEvents.off(WidgetEvent.RouteExecutionCompleted, onDone); };
   }, [widgetEvents]);
-  const [mode, setMode] = useState<"cctp" | "lifi" | "eurc" | "sui" | "elysium">(() => {
+  const [mode, setMode] = useState<"cctp" | "lifi" | "eurc" | "sui">(() => {
     try {
       return sessionStorage.getItem("flowfi-bridge-mode") === "cctp" ? "cctp" : "lifi";
     } catch { return "lifi"; }
   });
   useEffect(() => { try { sessionStorage.removeItem("flowfi-bridge-mode"); } catch { /* ignore */ } }, []);
-  // Opens the Any token widget with HYPE on HyperEVM as the destination, for the Elysium tab.
-  const [lifiToHype, setLifiToHype] = useState(false);
   // Copilot prefill ("bridge 2 USDC from Base to Arc"): source chain's USDC + amount, into Arc USDC.
   const [copilotFill, setCopilotFill] = useState<{ fromChain: string; amount: string; n: number } | null>(() => {
     const p = takeCopilotPrefill("bridge");
@@ -92,7 +89,6 @@ export default function MainnetBridge({ address, provider }: { address?: string;
       const p = (e as CustomEvent<CopilotPrefill>).detail;
       if (p?.kind !== "bridge") return;
       clearCopilotPrefill();
-      setLifiToHype(false);
       setMode("lifi");
       setCopilotFill((prev) => ({ fromChain: p.fromChain, amount: p.amount, n: (prev?.n ?? 0) + 1 }));
     };
@@ -113,13 +109,12 @@ export default function MainnetBridge({ address, provider }: { address?: string;
   const [infoOpen, setInfoOpen] = useState(false);
   const widgetConfig = useMemo<WidgetConfig>(() => ({
     ...lifiWidgetConfig,
-    ...(lifiToHype ? { toChain: HYPEREVM_CHAIN_ID, toToken: NATIVE_TOKEN_ADDRESS } : {}),
-    ...(!lifiToHype && copilotSource && copilotFill
+    ...(copilotSource && copilotFill
       ? { fromChain: copilotSource.chain.id, fromToken: copilotSource.usdc, toChain: ARC_MAINNET_CHAIN_ID, toToken: ARC_MAINNET_USDC, fromAmount: copilotFill.amount }
       : {}),
     variant: "wide",
     theme: { ...lifiWidgetConfig.theme, container: { ...lifiWidgetConfig.theme?.container, maxHeight: "max(520px, calc(100vh - 190px))" } },
-  }), [lifiToHype, copilotSource, copilotFill]);
+  }), [copilotSource, copilotFill]);
   const syncedWidgetConfig = useLifiWalletConfig(widgetConfig, provider);
 
   return (
@@ -154,21 +149,10 @@ export default function MainnetBridge({ address, provider }: { address?: string;
           </div>
         )}
 
-        {mode === "elysium" && (
-          <div key="elysium-hero" style={{ animation: "flowfi-fade-in 0.35s ease" }}>
-            <h1 style={{ fontSize: 30, fontWeight: 800, color: "#111827", margin: "16px 0 8px", lineHeight: 1.15, textAlign: "center" }}>
-              Move HYPE to <span className="flowfi-mono" style={{ color: "#3D5AF1" }}>Elysium</span>
-            </h1>
-            <p style={{ fontSize: 13.5, color: "#6B7280", margin: "0 auto 20px", maxWidth: 470, textAlign: "center", lineHeight: 1.55 }}>
-              Bring HYPE from HyperEVM to Elysium 1:1 through the official bridge, and it lands in your own wallet ready to use.
-            </p>
-          </div>
-        )}
-
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 10, margin: "0 auto 10px" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", padding: "5px 13px", borderRadius: 999 }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.18)" }} />
-          <span style={{ fontSize: 11.5, color: "#2B45C9", fontWeight: 700 }}>{mode === "elysium" ? "Elysium · real funds, real fees" : "Arc Mainnet · real funds, real fees"}</span>
+          <span style={{ fontSize: 11.5, color: "#2B45C9", fontWeight: 700 }}>Arc Mainnet · real funds, real fees</span>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 24, width: "fit-content", maxWidth: "100%" }}>
           {([
@@ -176,11 +160,10 @@ export default function MainnetBridge({ address, provider }: { address?: string;
             { k: "cctp", t: "Native USDC", sub: "1:1 via Circle CCTP" },
             { k: "eurc", t: "EURC & cirBTC", sub: "1:1 via Circle CCTP" },
             { k: "sui", t: "USDC from Sui", sub: "1:1 via Circle CCTP" },
-            { k: "elysium", t: "Elysium", sub: "HYPE from HyperEVM" },
           ] as const).map((tab) => {
             const on = mode === tab.k;
             return (
-              <button key={tab.k} onClick={() => { setLifiToHype(false); setMode(tab.k); }}
+              <button key={tab.k} onClick={() => setMode(tab.k)}
                 style={{ padding: "0.45rem 1rem", borderRadius: 999, border: "none", cursor: "pointer", textAlign: "left", background: on ? "#3D5AF1" : "transparent", boxShadow: on ? "0 6px 16px rgba(61,90,241,0.3)" : "none", transition: "all 0.2s" }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: on ? "#fff" : "#111827" }}>{tab.t}</div>
                 <div style={{ fontSize: 10.5, color: on ? "rgba(255,255,255,0.8)" : "#6B7280" }}>{tab.sub}</div>
@@ -225,13 +208,6 @@ export default function MainnetBridge({ address, provider }: { address?: string;
             </div>
           )}
 
-          {mode === "elysium" && address && <ElysiumBridge address={address} provider={provider} onGetHype={() => { setLifiToHype(true); setMode("lifi"); }} />}
-          {mode === "elysium" && !address && (
-            <div style={{ maxWidth: 480, margin: "0 auto", background: "#fff", border: "1px solid #E7E4DD", borderRadius: 24, padding: "2rem", textAlign: "center", color: "#6B7280", fontSize: 13 }}>
-              Connect your wallet to move HYPE to Elysium.
-            </div>
-          )}
-
           {mode === "lifi" && (
             <>
               {/* The amount input's focus outline turned out to be the browser's
@@ -250,7 +226,7 @@ export default function MainnetBridge({ address, provider }: { address?: string;
                     onPick={(t) => formRef.current?.setFieldValue("toToken", t.address, { setUrlSearchParam: false })} />
                 </div>
                 <LifiWalletSync provider={provider} address={address} config={syncedWidgetConfig}>
-                  <LiFiWidget key={lifiToHype ? "to-hype" : `default-${copilotFill?.n ?? "none"}`} integrator="flowfi" config={syncedWidgetConfig} formRef={formRef} />
+                  <LiFiWidget key={`default-${copilotFill?.n ?? "none"}`} integrator="flowfi" config={syncedWidgetConfig} formRef={formRef} />
                 </LifiWalletSync>
               </div>
             </>
