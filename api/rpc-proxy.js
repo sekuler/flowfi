@@ -36,7 +36,19 @@ const ALCHEMY_MAINNET_RPC_URL = process.env.ALCHEMY_API_KEY
   ? `https://arc-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
   : null;
 // Upstream statuses that mean "try the next provider" (auth/limit problems and server errors).
-const shouldFallBack = (status) => status === 401 || status === 403 || status === 429 || status >= 500;
+const shouldFallBack = (status) => status === 401 || status === 402 || status === 403 || status === 429 || status >= 500;
+// Some limits arrive as HTTP 200 with a JSON-RPC error inside. Contract reverts (code 3 or revert
+// data) are real answers and must never trigger a fallback, whatever their message says.
+const LIMIT_ERROR = /compute units|capacity limit|spend limit|rate limit|quota|too many requests/i;
+function isLimitBody(text) {
+  let parsed;
+  try { parsed = JSON.parse(text); } catch { return false; }
+  return (Array.isArray(parsed) ? parsed : [parsed]).some((r) => {
+    const e = r && r.error;
+    if (!e || e.code === 3 || e.data) return false;
+    return e.code === 429 || LIMIT_ERROR.test(String(e.message));
+  });
+}
 
 const ALLOWED_METHODS = new Set([
   'eth_chainId', 'eth_blockNumber', 'eth_gasPrice', 'eth_maxPriorityFeePerGas', 'eth_feeHistory',
@@ -85,7 +97,16 @@ async function logsQueryError(call, latestBlock) {
 }
 
 let ratelimit = null;
+// Daily ceiling on calls sent to Alchemy across ALL IPs, counted per call. Past it, mainnet calls
+// use the public RPC until the window resets, so rotating IPs can't run up the Alchemy bill.
+let alchemyDailyLimit = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const alchemyPerDay = Number(process.env.ALCHEMY_RPC_DAILY_LIMIT);
+  alchemyDailyLimit = new Ratelimit({
+    redis: new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN }),
+    limiter: Ratelimit.fixedWindow(Number.isFinite(alchemyPerDay) && alchemyPerDay > 0 ? Math.floor(alchemyPerDay) : 100000, '86400 s'),
+    prefix: 'ratelimit:rpc-proxy-alchemy-daily',
+  });
   // Generous limit, counted per CALL (a batch of 10 costs 10) — a normal
   // session makes many legitimate RPC calls (balance/reserve reads, tx
   // status polling, LI.FI's batched reads). This is a brake on sustained
@@ -143,7 +164,10 @@ module.exports = async function handler(req, res) {
 
   if (ratelimit) {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
-    const { success } = await ratelimit.limit(ip, { rate: calls.length });
+    // If Redis is down or out of quota, keep serving. The Alchemy check below fails the same way,
+    // so these requests go only to the public RPC and can't add to the Alchemy bill.
+    let success = true;
+    try { ({ success } = await ratelimit.limit(ip, { rate: calls.length })); } catch (error) { console.error('rpc-proxy: rate limit check failed:', error?.message); }
     if (!success) {
       return res.status(429).json({ error: 'Too many RPC requests — please slow down.' });
     }
@@ -158,7 +182,12 @@ module.exports = async function handler(req, res) {
   }
 
   const isMainnet = req.query?.network === 'mainnet';
-  const upstreams = isMainnet && ALCHEMY_MAINNET_RPC_URL ? [ALCHEMY_MAINNET_RPC_URL, targetUrl] : [targetUrl];
+  let useAlchemy = isMainnet && !!ALCHEMY_MAINNET_RPC_URL && !!alchemyDailyLimit;
+  if (useAlchemy) {
+    // If the counter can't be read, stay on the public RPC: Alchemy spend must never be uncounted.
+    try { useAlchemy = (await alchemyDailyLimit.limit('global', { rate: calls.length })).success; } catch { useAlchemy = false; }
+  }
+  const upstreams = useAlchemy ? [ALCHEMY_MAINNET_RPC_URL, targetUrl] : [targetUrl];
   const body = JSON.stringify(req.body ?? {});
 
   for (let i = 0; i < upstreams.length; i++) {
@@ -174,6 +203,10 @@ module.exports = async function handler(req, res) {
         continue;
       }
       const text = await response.text();
+      if (!isLast && isLimitBody(text)) {
+        console.warn(`rpc-proxy: upstream ${i} reported a limit, falling back`);
+        continue;
+      }
       res.status(response.status);
       res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
       return res.send(text);
