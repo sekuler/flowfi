@@ -16,3 +16,4 @@ broadcast/
 lib/
 .vercel
 .env*
+.claude/
