@@ -4,6 +4,8 @@ import EcosystemStrip from "./components/EcosystemStrip";
 import FeatureCards from "./components/FeatureCards";
 import HeroVisual from "./components/HeroVisual";
 import LandingReveal from "./components/LandingReveal";
+import LandingFx, { RollText } from "./components/LandingFx";
+import { HowItWorks, SecuritySection, Faq } from "./components/LandingSections";
 import { WhyFlowFi, ClosingCta } from "./components/LandingExtras";
 import ProductShowcase from "./components/ProductShowcase";
 import SiteFooter from "./components/SiteFooter";
@@ -637,14 +639,12 @@ function AppInner() {
             <span style={{ background: "linear-gradient(90deg, #7C3AED, #3B82F6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>All in one flow.</span>
           </h1>
           <p style={{ fontSize: isMobile ? 18 : 20, color: "#4B5563", lineHeight: 1.65, maxWidth: 520, marginBottom: 30 }}>
-            Bridge, swap and earn USDC on Arc.<br />
-            One simple flow.<br />
-            You sign every transaction.
+            Bring USDC to Arc from Ethereum, Base, Solana, Sui and more. Swap it, or earn with Morpho and Aave. You sign every transaction.
           </p>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 20, marginBottom: 28 }}>
-            <button onClick={() => setShowConnectModal(true)}
+            <button className="ff-magnet" onClick={() => setShowConnectModal(true)}
               style={{ padding: "1.25rem 2.6rem", borderRadius: 18, border: "none", background: "linear-gradient(90deg, #7C3AED, #3B82F6)", color: "#ffffff", fontSize: 19, fontWeight: 700, boxShadow: "0 8px 24px rgba(109,94,247,0.4)", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
-              Connect Wallet <span>→</span>
+              <RollText text="Connect Wallet" /> <span>→</span>
             </button>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {([
@@ -660,12 +660,19 @@ function AppInner() {
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <button onClick={() => { setGuestMode(true); setTab("mainnetbridge"); }}
                 style={{ background: "none", border: "none", color: "#6D5EF7", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
-                Explore without connecting →
+                Try it without a wallet →
               </button>
               <a href="https://youtu.be/Icu8qTiYMqw" target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", alignItems: "center", gap: 6, color: "#6D5EF7", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
                 <span style={{ fontSize: 11 }}>▶</span> Watch Demo
               </a>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 10px", fontSize: 13, fontWeight: 600, color: "#4B5563" }}>
+              {["Circle Alliance Member", "Live on Arc Mainnet", "Self-custody by default"].map((t, i) => (
+                <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                  {i > 0 && <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#C3CCEA" }} />}{t}
+                </span>
+              ))}
             </div>
             <LiveBlock />
           </div>
@@ -704,6 +711,7 @@ function AppInner() {
       </div>
 
       <WhyFlowFi />
+      <HowItWorks />
       {SHOW_SMALL_FEATURE_CARDS && (
       <FeatureCards items={LANDING_FEATURES} icons={LANDING_FEATURE_ICONS} onOpen={(title) => {
         if (title === "Circle CCTP V2") { try { sessionStorage.setItem("flowfi-bridge-mode", "cctp"); } catch { /* ignore */ } exploreAs("mainnetbridge"); }
@@ -713,8 +721,11 @@ function AppInner() {
       }} />
       )}
       <ProductShowcase onOpen={() => exploreAs("mainnetbridge")} />
+      <SecuritySection />
+      <Faq />
       <ClosingCta onConnect={() => setShowConnectModal(true)} onExplore={() => exploreAs("mainnetbridge")} />
       <LandingReveal />
+      <LandingFx />
 
       <div style={{ position: "relative", zIndex: 1 }}>
         <SiteFooter mark={<FlowFiMark size={106} />} product={[

@@ -1,5 +1,6 @@
 import { ArrowRight, Check, PenLine, Wallet } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { RollText, WaveDivider } from "./LandingFx";
 
 const CSS = `
 .ff-why { position: relative; z-index: 1; max-width: 1320px; margin: 0 auto; padding: 56px 48px 64px; box-sizing: border-box; font-family: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
@@ -20,7 +21,10 @@ const CSS = `
 .ff-logos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .ff-logos img { width: 100%; max-width: 76px; margin: 0 auto; display: block; border-radius: 18px; box-shadow: 0 10px 20px -12px rgba(36,58,150,.7); }
 /* card lift + tilt */
-.ff-why-card { transition: transform .25s ease-out, box-shadow .25s; will-change: transform; }
+.ff-why-card { position: relative; transition: transform .4s cubic-bezier(.33,1,.68,1), box-shadow .25s; will-change: transform; }
+.ff-why-card::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .4s cubic-bezier(.33,1,.68,1);
+  background: radial-gradient(circle 130px at var(--gx, 50%) var(--gy, 50%), rgba(255,255,255,.55), rgba(255,255,255,0)); }
+.ff-why-card:hover::after { opacity: 1; }
 .ff-why-card:hover { box-shadow: 0 30px 50px -28px rgba(36,58,150,.75); }
 /* 1: USDC flowing into Arc */
 .ff-track { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 34px; color: #9AA6C8; }
@@ -52,6 +56,11 @@ const CSS = `
 .ff-cta-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .ff-cta button { display: inline-flex; align-items: center; gap: 8px; padding: 15px 26px; border-radius: 15px; cursor: pointer; font: inherit; font-size: 16px; font-weight: 700; border: 1px solid rgba(255,255,255,.4); background: transparent; color: #fff; }
 .ff-cta button.ff-cta-main { background: #fff; color: #2238C9; border-color: #fff; }
+.ff-cta > h2, .ff-cta > p, .ff-cta > .ff-cta-btns { position: relative; z-index: 1; }
+.ff-cta { padding-top: 110px; }
+.ff-spot { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s;
+  background: radial-gradient(circle 280px at var(--sx, 50%) var(--sy, 50%), rgba(255,255,255,.16), rgba(255,255,255,0)); }
+.ff-cta:hover .ff-spot { opacity: 1; }
 @media (max-width: 960px) { .ff-why { padding: 40px 16px 44px; } .ff-why-grid { grid-template-columns: 1fr; } }
 `;
 
@@ -86,14 +95,16 @@ function FlowArt() {
   );
 }
 
-// Card lifts and leans slightly toward the mouse.
+// #153 3D tilt on hover: card lifts and leans toward the mouse, with a soft glare under the cursor.
 const tilt = (e: ReactPointerEvent<HTMLElement>) => {
   if (e.pointerType !== "mouse") return;
   const el = e.currentTarget;
   const r = el.getBoundingClientRect();
   const x = (e.clientX - r.left) / r.width - 0.5;
   const y = (e.clientY - r.top) / r.height - 0.5;
-  el.style.transform = `perspective(900px) translateY(-6px) rotateX(${(-y * 6).toFixed(2)}deg) rotateY(${(x * 6).toFixed(2)}deg)`;
+  el.style.transform = `perspective(900px) translateY(-6px) rotateX(${(-y * 8).toFixed(2)}deg) rotateY(${(x * 8).toFixed(2)}deg)`;
+  el.style.setProperty("--gx", `${((x + 0.5) * 100).toFixed(1)}%`);
+  el.style.setProperty("--gy", `${((y + 0.5) * 100).toFixed(1)}%`);
 };
 const untilt = (e: ReactPointerEvent<HTMLElement>) => { e.currentTarget.style.transform = ""; };
 
@@ -131,15 +142,24 @@ export function WhyFlowFi() {
   );
 }
 
+// #154 Spotlight hover: a soft light follows the cursor across the closing section.
+const spot = (e: ReactPointerEvent<HTMLElement>) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty("--sx", `${e.clientX - r.left}px`);
+  e.currentTarget.style.setProperty("--sy", `${e.clientY - r.top}px`);
+};
+
 export function ClosingCta({ onConnect, onExplore }: { onConnect: () => void; onExplore: () => void }) {
   return (
-    <section className="ff-cta">
+    <section className="ff-cta" onPointerMove={spot}>
       <style>{CSS}</style>
+      <WaveDivider />
+      <div className="ff-spot" aria-hidden="true" />
       <h2>Start moving USDC on Arc</h2>
       <p>Connect your wallet, or look around first.</p>
       <div className="ff-cta-btns">
-        <button type="button" className="ff-cta-main" onClick={onConnect}>Connect Wallet <ArrowRight size={18} /></button>
-        <button type="button" onClick={onExplore}>Explore the app</button>
+        <button type="button" className="ff-cta-main" onClick={onConnect}><RollText text="Connect Wallet" /> <ArrowRight size={18} /></button>
+        <button type="button" onClick={onExplore}><RollText text="Explore the app" /></button>
       </div>
     </section>
   );

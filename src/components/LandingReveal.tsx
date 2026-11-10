@@ -7,8 +7,13 @@ const TARGETS = [
   ".ff-why > h2",
   ".ff-why-sub",
   ".ff-why-card",
+  ".ff-sec-head",
+  ".ff-safe-item",
+  ".ff-faq-item",
   ".ff-show > *",
-  ".ff-cta > *",
+  ".ff-cta > h2",
+  ".ff-cta > p",
+  ".ff-cta > .ff-cta-btns",
 ].join(",");
 
 const CSS = `
