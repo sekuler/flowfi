@@ -3,6 +3,7 @@ import CircleAllianceCard from "./components/CircleAllianceCard";
 import EcosystemStrip from "./components/EcosystemStrip";
 import FeatureCards from "./components/FeatureCards";
 import HeroVisual from "./components/HeroVisual";
+import LandingReveal from "./components/LandingReveal";
 import { WhyFlowFi, ClosingCta } from "./components/LandingExtras";
 import ProductShowcase from "./components/ProductShowcase";
 import SiteFooter from "./components/SiteFooter";
@@ -713,6 +714,7 @@ function AppInner() {
       )}
       <ProductShowcase onOpen={() => exploreAs("mainnetbridge")} />
       <ClosingCta onConnect={() => setShowConnectModal(true)} onExplore={() => exploreAs("mainnetbridge")} />
+      <LandingReveal />
 
       <div style={{ position: "relative", zIndex: 1 }}>
         <SiteFooter mark={<FlowFiMark size={106} />} product={[
