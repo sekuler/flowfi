@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { LiFiWidget, ChainType, WidgetEvent, useWidgetEvents, type WidgetConfig, type FormState } from "@lifi/widget";
-import { trackLifiRoute } from "../txTracking";
+import { trackLifiRoute, useTxFeature } from "../txTracking";
 import LifiWalletSync, { useLifiWalletConfig } from "./LifiWalletSync";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import { SolanaProvider } from "@lifi/widget-provider-solana";
@@ -79,6 +79,7 @@ export default function MainnetBridge({ address, provider }: { address?: string;
     } catch { return "lifi"; }
   });
   useEffect(() => { try { sessionStorage.removeItem("flowfi-bridge-mode"); } catch { /* ignore */ } }, []);
+  useTxFeature(mode === "lifi" ? "any-bridge" : mode === "sui" ? "native-sui" : "native");
   // Copilot prefill ("bridge 2 USDC from Base to Arc"): source chain's USDC + amount, into Arc USDC.
   const [copilotFill, setCopilotFill] = useState<{ fromChain: string; amount: string; n: number } | null>(() => {
     const p = takeCopilotPrefill("bridge");

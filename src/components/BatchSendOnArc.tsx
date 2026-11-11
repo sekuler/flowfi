@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTxFeature } from "../txTracking";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, isAddress, getAddress } from "viem";
 import type { EIP1193Provider } from "viem";
 import { Check, AlertTriangle, Upload } from "lucide-react";
@@ -111,6 +112,7 @@ function parse(text: string, token: Tok, self: string): Row[] {
 type Step = "idle" | "confirm" | "approving" | "sending" | "done" | "error";
 
 export default function BatchSendOnArc({ address, provider }: { address: string; provider?: EIP1193Provider }) {
+  useTxFeature("batch-send");
   const [token, setToken] = useState<Tok>(TOKENS[0]);
   const [text, setText] = useState("");
   const [mode, setMode] = useState<"equal" | "custom">("equal");

@@ -12,15 +12,43 @@
 //   - volume = the larger of what the sender paid out and what they received, in known Circle
 //     tokens (USDC, EURC, cirBTC), read from the token Transfer logs; on Arc, native USDC sent
 //     as value counts too. EURC and cirBTC are priced in USD at the moment they are recorded.
+//   - any other token the sender paid or received (e.g. ETH sent with Send) is priced with LI.FI's
+//     token price for that chain; a token LI.FI has no price for adds 0.
 //   - each hash is counted once.
+//
+// LI.FI routes (Any swap / Any bridge) are measured differently, because they can start on any
+// chain (Solana, Sui, Bitcoin, Robinhood Chain, ...) and in any token:
+//   - the USD amount comes from LI.FI's own records for that tx (status DONE, integrator = ours);
+//   - besides what the app reports, sync() pulls every transfer of our integrator from LI.FI's
+//     analytics API, so a route still counts when the user closes the tab before it finishes.
+// Per-wallet totals (volume + tx count) are kept too, for points/leaderboards.
 const { Redis } = require('@upstash/redis');
-const { createPublicClient, http, getAddress, isHash, isAddress } = require('viem');
+const { createPublicClient, http, getAddress, isHash, isAddress, toFunctionSelector } = require('viem');
 const chains = require('viem/chains');
 
 const MAX_AGE_SECONDS = Number(process.env.STATS_MAX_AGE_SECONDS) || 30 * 60;
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const APPROVE_SELECTOR = '0x095ea7b3';
+// CCTP mint on the destination chain. For an EVM -> Arc bridge the burn on the source chain is what
+// counts, so a mint the user signs by hand is skipped (it would double the volume). Sui -> Arc is the
+// exception: the burn happens on Sui, so the Arc mint is the only tx we can verify.
+const RECEIVE_MESSAGE_SELECTOR = toFunctionSelector('receiveMessage(bytes,bytes)');
 const LOG_KEEP = 20000; // recent verified txs kept for export
+
+// ---------- LI.FI ----------
+const LIFI_API = 'https://li.quest';
+const LIFI_INTEGRATOR = process.env.LIFI_INTEGRATOR || 'flowfi'; // same id the widget is configured with
+const LIFI_FROM = Number(process.env.STATS_LIFI_FROM) || Date.UTC(2026, 8, 16) / 1000; // Arc mainnet launch
+const LIFI_WINDOW = 30 * 86400;  // analytics are read in 30-day windows
+const LIFI_OVERLAP = 86400;      // re-read the last day, to catch transfers that finished late
+const LIFI_PAGE = 50;
+let lifiFetch = async (path) => {
+  const key = process.env.LIFI_API_KEY || process.env.VITE_LIFI_API_KEY;
+  const r = await fetch(LIFI_API + path, { headers: key ? { 'x-lifi-api-key': key } : {}, signal: AbortSignal.timeout(6000) });
+  let json = null;
+  try { json = await r.json(); } catch { /* empty or non-JSON body */ }
+  return { ok: r.ok, status: r.status, json };
+};
 
 // Token addresses below are the same ones FlowFi already uses in its bridge/Gateway/Send code.
 const T = (address, symbol, decimals) => ({ address: address.toLowerCase(), symbol, decimals });
@@ -68,14 +96,21 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
 const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
 
 const mem = { kv: new Map(), hashes: new Map(), sets: new Map(), lists: new Map() };
+const memGet = (key) => {
+  const e = mem.kv.get(key);
+  if (!e) return null;
+  if (e.exp && e.exp < Date.now()) { mem.kv.delete(key); return null; }
+  return e.val;
+};
+const memSet = (key, val, ttl) => mem.kv.set(key, { val, exp: ttl ? Date.now() + ttl * 1000 : 0 });
 const store = {
   available: () => !!redis || !isProd,
   async setNx(key, val, ttl) {
     if (redis) return (await redis.set(key, val, { nx: true, ex: ttl })) === 'OK';
-    if (mem.kv.has(key)) return false; mem.kv.set(key, val); return true;
+    if (memGet(key) !== null) return false; memSet(key, val, ttl); return true;
   },
-  async get(key) { return redis ? redis.get(key) : (mem.kv.get(key) ?? null); },
-  async set(key, val, ttl) { if (redis) return redis.set(key, val, { ex: ttl }); mem.kv.set(key, val); },
+  async get(key) { return redis ? redis.get(key) : memGet(key); },
+  async set(key, val, ttl) { if (redis) return redis.set(key, val, { ex: ttl }); memSet(key, val, ttl); },
   async hincr(key, field, by) {
     if (redis) return redis.hincrby(key, field, by);
     const h = mem.hashes.get(key) ?? {}; h[field] = (h[field] ?? 0) + by; mem.hashes.set(key, h);
@@ -108,15 +143,30 @@ async function prices() {
   }
 }
 
-function toUsd(symbol, raw, decimals, px) {
-  const amount = Number(raw) / 10 ** decimals;
-  if (symbol === 'USDC') return amount;
-  const p = px[symbol];
-  return p ? amount * p : 0;
+// USD price + decimals of any other token, from LI.FI's token list (cached 10 minutes; a token
+// LI.FI doesn't know is cached as unknown so it isn't asked again on every tx).
+const NATIVE = '0x0000000000000000000000000000000000000000';
+const MAX_OTHER_TOKENS = 6; // per tx
+async function lifiTokenPrice(chainId, address) {
+  const key = `stats:px:${chainId}:${address}`;
+  const cached = await store.get(key);
+  if (cached) { const c = typeof cached === 'string' ? JSON.parse(cached) : cached; return c.p ? c : null; }
+  let r;
+  try { r = await lifiFetch(`/v1/token?chain=${encodeURIComponent(chainId)}&token=${encodeURIComponent(address)}`); }
+  catch { return null; }
+  if (r.status === 404) { await store.set(key, JSON.stringify({ p: 0 }), 600); return null; }
+  if (!r.ok || !r.json) return null;
+  const t = Array.isArray(r.json) ? r.json[0] : r.json;
+  const p = Number(t?.priceUSD);
+  const d = Number(t?.decimals);
+  const found = Number.isFinite(p) && p > 0 && Number.isInteger(d) && d >= 0 && d <= 36;
+  const sym = typeof t?.symbol === 'string' ? t.symbol.slice(0, 16) : null;
+  await store.set(key, JSON.stringify(found ? { p, d, s: sym } : { p: 0 }), 600);
+  return found ? { p, d, s: sym } : null;
 }
 
 // ---------- verification ----------
-async function verify({ hash, chainId, from }) {
+async function verify({ hash, chainId, from, feature = 'other' }) {
   const cfg = CHAINS[chainId];
   if (!cfg) return { status: 'rejected', reason: 'unsupported chain' };
   const client = clientFor(chainId);
@@ -135,22 +185,57 @@ async function verify({ hash, chainId, from }) {
   ]);
   const age = Math.floor(Date.now() / 1000) - Number(block.timestamp);
   if (age > MAX_AGE_SECONDS) return { status: 'rejected', reason: 'too old' };
-  if ((tx.input || '').slice(0, 10).toLowerCase() === APPROVE_SELECTOR) return { status: 'rejected', reason: 'approval' };
+  const selector = (tx.input || '').slice(0, 10).toLowerCase();
+  if (selector === APPROVE_SELECTOR) return { status: 'rejected', reason: 'approval' };
+  if (selector === RECEIVE_MESSAGE_SELECTOR && feature !== 'native-sui') return { status: 'rejected', reason: 'mint leg (the burn is what counts)' };
 
   const px = await prices();
   const me = sender.toLowerCase();
   let out = 0, inn = 0;
+  // Biggest token paid / received, for the "what moved" column of the stats.
+  const top = { out: [-1, null], inn: [-1, null] };
+  let unpriced = false;
+  const seeTop = (side, usd, sym) => { if (sym && usd > top[side][0]) top[side] = [usd, sym]; };
+  const other = new Map(); // token address -> { out, inn } raw amounts, for tokens priced via LI.FI
   for (const log of receipt.logs) {
-    if (log.topics?.[0] !== TRANSFER_TOPIC || log.topics.length < 3) continue;
-    const tok = cfg.tokens.find((t) => t.address === log.address.toLowerCase());
-    if (!tok) continue;
+    // ERC-20 Transfer only: 3 topics + a 32-byte amount (an NFT transfer has 4 topics).
+    if (log.topics?.[0] !== TRANSFER_TOPIC || log.topics.length !== 3 || !/^0x[0-9a-fA-F]{64}$/.test(log.data || '')) continue;
     const src = '0x' + log.topics[1].slice(26);
     const dst = '0x' + log.topics[2].slice(26);
-    const usd = toUsd(tok.symbol, BigInt(log.data), tok.decimals, px);
-    if (src === me) out += usd;
-    if (dst === me) inn += usd;
+    if (src !== me && dst !== me) continue;
+    const addr = log.address.toLowerCase();
+    const raw = BigInt(log.data);
+    const tok = cfg.tokens.find((t) => t.address === addr);
+    if (!tok) {
+      const o = other.get(addr) ?? { out: 0n, inn: 0n };
+      if (src === me) o.out += raw;
+      if (dst === me) o.inn += raw;
+      other.set(addr, o);
+      continue;
+    }
+    // EURC / cirBTC need a price: CoinGecko first, LI.FI's token price as a backup. With neither,
+    // the tx is not recorded as $0; it stays "pending" and the app reports it again shortly.
+    let price = tok.symbol === 'USDC' ? 1 : px[tok.symbol];
+    if (!price) price = (await lifiTokenPrice(chainId, addr))?.p;
+    if (!price) { unpriced = true; continue; }
+    const usd = (Number(raw) / 10 ** tok.decimals) * price;
+    if (src === me) { out += usd; seeTop('out', usd, tok.symbol); }
+    if (dst === me) { inn += usd; seeTop('inn', usd, tok.symbol); }
   }
-  if (cfg.nativeIsUsdc && tx.value > 0n) out = Math.max(out, Number(tx.value) / 1e18);
+  if (cfg.nativeIsUsdc && tx.value > 0n) { const v = Number(tx.value) / 1e18; out = Math.max(out, v); seeTop('out', v, 'USDC'); }
+  else if (tx.value > 0n) other.set(NATIVE, { out: tx.value, inn: 0n }); // native coin sent (ETH, AVAX, ...)
+  for (const [addr, o] of [...other].slice(0, MAX_OTHER_TOKENS)) {
+    const t = await lifiTokenPrice(chainId, addr);
+    if (!t) continue;
+    const o$ = (Number(o.out) / 10 ** t.d) * t.p;
+    const i$ = (Number(o.inn) / 10 ** t.d) * t.p;
+    out += o$; inn += i$;
+    seeTop('out', o$, t.s); seeTop('inn', i$, t.s);
+  }
+  if (unpriced) return { status: 'pending' };
+  // Both native bridge tabs report "native"; the token that was burned tells which one it was.
+  const sym = (top.out[1] || top.inn[1] || 'USDC').toLowerCase();
+  const k = feature === 'native' ? (['usdc', 'eurc', 'cirbtc'].includes(sym) ? `native-${sym}` : 'native-usdc') : feature;
 
   return {
     status: 'ok',
@@ -159,6 +244,7 @@ async function verify({ hash, chainId, from }) {
       to: tx.to ? tx.to.toLowerCase() : null,
       v: Math.round(Math.max(out, inn) * 100) / 100,
       t: Number(block.timestamp),
+      k, a: top.out[1], b: top.inn[1],
     },
   };
 }
@@ -175,10 +261,72 @@ async function save(r, source) {
     store.hincr(`stats:day:${day}`, 'volumeCents', cents),
     store.sadd('stats:wallets', r.f),
     store.sadd(`stats:daywallets:${day}`, r.f),
-    store.lpush('stats:log', JSON.stringify({ ...r, s: source }), LOG_KEEP),
+    store.hincr('stats:featvol', r.k || 'other', cents),
+    store.hincr('stats:feattx', r.k || 'other', 1),
+    store.hincr('stats:walletvol', r.f, cents),
+    store.hincr('stats:wallettx', r.f, 1),
+    store.lpush('stats:log', JSON.stringify({ ...r, s: source, w: 1 }), LOG_KEEP), // w: already in the per-wallet totals
   ]);
   const first = await store.get('stats:since');
   if (!first) await store.set('stats:since', String(r.t), 60 * 60 * 24 * 3650);
+}
+
+// ---------- LI.FI verification ----------
+const isHex = (v) => /^0x/i.test(v);
+const norm = (v) => (isHex(v) ? v.toLowerCase() : v); // EVM/Sui are hex; Solana/Bitcoin are case-sensitive
+const seenKeyFor = (chainId, hash) => `stats:seen:${chainId}:${norm(hash)}`;
+
+function lifiUsd(side) {
+  const direct = Number(side?.amountUSD);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const px = Number(side?.token?.priceUSD);
+  const dec = Number(side?.token?.decimals);
+  if (!side?.amount || !Number.isFinite(px) || !Number.isInteger(dec)) return 0;
+  return (Number(side.amount) / 10 ** dec) * px;
+}
+
+// Turns one LI.FI transfer (from /v1/status or /v2/analytics/transfers) into a record, or null if
+// it isn't a finished transfer of ours.
+function lifiRecord(t) {
+  if (t?.status !== 'DONE' || t.substatus === 'REFUNDED') return null;
+  if (t.metadata?.integrator !== LIFI_INTEGRATOR) return null;
+  const s = t.sending;
+  if (!s?.txHash || !Number.isInteger(Number(s.chainId)) || !t.fromAddress) return null;
+  let ts = Number(s.timestamp) || Math.floor(Date.now() / 1000);
+  if (ts > 1e12) ts = Math.floor(ts / 1000); // milliseconds
+  const usd = lifiUsd(s) || lifiUsd(t.receiving);
+  const rc = Number(t.receiving?.chainId);
+  const sym = (x) => (typeof x?.token?.symbol === 'string' ? x.token.symbol.slice(0, 16) : null);
+  const link = typeof t.lifiExplorerLink === 'string' && /^https:\/\//.test(t.lifiExplorerLink) ? t.lifiExplorerLink.slice(0, 300) : null;
+  return {
+    h: norm(String(s.txHash)), c: Number(s.chainId), f: norm(String(t.fromAddress)),
+    to: null, v: Math.round(usd * 100) / 100, t: ts, tool: t.tool || null,
+    // Same chain on both sides = a swap; different chains = a bridge.
+    k: Number.isInteger(rc) && rc === Number(s.chainId) ? 'swap-any' : 'any-bridge',
+    a: sym(s), b: sym(t.receiving), tc: Number.isInteger(rc) ? rc : null, x: link,
+  };
+}
+
+// { state: 'done', record } | 'pending' | 'failed' | 'none' (LI.FI doesn't know it / not ours) | 'error'
+async function lifiStatus(hash, chainId) {
+  let r;
+  try { r = await lifiFetch(`/v1/status?txHash=${encodeURIComponent(hash)}&fromChain=${encodeURIComponent(chainId)}`); }
+  catch { return { state: 'error' }; }
+  if (r.status === 404) return { state: 'none' };
+  if (!r.ok || !r.json) return { state: 'error' };
+  const st = r.json.status;
+  if (st === 'PENDING') return { state: 'pending' };
+  if (st === 'FAILED') return { state: 'failed' };
+  if (st !== 'DONE') return { state: 'none' };
+  if (r.json.substatus === 'REFUNDED') return { state: 'failed' };
+  const record = lifiRecord(r.json);
+  return record ? { state: 'done', record } : { state: 'none' };
+}
+
+async function claimAndSave(record, source) {
+  if (!(await store.setNx(seenKeyFor(record.c, record.h), '1', 60 * 60 * 24 * 400))) return { status: 'duplicate' };
+  await save(record, source);
+  return { status: 'recorded', volumeUsd: record.v };
 }
 
 async function track(body) {
@@ -186,19 +334,125 @@ async function track(body) {
   const chainId = Number(body?.chainId);
   const from = String(body?.from ?? '');
   const source = ['wallet', 'lifi'].includes(body?.source) ? body.source : 'wallet';
-  if (!isHash(hash) || !isAddress(from) || !Number.isInteger(chainId)) return { status: 'rejected', reason: 'bad input' };
+  const feature = /^[a-z0-9-]{1,24}$/.test(String(body?.feature ?? '')) ? String(body.feature) : 'other';
+  const evm = isHash(hash) && isAddress(from);
+  // LI.FI routes may start on Solana, Sui or Bitcoin, where hashes and addresses look different.
+  const lifiShape = /^[0-9a-zA-Z]{32,128}$/.test(hash) && /^[0-9a-zA-Z]{25,128}$/.test(from);
+  if (!Number.isInteger(chainId) || chainId <= 0 || !(source === 'lifi' ? lifiShape : evm)) return { status: 'rejected', reason: 'bad input' };
 
-  const seenKey = `stats:seen:${chainId}:${hash.toLowerCase()}`;
-  if (await store.get(seenKey)) return { status: 'duplicate' };
+  if (await store.get(seenKeyFor(chainId, hash))) return { status: 'duplicate' };
 
-  const result = await verify({ hash, chainId, from });
+  if (source === 'lifi') {
+    const ls = await lifiStatus(hash, chainId);
+    if (ls.state === 'done') {
+      if (ls.record.f !== norm(from)) return { status: 'rejected', reason: 'sender mismatch' };
+      return claimAndSave(ls.record, 'lifi');
+    }
+    if (ls.state === 'pending') return { status: 'pending' };
+    if (ls.state === 'failed') return { status: 'rejected', reason: 'failed or refunded' };
+    // LI.FI doesn't know the tx (yet) or couldn't be reached: verify onchain where we can,
+    // otherwise leave it to sync(), which reads LI.FI's own list of our transfers.
+    if (!evm || !CHAINS[chainId]) return { status: 'pending' };
+  }
+
+  const result = await verify({ hash, chainId, from, feature });
   if (result.status !== 'ok') return result;
 
+  // Signed inside the LI.FI widget, or nothing we could price moved for the sender: if LI.FI knows
+  // this tx as one of our routes, use LI.FI's record (USD amount, both tokens, both chains).
+  if (result.record.v === 0 || feature === 'any-bridge' || feature === 'swap-any') {
+    const ls = await lifiStatus(hash, chainId);
+    if (ls.state === 'done' && ls.record.f === result.record.f) return claimAndSave(ls.record, 'lifi');
+    if (ls.state === 'pending') return { status: 'pending' };
+    if (ls.state === 'failed') return { status: 'rejected', reason: 'failed or refunded' };
+  }
+
   // Claim the hash only after it verified, so a "pending" attempt can be retried.
-  if (!(await store.setNx(seenKey, '1', 60 * 60 * 24 * 400))) return { status: 'duplicate' };
-  await save(result.record, source);
-  return { status: 'recorded', volumeUsd: result.record.v };
+  return claimAndSave(result.record, source);
 }
+
+// Pulls every finished transfer of our integrator from LI.FI's analytics API and counts the ones
+// not counted yet. Resumable (window + cursor are stored), so one call never has to do it all.
+async function sync({ budgetMs = 6000, force = false } = {}) {
+  if (!force && !(await store.setNx('stats:lifi:throttle', '1', 60))) return { ok: true, skipped: true, added: 0 };
+  const started = Date.now();
+  const raw = await store.get('stats:lifi:sync');
+  let state = (typeof raw === 'string' ? JSON.parse(raw) : raw) || { from: LIFI_FROM, to: null, next: null };
+  let added = 0;
+  let ok = true;
+  let caughtUp = false;
+  while (Date.now() - started < budgetMs) {
+    const now = Math.floor(Date.now() / 1000);
+    if (!state.to) state.to = Math.min(state.from + LIFI_WINDOW, now);
+    const q = new URLSearchParams({
+      integrator: LIFI_INTEGRATOR, status: 'DONE',
+      fromTimestamp: String(state.from), toTimestamp: String(state.to), limit: String(LIFI_PAGE),
+    });
+    if (state.next) q.set('next', state.next);
+    let r;
+    try { r = await lifiFetch(`/v2/analytics/transfers?${q}`); } catch { ok = false; break; }
+    if (!r.ok || !Array.isArray(r.json?.data)) { ok = false; break; }
+    for (const t of r.json.data) {
+      const record = lifiRecord(t);
+      if (!record) continue;
+      if ((await claimAndSave(record, 'lifi')).status === 'recorded') added++;
+    }
+    if (r.json.hasNext && r.json.next) {
+      state.next = r.json.next;
+    } else {
+      caughtUp = state.to >= now - 60;
+      state = { from: Math.max(LIFI_FROM, state.to - LIFI_OVERLAP), to: null, next: null };
+    }
+    await store.set('stats:lifi:sync', JSON.stringify(state), 60 * 60 * 24 * 3650);
+    if (caughtUp) break;
+  }
+  return { ok, added, caughtUp };
+}
+
+// ---------- per-wallet totals ----------
+// Txs recorded before per-wallet totals existed are replayed once from the log.
+async function ensureWalletTotals() {
+  if (!(await store.setNx('stats:walletvol:built', '1', 60 * 60 * 24 * 3650))) return;
+  const rows = await exportLog(LOG_KEEP);
+  const vol = new Map(); const txs = new Map();
+  for (const r of rows) {
+    if (r.w || !r.f) continue;
+    vol.set(r.f, (vol.get(r.f) ?? 0) + Math.round((Number(r.v) || 0) * 100));
+    txs.set(r.f, (txs.get(r.f) ?? 0) + 1);
+  }
+  for (const [f, cents] of vol) {
+    await Promise.all([store.hincr('stats:walletvol', f, cents), store.hincr('stats:wallettx', f, txs.get(f))]);
+  }
+}
+
+async function wallets({ wallet } = {}) {
+  await ensureWalletTotals();
+  const [vol, txs] = await Promise.all([store.hgetall('stats:walletvol'), store.hgetall('stats:wallettx')]);
+  const list = Object.entries(vol ?? {})
+    .map(([w, cents]) => ({ wallet: w, volumeUsd: Number(cents) / 100, transactions: Number(txs?.[w] ?? 0) }))
+    .sort((a, b) => b.volumeUsd - a.volumeUsd);
+  if (wallet) {
+    const w = norm(String(wallet));
+    return list.find((x) => x.wallet === w) ?? { wallet: w, volumeUsd: 0, transactions: 0 };
+  }
+  return { count: list.length, wallets: list };
+}
+
+const FEATURE_LABELS = {
+  'any-bridge': 'Any bridge',
+  'native-usdc': 'Native bridge USDC',
+  'native-eurc': 'Native bridge EURC',
+  'native-cirbtc': 'Native bridge cirBTC',
+  'native-sui': 'Native bridge USDC (Sui)',
+  'swap-best': 'Swap (Best price)',
+  'swap-any': 'Swap (Any)',
+  'earn-borrow': 'Earn & Borrow',
+  gateway: 'Gateway',
+  send: 'Send',
+  'batch-send': 'Batch send',
+  other: 'Other',
+  unlabeled: 'Earlier (not labelled)',
+};
 
 function lastDays(n) {
   const out = [];
@@ -217,15 +471,24 @@ async function summary({ days = 30 } = {}) {
     return { date: d, txs: Number(h?.txs ?? 0), volumeUsd: Number(h?.volumeCents ?? 0) / 100, wallets: Number(w ?? 0) };
   }));
   const num = (o) => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [k, Number(v)]));
+  const [featVol, featTx] = await Promise.all([store.hgetall('stats:featvol'), store.hgetall('stats:feattx')]);
+  const byFeature = Object.keys({ ...(featVol ?? {}), ...(featTx ?? {}) })
+    .map((k) => ({ feature: k, label: FEATURE_LABELS[k] || k, transactions: Number(featTx?.[k] ?? 0), volumeUsd: Number(featVol?.[k] ?? 0) / 100 }))
+    .sort((a, b) => b.volumeUsd - a.volumeUsd);
+  // Txs counted before features were labelled.
+  const restTx = Number(totals?.txs ?? 0) - byFeature.reduce((n, f) => n + f.transactions, 0);
+  const restCents = Number(totals?.volumeCents ?? 0) - byFeature.reduce((n, f) => n + Math.round(f.volumeUsd * 100), 0);
+  if (restTx > 0 || restCents > 0) byFeature.push({ feature: 'unlabeled', label: FEATURE_LABELS.unlabeled, transactions: Math.max(0, restTx), volumeUsd: Math.max(0, restCents) / 100 });
   return {
     since: since ? new Date(Number(since) * 1000).toISOString() : null,
     transactions: Number(totals?.txs ?? 0),
     volumeUsd: Number(totals?.volumeCents ?? 0) / 100,
     uniqueWallets: Number(wallets ?? 0),
+    byFeature,
     byChain: num(byChain),
     bySource: num(bySource),
     daily,
-    note: 'Every transaction is verified onchain before it is counted. Approvals are excluded.',
+    note: 'Every transaction is verified onchain, or against LI.FI\'s records for LI.FI routes, before it is counted. Approvals are excluded.',
   };
 }
 
@@ -241,4 +504,7 @@ function clientIp(req) {
 // Test hook only: swap the RPC client for a stub.
 function __setClientFactory(f) { makeClient = f; clients.clear(); }
 
-module.exports = { __setClientFactory, track, summary, exportLog, store, redis, isProd, clientIp, SUPPORTED_CHAIN_IDS: Object.keys(CHAINS).map(Number) };
+// Test hook only: swap the LI.FI HTTP call for a stub.
+function __setLifiFetch(f) { lifiFetch = f; }
+
+module.exports = { __setClientFactory, __setLifiFetch, FEATURE_LABELS, CHAINS, track, sync, wallets, summary, exportLog, store, redis, isProd, clientIp, SUPPORTED_CHAIN_IDS: Object.keys(CHAINS).map(Number) };

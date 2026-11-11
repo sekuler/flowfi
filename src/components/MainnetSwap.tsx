@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo, useEffect } from "react";
 import { LiFiWidget, ChainType, WidgetEvent, useWidgetEvents, type WidgetConfig, type FormState } from "@lifi/widget";
-import { trackLifiRoute } from "../txTracking";
+import { trackLifiRoute, useTxFeature } from "../txTracking";
 import LifiWalletSync, { useLifiWalletConfig } from "./LifiWalletSync";
 import { EthereumProvider } from "@lifi/widget-provider-ethereum";
 import type { EIP1193Provider } from "viem";
@@ -76,6 +76,7 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
   }, [widgetEvents]);
   // "best": FlowFi compares KyberSwap, De¹ and LI.FI quotes for Arc tokens. "any": the LI.FI widget, for any token.
   const [mode, setMode] = useState<"best" | "any">("best");
+  useTxFeature(mode === "best" ? "swap-best" : "swap-any");
   // A Copilot swap prefill always lands on Best price (BestPriceSwap fills the form).
   useEffect(() => {
     const onFill = (e: Event) => { if ((e as CustomEvent<CopilotPrefill>).detail?.kind === "swap") setMode("best"); };

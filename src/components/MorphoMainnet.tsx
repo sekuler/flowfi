@@ -1,4 +1,5 @@
 import { useState, useEffect, createElement } from "react";
+import { useTxFeature } from "../txTracking";
 import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, maxUint256 } from "viem";
 import type { EIP1193Provider } from "viem";
@@ -83,6 +84,7 @@ async function switchToArc(provider: EIP1193Provider) {
 }
 
 export default function MorphoMainnet({ browserAddress, provider, onConnect }: { browserAddress?: string; provider?: EIP1193Provider; onConnect?: () => void }) {
+  useTxFeature("earn-borrow");
   const owner = browserAddress && provider ? (browserAddress as `0x${string}`) : undefined;
 
   const [mode, setMode] = useState<"earn" | "borrow">("earn");

@@ -4,12 +4,19 @@
 // POST /api/stats { hash, chainId, from, source }
 //      -> records a tx the user just signed through FlowFi:
 //         { status: "recorded" | "duplicate" | "pending" | "rejected" }  ("pending" = not mined yet; the app retries)
-// GET  /api/stats?key=<STATS_KEY>              -> totals, per chain, last 30 days
+// GET  /api/stats?key=<STATS_KEY>&view=1       -> the same numbers as a page: totals, volume per feature
+//                                                 (Any bridge, Native bridge USDC/EURC/cirBTC, Swap, ...),
+//                                                 recent txs with token + chain route, daily, top wallets
+// GET  /api/stats?key=<STATS_KEY>              -> totals, per feature, per chain, last 30 days (JSON)
 // GET  /api/stats?key=<STATS_KEY>&days=90      -> longer daily series (max 365)
 // GET  /api/stats?key=<STATS_KEY>&export=500   -> the most recent verified txs (hash, chain, volume, time)
+// GET  /api/stats?key=<STATS_KEY>&wallets=1    -> every wallet with its total volume and tx count (highest first)
+// GET  /api/stats?key=<STATS_KEY>&wallet=0x... -> one wallet's total volume and tx count
+// Every read first pulls any new LI.FI transfers of ours (at most once a minute), so the totals are current.
 // Reading is private: without the right key it answers 404, as if the page didn't exist.
 const { Ratelimit } = require('@upstash/ratelimit');
-const { track, summary, exportLog, redis, store, clientIp, isProd } = require('./_lib/flowStats');
+const { render } = require('./_lib/statsView');
+const { track, sync, wallets, summary, exportLog, redis, store, clientIp, isProd } = require('./_lib/flowStats');
 
 const trackLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(40, '60 s'), prefix: 'ratelimit:track' })
@@ -41,13 +48,23 @@ module.exports = async function handler(req, res) {
   // (Local `npm run dev` without a key stays open so you can test.)
   if (isProd || key) { if (!key || given !== key) return res.status(404).json({ error: 'Not found' }); }
   try {
+    res.setHeader('Cache-Control', 'no-store');
+    const lifi = await sync().catch(() => ({ ok: false }));
+    if (req.query?.wallet) return res.status(200).json({ ...(await wallets({ wallet: req.query.wallet })), lifiSynced: !!lifi.ok });
+    if (req.query?.wallets !== undefined) return res.status(200).json({ ...(await wallets()), lifiSynced: !!lifi.ok });
     if (req.query?.export !== undefined) {
       const rows = await exportLog(Number(req.query.export) || 500);
       return res.status(200).json({ count: rows.length, transactions: rows });
     }
     const days = Math.min(365, Math.max(1, Number(req.query?.days) || 30));
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).json(await summary({ days }));
+    if (req.query?.view !== undefined) {
+      const [sum, rows, top] = await Promise.all([summary({ days }), exportLog(200), wallets()]);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      return res.status(200).send(render({ summary: sum, rows, wallets: top.wallets, key: given, lifiSynced: !!lifi.ok }));
+    }
+    // lifiSynced: false means LI.FI couldn't be read just now, so recent LI.FI routes may be missing.
+    return res.status(200).json({ ...(await summary({ days })), lifiSynced: !!lifi.ok });
   } catch (e) {
     console.error('stats error:', e?.message);
     return res.status(502).json({ error: 'Stats temporarily unavailable.' });

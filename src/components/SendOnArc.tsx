@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTxFeature } from "../txTracking";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, isAddress, getAddress, encodeFunctionData } from "viem";
 import type { EIP1193Provider } from "viem";
 import { Check, ChevronDown, Search, AlertTriangle } from "lucide-react";
@@ -73,6 +74,7 @@ function Logo({ t, size }: { t: Tok; size: number }) {
 type Step = "idle" | "confirm" | "sending" | "done" | "error";
 
 export default function SendOnArc({ address, provider }: { address: string; provider?: EIP1193Provider }) {
+  useTxFeature("send");
   const [list, setList] = useState<Tok[]>([]);
   const [balances, setBalances] = useState<Record<string, bigint>>({});
   const [custom_, setCustom] = useState<Tok | null>(null);

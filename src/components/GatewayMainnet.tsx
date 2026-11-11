@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTxFeature } from "../txTracking";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, parseUnits, pad, isAddress } from "viem";
 import type { Chain, EIP1193Provider } from "viem";
 import { mainnet, base, arbitrum, avalanche, worldchain } from "viem/chains";
@@ -145,6 +146,7 @@ async function circleCallAndWait(body: Record<string, unknown>, onAccepted?: () 
 
 
 export default function GatewayMainnet({ browserAddress, provider, circleLive, onOpenNativeBridge, onConnect }: { browserAddress?: string; provider?: EIP1193Provider; circleLive?: LiveCircleWallet | null; onOpenNativeBridge?: () => void; onConnect?: () => void }) {
+  useTxFeature("gateway");
   const [source, setSource] = useState<"browser" | "circle">(browserAddress ? "browser" : "circle");
   const hasBrowser = !!browserAddress && !!provider;
   const hasCircle = !!circleLive;
