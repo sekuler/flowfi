@@ -57,7 +57,10 @@ const CHAINS = {
     T('0x3600000000000000000000000000000000000000', 'USDC', 6),
     T('0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1', 'EURC', 6),
     T('0x171A4217b86A807A64eB94757Db6849fb4bDbAA0', 'cirBTC', 8),
-  ], nativeIsUsdc: true },
+  ], nativeIsUsdc: true,
+    // Arc logs every USDC movement twice: once from the USDC token (6 decimals) and once from this
+    // system address (the same amount with 18 decimals). Only the USDC token's log is counted.
+    ignore: ['0xfffffffffffffffffffffffffffffffffffffffe'] },
   1: { chain: chains.mainnet, rpcEnv: 'ETHEREUM_RPC_URL', tokens: [
     T('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', 'USDC', 6),
     T('0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c', 'EURC', 6),
@@ -120,6 +123,7 @@ const store = {
     if (redis) return redis.sadd(key, v);
     const s = mem.sets.get(key) ?? new Set(); s.add(v); mem.sets.set(key, s);
   },
+  async smembers(key) { return redis ? ((await redis.smembers(key)) ?? []) : [...(mem.sets.get(key) ?? [])]; },
   async scard(key) { return redis ? redis.scard(key) : (mem.sets.get(key)?.size ?? 0); },
   async lpush(key, v, keep) {
     if (redis) { await redis.lpush(key, v); await redis.ltrim(key, 0, keep - 1); return; }
@@ -166,7 +170,12 @@ async function lifiTokenPrice(chainId, address) {
 }
 
 // ---------- verification ----------
-async function verify({ hash, chainId, from, feature = 'other' }) {
+// FlowFi's own contracts and plain transfers, used to label a tx that is added by hand.
+const MULTISEND = '0xe1aec7af5da3b981a8e627ffadc9b980c499b761';
+const TRANSFER_SELECTOR = '0xa9059cbb';
+
+// manual: added by the owner from the stats page (any age, sender taken from the chain).
+async function verify({ hash, chainId, from, feature = 'other', manual = false }) {
   const cfg = CHAINS[chainId];
   if (!cfg) return { status: 'rejected', reason: 'unsupported chain' };
   const client = clientFor(chainId);
@@ -177,16 +186,20 @@ async function verify({ hash, chainId, from, feature = 'other' }) {
 
   if (receipt.status !== 'success') return { status: 'rejected', reason: 'reverted' };
   const sender = getAddress(receipt.from);
-  if (sender !== getAddress(from)) return { status: 'rejected', reason: 'sender mismatch' };
+  if (!manual && sender !== getAddress(from)) return { status: 'rejected', reason: 'sender mismatch' };
 
   const [tx, block] = await Promise.all([
     client.getTransaction({ hash }),
     client.getBlock({ blockNumber: receipt.blockNumber }),
   ]);
   const age = Math.floor(Date.now() / 1000) - Number(block.timestamp);
-  if (age > MAX_AGE_SECONDS) return { status: 'rejected', reason: 'too old' };
+  if (!manual && age > MAX_AGE_SECONDS) return { status: 'rejected', reason: 'too old' };
   const selector = (tx.input || '').slice(0, 10).toLowerCase();
   if (selector === APPROVE_SELECTOR) return { status: 'rejected', reason: 'approval' };
+  if (manual && feature === 'other') {
+    if ((tx.to || '').toLowerCase() === MULTISEND) feature = 'batch-send';
+    else if (selector === TRANSFER_SELECTOR || (cfg.nativeIsUsdc && tx.value > 0n && (tx.input || '0x') === '0x')) feature = 'send';
+  }
   if (selector === RECEIVE_MESSAGE_SELECTOR && feature !== 'native-sui') return { status: 'rejected', reason: 'mint leg (the burn is what counts)' };
 
   const px = await prices();
@@ -204,6 +217,7 @@ async function verify({ hash, chainId, from, feature = 'other' }) {
     const dst = '0x' + log.topics[2].slice(26);
     if (src !== me && dst !== me) continue;
     const addr = log.address.toLowerCase();
+    if (cfg.ignore?.includes(addr)) continue;
     const raw = BigInt(log.data);
     const tok = cfg.tokens.find((t) => t.address === addr);
     if (!tok) {
@@ -268,7 +282,7 @@ async function save(r, source) {
     store.lpush('stats:log', JSON.stringify({ ...r, s: source, w: 1 }), LOG_KEEP), // w: already in the per-wallet totals
   ]);
   const first = await store.get('stats:since');
-  if (!first) await store.set('stats:since', String(r.t), 60 * 60 * 24 * 3650);
+  if (!first || r.t < Number(first)) await store.set('stats:since', String(r.t), 60 * 60 * 24 * 3650);
 }
 
 // ---------- LI.FI verification ----------
@@ -371,6 +385,40 @@ async function track(body) {
   return claimAndSave(result.record, source);
 }
 
+// Owner only: one lump figure for the time before the counter existed. It is typed in by hand, so it
+// is kept apart from the verified totals and always shown as a manual entry.
+async function setOpening({ volumeUsd, transactions }) {
+  const v = Math.round(Number(String(volumeUsd ?? '').replace(',', '.')) * 100);
+  const n = Math.round(Number(transactions) || 0);
+  if (!Number.isFinite(v) || v < 0 || v > 1e13 || n < 0 || n > 1e9) return { status: 'rejected', reason: 'bad amount' };
+  await store.set('stats:opening', JSON.stringify({ cents: v, txs: n, at: Math.floor(Date.now() / 1000) }), 60 * 60 * 24 * 3650);
+  return { status: 'saved', volumeUsd: v / 100, transactions: n };
+}
+async function getOpening() {
+  const raw = await store.get('stats:opening');
+  const o = (typeof raw === 'string' ? JSON.parse(raw) : raw) || null;
+  return { volumeUsd: Number(o?.cents ?? 0) / 100, transactions: Number(o?.txs ?? 0) };
+}
+
+// Owner only (the stats page): adds a tx the counter missed, e.g. one made before the counter
+// existed. It is verified exactly like any other tx, except that its age doesn't matter.
+async function addManual({ hash, chainId, feature }) {
+  hash = String(hash ?? '').trim();
+  chainId = Number(chainId) || 5042;
+  feature = /^[a-z0-9-]{1,24}$/.test(String(feature ?? '')) ? String(feature) : 'other';
+  if (!/^[0-9a-zA-Z]{32,128}$/.test(hash)) return { status: 'rejected', reason: 'bad hash' };
+  if (await store.get(seenKeyFor(chainId, hash))) return { status: 'duplicate' };
+  const ls = await lifiStatus(hash, chainId);
+  if (ls.state === 'done') return claimAndSave(ls.record, 'lifi');
+  if (ls.state === 'pending') return { status: 'pending' };
+  if (ls.state === 'failed') return { status: 'rejected', reason: 'failed or refunded' };
+  if (!isHash(hash) || !CHAINS[chainId]) return { status: 'rejected', reason: 'not found at LI.FI, and this chain cannot be checked onchain' };
+  const result = await verify({ hash, chainId, feature, manual: true });
+  if (result.status === 'pending') return { status: 'rejected', reason: 'tx not found on this chain' };
+  if (result.status !== 'ok') return result;
+  return claimAndSave(result.record, 'manual');
+}
+
 // Pulls every finished transfer of our integrator from LI.FI's analytics API and counts the ones
 // not counted yet. Resumable (window + cursor are stored), so one call never has to do it all.
 async function sync({ budgetMs = 6000, force = false } = {}) {
@@ -406,6 +454,8 @@ async function sync({ budgetMs = 6000, force = false } = {}) {
     await store.set('stats:lifi:sync', JSON.stringify(state), 60 * 60 * 24 * 3650);
     if (caughtUp) break;
   }
+  // The history scan (statsBackfill.js) starts once LI.FI's full list has been read at least once.
+  if (caughtUp) await store.set('stats:lifi:caught', '1', 60 * 60 * 24 * 3650);
   return { ok, added, caughtUp };
 }
 
@@ -471,6 +521,7 @@ async function summary({ days = 30 } = {}) {
     return { date: d, txs: Number(h?.txs ?? 0), volumeUsd: Number(h?.volumeCents ?? 0) / 100, wallets: Number(w ?? 0) };
   }));
   const num = (o) => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [k, Number(v)]));
+  const opening = await getOpening();
   const [featVol, featTx] = await Promise.all([store.hgetall('stats:featvol'), store.hgetall('stats:feattx')]);
   const byFeature = Object.keys({ ...(featVol ?? {}), ...(featTx ?? {}) })
     .map((k) => ({ feature: k, label: FEATURE_LABELS[k] || k, transactions: Number(featTx?.[k] ?? 0), volumeUsd: Number(featVol?.[k] ?? 0) / 100 }))
@@ -484,6 +535,9 @@ async function summary({ days = 30 } = {}) {
     transactions: Number(totals?.txs ?? 0),
     volumeUsd: Number(totals?.volumeCents ?? 0) / 100,
     uniqueWallets: Number(wallets ?? 0),
+    // Typed in by hand for the time before the counter; not part of the verified totals above.
+    opening,
+    totalWithOpeningUsd: Math.round((Number(totals?.volumeCents ?? 0) / 100 + opening.volumeUsd) * 100) / 100,
     byFeature,
     byChain: num(byChain),
     bySource: num(bySource),
@@ -507,4 +561,4 @@ function __setClientFactory(f) { makeClient = f; clients.clear(); }
 // Test hook only: swap the LI.FI HTTP call for a stub.
 function __setLifiFetch(f) { lifiFetch = f; }
 
-module.exports = { __setClientFactory, __setLifiFetch, FEATURE_LABELS, CHAINS, track, sync, wallets, summary, exportLog, store, redis, isProd, clientIp, SUPPORTED_CHAIN_IDS: Object.keys(CHAINS).map(Number) };
+module.exports = { __setClientFactory, __setLifiFetch, FEATURE_LABELS, CHAINS, LIFI_FROM, verify, claimAndSave, addManual, setOpening, track, sync, wallets, summary, exportLog, store, redis, isProd, clientIp, SUPPORTED_CHAIN_IDS: Object.keys(CHAINS).map(Number) };

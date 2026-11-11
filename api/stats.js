@@ -12,11 +12,16 @@
 // GET  /api/stats?key=<STATS_KEY>&export=500   -> the most recent verified txs (hash, chain, volume, time)
 // GET  /api/stats?key=<STATS_KEY>&wallets=1    -> every wallet with its total volume and tx count (highest first)
 // GET  /api/stats?key=<STATS_KEY>&wallet=0x... -> one wallet's total volume and tx count
+// GET  /api/stats?key=<STATS_KEY>&view=1&add=<tx hash>&chain=5042
+//                                              -> adds a tx the counter missed (any age); the page has a form for it
+// GET  /api/stats?key=<STATS_KEY>&view=1&opening=<usd>&openingTxs=<n>
+//                                              -> sets the lump figure for the time before the counter (0 removes it)
 // Every read first pulls any new LI.FI transfers of ours (at most once a minute), so the totals are current.
 // Reading is private: without the right key it answers 404, as if the page didn't exist.
 const { Ratelimit } = require('@upstash/ratelimit');
 const { render } = require('./_lib/statsView');
-const { track, sync, wallets, summary, exportLog, redis, store, clientIp, isProd } = require('./_lib/flowStats');
+const backfill = require('./_lib/statsBackfill');
+const { addManual, setOpening, track, sync, wallets, summary, exportLog, redis, store, clientIp, isProd } = require('./_lib/flowStats');
 
 const trackLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(40, '60 s'), prefix: 'ratelimit:track' })
@@ -47,9 +52,12 @@ module.exports = async function handler(req, res) {
   const given = req.headers['x-stats-key'] || req.query?.key;
   // (Local `npm run dev` without a key stays open so you can test.)
   if (isProd || key) { if (!key || given !== key) return res.status(404).json({ error: 'Not found' }); }
+  const startedAt = Date.now();
   try {
     res.setHeader('Cache-Control', 'no-store');
     const lifi = await sync().catch(() => ({ ok: false }));
+    // History scan for the time before the counter: a few seconds per read, until it is finished.
+    const past = await backfill.step(Math.max(Date.now(), startedAt + 7000)).catch(() => backfill.status().catch(() => null));
     if (req.query?.wallet) return res.status(200).json({ ...(await wallets({ wallet: req.query.wallet })), lifiSynced: !!lifi.ok });
     if (req.query?.wallets !== undefined) return res.status(200).json({ ...(await wallets()), lifiSynced: !!lifi.ok });
     if (req.query?.export !== undefined) {
@@ -57,14 +65,22 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ count: rows.length, transactions: rows });
     }
     const days = Math.min(365, Math.max(1, Number(req.query?.days) || 30));
+    let added = null;
+    if (req.query?.opening !== undefined && req.query.opening !== '') {
+      added = await setOpening({ volumeUsd: req.query.opening, transactions: req.query.openingTxs });
+      if (req.query?.view === undefined) return res.status(200).json(added);
+    } else if (req.query?.add) {
+      added = await addManual({ hash: req.query.add, chainId: req.query.chain, feature: req.query.feature }).catch(() => ({ status: 'rejected', reason: 'could not be checked right now' }));
+      if (req.query?.view === undefined) return res.status(200).json(added);
+    }
     if (req.query?.view !== undefined) {
       const [sum, rows, top] = await Promise.all([summary({ days }), exportLog(200), wallets()]);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-      return res.status(200).send(render({ summary: sum, rows, wallets: top.wallets, key: given, lifiSynced: !!lifi.ok }));
+      return res.status(200).send(render({ summary: sum, rows, wallets: top.wallets, key: given, lifiSynced: !!lifi.ok, added, past }));
     }
     // lifiSynced: false means LI.FI couldn't be read just now, so recent LI.FI routes may be missing.
-    return res.status(200).json({ ...(await summary({ days })), lifiSynced: !!lifi.ok });
+    return res.status(200).json({ ...(await summary({ days })), backfill: past, lifiSynced: !!lifi.ok });
   } catch (e) {
     console.error('stats error:', e?.message);
     return res.status(502).json({ error: 'Stats temporarily unavailable.' });
