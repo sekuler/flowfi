@@ -21,7 +21,6 @@ const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const lifiWidgetConfig: WidgetConfig = {
   integrator: "flowfi",
-  apiKey: import.meta.env.VITE_LIFI_API_KEY,
   // EVM, Solana and Bitcoin wallets can be connected side by side (e.g. MetaMask + Backpack), Relay-style.
   providers: [EthereumProvider(), SolanaProvider(), BitcoinProvider()],
   fromChain: BASE_CHAIN_ID,
@@ -30,6 +29,8 @@ const lifiWidgetConfig: WidgetConfig = {
   toToken: ARC_MAINNET_USDC,
   routePriority: "FASTEST",
   sdkConfig: {
+    // LI.FI calls go through FlowFi's server, which adds the API key (it is never in the browser).
+    apiUrl: `${window.location.origin}/api/lifi-proxy`,
     rpcUrls: {
       5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`],
       99901: ["https://rpc.elysium.kinetiq.xyz"],

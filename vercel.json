@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/lifi-proxy/:path*",
+      "destination": "/api/lifi-proxy?path=:path*"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -25,7 +25,6 @@ const ARC_MAINNET_EURC = "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1";
 
 const lifiWidgetConfig: WidgetConfig = {
   integrator: "flowfi",
-  apiKey: import.meta.env.VITE_LIFI_API_KEY,
   providers: [EthereumProvider()],
   fromChain: ARC_MAINNET_CHAIN_ID,
   fromToken: ARC_MAINNET_USDC,
@@ -33,6 +32,8 @@ const lifiWidgetConfig: WidgetConfig = {
   toToken: ARC_MAINNET_EURC,
   routePriority: "FASTEST",
   sdkConfig: {
+    // LI.FI calls go through FlowFi's server, which adds the API key (it is never in the browser).
+    apiUrl: `${window.location.origin}/api/lifi-proxy`,
     rpcUrls: { 5042: [`${window.location.origin}/api/rpc-proxy?network=mainnet`] },
   },
   chains: {

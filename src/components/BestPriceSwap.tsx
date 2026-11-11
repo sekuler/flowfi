@@ -25,7 +25,6 @@ type Tok = (typeof TOKENS)[number];
 // KyberSwap MetaAggregationRouterV2 on Arc, from docs.kyberswap.com (Contracts & Addresses).
 const KYBER_ROUTER = "0x6131b5fae19ea4f9d964eac0408e4408b66337b5";
 const KYBER_API = "https://aggregator-api.kyberswap.com/arc/api/v1";
-const LIFI_API = "https://li.quest/v1";
 // De¹ Exchange router on Arc (returned by its own /quote as "exchange"), from docs.de1.exchange.
 const DE1_ROUTER = "0x6352a56caadc4f1e25cd6c75970fa768a3304e64";
 const DE1_API = "https://open-api.de1.exchange/v4/arc";
@@ -82,8 +81,8 @@ async function lifiQuote(from: Tok, to: Tok, amountIn: bigint, fromAddress: stri
       fromToken: from.address, toToken: to.address, fromAmount: amountIn.toString(),
       fromAddress, integrator: "flowfi", slippage: String(SLIPPAGE_BPS / 10000),
     });
-    const key = import.meta.env.VITE_LIFI_API_KEY as string | undefined;
-    const r = await fetch(`${LIFI_API}/quote?${q}`, { headers: key ? { "x-lifi-api-key": key } : {} });
+    // Through FlowFi's server, which adds the LI.FI API key.
+    const r = await fetch(`/api/lifi-proxy/quote?${q}`, { headers: { "x-lifi-integrator": "flowfi" } });
     const d = await r.json();
     if (!r.ok || !d?.estimate?.toAmount || !d?.transactionRequest) return null;
     return { source: "LI.FI", out: BigInt(d.estimate.toAmount), raw: d };

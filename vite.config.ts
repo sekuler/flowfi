@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { createRequire } from "node:module";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -43,13 +43,23 @@ function localStatsApi(): Plugin {
 }
 import { NodeGlobalsPolyfillPlugin } from "@esbuild-plugins/node-globals-polyfill";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Non-VITE_ vars from .env/.env.local, read only by this dev config (never bundled into the app).
+  const env = loadEnv(mode, process.cwd(), "");
+  return {
   plugins: [react(), localStatsApi()],
   // Local development: proxy RPC calls to Arc mainnet so the app runs with `npm run dev` alone.
   // Production uses the api/rpc-proxy.js serverless function; `vite build` ignores this block.
   server: {
     proxy: {
       "/api/rpc-proxy": { target: "https://rpc.mainnet.arc.io", changeOrigin: true, rewrite: () => "/" },
+      // Local only: LI.FI with the API key added here, like api/lifi-proxy.js does in production.
+      "/api/lifi-proxy": {
+        target: "https://li.quest",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/lifi-proxy/, "/v1"),
+        headers: env.LIFI_API_KEY ? { "x-lifi-api-key": env.LIFI_API_KEY } : {},
+      },
       // Local only: CoinGecko prices (ticker, Home values). Production uses api/coingecko-proxy.js.
       "/api/coingecko-proxy": {
         target: "https://api.coingecko.com",
@@ -70,4 +80,5 @@ export default defineConfig({
       ],
     },
   },
+};
 });
