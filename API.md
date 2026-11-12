@@ -102,6 +102,8 @@ Proxy for Arcscan's (Blockscout-style) explorer API — used for transaction his
 
 **Rate limit:** 60 requests/minute per IP. Successful responses are cached for 30 seconds in Upstash Redis.
 
+**Env vars:** `ETHERSCAN_API_KEY` for Arc Mainnet reads. `ALCHEMY_API_KEY` (optional) — when set, mainnet account history is read from Alchemy.
+
 **Response:** Arcscan's raw response body and status code, passed through unmodified.
 
 ---
@@ -114,27 +116,25 @@ JSON-RPC proxy for Arc Testnet, and Arc Mainnet with `?network=mainnet`. Two rea
 
 **Rate limit:** 300 calls/minute per IP (each call in a batch counts). Refuses to serve in production without Upstash Redis.
 
-**Env vars:** `ARC_RPC_URL` (optional) — a keyed RPC provider URL. Falls back to the public `https://rpc.testnet.arc.io` if unset.
+**Env vars:** `ALCHEMY_API_KEY` (optional) — when set, Arc Mainnet calls go to Alchemy first and fall back to the public RPC if Alchemy is unavailable. `ARC_MAINNET_RPC_URL` (optional) — replaces the public mainnet RPC (`https://rpc.mainnet.arc.io`). `ARC_RPC_URL` (optional) — a keyed provider URL for Arc Testnet; falls back to the public `https://rpc.testnet.arc.io` if unset.
 
 **Response:** the upstream RPC's raw response body and status code, passed through unmodified.
 
 ---
 
-## `POST /api/circle-wallet`
+## `POST /api/circle-wallet-mainnet`
 
-Creates and operates Circle Developer-Controlled Wallets, and executes allowlisted contract calls on a wallet's behalf (used by the Circle Wallet path in Bridge, Swap, Gateway, and History).
-
-**Body:** `{ action, ... }` — `action` is one of `create`, `contractCall`, or a balance/wallet lookup; remaining fields depend on the action.
-
-**Security:** `contractCall` only accepts `contractAddress` values on an explicit allowlist (`ALLOWED_CONTRACTS` in the file) — USDC/EURC per chain, ArcSwap, CCTP's TokenMessengerV2/MessageTransmitterV2, and Circle Gateway's Wallet/Minter contracts. Any other address is rejected with a 403 before it reaches Circle's API. See [`SECURITY.md`](./SECURITY.md) for why this allowlist exists.
-
-**Env vars:** `CIRCLE_API_KEY`, `CIRCLE_ENTITY_SECRET`.
+Mainnet Circle Wallet (Circle LIVE key). Email one-time code sign-in, httpOnly session cookie, a per-account holding cap, and a `withdraw` action that always works. See the file header for the full list of actions and env vars.
 
 ---
 
-## `POST /api/circle-wallet-mainnet`
+## `GET|POST /api/lifi-proxy/<path>`
 
-Mainnet Circle Wallet (LIVE key, separate from testnet). Email one-time code sign-in, httpOnly session cookie, a per-account holding cap, and a `withdraw` action that always works. See the file header for the full list of actions and env vars.
+Proxies LI.FI's API (`li.quest/v1`) for the Bridge/Swap widget and Best price swap, adding FlowFi's LI.FI API key server-side so it is never in the browser bundle. Only the endpoints the LI.FI widget and SDK use are reachable (allowlist in the file).
+
+**Rate limit:** per IP, via Upstash Redis.
+
+**Env vars:** `LIFI_API_KEY`.
 
 ---
 

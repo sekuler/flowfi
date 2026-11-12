@@ -54,6 +54,7 @@ CCTP for non-USDC token IDs *(bytes32, not addresses)*:
 | Morpho Blue | [`0x34CD04070dD72b14E241112F6d83812Df5Af7fCD`](https://arc.etherscan.io/address/0x34CD04070dD72b14E241112F6d83812Df5Af7fCD) |
 | Galaxy USDC vault | [`0x8E357432CC12ff425c36432F312968aEb16112AF`](https://arc.etherscan.io/address/0x8E357432CC12ff425c36432F312968aEb16112AF) |
 | Keyrock Prime USDC vault | [`0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123`](https://arc.etherscan.io/address/0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123) |
+| Bitwise Premium RWA USDC vault | [`0x7610094B846657dCF166D59e42973db52c7015F9`](https://arc.etherscan.io/address/0x7610094B846657dCF166D59e42973db52c7015F9) |
 | Steakhouse Prime EURC vault | [`0xbeef00be37BdE921BAE06fad223125BAB16c41D1`](https://arc.etherscan.io/address/0xbeef00be37BdE921BAE06fad223125BAB16c41D1) |
 | Gauntlet EURC Prime vault | [`0x05863F54B05e96092069eF30c9Ca6060336e50B9`](https://arc.etherscan.io/address/0x05863F54B05e96092069eF30c9Ca6060336e50B9) |
 | Oracle, cirBTC / USDC market | [`0x2AA87fF48933Ce6aBA240BEE916Fc2e6Ec1e51Ab`](https://arc.etherscan.io/address/0x2AA87fF48933Ce6aBA240BEE916Fc2e6Ec1e51Ab) |
@@ -68,6 +69,14 @@ Borrow markets *(Morpho market IDs, bytes32, not addresses)*:
 | Collateral cirBTC, loan EURC, LLTV 86% | `0x6ea1ea96a1cc671615f3a3bdf51481c5b79e362a8b634396e680d1070137daf4` |
 
 Market parameters were verified onchain with `idToMarketParams`, and every vault's `asset()` is checked again each time the Earn page loads.
+
+### Aave V4 (Earn & Borrow)
+
+| Contract | Address |
+|---|---|
+| Main Spoke *(USDC market in Earn)* | [`0xB843bdC3a87A05E77E07Df9FE48928b3A34b134d`](https://arc.etherscan.io/address/0xB843bdC3a87A05E77E07Df9FE48928b3A34b134d) |
+| Forex Spoke *(EURC collateral, USDC loan)* | [`0x4164EBCAF74670aa74C8D4F59de6157c0780F1bB`](https://arc.etherscan.io/address/0x4164EBCAF74670aa74C8D4F59de6157c0780F1bB) |
+| Core Hub | [`0x17288dfc86205301064577b98B02b81017e6F79C`](https://arc.etherscan.io/address/0x17288dfc86205301064577b98B02b81017e6F79C) |
 
 ### LI.FI (Swap, any-token Bridge)
 
@@ -107,7 +116,7 @@ Arc's own CCTP domain is `26`.
 
 ## 🟡 Arc Testnet
 
-FlowFi's own contracts live here, as a working showcase with test assets that have **no monetary value**. Every `onlyOwner` contract below is owned by FlowFi's 2-of-3 Safe multisig.
+FlowFi's own testnet contracts remain deployed here; the app itself runs on Arc Mainnet. Test assets have **no monetary value**. Every `onlyOwner` contract below is owned by FlowFi's 2-of-3 Safe multisig.
 
 ### FlowFi contracts (current)
 
