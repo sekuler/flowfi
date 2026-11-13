@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTxFeature } from "../txTracking";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, isAddress, getAddress, encodeFunctionData } from "viem";
-import type { EIP1193Provider } from "viem";
+import type { EIP1193Provider, Chain } from "viem";
+import { mainnet, base, arbitrum, avalanche, worldchain } from "viem/chains";
 import { Check, ChevronDown, Search, AlertTriangle } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenIcon } from "./TokenIcon";
 import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
 
-// Direct transfer of any ERC-20 on Arc Mainnet to another address. Signed by the user's own wallet;
-// FlowFi holds nothing and adds no fee. Token list = LI.FI's public Arc list (same source as the bridge
-// token strip), plus any token the user pastes by contract address (symbol/decimals read onchain).
+// Direct transfer of any ERC-20 to another address on the same network. Signed by the user's own
+// wallet; FlowFi holds nothing and adds no fee (only the network's own gas). Token list = LI.FI's
+// public list for that network (same source as the bridge token strip), plus any token the user
+// pastes by contract address (symbol/decimals read onchain).
+// Networks: Arc plus the ones the private stats counter can verify (api/_lib/flowStats.js CHAINS).
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000";
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -22,15 +25,40 @@ const USDC_GAS_BUFFER = 0.01; // USDC is also Arc's gas token
 
 type Tok = { address: `0x${string}`; symbol: string; decimals: number; logoURI?: string };
 
-const pc = createPublicClient({ chain: arcMainnet, transport: http(undefined, { batch: { batchSize: 64 } }) });
+// usdc: the official USDC on that network (lowercase), listed first. gas: the coin that pays its fees.
+type Net = { key: string; name: string; chain: Chain; usdc: string; gas: string };
+const NETS: Net[] = [
+  { key: "arc", name: "Arc", chain: arcMainnet, usdc: ARC_USDC, gas: "USDC" },
+  { key: "ethereum", name: "Ethereum", chain: mainnet, usdc: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", gas: "ETH" },
+  { key: "base", name: "Base", chain: base, usdc: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", gas: "ETH" },
+  { key: "arbitrum", name: "Arbitrum", chain: arbitrum, usdc: "0xaf88d065e77c8cc2239327c5edb3a432268e5831", gas: "ETH" },
+  { key: "avalanche", name: "Avalanche", chain: avalanche, usdc: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e", gas: "AVAX" },
+  { key: "worldchain", name: "World Chain", chain: worldchain, usdc: "0x79a02482a880bce3f13e09da970dc34db4cd24d1", gas: "ETH" },
+];
 
-let listPromise: Promise<Tok[]> | null = null;
-function loadList(): Promise<Tok[]> {
+// One read client per network. Arc goes through FlowFi's rpc-proxy (batched JSON-RPC); the others
+// use the network's public RPC with multicall, so reading ~60 balances is one or two requests.
+function makeClient(net: Net) {
+  return net.key === "arc"
+    ? createPublicClient({ chain: arcMainnet, transport: http(undefined, { batch: { batchSize: 64 } }) })
+    : createPublicClient({ chain: net.chain, transport: http(), batch: { multicall: true } });
+}
+const clients = new Map<string, ReturnType<typeof makeClient>>();
+function clientFor(net: Net) {
+  let c = clients.get(net.key);
+  if (!c) { c = makeClient(net); clients.set(net.key, c); }
+  return c;
+}
+
+const listPromises = new Map<string, Promise<Tok[]>>();
+function loadList(net: Net): Promise<Tok[]> {
+  let listPromise = listPromises.get(net.key);
   if (!listPromise) {
-    listPromise = fetch(`https://li.quest/v1/tokens?chains=${arcMainnet.id}`)
+    const id = net.chain.id;
+    listPromise = fetch(`https://li.quest/v1/tokens?chains=${id}`)
       .then((r) => r.json())
       .then((d) => {
-        const raw: Tok[] = d?.tokens?.[arcMainnet.id] ?? d?.tokens?.[String(arcMainnet.id)] ?? [];
+        const raw: Tok[] = d?.tokens?.[id] ?? d?.tokens?.[String(id)] ?? [];
         const seen = new Set<string>();
         const list = raw.filter((t) => {
           const a = t?.address?.toLowerCase();
@@ -38,25 +66,29 @@ function loadList(): Promise<Tok[]> {
           seen.add(a);
           return true;
         });
-        const rank = (t: Tok) => (t.address.toLowerCase() === ARC_USDC ? 0 : t.symbol === "EURC" ? 1 : t.symbol === "cirBTC" ? 2 : 3);
+        const rank = (t: Tok) => (t.address.toLowerCase() === net.usdc ? 0 : t.symbol === "EURC" ? 1 : t.symbol === "cirBTC" ? 2 : 3);
         list.sort((a, b) => rank(a) - rank(b));
         return list.slice(0, MAX_LISTED);
       })
-      .catch(() => { listPromise = null; return []; });
+      .catch(() => { listPromises.delete(net.key); return []; });
+    listPromises.set(net.key, listPromise);
   }
   return listPromise;
 }
 
-async function switchToArc(provider: EIP1193Provider) {
+async function switchTo(provider: EIP1193Provider, net: Net) {
+  const want = net.key === "arc" ? ARC_MAINNET_CHAIN_ID_HEX : `0x${net.chain.id.toString(16)}`;
   const cur = (await provider.request({ method: "eth_chainId" })) as string;
-  if (cur.toLowerCase() === ARC_MAINNET_CHAIN_ID_HEX.toLowerCase()) return;
+  if (cur.toLowerCase() === want.toLowerCase()) return;
   try {
-    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_MAINNET_CHAIN_ID_HEX }] });
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: want }] });
   } catch (e: unknown) {
     if ((e as { code?: number }).code !== 4902) throw e;
     await provider.request({
       method: "wallet_addEthereumChain",
-      params: [{ chainId: ARC_MAINNET_CHAIN_ID_HEX, chainName: "Arc", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.mainnet.arc.io"], blockExplorerUrls: ["https://arc.etherscan.io"] }],
+      params: [net.key === "arc"
+        ? { chainId: want, chainName: "Arc", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: ["https://rpc.mainnet.arc.io"], blockExplorerUrls: ["https://arc.etherscan.io"] }
+        : { chainId: want, chainName: net.chain.name, nativeCurrency: net.chain.nativeCurrency, rpcUrls: [net.chain.rpcUrls.default.http[0]], blockExplorerUrls: net.chain.blockExplorers?.default?.url ? [net.chain.blockExplorers.default.url] : [] }],
     });
   }
 }
@@ -75,6 +107,12 @@ type Step = "idle" | "confirm" | "sending" | "done" | "error";
 
 export default function SendOnArc({ address, provider }: { address: string; provider?: EIP1193Provider }) {
   useTxFeature("send");
+  const [netKey, setNetKey] = useState("arc");
+  const net = NETS.find((n) => n.key === netKey) ?? NETS[0];
+  const pc = useMemo(() => clientFor(net), [net]);
+  const explorer = net.chain.blockExplorers?.default?.url ?? "";
+  const explorerName = net.chain.blockExplorers?.default?.name ?? "explorer";
+  const [nativeBal, setNativeBal] = useState<bigint | null>(null);
   const [list, setList] = useState<Tok[]>([]);
   const [balances, setBalances] = useState<Record<string, bigint>>({});
   const [custom_, setCustom] = useState<Tok | null>(null);
@@ -87,14 +125,14 @@ export default function SendOnArc({ address, provider }: { address: string; prov
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
-  const unconfirmed = useUnconfirmedTx(`send-${address}`);
+  const unconfirmed = useUnconfirmedTx(net.key === "arc" ? `send-${address}` : `send-${net.key}-${address}`);
   const [refresh, setRefresh] = useState(0);
 
   // Token list + balances (one batched request), tokens the wallet holds first.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const l = await loadList();
+      const l = await loadList(net);
       if (cancelled) return;
       setList(l);
       setToken((cur) => cur ?? l[0] ?? null);
@@ -105,7 +143,23 @@ export default function SendOnArc({ address, provider }: { address: string; prov
       setBalances((prev) => ({ ...prev, ...b }));
     })();
     return () => { cancelled = true; };
-  }, [address, refresh]);
+  }, [address, refresh, net, pc]);
+
+  // Outside Arc the fee is paid in the network's own coin (ETH, AVAX), so check the wallet has some.
+  useEffect(() => {
+    setNativeBal(null);
+    if (net.key === "arc") return;
+    let cancelled = false;
+    pc.getBalance({ address: address as `0x${string}` }).then((v) => { if (!cancelled) setNativeBal(v); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [address, refresh, net, pc]);
+
+  function pickNet(key: string) {
+    if (key === netKey) return;
+    setNetKey(key);
+    setList([]); setBalances({}); setToken(null); setCustom(null); setQuery(""); setLookup("idle"); setPickerOpen(false);
+    setAmount(""); setError(null); setTxHash(null); setStep("idle");
+  }
 
   // Balance of the selected token (also covers a pasted custom token).
   useEffect(() => {
@@ -115,7 +169,7 @@ export default function SendOnArc({ address, provider }: { address: string; prov
       .then((v) => { if (!cancelled) setBalances((p) => ({ ...p, [token.address.toLowerCase()]: v })); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [token, address, refresh]);
+  }, [token, address, refresh, pc]);
 
   // Pasted contract address in the search box → read the token onchain.
   useEffect(() => {
@@ -135,7 +189,7 @@ export default function SendOnArc({ address, provider }: { address: string; prov
       } catch { if (!cancelled) { setCustom(null); setLookup("fail"); } }
     })();
     return () => { cancelled = true; };
-  }, [query, list]);
+  }, [query, list, pc]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -157,7 +211,8 @@ export default function SendOnArc({ address, provider }: { address: string; prov
   const isSelf = toValid && toTrim.toLowerCase() === address.toLowerCase();
   const isTokenContract = toValid && token && toTrim.toLowerCase() === token.address.toLowerCase();
   const tooMuch = amtRaw !== null && balRaw !== undefined && amtRaw > balRaw;
-  const isUsdc = token?.address.toLowerCase() === ARC_USDC;
+  const isUsdc = net.key === "arc" && token?.address.toLowerCase() === ARC_USDC;
+  const noGas = net.key !== "arc" && nativeBal === 0n;
   const gasLow = isUsdc && amtRaw !== null && balRaw !== undefined && !tooMuch && Number(formatUnits(balRaw - amtRaw, token!.decimals)) < USDC_GAS_BUFFER;
 
   let problem: string | null = null;
@@ -172,8 +227,8 @@ export default function SendOnArc({ address, provider }: { address: string; prov
     if (!provider || !token || !ready || amtRaw === null) return;
     setError(null); setStep("sending");
     try {
-      await switchToArc(provider);
-      const wc = createWalletClient({ account: address as `0x${string}`, chain: arcMainnet, transport: custom(provider) });
+      await switchTo(provider, net);
+      const wc = createWalletClient({ account: address as `0x${string}`, chain: net.chain, transport: custom(provider) });
       const h = await wc.sendTransaction({ to: token.address, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [getAddress(toTrim), amtRaw] }) });
       setTxHash(h);
       const r = await receiptOrUnknown(pc, h);
@@ -207,8 +262,8 @@ export default function SendOnArc({ address, provider }: { address: string; prov
       <div style={{ ...card, textAlign: "center", padding: "2rem 1.25rem" }}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><Check size={26} color="#16A34A" /></div>
         <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>Sent</div>
-        <div style={{ fontSize: 13.5, color: MUTED, margin: "6px 0 16px" }}>{amtShown} {token.symbol} to {short(toTrim)}</div>
-        {txHash && <a href={`https://arc.etherscan.io/tx/${txHash}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: BLUE, fontWeight: 700 }}>View on ArcScan ↗</a>}
+        <div style={{ fontSize: 13.5, color: MUTED, margin: "6px 0 16px" }}>{amtShown} {token.symbol} to {short(toTrim)} on {net.name}</div>
+        {txHash && explorer && <a href={`${explorer}/tx/${txHash}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: BLUE, fontWeight: 700 }}>View on {explorerName} ↗</a>}
         <button onClick={reset} style={{ display: "block", width: "100%", marginTop: 18, padding: "0.85rem", borderRadius: 16, border: "none", background: BLUE, color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>Send again</button>
       </div>
     );
@@ -217,8 +272,21 @@ export default function SendOnArc({ address, provider }: { address: string; prov
   return (
     <div style={card}>
       <style>{`.ff-send-in, .ff-send-in:focus { outline: none !important; box-shadow: none !important; border: none !important; background: transparent !important; }`}</style>
-      <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginBottom: 2 }}>Send on Arc</div>
-      <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 14 }}>Send any token on Arc straight to another address.</div>
+      <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginBottom: 2 }}>Send on {net.name}</div>
+      <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 12 }}>Send any token on {net.name} straight to another address. Only the network fee applies.</div>
+
+      {/* Network */}
+      <div role="tablist" aria-label="Network" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+        {NETS.map((n) => {
+          const on = n.key === net.key;
+          return (
+            <button key={n.key} role="tab" aria-selected={on} onClick={() => pickNet(n.key)} disabled={step === "sending" || !!unconfirmed.hash}
+              style={{ padding: "0.4rem 0.8rem", borderRadius: 999, border: `1px solid ${on ? BLUE : LINE}`, background: on ? BLUE : "#fff", color: on ? "#fff" : INK, fontWeight: 700, fontSize: 12.5, cursor: on ? "default" : "pointer" }}>
+              {n.name}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Token */}
       <div style={{ ...box, position: "relative", marginBottom: 10 }}>
@@ -239,7 +307,7 @@ export default function SendOnArc({ address, provider }: { address: string; prov
                 <TokenRow t={custom_} bal={balances[custom_.address.toLowerCase()]} note="Custom token" onPick={() => { setToken(custom_); setPickerOpen(false); setQuery(""); }} />
               )}
               {lookup === "loading" && <div style={{ fontSize: 12.5, color: MUTED, padding: "0.6rem" }}>Looking up token…</div>}
-              {lookup === "fail" && <div style={{ fontSize: 12.5, color: "#B91C1C", padding: "0.6rem" }}>No token found at this address on Arc.</div>}
+              {lookup === "fail" && <div style={{ fontSize: 12.5, color: "#B91C1C", padding: "0.6rem" }}>No token found at this address on {net.name}.</div>}
               {shown.map((t) => (
                 <TokenRow key={t.address} t={t} bal={balances[t.address.toLowerCase()]} onPick={() => { setToken(t); setPickerOpen(false); setQuery(""); }} />
               ))}
@@ -268,17 +336,18 @@ export default function SendOnArc({ address, provider }: { address: string; prov
 
       {problem && <Notice tone="error">{problem}</Notice>}
       {!problem && gasLow && <Notice tone="warn">USDC also pays gas on Arc. Keep a little USDC so you can make transactions later.</Notice>}
+      {!problem && noGas && <Notice tone="warn">Your wallet has no {net.gas} on {net.name}. You need a little {net.gas} there to pay the network fee.</Notice>}
 
       {step === "confirm" && token && (
         <div style={{ border: `1px solid ${BLUE}`, background: "#EEF1FE", borderRadius: 16, padding: "0.85rem 1rem", marginBottom: 12, fontSize: 13.5, color: INK, lineHeight: 1.5 }}>
-          <b>{amtShown} {token.symbol}</b> will be sent to<br />
+          <b>{amtShown} {token.symbol}</b> on <b>{net.name}</b> will be sent to<br />
           <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12.5, wordBreak: "break-all" }}>{getAddress(toTrim)}</span>
-          <div style={{ fontSize: 12, color: MUTED, marginTop: 6 }}>Transfers can't be reversed. Check the address before you confirm.</div>
+          <div style={{ fontSize: 12, color: MUTED, marginTop: 6 }}>Transfers can't be reversed. Check the address, and that the recipient accepts {token.symbol} on {net.name}, before you confirm.</div>
         </div>
       )}
 
       {step === "error" && error && <Notice tone="error">{error}</Notice>}
-      {unconfirmed.hash && <div style={{ marginBottom: 10 }}><UnconfirmedTxNotice client={pc} hash={unconfirmed.hash} explorer="https://arc.etherscan.io" onResolved={onUnconfirmedResolved} onDismiss={() => unconfirmed.set(null)} /></div>}
+      {unconfirmed.hash && <div style={{ marginBottom: 10 }}><UnconfirmedTxNotice client={pc} hash={unconfirmed.hash} explorer={explorer} onResolved={onUnconfirmedResolved} onDismiss={() => unconfirmed.set(null)} /></div>}
 
       {step === "confirm" ? (
         <div style={{ display: "flex", gap: 8 }}>
@@ -292,7 +361,7 @@ export default function SendOnArc({ address, provider }: { address: string; prov
         </button>
       )}
       {step === "sending" && txHash && (
-        <div style={{ textAlign: "center", marginTop: 10 }}><a href={`https://arc.etherscan.io/tx/${txHash}`} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: BLUE, fontWeight: 700 }}>View on ArcScan ↗</a></div>
+        <div style={{ textAlign: "center", marginTop: 10 }}><a href={`${explorer}/tx/${txHash}`} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: BLUE, fontWeight: 700 }}>View on {explorerName} ↗</a></div>
       )}
     </div>
   );
