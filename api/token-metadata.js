@@ -144,6 +144,6 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Unknown action' });
   } catch (error) {
     console.error('Token metadata error:', error.message);
-    return res.status(500).json({ error: error.message ?? 'Internal error' });
+    return res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 };

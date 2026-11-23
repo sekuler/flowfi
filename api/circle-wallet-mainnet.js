@@ -557,6 +557,6 @@ module.exports = async function handler(req, res) {
     if (upstream >= 400 && upstream < 500 && upstream !== 401 && upstream !== 403 && upstream !== 429) {
       return res.status(400).json({ error: error?.response?.data?.message ?? error?.message ?? 'Circle refused this request.' });
     }
-    return res.status(500).json({ error: error?.message ?? 'Internal error' });
+    return res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 };

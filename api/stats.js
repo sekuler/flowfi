@@ -18,6 +18,7 @@
 //                                              -> sets the lump figure for the time before the counter (0 removes it)
 // Every read first pulls any new LI.FI transfers of ours (at most once a minute), so the totals are current.
 // Reading is private: without the right key it answers 404, as if the page didn't exist.
+const crypto = require('crypto');
 const { Ratelimit } = require('@upstash/ratelimit');
 const { render } = require('./_lib/statsView');
 const backfill = require('./_lib/statsBackfill');
@@ -29,6 +30,13 @@ const trackLimit = redis
 const readLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, '60 s'), prefix: 'ratelimit:stats' })
   : null;
+
+// Constant-time compare, so the key can't be guessed from response timing.
+function keyMatches(given, key) {
+  const a = crypto.createHash('sha256').update(given).digest();
+  const b = crypto.createHash('sha256').update(key).digest();
+  return crypto.timingSafeEqual(a, b);
+}
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -51,7 +59,7 @@ module.exports = async function handler(req, res) {
   const key = process.env.STATS_KEY;
   const given = req.headers['x-stats-key'] || req.query?.key;
   // (Local `npm run dev` without a key stays open so you can test.)
-  if (isProd || key) { if (!key || given !== key) return res.status(404).json({ error: 'Not found' }); }
+  if (isProd || key) { if (!key || !keyMatches(String(given || ''), key)) return res.status(404).json({ error: 'Not found' }); }
   const startedAt = Date.now();
   try {
     res.setHeader('Cache-Control', 'no-store');
