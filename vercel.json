@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/uniswap/:path*",
+      "destination": "/api/lifi-proxy?provider=uniswap&path=:path*"
+    },
+    {
       "source": "/api/lifi-proxy/:path*",
       "destination": "/api/lifi-proxy?path=:path*"
     }

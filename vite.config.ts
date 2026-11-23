@@ -60,6 +60,13 @@ export default defineConfig(({ mode }) => {
         rewrite: (p) => p.replace(/^\/api\/lifi-proxy/, "/v1"),
         headers: env.LIFI_API_KEY ? { "x-lifi-api-key": env.LIFI_API_KEY } : {},
       },
+      // Local only: Uniswap Trading API with the API key added here, like api/lifi-proxy.js (?provider=uniswap) does in production.
+      "/api/uniswap": {
+        target: "https://trade-api.gateway.uniswap.org",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/uniswap/, "/v1"),
+        headers: { ...(env.UNISWAP_API_KEY ? { "x-api-key": env.UNISWAP_API_KEY } : {}), "x-universal-router-version": "2.1.2" },
+      },
       // Local only: CoinGecko prices (ticker, Home values). Production uses api/coingecko-proxy.js.
       "/api/coingecko-proxy": {
         target: "https://api.coingecko.com",

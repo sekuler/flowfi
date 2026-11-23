@@ -10,7 +10,7 @@ import { useIsMobile } from "../useIsMobile";
 import { loadLifiDiamond } from "./txUtils";
 
 // Same-chain swaps on Arc Mainnet, routed to whichever source gives the most output.
-// Each source is asked for a quote in parallel (KyberSwap, De¹ and LI.FI); the best one is
+// Each source is asked for a quote in parallel (KyberSwap, De¹, Uniswap and LI.FI); the best one is
 // shown and used. The swap is signed by the user's own connected wallet; FlowFi holds nothing.
 // Safety: the transaction target must be the known router of the chosen source, or nothing is sent.
 
@@ -34,10 +34,14 @@ const KYBER_API = "https://aggregator-api.kyberswap.com/arc/api/v1";
 // De¹ Exchange router on Arc (returned by its own /quote as "exchange"), from docs.de1.exchange.
 const DE1_ROUTER = "0x6352a56caadc4f1e25cd6c75970fa768a3304e64";
 const DE1_API = "https://open-api.de1.exchange/v4/arc";
+// Uniswap Trading API, reached through FlowFi's server (/api/uniswap -> api/lifi-proxy.js), which adds the API key.
+// Universal Router 2.1.2 and Permit2 on Arc: from Uniswap's supported-chains docs, both verified contracts on explorer.arc.io.
+const UNI_ROUTER = "0x8702463e73f74d0b6765abceb314ef07acb92650";
+const PERMIT2 = "0x000000000022d473030f116ddee9f6b43ac78ba3";
 const SLIPPAGE_BPS = 50; // 0.5%
 const QUOTE_ADDRESS = "0x000000000000000000000000000000000000dEaD"; // quotes before a wallet is connected
 
-type Source = "KyberSwap" | "De¹" | "LI.FI";
+type Source = "KyberSwap" | "De¹" | "Uniswap" | "LI.FI";
 interface Quote { source: Source; out: bigint; raw: unknown }
 
 const BLUE = "#3D5AF1";
@@ -95,6 +99,25 @@ async function lifiQuote(from: Tok, to: Tok, amountIn: bigint, fromAddress: stri
   } catch { return null; }
 }
 
+// Classic (onchain pool) routes only: the V2/V3/V4 protocol list keeps UniswapX orders out, so the result is
+// a normal transaction to the Universal Router that can be dry-run like the other sources.
+async function uniQuote(from: Tok, to: Tok, amountIn: bigint, swapper: string): Promise<Quote | null> {
+  try {
+    const r = await fetch("/api/uniswap/quote", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "EXACT_INPUT", amount: amountIn.toString(),
+        tokenIn: from.address, tokenOut: to.address,
+        tokenInChainId: String(ARC_MAINNET_CHAIN_ID), tokenOutChainId: String(ARC_MAINNET_CHAIN_ID),
+        swapper, slippageTolerance: SLIPPAGE_BPS / 100, routingPreference: "BEST_PRICE", protocols: ["V2", "V3", "V4"],
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok || d?.routing !== "CLASSIC" || !d?.quote?.output?.amount) return null;
+    return { source: "Uniswap", out: BigInt(d.quote.output.amount), raw: d };
+  } catch { return null; }
+}
+
 async function switchToArc(provider: EIP1193Provider) {
   const cur = (await provider.request({ method: "eth_chainId" })) as string;
   if (cur.toLowerCase() === ARC_MAINNET_CHAIN_ID_HEX.toLowerCase()) return;
@@ -106,7 +129,7 @@ async function switchToArc(provider: EIP1193Provider) {
   }
 }
 
-const LOGOS: Record<Source, string> = { "KyberSwap": "/logos/kyberswap.svg", "De¹": "/logos/de1.png", "LI.FI": "/logos/lifi.svg" };
+const LOGOS: Record<Source, string> = { "KyberSwap": "/logos/kyberswap.svg", "De¹": "/logos/de1.png", "Uniswap": "/logos/uniswap.svg", "LI.FI": "/logos/lifi.svg" };
 
 const fmt = (v: bigint, t: Tok) => Number(formatUnits(v, t.decimals)).toLocaleString("en-US", { maximumFractionDigits: t.decimals === 8 ? 8 : 4 });
 // Short form for small extras (the "+gain" chip): 3 significant digits.
@@ -188,6 +211,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       const res = await Promise.all([
         off.includes("KyberSwap") ? Promise.resolve(null) : kyberQuote(from, to, amountIn),
         off.includes("De¹") ? Promise.resolve(null) : de1Quote(from, to, amountIn),
+        off.includes("Uniswap") ? Promise.resolve(null) : uniQuote(from, to, amountIn, address ?? QUOTE_ADDRESS),
         lifiQuote(from, to, amountIn, address ?? QUOTE_ADDRESS),
       ]);
       if (cancelled) return;
@@ -260,6 +284,48 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
           setTick((t) => t + 1);
           throw new Error(`De¹'s price changed to ${fmt(builtOut, to)} ${to.symbol}. Nothing was sent. Prices are refreshed, please check them and try again.`);
         }
+      } else if (sel.source === "Uniswap") {
+        setMsg("Getting a fresh Uniswap quote...");
+        const q = await uniQuote(from, to, amountIn, me);
+        const d = q?.raw as { quote?: { output?: { amount?: string } }; permitData?: { domain: Record<string, unknown>; types: Record<string, { name: string; type: string }[]>; values: Record<string, unknown> } | null; permitTransaction?: unknown } | undefined;
+        if (!q || !d) throw new Error("Uniswap couldn't quote this route right now. Please try again.");
+        if (q.out < (sel.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
+          setTick((t) => t + 1);
+          throw new Error(`Uniswap's price changed to ${fmt(q.out, to)} ${to.symbol}. Nothing was sent. Prices are refreshed, please check them and try again.`);
+        }
+        // Uniswap spends tokens through Permit2: when the quote asks for it, the user signs a permit (a signature,
+        // not a transaction) that lets the Universal Router take exactly this swap's tokens from Permit2.
+        const { permitData, permitTransaction: _pt, ...quoteBody } = d;
+        void _pt;
+        let signature: string | undefined;
+        if (permitData) {
+          const v = permitData.values as { details?: { token?: string }; spender?: string };
+          if (String(permitData.domain.verifyingContract ?? "").toLowerCase() !== PERMIT2
+            || String(v.spender ?? "").toLowerCase() !== UNI_ROUTER
+            || String(v.details?.token ?? "").toLowerCase() !== from.address.toLowerCase()) {
+            throw new Error("Unexpected Uniswap permit. Nothing was signed.");
+          }
+          const domainTypes = ([["name", "string"], ["version", "string"], ["chainId", "uint256"], ["verifyingContract", "address"], ["salt", "bytes32"]] as const)
+            .filter(([k]) => permitData.domain[k] !== undefined).map(([name, type]) => ({ name, type }));
+          const primaryType = Object.keys(permitData.types).find((k) => k.startsWith("Permit") && !k.endsWith("Details")) ?? "PermitSingle";
+          setMsg("Sign the Uniswap permit in your wallet (no gas)...");
+          signature = await provider.request({
+            method: "eth_signTypedData_v4",
+            params: [me, JSON.stringify({ types: { EIP712Domain: domainTypes, ...permitData.types }, domain: permitData.domain, primaryType, message: permitData.values })],
+          } as never) as string;
+        }
+        setMsg("Preparing the Uniswap route...");
+        const r = await fetch("/api/uniswap/swap", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(permitData && signature ? { ...quoteBody, signature, permitData } : quoteBody),
+        });
+        const s = await r.json();
+        if (!r.ok || !s?.swap?.data || s.swap.data === "0x") throw new Error("Uniswap couldn't build this route. Please try again.");
+        txTo = String(s.swap.to).toLowerCase();
+        data = s.swap.data;
+        value = BigInt(s.swap.value || 0);
+        spender = PERMIT2;
+        if (txTo !== UNI_ROUTER) throw new Error("Unexpected Uniswap router address. Nothing was sent.");
       } else {
         setMsg("Getting a fresh LI.FI quote...");
         const q = await lifiQuote(from, to, amountIn, me);
@@ -308,7 +374,10 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
         if (realOut === null) {
           try {
             const sim = await pc.call({ account: me, to: txTo as `0x${string}`, data, value });
-            if (sim.data && sim.data.length >= 66) realOut = BigInt(sim.data.slice(0, 66));
+            // Uniswap's Universal Router returns nothing, but its calldata carries the minimum output (0.5% slippage)
+            // and the router reverts below it, so a dry run that doesn't revert already proves that minimum.
+            if (sel.source === "Uniswap") realOut = (sel.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n;
+            else if (sim.data && sim.data.length >= 66) realOut = BigInt(sim.data.slice(0, 66));
           } catch { realOut = null; }
         }
         if (realOut === null || realOut < (sel.out * BigInt(10000 - SLIPPAGE_BPS)) / 10000n) {
@@ -487,7 +556,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       </button>
 
       <p style={{ margin: 0, fontSize: 11.5, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>
-        Best price across KyberSwap, De¹ and LI.FI on Arc. You sign every step in your own wallet.
+        Best price across KyberSwap, De¹, Uniswap and LI.FI on Arc. You sign every step in your own wallet.
       </p>
     </div>
     {!isMobile && quotesBox && (

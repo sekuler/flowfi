@@ -106,7 +106,7 @@ export default function MainnetSwap({ address, provider, onConnect }: { address?
         </div>
         <div style={{ display: "flex", gap: 4, padding: 4, background: "rgba(255,255,255,0.85)", border: "1px solid #E7E4DD", borderRadius: 999, width: "fit-content", maxWidth: "100%" }}>
           {([
-            { k: "best", t: "Best price", sub: "KyberSwap + De¹ + LI.FI" },
+            { k: "best", t: "Best price", sub: "KyberSwap + De¹ + Uniswap + LI.FI" },
             { k: "any", t: "Any token", sub: "Full LI.FI routing" },
           ] as const).map((tab) => {
             const on = mode === tab.k;

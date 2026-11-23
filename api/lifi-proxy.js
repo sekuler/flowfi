@@ -44,6 +44,12 @@ const ratelimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(300, '60 s'), prefix: 'ratelimit:lifi-proxy' })
   : null;
 
+// Uniswap Trading API (Best price swap's 4th source). Lives in this function because the Vercel Hobby plan
+// caps a deployment at 12 functions. vercel.json rewrites /api/uniswap/<path> to ?provider=uniswap&path=<path>.
+// Only quote + swap (POST) are reachable, and UNISWAP_API_KEY stays server-side.
+const UNISWAP_ORIGIN = 'https://trade-api.gateway.uniswap.org/v1';
+const UNISWAP_ALLOWED = ['/quote', '/swap'];
+
 async function readBody(req) {
   if (req.body !== undefined && req.body !== null) {
     return typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
@@ -79,6 +85,31 @@ module.exports = async function handler(req, res) {
 
   const rawPath = Array.isArray(req.query.path) ? req.query.path.join('/') : String(req.query.path || '');
   const path = '/' + rawPath.replace(/^\/+/, '').replace(/\/+$/, '');
+
+  if (req.query.provider === 'uniswap') {
+    const uniKey = process.env.UNISWAP_API_KEY;
+    if (method !== 'POST' || !UNISWAP_ALLOWED.includes(path)) return res.status(400).json({ message: 'Unsupported Uniswap endpoint.' });
+    if (!uniKey) return res.status(503).json({ message: 'Uniswap quotes are not configured.' });
+    try {
+      const body = await readBody(req);
+      if (Buffer.byteLength(body) > MAX_BODY_BYTES) return res.status(413).json({ message: 'Request too large.' });
+      const upstream = await fetch(`${UNISWAP_ORIGIN}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': uniKey, 'x-universal-router-version': '2.1.2' },
+        body,
+        signal: AbortSignal.timeout(20000),
+      });
+      const text = await upstream.text();
+      res.status(upstream.status);
+      res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/json');
+      res.setHeader('Cache-Control', 'no-store');
+      return res.send(text);
+    } catch (error) {
+      if (error?.status === 413) return res.status(413).json({ message: 'Request too large.' });
+      console.error('uniswap-proxy error:', error?.message);
+      return res.status(502).json({ message: 'Quote service unavailable. Please try again.' });
+    }
+  }
   if (path.includes('..') || !isAllowed(method, path)) {
     return res.status(400).json({ message: 'Unsupported LI.FI endpoint.' });
   }
