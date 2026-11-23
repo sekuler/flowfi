@@ -340,8 +340,66 @@ async function handleArcChain(req, res, ip) {
   }
 }
 
+// ── Trending on Arc (Home card) ─────────────────────────────────────────────
+// GET /api/market-analysis?topic=trending
+// Lives in this function because the Vercel Hobby plan allows at most 12 functions.
+// Only these hand-verified Arc mainnet tokens are ever shown (addresses checked against
+// Arc Portal and explorer.arc.io, all 18 decimals). Lookalike copies with the same symbol
+// exist on Arc, so nothing is listed by symbol or by search, only by these exact addresses.
+const TRENDING_TOKENS = [
+  "0xeCe5cA8bf9220718E5727754026757512212cb3c", // ARGUS
+  "0x75d658f8101fBE6DC217FBba7E20a0312af5Fa2E", // AF (Arcflow)
+  "0xEb64987643db71c76b2a2BE7E723DECC995E5b37", // COOL
+  "0x4C9b47Dbd5933aa4574B2c27F82419E4DBBD0222", // ASTOCK
+  "0xBc43CE8DEc648EA298C4275559b81D6261c90b67", // TOLLY
+];
+const TRENDING_CACHE_SECONDS = 60;
+
+async function handleTrending(res) {
+  const key = "arc-trending";
+  const cached = await getCached(key);
+  if (cached) return res.status(200).json({ ...cached, cached: true });
+  try {
+    const pairs = await getJson(`https://api.dexscreener.com/tokens/v1/arc/${TRENDING_TOKENS.join(",")}`);
+    if (!Array.isArray(pairs)) throw new Error("unexpected DexScreener response");
+    const tokens = TRENDING_TOKENS.map((addr) => {
+      const mine = pairs.filter((p) => p?.chainId === "arc" && p.baseToken?.address?.toLowerCase() === addr.toLowerCase());
+      if (!mine.length) return null;
+      // Price and change from the deepest pool; volume summed across all of the token's Arc pools.
+      const main = mine.reduce((a, b) => ((b.liquidity?.usd ?? 0) > (a.liquidity?.usd ?? 0) ? b : a));
+      const price = Number(main.priceUsd);
+      if (!Number.isFinite(price) || price <= 0) return null;
+      const ch = main.priceChange ?? {};
+      // Mini chart from real points: the price 24h, 6h, 1h and 5m ago (worked back from DexScreener's % changes) and now.
+      const past = (pct) => (Number.isFinite(pct) && pct > -100 ? price / (1 + pct / 100) : null);
+      const spark = [past(ch.h24), past(ch.h6), past(ch.h1), past(ch.m5), price].filter((v) => v !== null);
+      const tx = main.txns?.h1 ?? {};
+      return {
+        address: addr,
+        symbol: main.baseToken.symbol,
+        name: main.baseToken.name,
+        image: main.info?.imageUrl ?? null,
+        priceUsd: price,
+        change24h: Number.isFinite(ch.h24) ? ch.h24 : 0,
+        volume24h: mine.reduce((s, p) => s + (p.volume?.h24 ?? 0), 0),
+        liquidityUsd: mine.reduce((s, p) => s + (p.liquidity?.usd ?? 0), 0),
+        tradesPerHour: (tx.buys ?? 0) + (tx.sells ?? 0),
+        spark,
+      };
+    }).filter(Boolean).sort((a, b) => b.volume24h - a.volume24h);
+    const data = { tokens, source: "DexScreener", updatedAt: new Date().toISOString() };
+    await writeCache(key, data, TRENDING_CACHE_SECONDS);
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error("trending error:", err?.message);
+    return res.status(502).json({ error: "Trending data is unavailable right now." });
+  }
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  // Fixed list and fixed cache key: every request is served from the same 60s cache, so no rate limit needed.
+  if (req.query.topic === "trending") return handleTrending(res);
   if (req.query.topic === "arc-tvl") {
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
     if (ratelimit && !(await ratelimit.limit(ip)).success) return res.status(429).json({ error: "Too many analysis requests. Please wait a moment." });

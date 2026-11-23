@@ -13,6 +13,7 @@ import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
 import { USDC_LOGO, EURC_LOGO } from "./tokenLogos";
 import { loadLifiDiamond, describeTx, counterpartOf, fetchActivity, type Tx } from "./txUtils";
 import { T, glass, heroBlue } from "./mainnetTheme";
+import { setCopilotPrefill } from "../copilotPrefill";
 
 // Mainnet counterpart to CopilotHome.tsx (which stays as-is, Arc Testnet
 // only). Two states:
@@ -33,6 +34,24 @@ interface Props {
   onNavigate: (tab: "mainnetbridge" | "mainnetswap" | "mainnethistory") => void;
   provider?: EIP1193Provider;
 }
+
+// One row of the "Trending on Arc" card, from /api/market-analysis?topic=trending (DexScreener, 60s cache).
+interface TrendingToken {
+  address: string;
+  symbol: string;
+  name: string;
+  image: string | null;
+  priceUsd: number;
+  change24h: number;
+  volume24h: number;
+  liquidityUsd: number;
+  tradesPerHour: number;
+  spark: number[];
+}
+
+// Small prices ($0.000161) keep their significant digits instead of rounding to $0.00.
+const fmtPrice = (n: number) => "$" + (n >= 1 ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : n.toLocaleString("en-US", { maximumSignificantDigits: 3 }));
+const fmtUsdShort = (n: number) => "$" + (n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(2) + "K" : n.toFixed(0));
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -100,6 +119,23 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   const [expanded, setExpanded] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [sendMode, setSendMode] = useState<"single" | "batch">("single");
+  const [trending, setTrending] = useState<TrendingToken[] | null>(null);
+  const [trendingFailed, setTrendingFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => fetch("/api/market-analysis?topic=trending")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => { if (!cancelled && Array.isArray(d.tokens)) { setTrending(d.tokens); setTrendingFailed(false); } })
+      .catch(() => { if (!cancelled) setTrendingFailed(true); });
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+  // Trade opens Swap with USDC -> this token already picked (same hand-off the Copilot uses).
+  const trade = (symbol: string) => {
+    setCopilotPrefill({ kind: "swap", fromToken: "USDC", toToken: symbol, amount: "" });
+    onNavigate("mainnetswap");
+  };
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
@@ -330,6 +366,59 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
     </section>
   );
 
+  // Compact table right under the hero: one thin row per token so Your assets / Copilot stay close.
+  const trendingCols = isMobile ? "minmax(0,1.3fr) minmax(0,1fr) auto" : "minmax(0,1.6fr) minmax(0,1fr) minmax(0,0.8fr) minmax(0,1fr) minmax(0,1fr) 76px";
+  const num = { textAlign: "right" as const, fontVariantNumeric: "tabular-nums" as const, fontSize: 14.5, fontWeight: 600, color: INK };
+  const trendingCard = (trending?.length || trendingFailed) ? (
+    <section style={{ ...card, padding: isMobile ? "1rem 1.1rem" : "1.1rem 1.75rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, gap: 12 }}>
+        <h3 className="ffh-display" style={{ margin: 0, fontSize: 21, fontWeight: 600, color: INK, letterSpacing: "-0.01em" }}>Trending on Arc</h3>
+        <span style={{ fontSize: 12, color: MUTED }}>Last 24h</span>
+      </div>
+      {trendingFailed && !trending?.length ? (
+        <div style={{ padding: "0.5rem 0", fontSize: 13, color: MUTED }}>Trending data is unavailable right now.</div>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: trendingCols, gap: 12, padding: "4px 0 6px", fontSize: 12, color: MUTED, fontWeight: 600 }}>
+            <span>Token</span>
+            <span style={{ textAlign: "right" }}>Price</span>
+            {!isMobile && <span style={{ textAlign: "right" }}>24h %</span>}
+            {!isMobile && <span style={{ textAlign: "right" }}>Volume (24h)</span>}
+            {!isMobile && <span style={{ textAlign: "right" }}>Liquidity</span>}
+            <span style={{ textAlign: "center" }}>{isMobile ? "" : "Action"}</span>
+          </div>
+          {trending!.map((t) => {
+            const up = t.change24h >= 0;
+            const pct = <span style={{ color: up ? "#16A34A" : "#DC2626", fontWeight: 600 }}>{up ? "+" : ""}{t.change24h.toFixed(2)}%</span>;
+            return (
+              <div key={t.address} className="ffh-row" style={{ display: "grid", gridTemplateColumns: trendingCols, gap: 12, alignItems: "center", padding: "0.45rem 0", borderTop: `1px solid ${LINE}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <TokenIcon symbol={t.symbol} size={30} />
+                  <div style={{ minWidth: 0, lineHeight: 1.2 }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 600, color: INK }}>{t.symbol}</div>
+                    <div style={{ fontSize: 12, color: MUTED, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
+                  </div>
+                </div>
+                <div className="ffh-mono" style={num}>
+                  {fmtPrice(t.priceUsd)}
+                  {isMobile && <div style={{ fontSize: 12 }}>{pct}</div>}
+                </div>
+                {!isMobile && <div className="ffh-mono" style={{ ...num, fontSize: 13.5 }}>{pct}</div>}
+                {!isMobile && <div className="ffh-mono" style={num}>{fmtUsdShort(t.volume24h)}</div>}
+                {!isMobile && <div className="ffh-mono" style={num}>{fmtUsdShort(t.liquidityUsd)}</div>}
+                <button onClick={() => trade(t.symbol)}
+                  style={{ width: 70, justifySelf: "center", padding: "0.35rem 0", borderRadius: 8, border: "none", background: ACCENT_SOFT, color: ACCENT, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                  Trade
+                </button>
+              </div>
+            );
+          })}
+          <div style={{ marginTop: 8, fontSize: 11.5, color: MUTED }}>Market data from DexScreener. Always do your own research before trading.</div>
+        </>
+      )}
+    </section>
+  ) : null;
+
   const suggestions = isNew ? QUESTIONS_NEW : QUESTIONS_FUNDED;
 
   const expandedStyle = expanded
@@ -445,6 +534,8 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
       <CircleAllianceCard isMobile={isMobile} />
 
       {hero}
+
+      {trendingCard}
 
       {isNew ? (
         <>

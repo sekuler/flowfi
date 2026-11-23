@@ -8,7 +8,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 // counter keeps its data in memory until the dev server stops. Production uses the real
 // serverless functions; `vite build` ignores this plugin.
 const requireCjs = createRequire(import.meta.url);
-const LOCAL_API: Record<string, string> = { "/api/stats": "./api/stats.js" };
+const LOCAL_API: Record<string, string> = { "/api/stats": "./api/stats.js", "/api/market-analysis": "./api/market-analysis.js" };
 function localStatsApi(): Plugin {
   return {
     name: "flowfi-local-stats-api",

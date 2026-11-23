@@ -6,6 +6,12 @@ const TOKEN_LOGO: Record<string, string> = {
   EURC: "https://mintcdn.com/circle-167b8d39/K2XWSLhaeRomzNa1/images/assets/EURC_Token.svg?fit=max&auto=format&n=K2XWSLhaeRomzNa1&q=85&s=aae9cb36a2c95fb27b5b6ace4bfd2b3c",
   USYC: "https://mintcdn.com/circle-167b8d39/aiB-bUrkHkvhZQyE/images/assets/USYC_Token.png?fit=max&auto=format&n=aiB-bUrkHkvhZQyE&q=85&s=bcff561a269ee14bdc298ea324250f8f",
   CIRBTC: "https://mintcdn.com/circle-167b8d39/VmGNa1qFYaZh1eRy/images/assets/cirBTC_Token.svg?fit=max&auto=format&n=VmGNa1qFYaZh1eRy&q=85&s=bd0b164706c925a022fc620e9088a7e1",
+  // Trending on Arc tokens: the logos their teams set on DexScreener.
+  ARGUS: "https://cdn.dexscreener.com/cms/images/0lkViejHOEfB3StE",
+  AF: "https://cdn.dexscreener.com/cms/images/LqcwsWhiWSmC1ZEr",
+  COOL: "https://cdn.dexscreener.com/cms/images/kOZOtzEDHX4sp77k",
+  ASTOCK: "https://cdn.dexscreener.com/cms/images/sonQ5TksDq_VEPd2",
+  TOLLY: "https://cdn.dexscreener.com/cms/images/2yb49AeWGeqqurgS",
 };
 
 const TOKEN_FALLBACK: Record<string, { letter: string; color: string }> = {

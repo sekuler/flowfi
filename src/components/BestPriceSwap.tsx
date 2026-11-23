@@ -19,6 +19,12 @@ const TOKENS = [
   { symbol: "EURC", address: "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1", decimals: 6 },
   { symbol: "cirBTC", address: "0x171A4217b86A807A64eB94757Db6849fb4bDbAA0", decimals: 8 },
   { symbol: "USYC", address: "0x8a5D989Bbb96929F689B0200f435f53dA42bF490", decimals: 6 },
+  // Trending on Arc tokens (Home card). Addresses verified against Arc Portal + explorer.arc.io, all 18 decimals.
+  { symbol: "ARGUS", address: "0xeCe5cA8bf9220718E5727754026757512212cb3c", decimals: 18 },
+  { symbol: "AF", address: "0x75d658f8101fBE6DC217FBba7E20a0312af5Fa2E", decimals: 18 },
+  { symbol: "COOL", address: "0xEb64987643db71c76b2a2BE7E723DECC995E5b37", decimals: 18 },
+  { symbol: "ASTOCK", address: "0x4C9b47Dbd5933aa4574B2c27F82419E4DBBD0222", decimals: 18 },
+  { symbol: "TOLLY", address: "0xBc43CE8DEc648EA298C4275559b81D6261c90b67", decimals: 18 },
 ] as const;
 type Tok = (typeof TOKENS)[number];
 
