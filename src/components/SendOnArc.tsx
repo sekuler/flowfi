@@ -6,7 +6,7 @@ import { mainnet, base, arbitrum, avalanche, worldchain } from "viem/chains";
 import { Check, ChevronDown, Search, AlertTriangle } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenIcon } from "./TokenIcon";
-import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice, friendlyTxError } from "./UnconfirmedTx";
 
 // Direct transfer of any ERC-20 to another address on the same network. Signed by the user's own
 // wallet; FlowFi holds nothing and adds no fee (only the network's own gas). Token list = LI.FI's
@@ -237,8 +237,7 @@ export default function SendOnArc({ address, provider }: { address: string; prov
       setRefresh((n) => n + 1);
     } catch (e: unknown) {
       if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); return; }
-      const err = e as { shortMessage?: string; message?: string };
-      setError(err.shortMessage || err.message || "Something went wrong.");
+      setError(friendlyTxError(e, "Something went wrong."));
       setStep("error");
     }
   }

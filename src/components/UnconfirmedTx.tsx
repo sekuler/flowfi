@@ -31,6 +31,18 @@ export function isUserRejection(e: unknown): boolean {
   return err?.code === 4001 || /reject|denied|cancel/i.test(`${err?.shortMessage ?? ""} ${err?.message ?? ""}`);
 }
 
+// Short, readable error text for the UI. A wallet "reject" becomes a plain "cancelled" note, and long
+// technical errors (request arguments, calldata, library versions) are cut down to their first sentence.
+export function friendlyTxError(e: unknown, fallback = "Something went wrong."): string {
+  if (isUserRejection(e)) return "Transaction cancelled.";
+  const err = e as { shortMessage?: string; message?: string };
+  const raw = (err?.shortMessage || err?.message || "").trim();
+  if (!raw) return fallback;
+  const cut = raw.split(/\s*(?:Request Arguments:|Request body:|Contract Call:|Details:|Docs:|Version:|URL:)/)[0].split("\n")[0].trim();
+  if (!cut) return fallback;
+  return cut.length > 160 ? cut.slice(0, 157) + "..." : cut;
+}
+
 export function useUnconfirmedTx(key: string | null) {
   const storageKey = key ? `flowfi-unconfirmed-${key.toLowerCase()}` : null;
   const [hash, setHashState] = useState<Hash | null>(null);

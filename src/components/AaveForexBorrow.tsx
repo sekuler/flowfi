@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, maxUint256, parseAbi } from "viem";
 import type { EIP1193Provider } from "viem";
 import { ArrowLeft, RefreshCw, ExternalLink } from "lucide-react";
-import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice, friendlyTxError } from "./UnconfirmedTx";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenOnChain } from "./AssetLogos";
 import { useIsMobile } from "../useIsMobile";
@@ -270,8 +270,7 @@ export default function AaveForexBorrow({ owner, provider, onBack }: { owner?: `
       setMsg("EURC is now on as collateral."); setStep("done");
     } catch (e: unknown) {
       if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); setMsg(null); return; }
-      const err = e as { shortMessage?: string; message?: string };
-      setStep("error"); setMsg(err.shortMessage || err.message || "Transaction failed.");
+      setStep("error"); setMsg(friendlyTxError(e, "Transaction failed."));
     }
     setTick((t) => t + 1);
   }
@@ -312,11 +311,10 @@ export default function AaveForexBorrow({ owner, provider, onBack }: { owner?: `
       setStep("done"); setAmount(""); setTick((t) => t + 1);
     } catch (e: unknown) {
       if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); setMsg(null); setTick((t) => t + 1); return; }
-      const err = e as { shortMessage?: string; message?: string };
       setStep("error");
       setMsg(suppliedNow
         ? "Your EURC was supplied, but it isn't on as collateral yet. Don't supply again. Use the button below to finish."
-        : err.shortMessage || err.message || "Transaction failed.");
+        : friendlyTxError(e, "Transaction failed."));
       setTick((t) => t + 1);
     }
   }

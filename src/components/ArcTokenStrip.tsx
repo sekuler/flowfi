@@ -6,13 +6,18 @@ export interface ArcToken { address: string; symbol: string; logoURI?: string; }
 // Tokens that exist on Arc, from LI.FI's public token list (the app already talks to li.quest).
 // Looked up once per chain and cached. This is a list of what's available on Arc, not a popularity ranking.
 const cache = new Map<number, Promise<ArcToken[]>>();
+// Official logos for tokens where LI.FI's list shows a generic icon (cirBTC: Circle's own logo).
+const LOGO_OVERRIDE: Record<string, string> = {
+  "0x171a4217b86a807a64eb94757db6849fb4bdbaa0": "/logos/cirbtc.svg",
+};
 function loadArcTokens(chainId: number): Promise<ArcToken[]> {
   let p = cache.get(chainId);
   if (!p) {
     p = fetch(`https://li.quest/v1/tokens?chains=${chainId}`)
       .then((r) => r.json())
       .then((d) => {
-        const raw: ArcToken[] = d?.tokens?.[chainId] ?? d?.tokens?.[String(chainId)] ?? [];
+        const raw: ArcToken[] = (d?.tokens?.[chainId] ?? d?.tokens?.[String(chainId)] ?? [])
+          .map((t: ArcToken) => (t?.address && LOGO_OVERRIDE[t.address.toLowerCase()] ? { ...t, logoURI: LOGO_OVERRIDE[t.address.toLowerCase()] } : t));
         const seen = new Set<string>();
         const list = raw.filter((t) => {
           if (!t?.symbol || !t.logoURI || seen.has(t.symbol)) return false;

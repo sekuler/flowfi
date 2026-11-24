@@ -5,6 +5,7 @@ import type { EIP1193Provider } from "viem";
 import { Check, AlertTriangle, Upload } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenIcon } from "./TokenIcon";
+import { friendlyTxError } from "./UnconfirmedTx";
 
 // Batch payment on Arc Mainnet: send USDC, EURC or cirBTC to up to 200 addresses in one transaction.
 // Uses FlowFiMultiSend (contracts/mainnet/FlowFiMultiSend.sol): tokens move straight from the user's wallet
@@ -199,9 +200,9 @@ export default function BatchSendOnArc({ address, provider }: { address: string;
       setStep("done");
       setRefresh((n) => n + 1);
     } catch (e: unknown) {
-      const err = e as { shortMessage?: string; message?: string };
-      const msg = err.shortMessage || err.message || "Something went wrong.";
-      setError(/blacklist|blocked/i.test(msg) ? "One of the recipients can't receive this token. Remove it and try again. Nothing was sent." : msg);
+      const raw = `${(e as { shortMessage?: string; message?: string })?.shortMessage ?? ""} ${(e as { message?: string })?.message ?? ""}`;
+      const msg = friendlyTxError(e, "Something went wrong.");
+      setError(/blacklist|blocked/i.test(raw) ? "One of the recipients can't receive this token. Remove it and try again. Nothing was sent." : msg);
       setStep("error");
     }
   }

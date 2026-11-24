@@ -1,6 +1,6 @@
 import { useState, useEffect, createElement } from "react";
 import { useTxFeature } from "../txTracking";
-import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice, friendlyTxError } from "./UnconfirmedTx";
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, maxUint256 } from "viem";
 import type { EIP1193Provider } from "viem";
 import { PiggyBank, Landmark, RefreshCw, X, ArrowLeft, ExternalLink, Wallet, TrendingUp, CalendarDays, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
@@ -456,8 +456,7 @@ export default function MorphoMainnet({ browserAddress, provider, onConnect }: {
       setTick((t) => t + 1);
     } catch (e: unknown) {
       if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); setMsg(null); return; }
-      const err = e as { shortMessage?: string; message?: string };
-      setStep("error"); setMsg(err.shortMessage || err.message || "Transaction failed.");
+      setStep("error"); setMsg(friendlyTxError(e, "Transaction failed."));
     }
   }
 

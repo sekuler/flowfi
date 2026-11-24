@@ -8,7 +8,7 @@ import { EURC_LOGO } from "./tokenLogos";
 import { TokenIcon } from "./TokenIcon";
 import { BridgeKit } from "@circle-fin/bridge-kit";
 import { createKitAdapter } from "../kitAdapter";
-import { isUserRejection } from "./UnconfirmedTx";
+import { isUserRejection, friendlyTxError } from "./UnconfirmedTx";
 
 // Native EURC into Arc Mainnet via Circle's "CCTP for non-USDC" (CrossChainTokenService).
 // Sources (all verified 2026-09-23 against developers.circle.com):
@@ -290,8 +290,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
       if (!out.delivered) throw new Error(`Circle hasn't delivered on Arc yet. Your ${tok.symbol} was sent, so don't send again. Use Resume to check again.`);
       clearPending(); setStep("done");
     } catch (e: unknown) {
-      const err = e as { shortMessage?: string; message?: string };
-      setError(err.shortMessage || err.message || "Something went wrong.");
+      setError(friendlyTxError(e, "Something went wrong."));
       setStep("error");
     }
   }
@@ -371,8 +370,7 @@ export default function NativeEurcBridge({ address, provider }: { address: strin
       if (Number(mintUsed) === 0) throw new Error("We couldn't confirm the mint on Arc yet. Use Resume to check again.");
       clearPending(); setStep("done");
     } catch (e: unknown) {
-      const err = e as { shortMessage?: string; message?: string };
-      setError(err.shortMessage || err.message || "Something went wrong.");
+      setError(friendlyTxError(e, "Something went wrong."));
       setStep("error");
     }
   }

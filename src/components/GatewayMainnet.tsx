@@ -10,7 +10,7 @@ import { ChainLogo, TokenLogo, type ChainKey } from "./AssetLogos";
 import { useIsMobile } from "../useIsMobile";
 import { UnifiedBalanceKit } from "@circle-fin/unified-balance-kit";
 import { createKitAdapter } from "../kitAdapter";
-import { isUserRejection } from "./UnconfirmedTx";
+import { isUserRejection, friendlyTxError } from "./UnconfirmedTx";
 
 // Circle Gateway on MAINNET: one balance across chains for USDC, EURC and cirBTC.
 // EURC/cirBTC support: Unified Balance Kit 1.9.0 (Oct 23, 2026). Chain list, token addresses and
@@ -336,11 +336,10 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
         setDStep("pending"); setDMsg("Your deposit is still processing. Don't send it again. Your Gateway balance will update here when it lands.");
         return;
       }
-      const err = e as { shortMessage?: string; message?: string };
       setDStep("error");
       setDMsg(kitDeposit && !isUserRejection(e)
         ? "We couldn't confirm whether your deposit went through. Check your wallet's activity and your Gateway balance before trying again."
-        : err.shortMessage || err.message || "Deposit failed.");
+        : friendlyTxError(e, "Deposit failed."));
     }
   }
 
@@ -444,8 +443,7 @@ export default function GatewayMainnet({ browserAddress, provider, circleLive, o
       }
       setTStep("pending"); setTMsg("Submitted, but delivery isn't confirmed yet. Check your balance on the destination in a few minutes before trying again.");
     } catch (e: unknown) {
-      const err = e as { shortMessage?: string; message?: string };
-      setTStep("error"); setTMsg(err.shortMessage || err.message || "Transfer failed.");
+      setTStep("error"); setTMsg(friendlyTxError(e, "Transfer failed."));
     }
   }
 

@@ -3,7 +3,7 @@ import { takeCopilotPrefill, clearCopilotPrefill, COPILOT_PREFILL_EVENT, type Co
 import { createPublicClient, createWalletClient, custom, http, erc20Abi, formatUnits, parseUnits, toHex, encodeFunctionData } from "viem";
 import type { EIP1193Provider } from "viem";
 import { ArrowDown, Check, ChevronDown } from "lucide-react";
-import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice, friendlyTxError } from "./UnconfirmedTx";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenIcon } from "./TokenIcon";
 import { useIsMobile } from "../useIsMobile";
@@ -398,8 +398,7 @@ export default function BestPriceSwap({ address, provider, onConnect }: { addres
       setStep("done"); setMsg(`Swapped ${amount} ${from.symbol} for ${to.symbol} via ${sel.source}.`); setAmount(""); setTick((t) => t + 1);
     } catch (e: unknown) {
       if (e instanceof TxOutcomeUnknown) { unconfirmed.set(e.hash); setStep("idle"); setMsg(null); return; }
-      const err = e as { shortMessage?: string; message?: string };
-      setStep("error"); setMsg(err.shortMessage || err.message || "Swap failed.");
+      setStep("error"); setMsg(friendlyTxError(e, "Swap failed."));
     }
   }
 

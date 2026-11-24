@@ -11,7 +11,7 @@ import { createKitAdapter } from "../kitAdapter";
 import { useIsMobile } from "../useIsMobile";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX, USDC_ERC20_DECIMALS } from "../chains";
 import { USDC_LOGO, ARC_LOGO } from "./tokenLogos";
-import { isUserRejection } from "./UnconfirmedTx";
+import { isUserRejection, friendlyTxError } from "./UnconfirmedTx";
 
 // Native Circle CCTP V2 bridge into Arc Mainnet -- burn on the source
 // chain, Circle's Iris attestation service signs it, mint native USDC on
@@ -654,8 +654,7 @@ export default function NativeCctpBridge({ address, provider }: { address: strin
       clearPending();
       setStep("done");
     } catch (e: unknown) {
-      const err = e as { shortMessage?: string; message?: string };
-      setError(err.shortMessage || err.message || "Something went wrong.");
+      setError(friendlyTxError(e, "Something went wrong."));
       setStep("error");
     }
   }

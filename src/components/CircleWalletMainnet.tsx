@@ -6,7 +6,7 @@ import { Copy, Check, ShieldCheck, LogOut, RefreshCw } from "lucide-react";
 import { arcMainnet } from "../chains";
 import { TokenOnChain, type ChainKey } from "./AssetLogos";
 import { useIsMobile } from "../useIsMobile";
-import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice } from "./UnconfirmedTx";
+import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice, friendlyTxError } from "./UnconfirmedTx";
 
 // Mainnet Circle Wallet (email sign-in, no seed phrase). Talks ONLY to /api/circle-wallet-mainnet
 // (LIVE key), never to the testnet endpoint, and keeps its own localStorage entry so it can't be
@@ -282,8 +282,7 @@ export default function CircleWalletMainnet({ browserAddress, provider }: { brow
       refresh(wallet);
     } catch (e: unknown) {
       if (e instanceof TxOutcomeUnknown) { unconfirmedDeposit.set(e.hash); setDStep("idle"); setDMsg(null); return; }
-      const err = e as { shortMessage?: string; message?: string };
-      setDStep("error"); setDMsg(err.shortMessage || err.message || "Deposit failed.");
+      setDStep("error"); setDMsg(friendlyTxError(e, "Deposit failed."));
     }
   }
 
