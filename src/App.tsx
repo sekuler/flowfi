@@ -45,6 +45,7 @@ const MainnetBridge = lazy(() => import("./components/MainnetBridge"));
 import { getPoints, getNickname, setNickname as saveNickname, clearNickname } from "./gamification";
 import { getCircleWallet, forgetCircleWallet, type CircleWalletInfo } from "./circleWalletHelpers";
 import { showToast } from "./toast";
+import { capturePayLink } from "./payLink";
 import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CIRBTC_ADDRESS } from "./contracts";
 import {
   Home, Repeat,
@@ -85,6 +86,8 @@ const ARC_MAINNET_CIRBTC = "0x171A4217b86A807A64eB94757Db6849fb4bDbAA0" as const
 // provider whose request() always rejects, so if a guest somehow reaches an action button,
 // it fails cleanly with a clear message instead of crashing on a missing wallet.
 const queryClient = new QueryClient();
+// Payment request link (?pay=…): stored for Home's Send screen, URL cleaned right away.
+const PAY_LINK_STATUS = capturePayLink();
 const GUEST_ADDRESS = "0x0000000000000000000000000000000000000000";
 const GUEST_PROVIDER = { request: async () => { throw new Error("Connect a wallet to do this."); } } as unknown as EIP1193Provider;
 const ARC_EURC = EURC_ADDRESS;
@@ -264,6 +267,10 @@ function AppInner() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const [tab, setTab] = useState<Tab>("home");
+  useEffect(() => {
+    if (PAY_LINK_STATUS === "invalid") showToast("This payment link isn't valid. Ask the sender for a new one.", "error");
+    else if (PAY_LINK_STATUS === "ok") showToast("Payment request received. It opens in Send once your wallet is connected.", "info");
+  }, []);
   // Testnet pages are retired from the UI (contracts stay onchain). Any old link or saved
   // state that lands on a testnet tab goes back to Home.
   useEffect(() => {

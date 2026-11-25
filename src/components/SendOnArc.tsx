@@ -6,6 +6,7 @@ import { mainnet, base, arbitrum, avalanche, worldchain } from "viem/chains";
 import { Check, ChevronDown, Search, AlertTriangle } from "lucide-react";
 import { arcMainnet, ARC_MAINNET_CHAIN_ID_HEX } from "../chains";
 import { TokenIcon } from "./TokenIcon";
+import type { PayLink } from "../payLink";
 import { receiptOrUnknown, TxOutcomeUnknown, useUnconfirmedTx, UnconfirmedTxNotice, friendlyTxError } from "./UnconfirmedTx";
 
 // Direct transfer of any ERC-20 to another address on the same network. Signed by the user's own
@@ -105,9 +106,12 @@ function Logo({ t, size }: { t: Tok; size: number }) {
 
 type Step = "idle" | "confirm" | "sending" | "done" | "error";
 
-export default function SendOnArc({ address, provider }: { address: string; provider?: EIP1193Provider }) {
+export default function SendOnArc({ address, provider, prefill }: { address: string; provider?: EIP1193Provider; prefill?: PayLink | null }) {
   useTxFeature("send");
-  const [netKey, setNetKey] = useState("arc");
+  const [netKey, setNetKey] = useState(prefill?.chain ?? "arc");
+  // Payment request link: token to select once the list is loaded (read onchain if it isn't listed).
+  const [wantToken, setWantToken] = useState<string | null>(prefill?.token ?? null);
+  const [reqProblem, setReqProblem] = useState<string | null>(null);
   const net = NETS.find((n) => n.key === netKey) ?? NETS[0];
   const pc = useMemo(() => clientFor(net), [net]);
   const explorer = net.chain.blockExplorers?.default?.url ?? "";
@@ -120,8 +124,8 @@ export default function SendOnArc({ address, provider }: { address: string; prov
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [lookup, setLookup] = useState<"idle" | "loading" | "fail">("idle");
-  const [to, setTo] = useState("");
-  const [amount, setAmount] = useState("");
+  const [to, setTo] = useState(prefill?.to ?? "");
+  const [amount, setAmount] = useState(prefill?.amount ?? "");
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -144,6 +148,28 @@ export default function SendOnArc({ address, provider }: { address: string; prov
     })();
     return () => { cancelled = true; };
   }, [address, refresh, net, pc]);
+
+  useEffect(() => {
+    if (!wantToken || list.length === 0) return;
+    const hit = list.find((t) => t.address.toLowerCase() === wantToken.toLowerCase());
+    if (hit) { setToken(hit); setWantToken(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const a = getAddress(wantToken);
+        const [symbol, decimals] = await Promise.all([
+          pc.readContract({ address: a, abi: erc20Abi, functionName: "symbol" }),
+          pc.readContract({ address: a, abi: erc20Abi, functionName: "decimals" }),
+        ]);
+        if (!cancelled) setToken({ address: a, symbol, decimals });
+      } catch {
+        if (!cancelled) setReqProblem(`The requested token wasn't found on ${net.name}. Check the request with the person who sent it.`);
+      } finally {
+        if (!cancelled) setWantToken(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [wantToken, list, pc, net.name]);
 
   // Outside Arc the fee is paid in the network's own coin (ETH, AVAX), so check the wallet has some.
   useEffect(() => {
@@ -273,6 +299,9 @@ export default function SendOnArc({ address, provider }: { address: string; prov
       <style>{`.ff-send-in, .ff-send-in:focus { outline: none !important; box-shadow: none !important; border: none !important; background: transparent !important; }`}</style>
       <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginBottom: 2 }}>Send on {net.name}</div>
       <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 12 }}>Send any token on {net.name} straight to another address. Only the network fee applies.</div>
+
+      {prefill && !reqProblem && step !== "confirm" && <Notice tone="warn">Payment request. Check the address, token and amount before you send.</Notice>}
+      {reqProblem && <Notice tone="error">{reqProblem}</Notice>}
 
       {/* Network */}
       <div role="tablist" aria-label="Network" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>

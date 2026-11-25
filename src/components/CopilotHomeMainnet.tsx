@@ -7,6 +7,8 @@ import { getFormattedMarketAnalysis } from "../marketData";
 import { ArrowRight, ShieldCheck, Zap, Repeat, Plus, Send, CheckCircle2, XCircle, Clock, Sparkles, Check, Maximize2, Minimize2, X } from "lucide-react";
 import SendOnArc from "./SendOnArc";
 import BatchSendOnArc from "./BatchSendOnArc";
+import RequestPayment from "./RequestPayment";
+import { takePayLink, type PayLink } from "../payLink";
 import CircleAllianceCard from "./CircleAllianceCard";
 import Sparkline from "./Sparkline";
 import { usePortfolio, money, type MainnetBalances } from "./usePortfolio";
@@ -117,8 +119,10 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
   const [asking, setAsking] = useState(false);
   // Copilot card can be opened full-size (button in its header; Esc or the backdrop closes it).
   const [expanded, setExpanded] = useState(false);
-  const [sendOpen, setSendOpen] = useState(false);
-  const [sendMode, setSendMode] = useState<"single" | "batch">("single");
+  // A payment request link (?pay=…) opens Send with the form filled in.
+  const [payLink] = useState<PayLink | null>(() => takePayLink());
+  const [sendOpen, setSendOpen] = useState(!!payLink);
+  const [sendMode, setSendMode] = useState<"single" | "batch" | "request">("single");
   const [trending, setTrending] = useState<TrendingToken[] | null>(null);
   const [trendingFailed, setTrendingFailed] = useState(false);
   useEffect(() => {
@@ -250,7 +254,10 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
             <Plus size={18} /> Add funds
           </button>
           {isNew ? (
-            <button onClick={() => onNavigate("mainnetbridge")} style={ghostBtn}>Bridge from another chain</button>
+            <>
+              <button onClick={() => onNavigate("mainnetbridge")} style={ghostBtn}>Bridge from another chain</button>
+              <button onClick={() => setSendOpen(true)} style={ghostBtn}><Send size={16} /> Send</button>
+            </>
           ) : (
             <>
               <button onClick={() => onNavigate("mainnetswap")} style={ghostBtn}><Repeat size={16} /> Swap</button>
@@ -563,15 +570,17 @@ export default function CopilotHomeMainnet({ address, balances, onNavigate, prov
               <X size={16} color="#374151" />
             </button>
             <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,0.92)", border: "1px solid #E7E4DD", borderRadius: 999, padding: 4, width: "fit-content", margin: "0 auto 10px" }}>
-              {(["single", "batch"] as const).map((m) => (
+              {(["single", "batch", "request"] as const).map((m) => (
                 <button key={m} onClick={() => setSendMode(m)}
                   style={{ padding: "0.45rem 1rem", borderRadius: 999, border: "none", cursor: "pointer", fontWeight: 800, fontSize: 13,
                     background: sendMode === m ? "#3D5AF1" : "transparent", color: sendMode === m ? "#fff" : "#374151" }}>
-                  {m === "single" ? "Send" : "Batch payment"}
+                  {m === "single" ? "Send" : m === "batch" ? "Batch payment" : "Request"}
                 </button>
               ))}
             </div>
-            {sendMode === "single" ? <SendOnArc address={address} provider={provider} /> : <BatchSendOnArc address={address} provider={provider} />}
+            {sendMode === "single" ? <SendOnArc address={address} provider={provider} prefill={payLink} />
+              : sendMode === "batch" ? <BatchSendOnArc address={address} provider={provider} />
+              : <RequestPayment address={address} />}
           </div>
         </div>
       )}
